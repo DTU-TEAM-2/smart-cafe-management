@@ -26,11 +26,15 @@ Canonical directory: `.agents/skills/`. Machine-readable registry: [.agents/regi
 node scripts/skills.mjs list
 node scripts/skills.mjs route backend
 node scripts/skills.mjs route frontend
+node scripts/skills.mjs route backend database
+node scripts/skills.mjs route requirements
 node scripts/skills.mjs check
 node --test scripts/skills.test.mjs
 ```
 
 These commands inspect and validate routing; they do not execute the skills or change permissions. Codex can discover repo skills from `.agents/skills` when opened inside this repo; other agents should read `AGENTS.md` and the registry explicitly. See [official skill documentation](https://learn.chatgpt.com/docs/build-skills).
+
+Pass several domains for the same phase. The router deduplicates shared skills and asks you to narrow the selection if more than three match. Use `requirements` to clarify an unfinished brief. `check` verifies both the registry and every SHA-256 entry in the inherited skill manifest.
 
 Typical lifecycle: requirements → domain implementation → quality → correctness review → handoff. Release is a separate, requested phase. A backend bug routes straight to backend/quality/review unless its expected behavior is unclear. Each phase loads only its relevant files, usually at most three.
 

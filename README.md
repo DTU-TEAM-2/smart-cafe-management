@@ -1,6 +1,6 @@
 # Smart Cafe — khởi động lại quy trình
 
-Repo mới bắt đầu từ nhánh `main` rỗng. Bộ quy tắc và skill được đề xuất bằng PR riêng; chỉ có hiệu lực trong repo sau khi PR được review và merge.
+Nhánh `main` chứa bộ quy tắc và skill phát triển Smart Cafe. Nền tảng được tích hợp qua [PR #1](https://github.com/DTU-TEAM-2/smart-cafe-management/pull/1).
 
 ## Phạm vi PR nền tảng
 
@@ -11,7 +11,7 @@ Repo mới bắt đầu từ nhánh `main` rỗng. Bộ quy tắc và skill đư
 
 ## Bắt đầu lại từ đâu
 
-1. Review và chốt bộ quy tắc/skill trong PR nền tảng.
+1. Đọc bộ quy tắc và chọn skill phù hợp với task.
 2. Thu thập SRS/project plan hiện hành vào `docs/handover/`; xác nhận phạm vi và các câu hỏi nghiệp vụ.
 3. Tạo backlog với owner, tiêu chí nghiệm thu, phụ thuộc và reviewer; không chuyển task cũ sang Done tự động.
 4. Chốt mô hình dữ liệu, quyền, hợp đồng API và quyết định kiến trúc trước khi triển khai phần phụ thuộc.

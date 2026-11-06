@@ -1,4 +1,5 @@
 import { readFile, readdir } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -8,13 +9,38 @@ export async function loadRegistry() {
   return JSON.parse(await readFile(resolve(root, ".agents/registry.json"), "utf8"));
 }
 
-export async function routeSkills(domain) {
+export async function routeSkills(...domains) {
+  if (!domains.length) throw new Error("Choose a domain. Use requirements if the task is unclear.");
   const registry = await loadRegistry();
-  const ids = registry.routes[domain];
-  if (!ids) {
-    throw new Error(`Unknown domain: ${domain}. Available: ${Object.keys(registry.routes).join(", ")}`);
+  const ids = new Set();
+  for (const domain of domains) {
+    if (!Object.hasOwn(registry.routes, domain)) {
+      throw new Error(`Unknown domain: ${domain}. Available: ${Object.keys(registry.routes).join(", ")}`);
+    }
+    for (const id of registry.routes[domain]) ids.add(id);
   }
-  return ids.map((id) => registry.skills.find((skill) => skill.id === id));
+  if (ids.size > 3) throw new Error("More than three skills match. Select narrower domains for this phase.");
+  return [...ids].map((id) => registry.skills.find((skill) => skill.id === id));
+}
+
+export async function checkInheritedSkills(directory = root) {
+  const manifest = "docs/engineering/inherited-skills.json";
+  const entries = JSON.parse(await readFile(resolve(directory, manifest), "utf8"));
+  if (!Array.isArray(entries) || !entries.length) throw new Error("Inherited skill manifest is empty or invalid");
+  const seen = new Set();
+  for (const { path, sha256 } of entries) {
+    if (typeof path !== "string" || !/^\.agents\/skills\/(?:[\w.-]+\/)+[\w.-]+$/.test(path)
+      || path.split("/").some((part) => part === "." || part === "..")
+      || seen.has(path) || typeof sha256 !== "string" || !/^[a-f0-9]{64}$/.test(sha256)) {
+      throw new Error(`Invalid or duplicate inherited skill entry: ${path}`);
+    }
+    seen.add(path);
+    const content = await readFile(resolve(directory, path));
+    if (createHash("sha256").update(content).digest("hex") !== sha256) {
+      throw new Error(`Inherited skill checksum mismatch: ${path}`);
+    }
+  }
+  return entries.length;
 }
 
 async function checkRegistry() {
@@ -56,11 +82,15 @@ async function checkRegistry() {
 }
 
 async function main() {
-  const [command = "list", domain] = process.argv.slice(2);
-  if (command === "check") return checkRegistry();
+  const [command = "list", ...domains] = process.argv.slice(2);
+  if (command === "check") {
+    await checkRegistry();
+    console.log(`Inherited skill checksums OK: ${await checkInheritedSkills()} files.`);
+    return;
+  }
   const skills = command === "list" ? (await loadRegistry()).skills
-    : command === "route" ? await routeSkills(domain) : null;
-  if (!skills) throw new Error("Usage: node scripts/skills.mjs [list|check|route <domain>]");
+    : command === "route" ? await routeSkills(...domains) : null;
+  if (!skills) throw new Error("Usage: node scripts/skills.mjs [list|check|route <domain> ...]");
   for (const skill of skills) {
     console.log(`${skill.id} — .agents/skills/${skill.folder}/SKILL.md — ${skill.purpose}`);
   }
