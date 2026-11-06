@@ -22,12 +22,12 @@ Follow the [instruction priority](../../AGENTS.md#resolve-conflicting-guidance).
 | Design | Acceptance criteria and constraints | API/data/UI boundaries, affected modules and decisions | Callers and owners agree on the affected interfaces |
 | Implement | Agreed scope and contracts | Focused diff and affected checks | Normal entry points work and the diff is ready to verify |
 | Verify | Diff and acceptance criteria | Commands, results and remaining coverage limits | Relevant checks pass. Reproduce failures and return them to implementation |
-| Review | Diff, criteria and verification evidence | Findings and a merge decision | Blockers are resolved, required CI passes and the designated reviewer approves |
+| Review | Diff, criteria and verification evidence | Findings and a merge decision | Blockers and discussions are resolved, required CI passes, and an authorized maintainer decides to merge |
 | Handoff | Reviewed revision and remaining limits | PR/task links, evidence and follow-up ownership | The recipient can locate the result and act on remaining items |
 | Release | Explicit release request and verified revision | Release checks, rollback plan and deployment evidence if applicable | Release conditions and authorization are met |
 
 ## Maintain skills
 
-The repository maintainer (`NV-DuyManh`) owns the registry. The author proposes changes through a PR with the reason, affected domains, and examples of expected behavior. Mentor `haitan2408` reviews the proposal. Verify the registry, routing tests and inherited checksums. Add a routing test when behavior changes. Update an inherited checksum only after reviewing the source revision, license and file changes, and record the provenance in the same PR.
+The repository maintainer (`NV-DuyManh`) owns the registry. The author proposes changes through a PR with the reason, affected domains, and examples of expected behavior. Invite the team to review the proposal. Verify the registry, routing tests and inherited checksums. Add a routing test when behavior changes. Update an inherited checksum only after reviewing the source revision, license and file changes, and record the provenance in the same PR.
 
 See [.agents/workflows](../workflows/feature.md) for the concrete feature, bugfix and release handoffs. Skill routing does not spawn agents or create chats automatically.
