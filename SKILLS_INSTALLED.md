@@ -36,6 +36,8 @@ These commands inspect and validate routing; they do not execute the skills or c
 
 Pass several domains for the same phase. The router deduplicates shared skills and asks you to narrow the selection if more than three match. Use `requirements` to clarify an unfinished brief. `check` verifies both the registry and every SHA-256 entry in the inherited skill manifest.
 
+For UTF-8 files, checksum verification accepts equivalent LF and CRLF line endings so Windows snapshots and Git checkouts can be compared. Content changes or missing files fail the check.
+
 Typical lifecycle: requirements → domain implementation → quality → correctness review → handoff. Release is a separate, requested phase. A backend bug routes straight to backend/quality/review unless its expected behavior is unclear. Each phase loads only its relevant files, usually at most three.
 
 UI research scripts use Python 3; validation uses the standard Node runtime. The inherited web-review skill fetches current external guidelines, so an offline review must disclose that limitation. No account keys are bundled. See [inherited skill provenance](docs/engineering/skill-provenance.md).

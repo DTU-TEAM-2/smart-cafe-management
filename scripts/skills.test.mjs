@@ -54,6 +54,8 @@ test("an inherited skill edit or deletion fails checksum verification", async (t
   await writeFile(manifest, JSON.stringify([{ path, sha256 }]));
   assert.equal(await checkInheritedSkills(directory), 1);
   await writeFile(skill, "Inherited skill\n");
+  assert.equal(await checkInheritedSkills(directory), 1);
+  await writeFile(skill, "Changed skill\n");
   await assert.rejects(checkInheritedSkills(directory), /checksum mismatch/);
   await rm(skill);
   await assert.rejects(checkInheritedSkills(directory), { code: "ENOENT" });

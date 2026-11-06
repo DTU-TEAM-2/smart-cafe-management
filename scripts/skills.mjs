@@ -36,11 +36,22 @@ export async function checkInheritedSkills(directory = root) {
     }
     seen.add(path);
     const content = await readFile(resolve(directory, path));
-    if (createHash("sha256").update(content).digest("hex") !== sha256) {
+    if (!matchesInheritedChecksum(content, sha256)) {
       throw new Error(`Inherited skill checksum mismatch: ${path}`);
     }
   }
   return entries.length;
+}
+
+function matchesInheritedChecksum(content, expected) {
+  const hash = (bytes) => createHash("sha256").update(bytes).digest("hex");
+  if (hash(content) === expected) return true;
+
+  // Some source snapshots were hashed on Windows before Git normalized line endings.
+  const text = content.toString("utf8");
+  if (!Buffer.from(text, "utf8").equals(content) || text.includes("\0")) return false;
+  const lf = text.replaceAll("\r\n", "\n");
+  return hash(lf) === expected || hash(lf.replaceAll("\n", "\r\n")) === expected;
 }
 
 async function checkRegistry() {
