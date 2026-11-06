@@ -1,0 +1,9 @@
+* text=auto
+*.md text eol=lf
+*.json text eol=lf
+*.mjs text eol=lf
+*.yml text eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+# Preserve the inherited skill snapshot and upstream manifests verbatim.
+.agents/skills/** -text

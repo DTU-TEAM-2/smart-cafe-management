@@ -1,0 +1,30 @@
+name: Feature / task
+description: Công việc có nguồn yêu cầu, AC và bàn giao rõ
+title: "CF-00: "
+body:
+  - type: input
+    id: source
+    attributes:
+      label: Mã CF/QA và nguồn yêu cầu
+      description: Thay CF-00 bằng mã thật; dẫn SRS, plan hoặc quyết định QA.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Mục tiêu và tiêu chí nghiệm thu
+      description: Hành vi quan sát được, normal path và lỗi/quyền liên quan.
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Phụ thuộc và quyết định còn chờ
+  - type: input
+    id: people
+    attributes:
+      label: Owner, reviewer và ước lượng
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Kế hoạch kiểm thử và đầu ra bàn giao

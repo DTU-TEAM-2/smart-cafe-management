@@ -1,0 +1,163 @@
+{
+  "schemaVersion": 1,
+  "skills": [
+    {
+      "id": "cafe-workflow",
+      "folder": "cafe-workflow",
+      "purpose": "Phase routing and handoff",
+      "origin": "project"
+    },
+    {
+      "id": "cafe-requirements",
+      "folder": "cafe-requirements",
+      "purpose": "SRS, acceptance criteria and QA decisions",
+      "origin": "project"
+    },
+    {
+      "id": "cafe-spring-api",
+      "folder": "cafe-spring-api",
+      "purpose": "Spring APIs, authorization and transactions",
+      "origin": "project"
+    },
+    {
+      "id": "cafe-database",
+      "folder": "cafe-database",
+      "purpose": "Schema, migrations and historical data",
+      "origin": "project"
+    },
+    {
+      "id": "cafe-quality",
+      "folder": "cafe-quality",
+      "purpose": "Risk-based verification and evidence",
+      "origin": "project"
+    },
+    {
+      "id": "cafe-review",
+      "folder": "cafe-review",
+      "purpose": "Correctness, security and data-integrity review",
+      "origin": "project"
+    },
+    {
+      "id": "cafe-release",
+      "folder": "cafe-release",
+      "purpose": "Release readiness, deployment and rollback",
+      "origin": "project"
+    },
+    {
+      "id": "vercel-react-best-practices",
+      "folder": "react-best-practices",
+      "purpose": "React implementation and performance",
+      "origin": "MathVisionKid"
+    },
+    {
+      "id": "fixing-accessibility",
+      "folder": "fixing-accessibility",
+      "purpose": "Keyboard, focus, semantics and form accessibility",
+      "origin": "MathVisionKid"
+    },
+    {
+      "id": "web-design-guidelines",
+      "folder": "web-design-guidelines",
+      "purpose": "Web interface review",
+      "origin": "MathVisionKid"
+    },
+    {
+      "id": "ui-ux-pro-max",
+      "folder": "ui-ux-pro-max",
+      "purpose": "UI design and local design research",
+      "origin": "MathVisionKid"
+    },
+    {
+      "id": "ponytail-review",
+      "folder": "ponytail-review",
+      "purpose": "Optional complexity review",
+      "origin": "MathVisionKid"
+    },
+    {
+      "id": "tdd",
+      "folder": "tdd",
+      "purpose": "Test-first behavioral implementation",
+      "origin": "mattpocock/skills"
+    },
+    {
+      "id": "diagnosing-bugs",
+      "folder": "diagnosing-bugs",
+      "purpose": "Reproducible diagnosis for difficult bugs",
+      "origin": "mattpocock/skills"
+    },
+    {
+      "id": "domain-modeling",
+      "folder": "domain-modeling",
+      "purpose": "Shared vocabulary and meaningful ADRs",
+      "origin": "mattpocock/skills"
+    },
+    {
+      "id": "codebase-design",
+      "folder": "codebase-design",
+      "purpose": "Module interface reference for TDD",
+      "origin": "mattpocock/skills"
+    },
+    {
+      "id": "open-design-web-prototype",
+      "folder": "open-design-web-prototype",
+      "purpose": "Optional standalone OpenDesign prototype",
+      "origin": "nexu-io/open-design"
+    }
+  ],
+  "routes": {
+    "workflow": [
+      "cafe-workflow"
+    ],
+    "requirements": [
+      "cafe-requirements"
+    ],
+    "backend": [
+      "cafe-spring-api"
+    ],
+    "database": [
+      "cafe-database",
+      "cafe-spring-api"
+    ],
+    "frontend": [
+      "vercel-react-best-practices",
+      "fixing-accessibility"
+    ],
+    "design": [
+      "ui-ux-pro-max",
+      "fixing-accessibility"
+    ],
+    "accessibility": [
+      "fixing-accessibility"
+    ],
+    "ui-review": [
+      "web-design-guidelines",
+      "fixing-accessibility"
+    ],
+    "quality": [
+      "cafe-quality"
+    ],
+    "review": [
+      "cafe-review"
+    ],
+    "simplicity": [
+      "ponytail-review"
+    ],
+    "release": [
+      "cafe-release",
+      "cafe-quality"
+    ],
+    "test-first": [
+      "tdd",
+      "cafe-quality"
+    ],
+    "debug": [
+      "diagnosing-bugs"
+    ],
+    "domain-modeling": [
+      "domain-modeling"
+    ],
+    "prototype": [
+      "open-design-web-prototype"
+    ]
+  }
+}
