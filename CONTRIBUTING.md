@@ -34,13 +34,13 @@ PR tập trung một mục tiêu, ưu tiên review được trong một lượt.
 
 ## Review và merge
 
-- Tối thiểu một reviewer khác tác giả; không self-approve. AI/bot review hỗ trợ, không thay thế teammate approval.
+- Mọi thành viên có thể review và góp ý. Mời thêm một người xem khi cần góc nhìn độc lập.
 - Ưu tiên lỗi đúng/sai, quyền, dữ liệu, hồi quy trước stylistic nits. Nêu file/line, tình huống và tác động.
 - Tác giả sửa hoặc trả lời từng finding. Người đặt discussion xác nhận/resolve; người khác không tự đóng thay khi chưa thống nhất.
-- Chỉ merge khi checks bắt buộc xanh, đủ approval, hết blocker và đạt DoD. Nếu cần đổi scope, cập nhật PR title/body theo kết quả cuối.
+- `NV-DuyManh` hoặc `haitan2408` kiểm tra kết quả và quyết định merge qua PR khi CI xanh, thảo luận đã xử lý, hết blocker và đạt DoD. Nếu phạm vi thay đổi, cập nhật tiêu đề và mô tả PR theo kết quả cuối.
 - Giữ attribution khi cherry-pick/merge; dùng `cherry-pick -x` khi lấy commit chọn lọc. Không bịa `Co-authored-by`.
 
-CI thực thi build/lint/test, kiểm tra registry skill và định dạng PR title. [Thiết lập GitHub](docs/engineering/github-settings.md) ghi rõ phần cần cấu hình trên server: branch protection, reviewer và required checks. File quy tắc trong repo tự nó không bật những thiết lập đó.
+CI hiện chạy **Governance** (registry, SHA-256, test định tuyến, whitespace) và **PR title** (định dạng tiêu đề). Bổ sung build/lint/test ứng dụng khi đưa backend hoặc frontend vào repo. Xem [thiết lập GitHub](docs/engineering/github-settings.md) để biết các điều kiện merge đang được thực thi.
 
 ## Dọn nhánh sau khi merge
 

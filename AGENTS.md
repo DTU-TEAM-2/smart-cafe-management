@@ -1,6 +1,6 @@
 # Smart Cafe — restart repository instructions
 
-This repository restarts the team's process. The initial main commit intentionally contains no files. Rules and skills arrive through a reviewable PR; do not merge that PR without a user request or the team's approval process.
+This repository contains Smart Cafe's engineering foundation. Follow the main branch review and merge policy in `CONTRIBUTING.md`.
 
 ## Before work
 
@@ -8,6 +8,11 @@ This repository restarts the team's process. The initial main commit intentional
 - Read `.agents/rules/mandatory-skill-router.md`; inspect `SKILLS_INSTALLED.md`, choose up to three relevant skills per phase and read their actual SKILL.md before applying them. State their identifiers and paths. Do not load the entire catalog.
 - Skills guide work; they do not authorize account changes, publication, messaging, spending or deployment. Existing user authorization governs ordinary actions.
 - Preserve contributor attribution, upstream licenses and provenance. Do not rewrite another project's history or claim inherited work as new.
+
+## Resolve conflicting guidance
+
+- Follow platform and access restrictions first. For business behavior, use the approved SRS and recorded decisions within the approver's authority. For engineering and integration, follow repository rules. Skills guide implementation within those constraints.
+- A mentor's recorded decision supersedes an earlier decision only when the mentor has authority for that scope and explicitly records the change. When authoritative sources disagree or authority is unclear, record the sources and affected behavior, ask the responsible owner to decide, and continue independent work. See the [routing rules](.agents/rules/mandatory-skill-router.md).
 
 ## Current scope and verification
 
