@@ -21,7 +21,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.19.0'
-      - run: node scripts/skills.mjs check
+      - name: Verify skill registry and inherited inventory
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ -n "$BASE_SHA" ]; then
+            node scripts/skills.mjs check "$BASE_SHA"
+          else
+            node scripts/skills.mjs check
+          fi
       - run: node --test scripts/skills.test.mjs
       - name: Check local changes without rewriting inherited snapshots
         env:

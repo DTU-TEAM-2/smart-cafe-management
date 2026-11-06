@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { checkInheritedSkills, routeSkills } from "./skills.mjs";
+import { checkInheritedInventory, checkInheritedSkills, routeSkills } from "./skills.mjs";
 
 test("backend-only work does not load UI/design skills", async () => {
   const skills = await routeSkills("backend");
@@ -59,4 +59,23 @@ test("an inherited skill edit or deletion fails checksum verification", async (t
   await assert.rejects(checkInheritedSkills(directory), /checksum mismatch/);
   await rm(skill);
   await assert.rejects(checkInheritedSkills(directory), { code: "ENOENT" });
+});
+
+test("a tracked inherited file and its manifest entry must both exist", () => {
+  const path = ".agents/skills/example/SKILL.md";
+  assert.throws(() => checkInheritedInventory([path], []), /Missing from inherited manifest/);
+  assert.throws(() => checkInheritedInventory([], [{ path }]), /Outside tracked inherited inventory/);
+});
+
+test("removing both a file and its entry is detected against the PR base", () => {
+  const kept = { path: ".agents/skills/example/SKILL.md" };
+  const removed = { path: ".agents/skills/example/guide.md" };
+  const added = { path: ".agents/skills/example/reference.md" };
+  const base = [kept, removed];
+  assert.throws(() => checkInheritedInventory([kept.path], [kept], base), /Removed: .*guide\.md/);
+  const entries = [kept, added];
+  const paths = entries.map(({ path }) => path);
+  assert.deepEqual(checkInheritedInventory(paths, entries, base, true), [
+    `Added: ${added.path}`, `Removed: ${removed.path}`,
+  ]);
 });

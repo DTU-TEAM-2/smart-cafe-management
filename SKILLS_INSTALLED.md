@@ -38,6 +38,8 @@ Pass several domains for the same phase. The router deduplicates shared skills a
 
 For UTF-8 files, checksum verification accepts equivalent LF and CRLF line endings so Windows snapshots and Git checkouts can be compared. Content changes or missing files fail the check.
 
+The manifest covers all Git-tracked files in skill folders with an inherited origin. PR CI also compares manifest paths with the base commit. It reports additions and removals and requires an update to [skill provenance](docs/engineering/skill-provenance.md) when the list changes.
+
 Typical lifecycle: requirements → domain implementation → quality → correctness review → handoff. Release is a separate, requested phase. A backend bug routes straight to backend/quality/review unless its expected behavior is unclear. Each phase loads only its relevant files, usually at most three.
 
 UI research scripts use Python 3; validation uses the standard Node runtime. The inherited web-review skill fetches current external guidelines, so an offline review must disclose that limitation. No account keys are bundled. See [inherited skill provenance](docs/engineering/skill-provenance.md).
