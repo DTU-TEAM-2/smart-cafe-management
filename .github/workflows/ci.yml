@@ -16,13 +16,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: '22.19.0'
       - run: node scripts/skills.mjs check
       - run: node --test scripts/skills.test.mjs
       - name: Check local changes without rewriting inherited snapshots
-        run: git diff --check -- . ':(exclude).agents/skills/**'
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ -n "$BASE_SHA" ]; then
+            git diff --check "$BASE_SHA" HEAD -- . ':(exclude).agents/skills/**'
+          else
+            git show --format= --check HEAD -- . ':(exclude).agents/skills/**'
+          fi
   pr-title:
     name: PR title
     if: github.event_name == 'pull_request'
