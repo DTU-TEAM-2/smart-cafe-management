@@ -11,7 +11,7 @@
 | Migration | Chạy trên engine thật, nâng từ schema trước, tác động lịch sử và recovery |
 | Release | Candidate revision + CI, smoke trên môi trường đích, rollback |
 
-Kiểm thử theo rủi ro; không đặt coverage phần trăm tùy ý hoặc viết test chỉ lặp lại implementation. Baseline hiện tại có integration test health và cấu hình deny-by-default; chưa chứng minh RBAC/order/bill chưa xây dựng. Không ghi browser/device test nếu chưa quan sát thật.
+Kiểm thử theo rủi ro; không đặt coverage phần trăm tùy ý hoặc viết test chỉ lặp lại implementation. Baseline DT2-1 kiểm tra home highlights bằng MySQL thật, lỗi API và deny-by-default; chưa chứng minh RBAC/order/bill chưa xây dựng. Không ghi browser/device test nếu chưa quan sát thật.
 
 ## Mức độ finding
 
@@ -24,7 +24,7 @@ Ghi trigger, tác động, file/line và cách xác minh; tránh tranh luận ch
 
 ## Bảo mật trong phát triển
 
-API kiểm tra quyền và resource ownership ở backend; UI ẩn nút chỉ là trải nghiệm. Health public không hiển thị chi tiết môi trường. Endpoint mới phải có allowlist/authorization rõ và test; repo chỉ mở GET health và GET home highlights, từ chối các endpoint khác cho đến khi có authorization phù hợp.
+API kiểm tra quyền và resource ownership ở backend; UI ẩn nút chỉ là trải nghiệm. Endpoint mới phải có allowlist/authorization rõ và test; repo chỉ mở GET `/api/v1/home/highlights`, từ chối các endpoint khác cho đến khi có authorization phù hợp. Chưa có health endpoint.
 
 Khi auth được triển khai, hash mật khẩu bằng thuật toán phù hợp qua Spring Security, không plaintext; chọn session/token, CSRF/CORS và logout/expiry theo thiết kế có ghi nhận. Không tự tắt CSRF/CORS để chữa lỗi frontend. Kiểm soát reset token một lần/có hạn, brute-force và thay đổi quyền theo phạm vi thực tế.
 

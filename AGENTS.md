@@ -1,4 +1,4 @@
-# Smart Cafe — restart repository instructions
+# Smart Cafe — repository instructions
 
 This repository contains Smart Cafe's engineering foundation. Follow the main branch review and merge policy in `CONTRIBUTING.md`.
 
@@ -16,9 +16,9 @@ This repository contains Smart Cafe's engineering foundation. Follow the main br
 
 ## Current scope and verification
 
-- This is a governance/skills foundation, not a runnable application. There is no backend, frontend, datasource or migration yet. Do not claim application tests have passed.
+- DT2-1 introduces a Spring Boot/JDBC backend and React/Vite frontend. See README for environment setup and `docs/handover/dt2-1-home-layout.md` for scope, contracts and remaining dependencies. No authentication/order producer is implemented here.
 - Run `node scripts/skills.mjs check` and `node --test scripts/skills.test.mjs` for registry/workflow changes. Check authored changes with `git diff --check -- . ':(exclude).agents/skills/**'`; inherited snapshots keep their original whitespace rather than rewriting upstream content during import.
-- Add build, lint, application and integration checks when the corresponding code is introduced. CI currently checks governance and PR title only.
+- Run `backend/mvnw verify` with an isolated MySQL test database for API changes; without `TEST_DB_URL` the MySQL tests are skipped. Run frontend lint, build and Playwright for UI changes. CI provisions an isolated MySQL schema and runs these checks alongside governance and PR title.
 - `.env`, database exports, tokens, credentials, caches and build output never belong in Git.
 
 ## Product and collaboration

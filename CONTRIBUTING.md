@@ -40,7 +40,7 @@ PR tập trung một mục tiêu, ưu tiên review được trong một lượt.
 - `NV-DuyManh` hoặc `haitan2408` kiểm tra kết quả và quyết định merge qua PR khi CI xanh, thảo luận đã xử lý, hết blocker và đạt DoD. Nếu phạm vi thay đổi, cập nhật tiêu đề và mô tả PR theo kết quả cuối.
 - Giữ attribution khi cherry-pick/merge; dùng `cherry-pick -x` khi lấy commit chọn lọc. Không bịa `Co-authored-by`.
 
-CI hiện chạy **Governance** (registry, SHA-256, test định tuyến, whitespace) và **PR title** (định dạng tiêu đề). Bổ sung build/lint/test ứng dụng khi đưa backend hoặc frontend vào repo. Xem [thiết lập GitHub](docs/engineering/github-settings.md) để biết các điều kiện merge đang được thực thi.
+CI chạy **Governance** (registry, SHA-256, định tuyến, whitespace), **PR title**, **Backend MySQL** (Maven verify trên schema test riêng) và **Frontend UI** (lint, build, Playwright desktop/mobile). Hai job ứng dụng được bổ sung trong DT2-1; các required check trên GitHub hiện vẫn theo [thiết lập GitHub](docs/engineering/github-settings.md). CI xanh không thay thế nghiệm thu và review chéo.
 
 ## Dọn nhánh sau khi merge
 
