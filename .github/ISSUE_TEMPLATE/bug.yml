@@ -1,0 +1,22 @@
+name: Bug report
+description: Báo lỗi có reproduction và tác động
+body:
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Các bước tái hiện, expected và actual
+    validations:
+      required: true
+  - type: input
+    id: context
+    attributes:
+      label: Revision, môi trường và vai trò bị ảnh hưởng
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Mức độ dự kiến
+      options: [P1, P2, P3, P0]
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Bằng chứng đã lọc dữ liệu cá nhân/secret và cách tránh tạm

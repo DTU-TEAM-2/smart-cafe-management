@@ -1,0 +1,590 @@
+[
+  {
+    "path": ".agents/skills/react-best-practices/AGENTS.md",
+    "sha256": "5640053923e5f36448c53e50b74069ea7c1477101e645e852bc61a84db328855"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/metadata.json",
+    "sha256": "1874ee16ee8ec9be9058dd31e0be60f9117ae1ac33986b258bac3923b5dd395f"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/README.md",
+    "sha256": "2e7e6cbe3952689bf9c00b9a7032f1bffb263cde2d01635f0aa49d3375c33ff5"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/SKILL.md",
+    "sha256": "3286ace648b4d740317b9c1cb7fbd38600eaacc62a8b57ea5e06fd2992b5582e"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/_sections.md",
+    "sha256": "f352f75b84d6c6ee644c3fade99eaf2186bdfdc1d9e5b598bae436f32b3bce4f"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/_template.md",
+    "sha256": "21231af1b4c70cfe6f07625830d982934295c735f91fddd9741b3a8e3688d735"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/advanced-effect-event-deps.md",
+    "sha256": "d6b0ca8ba2982602b736e931c9a8d7a11e0b22cd501ef17c732979fb9ceeb8b2"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/advanced-event-handler-refs.md",
+    "sha256": "029f0c929c665fb9263b8c72a44e50610caf94a6e22a8142821a84482eda825d"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/advanced-init-once.md",
+    "sha256": "3d209bc4b17c2a503fdbb53b39261bc5ee824703a8b387daef3f53bad1f32ce4"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/advanced-use-latest.md",
+    "sha256": "84b3504ef0dc85f171c6aa0c5d15ac6d252ba72e38fc4e87872c0a3b1728345f"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/async-api-routes.md",
+    "sha256": "adf38ea4f34fa74b275b908e49aa20de20af9d9935b4a656314a49217b182663"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/async-cheap-condition-before-await.md",
+    "sha256": "8677605b94a5ed704873d8013bda2b690ff09fe8757fd472d9047cc848cf4019"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/async-defer-await.md",
+    "sha256": "eaa4f64d04eac1023fb61ed27712a81397989d86c126b987fa90baf4da02cc33"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/async-dependencies.md",
+    "sha256": "4901341bd7f7b7036eb8d98b243515ce294e6e4079370b3187c1514c3e597ec6"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/async-parallel.md",
+    "sha256": "ff95abbb67b62a889d7ef71f1d06834238c47ecd3d49483f7823b4cd17d92680"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/async-suspense-boundaries.md",
+    "sha256": "8a6e88c6e5190e10d3e3ebca89a1bc4fefc4bdb0cbc9c6f406ce02452a5759df"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/bundle-analyzable-paths.md",
+    "sha256": "32260f587900a89d642b805a4824bf8e6a197c2c6f62aec76522775d0a2f41ab"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/bundle-barrel-imports.md",
+    "sha256": "ceae03eb1cfad7e82019aeb297f87dc895eca14221c66f724e0801393d4da21f"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/bundle-conditional.md",
+    "sha256": "16992beeaf9bdd1e7ff20989b8672cfffc8b918deb0783c058560c7a233dd37c"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/bundle-defer-third-party.md",
+    "sha256": "64de0f01dfe58b4d3a3865baa623f743ef1b8c363106c7dfaf2b2867f69b96d4"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/bundle-dynamic-imports.md",
+    "sha256": "0fb947cdfec5ce0e95a894c6b68220f88983eff73ce65b98e4f00c885ebd9b36"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/bundle-preload.md",
+    "sha256": "b673a49f4cf4bf385ddf6956ca704139ec2915802bade1925134f8cfabb2278c"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/client-event-listeners.md",
+    "sha256": "e2229c8e121dfdd6bad8063ba6c41213ff612e19e077f17ba805b70d48151775"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/client-localstorage-schema.md",
+    "sha256": "f9d177a557f4bd4bd1a81f30f841f75041821dd88f706a6b8c4eac86c7472e05"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/client-passive-event-listeners.md",
+    "sha256": "277118e32363381459bc7439fa942966da668d2c128d93968f9a289f0bb32861"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/client-swr-dedup.md",
+    "sha256": "866e6cc267f06df39129c44c68c5e6a2e62faa554bc8cdb6ada1f58afe4bcbbe"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/js-batch-dom-css.md",
+    "sha256": "d7343005afc6a9c7e86368e22318f49b88492973e673f7b0ba2eb65697597143"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/js-cache-function-results.md",
+    "sha256": "bbef6423ad250227e8c73a5d9be6fd687707dd187ef50236fd5b6883a41d49b6"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/js-cache-property-access.md",
+    "sha256": "bbecc553a5b51caab2ddc90423a23d4c3245669439ff91e5204e48d62aaf1c5e"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/js-cache-storage.md",
+    "sha256": "7710a2ceb421d9b6d3828d7f38ec8a093af4a372c2b3b4ea2299d5df2518f770"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/js-combine-iterations.md",
+    "sha256": "c43a02979586d39f341fa6da7fc61bdd6a6917fa0c4f9c926091fa540cdf8022"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/js-early-exit.md",
+    "sha256": "b6b967ab80d2a5fc19851d9db9464cf8e4d0e57dccb607a474b8f7818015951d"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/js-flatmap-filter.md",
+    "sha256": "acfa11d07d7982ec565e4d8cfb410d477ffb73a7b41a532b938bcdb15c6ba51f"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/js-hoist-regexp.md",
+    "sha256": "86f4772c5d732c1f5f0656412713c6dc919360f0f3ea32bb1a45937eaaa5866e"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/js-index-maps.md",
+    "sha256": "752dd0803a7394a70e8d437b7eb025d1e085566e30ad733e75b9d2e04cc6c4d9"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/js-length-check-first.md",
+    "sha256": "9e57362d76e57ea6a2ff8cd137cf2a87b094aaff152eac61758305acb450a25c"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/js-min-max-loop.md",
+    "sha256": "f0054bcd1c3168ea8a6474df33c398bc0066eb1e813d59ae57fe36806ec900b6"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/js-request-idle-callback.md",
+    "sha256": "cefb8938f833f4747546d8c4fbe2c8c9938a5bfe27e087636048adef3fd8d719"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/js-set-map-lookups.md",
+    "sha256": "7143f8d7b71cdbc77a171fc801bdcf5e7a209e0f471ff17bb669acc986a6b064"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/js-tosorted-immutable.md",
+    "sha256": "2722514cac46990f3361fa35ee20d499a12da2539362e7871b670978664d158a"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rendering-activity.md",
+    "sha256": "e23dd494d955db99d376b5bf62a59ce7df9f14576d94094f2e53cfdc388453a0"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rendering-animate-svg-wrapper.md",
+    "sha256": "dca7f0251244489b3bbb6f5aaf7d70f280d91dc13de8ebd24403286f382ec0f4"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rendering-conditional-render.md",
+    "sha256": "6db58f36c8b080c35e91f6504281f85ea2dbd133030610c860e60181d6d9556a"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rendering-content-visibility.md",
+    "sha256": "45437e9594857ee1066ee061e946ed129731cf2e80f7e08f3cc621fa0554c567"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rendering-hoist-jsx.md",
+    "sha256": "c5fa7274f067ce3760107196a9416df333a7b4187254ef66c547fad7c45cd8d3"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rendering-hydration-no-flicker.md",
+    "sha256": "bfedc3a73f9687c7836acf915165fb845880453b6dfcf2fa6475dfec96b23027"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rendering-hydration-suppress-warning.md",
+    "sha256": "7ec1623c69e1a82b09b8b5a6028005e3eb8485741898447af1bcaed8ff8c0139"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rendering-resource-hints.md",
+    "sha256": "03ffeb3c26ae514bd24ea8683621d67a4b8432926ef7ee8d3296f82ae5c1b6ab"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rendering-script-defer-async.md",
+    "sha256": "28ef87814467a4758645889dcbb0ccb9a9e2387c4cebbd8cd4dfa33435e3e5d8"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rendering-svg-precision.md",
+    "sha256": "d57cdfaaaf660a28a9a5d6d10e97202a5eb13e1bc1675e024cb1ccbfa8bb2c32"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rendering-usetransition-loading.md",
+    "sha256": "c2186f944b60630c67d42222f60ecb12b5a85395e7f31f193982f85983165720"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rerender-defer-reads.md",
+    "sha256": "bb98d9b7c7622641887df6407406a8c4f61510af9cc1bd275574ebee71bac8c8"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rerender-dependencies.md",
+    "sha256": "4f0a1806694c2391c0b5b79bb4dee89fdf2c02ee322acf308509c17542240446"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rerender-derived-state-no-effect.md",
+    "sha256": "1d50f7b1b86d24f987c557415590f79b06250e3ec1ca552da981e31a31f9edb9"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rerender-derived-state.md",
+    "sha256": "6a501211aa53036905df7531deaf25fdb8582697366fd071d4c2607828662dcb"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rerender-functional-setstate.md",
+    "sha256": "e46096d4c2c8fc89ab717bd7e56b8a884b612a88013a99b0c63e7dfc45d8cf25"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rerender-lazy-state-init.md",
+    "sha256": "b8b9e6b6001a1e94979776e744eb38a98432858dd2369995731c9a095ecd1d2e"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rerender-memo-with-default-value.md",
+    "sha256": "e69d637687b85967554df7d5fcfd83cc6fbb89237e9b80d10fbea7916244aa8b"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rerender-memo.md",
+    "sha256": "8cc2d062f22ae762f7f5f93baf2bfc374c917079131896559721f9dfbd402a7c"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rerender-move-effect-to-event.md",
+    "sha256": "00f5eaf8d4380c736c9177b67583f6b33f6b1f84addc252653cd6dea9551ad8d"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rerender-no-inline-components.md",
+    "sha256": "381ec0a4224c20c57545b6c44a65ffcaf0ed520fad97f3d0f8abcb7389de602f"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rerender-simple-expression-in-memo.md",
+    "sha256": "1e41299336d72ce42ffe0b4d397496e520eae13ea544b1412b83761555f4e631"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rerender-split-combined-hooks.md",
+    "sha256": "93543c1987b8bb639302a4598f1444bc9ed02d200ea7ad0e47e890ff3fa8cf21"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rerender-transitions.md",
+    "sha256": "b51a82fb6b223d13c585dfddaeb753c79d7da0524da87b708f61fd6939600ab6"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rerender-use-deferred-value.md",
+    "sha256": "2c393cc085e9ae6285ee9e71f4db86ddd0120a41b84c6a1d659f46e8c7684db5"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/rerender-use-ref-transient-values.md",
+    "sha256": "26ddded1d59cc04cddf7c1412ffb05315dd1f358510edcce3c3474d5acb63f32"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/server-after-nonblocking.md",
+    "sha256": "86c8670ad8e6285753645c2cebd164c56baf6f0fa74f914c0ca496d0a0156bcc"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/server-auth-actions.md",
+    "sha256": "a413aba63b73f7f82cf2482646c8c1598eaa75753c8f73f33055b8508de99fea"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/server-cache-lru.md",
+    "sha256": "19d844eebd1fb7ef5f43f4d1e85baf1fc0160547400ab838ba4d40226eb891b9"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/server-cache-react.md",
+    "sha256": "7448470adc9f0066455f9cf45b658f5c3f1884a7990c89f880fbb272a4028b05"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/server-dedup-props.md",
+    "sha256": "5c4d4c9930812d3ab98e28ad97ca2f5af778effbf9b50b6a7558c18abf2e98b5"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/server-hoist-static-io.md",
+    "sha256": "92665f53454156ccc59f115455cf3cbf9c3cbd88dcb5b84b14037f200ab990c5"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/server-no-shared-module-state.md",
+    "sha256": "9c2b6ee5b418c35f8b0ce466d0d1352e25c85e6b7ebbe4495b81791f10f915dc"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/server-parallel-fetching.md",
+    "sha256": "f8f275fea2378e7707a50f2df4af6a2f65fe1fa84edb3ffc4720af805ebabe42"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/server-parallel-nested-fetching.md",
+    "sha256": "1e59763bbec3d6d74b8457c3d82f1a319b483fe5497b665652d8cba69fdda002"
+  },
+  {
+    "path": ".agents/skills/react-best-practices/rules/server-serialization.md",
+    "sha256": "567ce457f775d4e03e2a6ef7bf67213fee35c6c3b9d1bcfa783007d1df414d4b"
+  },
+  {
+    "path": ".agents/skills/fixing-accessibility/SKILL.md",
+    "sha256": "2c2a4623f333920b05e262017e92b15eeafca58f051b44d8e9e13fd4d1da37a5"
+  },
+  {
+    "path": ".agents/skills/web-design-guidelines/SKILL.md",
+    "sha256": "17e48da905f83a19c174079b50760a98c069527ba50079239b3c187236627c29"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/SKILL.md",
+    "sha256": "5905a2b470ca86077daf03f3c13361b949a702ae9f98399515abc55882cb9aa3"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/app-interface.csv",
+    "sha256": "331e7cf2c0b222d80c566c5f255c63cb339f65bfd02e471a720f28e4864a9f08"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/catalog-summary.json",
+    "sha256": "65fe0b64480a8a827738297d0a64ca55c627d4afcb774fe4555c59cea8dd6905"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/charts.csv",
+    "sha256": "4115cf1120680f2cedef0676cb648f30c7ef4699e2a947535d4113e71ed3b12a"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/colors.csv",
+    "sha256": "8162429222bce22df62b564085946a30d07cc9722c58d0a3a494bd0d1d00841c"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/data-provenance.json",
+    "sha256": "e82fb33ed49375a300e93d9c11ccd1c1493c999e84ee7ee295e527634786e2e0"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/google-font-licenses.json",
+    "sha256": "35688523f2955795caa1a47c53b83099e60c1708461476f9cc3a050cf3b0148a"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/google-fonts.csv",
+    "sha256": "1c8c3b2ea1faf6a1012da463756def8b3889db33f2226f0343bb4daa80307d03"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/icons.csv",
+    "sha256": "50816c6012030178195a16ee481ebf58b47bd985d70e8ec58886cc83f6eddafc"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/landing.csv",
+    "sha256": "9a2edd3bb676c2a58f00ade7a062e285222d4297bfd847c8d5b056f0dbbf52d0"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/motion.csv",
+    "sha256": "381affe8df8ea1f66fbbda2598827f9f54299107bbe6a1b4e9b68f6b62091ceb"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/phosphor-icons-upstream.json",
+    "sha256": "2399325233b277b5c97a80e6a5e8941154f5d057beee4e7613db87c87d700236"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/products.csv",
+    "sha256": "42473f75e8dde5987bdf89ce55d8c168091b80a356cae691dd60247d80720b70"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/react-performance.csv",
+    "sha256": "3d925802539abac5afeb63ae8aa1960b7229ad271b3a47caed40ab2d97ad0734"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/styles.csv",
+    "sha256": "a93a4d9d7025856575d7b7583bda020be9043013432c5af7c58af9dbdfb206b7"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/typography.csv",
+    "sha256": "321fc446e89024488ebae96dda93efc4d2307bd8bddb240857ad51364f6782c8"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/ui-reasoning.csv",
+    "sha256": "f0774dd741cecdad5eec842034bd6d5e9ea50e9f220a1910069748daa0bb8e9a"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/ux-guidelines.csv",
+    "sha256": "ff81ec613f70ba9fc3fcce52dbe4ae35d44b2079dbe6dc066d2d6e38c28facd5"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/stacks/angular.csv",
+    "sha256": "704be83f2bad30c7e6de01afb113ffa01e0c458762f48b7102f31ba2367b5553"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/stacks/astro.csv",
+    "sha256": "2c2f55fadaafc05e04cc321c8194a1a28b656e6757fe2ba316f41b16428299c6"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/stacks/avalonia.csv",
+    "sha256": "442fca14675a020683473e7e49f08abb27b9df0765c80efe54aef61f1a4ac258"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/stacks/flutter.csv",
+    "sha256": "64dba0ac17349f28bce517a0f5f48c54d9ed2e487ec0c0258303463b382f41a0"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/stacks/html-tailwind.csv",
+    "sha256": "d05a581d20af57b8ca0104a6d31d90a07c437d500662a96c3029fc2f9a4678ee"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/stacks/javafx.csv",
+    "sha256": "2e819b8d5abdd23ad4dae0991650fdb57af497aabd68b37463aa9c442944c869"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/stacks/jetpack-compose.csv",
+    "sha256": "699de218b286948eaec7d15767b6e1350ee299167e49bf476d82e3ff58724e0a"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/stacks/laravel.csv",
+    "sha256": "854ea4daa5fc61292d22235ad33b49ba3fe22423c3de8d3cb03758ffed3b59f9"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/stacks/nextjs.csv",
+    "sha256": "ecd2c27b2ea0127d203ae726060efcdd7335b5e83f96b99e4f3befbbfeebd5a4"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/stacks/nuxt-ui.csv",
+    "sha256": "c36ee8470926b4a0748d241363c71664c9969c2edbc62f7f72de0db73880fac6"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/stacks/nuxtjs.csv",
+    "sha256": "3d9b54ed2d151bd9c86e9e5609b8a6f88a00c4c52fa601a30af96c49b2c4d176"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/stacks/react-native.csv",
+    "sha256": "ba31dd9c0c04da6bc02a74448bf121f9c0728ae5ba3b4d47b487778b0a1135b5"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/stacks/react.csv",
+    "sha256": "2d2b9c198e875106a30f7ee68341a9ee0033cad60a7e130cf23152783e08aeda"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/stacks/shadcn.csv",
+    "sha256": "e56cfde5b74907836ac3582a4779d5b7f3d206a702ab81b8669a1b668c3eeb51"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/stacks/svelte.csv",
+    "sha256": "f6e379ba802941ba26b01d4ffbe3cd39120f2587659a1d93851c707f66bc13db"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/stacks/swiftui.csv",
+    "sha256": "bdd9231ff3ad658f4e7c063e1eb49df2fd09ac8d90631a86df899b39833b9623"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/stacks/threejs.csv",
+    "sha256": "97542e0ba34915a0ff7578be20e1619495df47c95c8c1c39b83e3785e1de771f"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/stacks/uno.csv",
+    "sha256": "a0474363e4225b5367214d5675fd3e075f137026f9500f0d04357882ef4f6d48"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/stacks/uwp.csv",
+    "sha256": "c409f08c1fbba1f1029f1acaa554e7b4471cc85517a5751c9f2e62465badcd5c"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/stacks/vue.csv",
+    "sha256": "b655f1ebb9dff2652d15981f31b1784c8a6d4759efd2815a14f3088257569f95"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/stacks/winui.csv",
+    "sha256": "e676dc1c13ee6c205c40b0746f1335150a346c7a49a0616d2545bc3d2c930c85"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/data/stacks/wpf.csv",
+    "sha256": "9781a9950b20333637b30a02e498b7efca21b618a3eeb8665836f3ac6e974da7"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/core.py",
+    "sha256": "e544826963efefce3c59b65e18d83d92a5baf571f05458025bf1fa9021eced42"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/design_system.py",
+    "sha256": "6a94743c3362c9c7e6d1450b94f4014d9ea752e7b4e151f6f0bdb217e0544bf7"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/reasoning_contract.py",
+    "sha256": "b8bac1af82aa280d3e06f00aabaeac4337e632996b07fed874e2b6ee6e9c5913"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/search.py",
+    "sha256": "8373e2dd2d560d9853ec116140de0e0d5bee45a6abe5e041173c84e1c36a7f87"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/validate_data.py",
+    "sha256": "718ad4cbb227436015c9c2bc80fc583d6ed738b01c1a940ef85e350780d99f58"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/tests/test_catalog_refresh.py",
+    "sha256": "3e2ca5d12702318f641ae62d0c14f22a3bcc84d84e79b863c0e947d475604adb"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/tests/test_core_data_quality.py",
+    "sha256": "3ffc6b4905c9ea26d7ac4527ab154d153584231aee71b2ae4bd017977fa09cc5"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/tests/test_core.py",
+    "sha256": "3527fe2f4b852f69f07c17ddc0d615d9a6e025c924e45a33985579a94a8d2118"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/tests/test_data_contracts.py",
+    "sha256": "0360d6e10080c0bca214f2b0bbad582ba50702a542ce21013351aca54938df3a"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/tests/test_design_system_mode.py",
+    "sha256": "517ba1ba6195c94811126d1162139c51aff77fc68c3e320c7bb6c1e89e76bc9b"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/tests/test_native_desktop_stack_freshness.py",
+    "sha256": "904f90bc6d364763673fa6067d98a4227d535760fa8b6d26abe22208176997ca"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/tests/test_relevance_evaluator.py",
+    "sha256": "2fe56a4d6fe5fff15ff592274b0eeaba925146cefea6c0fa29d8f1b77c9aca1f"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/tests/test_style_taxonomy.py",
+    "sha256": "cd14d0092e8a454d213aa104b53e4e70ba698491fa00fde9fdec5ca8a3d70011"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/tests/test_text_layout_resilience.py",
+    "sha256": "b51d32ee8a15505b87cb81957fb2d1b385e041e8beb4463c311d236bfd29ebd4"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/tests/test_web_stack_freshness.py",
+    "sha256": "becc5fa40e7516613d4e9930f226aa483e3796090c17cb16542c93d1927e680d"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/tests/fixtures/relevance-baseline.json",
+    "sha256": "38398452985116e74e31bd6bccca0f4decd1bbfe4eebc1ac99f7a1836baaf77f"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/tests/fixtures/relevance-cases.json",
+    "sha256": "e77d36eebbf6ddc2860946a02cdb659351da6c09f2688f1ed30939a418099646"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/tests/fixtures/relevance-thresholds.json",
+    "sha256": "9d738e11c6b82fecc8d0946e7b38515518ded5ed3294a7eb19a021c4edb5b57d"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/tests/fixtures/catalogs/google-api.json",
+    "sha256": "22d8dc81a7d6827b7e8b64b53e7d184210fb9759e8e294e0d5133c81cc460176"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/tests/fixtures/catalogs/google-catalog.json",
+    "sha256": "c608ad5c4084ebc50a4bbbfb69ea2456c01fd5519c457e18410fffd250ae948f"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/tests/fixtures/catalogs/google-existing.csv",
+    "sha256": "4e0761b839dc6b2187a370e82eddc0aed8a7ff10c09e28dd814bb3656dac595b"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/tests/fixtures/catalogs/google-metadata.json",
+    "sha256": "30bffc29ae348416a2de2f9c6c418e768e4578f136b0f4bac5d2f70124f2e9ba"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/tests/fixtures/catalogs/google-overrides.json",
+    "sha256": "6243a48a4619986768c4628e2d0c98ff195beba71ba9be5df8f0c52fc6d90c0b"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/tests/fixtures/catalogs/icons-curated.csv",
+    "sha256": "68362c9a700c13b96f000784a0198c1c7e117a7088a01c85744e44233038fe9d"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/tests/fixtures/catalogs/phosphor-core.json",
+    "sha256": "ae4d0bb076240824e1b643c2270d1f8cc0952a69502ec1e622b7dedd85b930bb"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/tests/fixtures/catalogs/phosphor-package.json",
+    "sha256": "500588c757d6de03e3d7e69b27a8b8b1f88ccf6bb0333e4c1e9b0d6a4f112475"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/tests/fixtures/catalogs/phosphor-react-exports.json",
+    "sha256": "d79f2ee0afdbc2f87776733e145df3538a16a25d7c2fba0056bb48295dad0ded"
+  },
+  {
+    "path": ".agents/skills/ui-ux-pro-max/scripts/tests/fixtures/catalogs/phosphor-react-package.json",
+    "sha256": "1c57a1d76bcc0cdd3632d4c18b9c0e79576b4591df39831c9607e5d0eb4f2cec"
+  },
+  {
+    "path": ".agents/skills/ponytail-review/SKILL.md",
+    "sha256": "6c8b7e5c897a406b66da6aabda7fa6509e8d1d447e73e602265d7986497445d1"
+  }
+]

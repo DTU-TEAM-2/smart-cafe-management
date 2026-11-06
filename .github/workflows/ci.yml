@@ -1,0 +1,38 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited]
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  governance:
+    name: Governance
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - run: node scripts/skills.mjs check
+      - run: node --test scripts/skills.test.mjs
+      - name: Check local changes without rewriting inherited snapshots
+        run: git diff --check -- . ':(exclude).agents/skills/**'
+  pr-title:
+    name: PR title
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - name: Check title format
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          node -e "if (!/^(feat|fix|chore|docs|refactor|test|ci|build|perf|revert)\([a-z0-9-]+\): CF-[0-9]+ .+/.test(process.env.PR_TITLE)) { console.error('Use type(scope): CF-01 description'); process.exit(1); }"

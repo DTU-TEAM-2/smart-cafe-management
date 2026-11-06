@@ -1,0 +1,29 @@
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+
+# Build output and caches
+**/node_modules/
+**/dist/
+**/target/
+**/coverage/
+**/__pycache__/
+*.pyc
+*.log
+.cache/
+**/test-results/
+**/playwright-report/
+
+# Developer machines
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db
+Desktop.ini
+~$*
