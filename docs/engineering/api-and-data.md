@@ -1,6 +1,6 @@
 # Hợp đồng API và dữ liệu
 
-Đây là quy ước cho phần triển khai tiếp theo. API hiện có: `GET /actuator/health` và public `GET /api/v1/home/highlights`. MySQL đã được người dùng xác nhận cho DT2-1; cơ chế đăng nhập còn thuộc task riêng. Các ví dụ `/api/v1` khác chưa triển khai.
+API DT2-1 gồm public `GET /api/v1/home/highlights`, authenticated `GET /api/v1/home/account` và STAFF/ADMIN `GET /api/v1/home/notifications`; chưa có health endpoint. Tất cả đọc database hệ thống smart_cafe theo [schema được xác nhận](../architecture/database-contract.md). Header kiểm bearer của module auth và trạng thái/role/version hiện hành trong DB, không có provider/đăng nhập xem thử. Mỗi món có imageUrl nullable từ media chưa bị xóa. Hợp đồng đầy đủ ở [handoff DT2-1](../handover/dt2-1-home-layout.md).
 
 ## HTTP và hợp đồng
 

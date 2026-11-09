@@ -48,10 +48,17 @@ class HomeHighlightsMySqlTest {
         jdbc.update("INSERT INTO menu_categories(id, code, name, active) VALUES (1,'OPEN','Cà phê',1),(2,'HIDDEN','Nhóm ẩn',0)");
         addItem(1, 1, "Cà phê sữa", true);
         addItem(2, 1, "Bạc xỉu", true);
+        jdbc.update("""
+                INSERT INTO media_assets(id, provider, provider_asset_id, secure_url, mime_type, size_bytes)
+                VALUES (1,'CLOUDINARY','test-only','https://example.invalid/milk.jpg','image/jpeg',100)
+                """);
+        jdbc.update("UPDATE menu_items SET image_media_id=1 WHERE id=1");
 
         mvc.perform(get("/api/v1/home/highlights")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.newest.length()").value(2))
                 .andExpect(jsonPath("$.newest[0].name").value("Bạc xỉu"))
+                .andExpect(jsonPath("$.newest[1].imageUrl").value("https://example.invalid/milk.jpg"))
+                .andExpect(jsonPath("$.newest[0].imageUrl").value(org.hamcrest.Matchers.nullValue()))
                 .andExpect(jsonPath("$.mostOrdered").isEmpty());
 
         for (int id = 3; id <= 6; id++) addItem(id, 1, "Món " + id, true);
@@ -84,12 +91,16 @@ class HomeHighlightsMySqlTest {
                 .andExpect(jsonPath("$.newest[0].price").value("45000"))
                 .andExpect(jsonPath("$.mostOrdered.length()").value(5))
                 .andExpect(jsonPath("$.mostOrdered[0].name").value("Cà phê sữa"))
+                .andExpect(jsonPath("$.mostOrdered[0].imageUrl").value("https://example.invalid/milk.jpg"))
                 .andExpect(jsonPath("$.mostOrdered[0].orderedQuantity").value("3"));
         for (int index = 0; index < 5; index++) {
             mvc.perform(get("/api/v1/home/highlights"))
                     .andExpect(jsonPath("$.newest[" + index + "].id").value(String.valueOf(6 - index)))
                     .andExpect(jsonPath("$.mostOrdered[" + index + "].id").value(String.valueOf(index + 1)));
         }
+        jdbc.update("UPDATE media_assets SET deleted_at=CURRENT_TIMESTAMP WHERE id=1");
+        mvc.perform(get("/api/v1/home/highlights"))
+                .andExpect(jsonPath("$.mostOrdered[0].imageUrl").value(org.hamcrest.Matchers.nullValue()));
     }
 
     private void addItem(int id, int category, String name, boolean active) {

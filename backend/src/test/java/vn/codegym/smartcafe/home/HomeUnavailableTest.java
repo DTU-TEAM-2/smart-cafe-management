@@ -10,6 +10,7 @@ import org.springframework.transaction.CannotCreateTransactionException;
 
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest(properties = {
@@ -21,6 +22,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class HomeUnavailableTest {
     @Autowired MockMvc mvc;
     @MockitoBean HomeHighlightsService service;
+    @MockitoBean HeaderService headerService;
 
     @Test
     void transactionFailureReturnsSanitized503() throws Exception {
@@ -28,6 +30,14 @@ class HomeUnavailableTest {
         mvc.perform(get("/api/v1/home/highlights"))
                 .andExpect(status().isServiceUnavailable())
                 .andExpect(jsonPath("$.detail").value("Hiện chưa tải được danh sách món."))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("private JDBC"))));
+    }
+
+    @Test
+    void authenticatedHeaderFailureAlsoReturnsSanitized503() throws Exception {
+        given(headerService.account("test-staff")).willThrow(new CannotCreateTransactionException("private JDBC details"));
+        mvc.perform(get("/api/v1/home/account").with(user("test-staff").roles("STAFF")))
+                .andExpect(status().isServiceUnavailable())
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("private JDBC"))));
     }
 }

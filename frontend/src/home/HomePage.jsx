@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 
 const currency = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" });
 const specials = [
-  { title: "Đồ uống nổi bật", description: "Sáng tạo hương vị" },
-  { title: "Không gian quán", description: "Ấm áp và thư giãn" },
-  { title: "Đội ngũ Barista", description: "Chuyên tâm từng tách" },
+  { title: "Đồ uống nổi bật", description: "Sáng tạo hương vị", image: "/images/iced-coffee.jpg" },
+  { title: "Không gian quán", description: "Ấm áp và thư giãn", image: "/images/cafe-interior.jpg" },
+  { title: "Đội ngũ Barista", description: "Chuyên tâm từng tách", image: "/images/coffee-cup.jpg" },
 ];
 
 function validList(items, amount) {
@@ -42,10 +42,19 @@ function RankingList({ status, items = [], empty, value }) {
   return <ol className="ranking-panel ranking-list">
     {items.map((item, index) => <li key={item.id}>
       <span className="rank-number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+      <MenuThumbnail url={item.imageUrl} />
       <span className="rank-name">{item.name}</span>
       {value(item)}
     </li>)}
   </ol>;
+}
+
+function MenuThumbnail({ url }) {
+  const [failed, setFailed] = useState(null);
+  const safe = typeof url === "string" && (/^https:\/\//i.test(url) || /^\/(?!\/)/.test(url)) && !/[\\\r\n]/.test(url);
+  return safe && failed !== url
+    ? <img className="rank-image" src={url} width="52" height="52" alt="" loading="lazy" onError={() => setFailed(url)} />
+    : <span className="rank-image missing-image" role="img" aria-label="Chưa có ảnh món">—</span>;
 }
 
 export default function HomePage() {
@@ -76,21 +85,23 @@ export default function HomePage() {
   return <div className="home">
     <section className="hero" aria-labelledby="hero-title">
       <div className="hero-art" aria-hidden="true">
-        <div className="coffee-marks">{[0, 1, 2, 3].map((key) => <span key={key} />)}</div>
+        <img src="/images/latte.jpg" alt="" width="700" height="1050" fetchPriority="high" />
+        <span className="hero-image-caption">Một chút cà phê, một chút thảnh thơi.</span>
       </div>
       <div className="hero-copy">
         <p className="eyebrow">Bản sắc cà phê</p>
         <h1 id="hero-title"><span>High Quality</span> COFFEE</h1>
         <p className="hero-subtitle">Mỗi tách cà phê là một câu chuyện</p>
         <a className="hero-cta" href="#newest">Khám phá menu <span aria-hidden="true">→</span></a>
+        <span className="hero-note">Pha bằng cả sự tận tâm.</span>
       </div>
     </section>
 
     <section id="about" className="specials" aria-labelledby="specials-title">
       <h2 id="specials-title">Our Specials — Câu chuyện Lecker</h2>
       <div className="special-grid">
-        {specials.map(({ title, description }) => <article className="special" key={title}>
-          <div className="special-tile" aria-hidden="true" />
+        {specials.map(({ title, description, image }) => <article className="special" key={title}>
+          <img className="special-tile" src={image} alt="" width="116" height="116" loading="lazy" />
           <div><h3>{title}</h3><p>{description}</p></div>
         </article>)}
       </div>

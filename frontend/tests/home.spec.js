@@ -7,6 +7,9 @@ const newest = [
   { id: "10", name: "Bạc xỉu", price: "40000" },
   { id: "11", name: "Trà đào", price: "42000" },
 ];
+test.beforeEach(async ({ page }) => {
+  await page.route("**/api/v1/home/account", route => route.fulfill({ status: 403, json: {} }));
+});
 const mostOrdered = [0, 3, 1, 4, 2].map((index, rank) => ({
   id: newest[index].id, name: newest[index].name, orderedQuantity: String(5 - rank),
 }));
@@ -37,7 +40,7 @@ test("shows the Figma homepage structure and server-provided ranked lists", asyn
 
   await page.getByRole("link", { name: "Khám phá menu" }).click();
   await expect(page).toHaveURL(/#newest$/);
-  await page.getByRole("link", { name: "LECKER. Về đầu trang" }).click();
+  await page.getByRole("link", { name: "LECKER Về đầu trang" }).click();
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(1);
 });
 
@@ -60,10 +63,12 @@ test("opens the real account seam and limits a notification feed to its recipien
   await expect(page.getByRole("link", { name: "Thông tin tài khoản" })).toHaveAttribute("href", "/profile");
   await page.getByRole("button", { name: "Thông báo, 1 chưa đọc" }).click();
   await expect(page.getByText("Bàn thử gọi phục vụ")).toHaveCount(1);
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Đổi quản lý" }).click();
   await page.getByRole("button", { name: "Thông báo", exact: true }).click();
   await expect(page.getByText("Chưa kết nối thông báo phục vụ.")).toBeVisible();
   await expect(page.getByText("Bàn thử gọi phục vụ")).toHaveCount(0);
+  await page.keyboard.press("Escape");
   await page.getByRole("button", { name: "Đổi khách" }).click();
   await expect(page.getByRole("button", { name: /Thông báo/ })).toHaveCount(0);
 });

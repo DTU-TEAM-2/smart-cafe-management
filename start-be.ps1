@@ -1,5 +1,5 @@
 $ErrorActionPreference = 'Stop'
-$taskKeys = @('DB_URL', 'DB_USERNAME', 'DB_PASSWORD', 'SERVER_PORT')
+$taskKeys = @('DB_URL', 'DB_USERNAME', 'DB_PASSWORD', 'SERVER_PORT', 'AUTH_TOKEN_SECRET')
 $taskOriginal = @{}
 foreach ($taskKey in $taskKeys) {
     $taskOriginal[$taskKey] = [Environment]::GetEnvironmentVariable($taskKey, 'Process')
@@ -8,7 +8,7 @@ try {
     $taskEnv = Join-Path $PSScriptRoot 'backend\.env'
     if (Test-Path -LiteralPath $taskEnv) {
         foreach ($taskLine in Get-Content -LiteralPath $taskEnv -Encoding UTF8) {
-            if ($taskLine -notmatch '^\s*(DB_URL|DB_USERNAME|DB_PASSWORD|SERVER_PORT)\s*=(.*)$') { continue }
+            if ($taskLine -notmatch '^\s*(DB_URL|DB_USERNAME|DB_PASSWORD|SERVER_PORT|AUTH_TOKEN_SECRET)\s*=(.*)$') { continue }
             $taskKey = $Matches[1]
             $taskValue = $Matches[2].Trim()
             if ($taskValue.StartsWith('"') -or $taskValue.StartsWith("'")) {
