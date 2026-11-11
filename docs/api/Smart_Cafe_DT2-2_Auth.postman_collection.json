@@ -1,0 +1,644 @@
+{
+  "info": {
+    "_postman_id": "smart-cafe-dt2-2-auth-collection",
+    "name": "Smart Cafe - DT2-2 Authentication & Password Recovery",
+    "description": "Bộ kiểm thử API tự động cho task DT2-2 (Đăng nhập, Phân quyền RBAC, Quên mật khẩu qua Email, OTP 6 số, Đặt lại mật khẩu).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "01. Auth - Đăng nhập Admin thành công",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Returns valid accessToken and tokenType\", function () {",
+              "    pm.expect(jsonData.token).to.be.a('string');",
+              "    pm.expect(jsonData.user).to.be.an('object');",
+              "    pm.expect(jsonData.user.role).to.eql('ADMIN');",
+              "    pm.expect(jsonData.user.username).to.eql('admin');",
+              "});",
+              "if (jsonData.token) {",
+              "    pm.environment.set(\"adminToken\", jsonData.token);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "02. Auth - Đăng nhập Staff thành công",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Returns valid staff token and role STAFF\", function () {",
+              "    pm.expect(jsonData.token).to.be.a('string');",
+              "    pm.expect(jsonData.user.role).to.eql('STAFF');",
+              "    pm.expect(jsonData.user.username).to.eql('staff');",
+              "});",
+              "if (jsonData.token) {",
+              "    pm.environment.set(\"staffToken\", jsonData.token);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{staffUsername}}\",\n  \"password\": \"{{staffPassword}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "03. Auth - Đăng nhập bằng Email thành công",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Logged in successfully via email\", function () {",
+              "    pm.expect(jsonData.user.email).to.eql(pm.environment.get(\"adminEmail\"));",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "04. Auth - Đăng nhập sai mật khẩu (Thất bại 401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Error message is returned\", function () {",
+              "    pm.expect(jsonData.detail).to.be.a('string');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"SaiMatKhau@999\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "05. Auth - Đăng nhập tài khoản không tồn tại (Thất bại 401)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"non_existing_user_xyz\",\n  \"password\": \"SomePass@123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "06. Auth - Đăng nhập thiếu thông tin (Validation 400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Field errors exist\", function () {",
+              "    pm.expect(jsonData.fieldErrors).to.be.an('object');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"\",\n  \"password\": \"\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "07. Profile - Lấy thông tin user hiện tại (Admin)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Profile matches admin user\", function () {",
+              "    pm.expect(jsonData.username).to.eql('admin');",
+              "    pm.expect(jsonData.role).to.eql('ADMIN');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/me",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "me"]
+        }
+      }
+    },
+    {
+      "name": "08. Profile - Lấy thông tin user hiện tại (Staff)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Profile matches staff user\", function () {",
+              "    pm.expect(jsonData.username).to.eql('staff');",
+              "    pm.expect(jsonData.role).to.eql('STAFF');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{staffToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/me",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "me"]
+        }
+      }
+    },
+    {
+      "name": "09. Profile - Không có Token (401 Unauthorized)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 401 Unauthorized\", function () {",
+              "    pm.response.to.have.status(401);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/me",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "me"]
+        }
+      }
+    },
+    {
+      "name": "10. Phân quyền - Admin truy cập Admin Dashboard (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Response confirms ADMIN area\", function () {",
+              "    pm.expect(jsonData.area).to.eql('ADMIN');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/dashboard",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "admin", "dashboard"]
+        }
+      }
+    },
+    {
+      "name": "11. Phân quyền - Staff truy cập Admin Dashboard (403 Forbidden)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 403 Forbidden\", function () {",
+              "    pm.response.to.have.status(403);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{staffToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/admin/dashboard",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "admin", "dashboard"]
+        }
+      }
+    },
+    {
+      "name": "12. Phân quyền - Staff truy cập Staff Dashboard (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Response confirms STAFF area\", function () {",
+              "    pm.expect(jsonData.area).to.eql('STAFF');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{staffToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/staff/dashboard",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "staff", "dashboard"]
+        }
+      }
+    },
+    {
+      "name": "13. Quên mật khẩu - Email hợp lệ (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Returns neutral message and challengeId\", function () {",
+              "    pm.expect(jsonData.message).to.be.a('string');",
+              "    pm.expect(jsonData.challengeId).to.be.a('string');",
+              "    pm.expect(jsonData.expiresInSeconds).to.eql(600);",
+              "});",
+              "if (jsonData.challengeId) {",
+              "    pm.environment.set(\"challengeId\", jsonData.challengeId);",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{adminEmail}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/forgot-password",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "forgot-password"]
+        }
+      }
+    },
+    {
+      "name": "14. Quên mật khẩu - Email không tồn tại (Thông báo trung tính 200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK (Anti-Enumeration)\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Neutral message returned\", function () {",
+              "    pm.expect(jsonData.message).to.include('Nếu email tồn tại');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"non_existing_email_999@gmail.com\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/forgot-password",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "forgot-password"]
+        }
+      }
+    },
+    {
+      "name": "15. Quên mật khẩu - Email không đúng định dạng (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Field error on email field\", function () {",
+              "    pm.expect(jsonData.fieldErrors).to.have.property('email');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"not-an-email-format\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/forgot-password",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "forgot-password"]
+        }
+      }
+    },
+    {
+      "name": "16. Xác minh OTP - Nhập mã OTP không chính xác (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Error code is OTP_ERROR\", function () {",
+              "    pm.expect(jsonData.code).to.eql('OTP_ERROR');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"challengeId\": \"{{challengeId}}\",\n  \"otp\": \"000000\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/verify-otp",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "verify-otp"]
+        }
+      }
+    },
+    {
+      "name": "17. Xác minh Reset Token - Token ngẫu nhiên không hợp lệ (valid: false)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Returns valid false\", function () {",
+              "    pm.expect(jsonData.valid).to.eql(false);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/verify-reset-token?token=random-invalid-token-123456",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "verify-reset-token"],
+          "query": [
+            { "key": "token", "value": "random-invalid-token-123456" }
+          ]
+        }
+      }
+    },
+    {
+      "name": "18. Đặt lại mật khẩu - Vi phạm chính sách độ phức tạp (400 Bad Request)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 400 Bad Request\", function () {",
+              "    pm.response.to.have.status(400);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Validation failed returned\", function () {",
+              "    pm.expect(jsonData.code).to.eql('VALIDATION_FAILED');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"token\": \"random-fake-token\",\n  \"newPassword\": \"weak\",\n  \"confirmPassword\": \"weak\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/reset-password",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "reset-password"]
+        }
+      }
+    },
+    {
+      "name": "19. Auth - Đăng xuất tài khoản (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{adminToken}}" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/logout",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "logout"]
+        }
+      }
+    }
+  ]
+}

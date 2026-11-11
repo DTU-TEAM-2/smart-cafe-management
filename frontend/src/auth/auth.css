@@ -1,0 +1,443 @@
+/* ==========================================================================
+   SMART CAFE LECKER — AUTHENTICATION & PASSWORD RECOVERY (FIGMA 02)
+   ========================================================================== */
+
+.auth-container {
+  min-height: calc(100vh - 72px - 140px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 48px 20px;
+  background: radial-gradient(circle at 50% 15%, rgba(197, 160, 89, 0.08) 0%, var(--bg) 70%);
+}
+
+/* Split Login Container */
+.login-split-layout {
+  display: flex;
+  width: 100%;
+  max-width: 960px;
+  min-height: 560px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+}
+
+.login-story-side {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 40px;
+  background-size: cover;
+  background-position: center;
+  overflow: hidden;
+}
+
+.login-story-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(17, 21, 18, 0.2) 0%, rgba(17, 21, 18, 0.88) 85%);
+  z-index: 1;
+}
+
+.login-story-content {
+  position: relative;
+  z-index: 2;
+}
+
+.login-story-eyebrow {
+  color: var(--gold);
+  font-size: 12px;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  margin: 0 0 8px;
+  font-weight: 600;
+}
+
+.login-story-title {
+  font-family: var(--font-display);
+  font-size: 32px;
+  line-height: 1.25;
+  color: var(--fg);
+  margin: 0 0 12px;
+}
+
+.login-story-desc {
+  font-size: 14px;
+  color: var(--fg-subtle);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.login-form-side {
+  flex: 1;
+  max-width: 460px;
+  padding: 44px 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  background: var(--surface);
+}
+
+/* Flow Single Card (Forgot, OTP, Reset) */
+.auth-flow-card {
+  width: 100%;
+  max-width: 480px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--gold);
+  border-radius: 10px;
+  padding: 40px 36px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+}
+
+.auth-card-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.auth-brand-tag {
+  color: var(--gold);
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 3px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.auth-brand-tag span {
+  display: block;
+  font-size: 9px;
+  letter-spacing: 2px;
+  color: var(--muted);
+  font-family: var(--font-body);
+  font-weight: 400;
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.auth-step-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: rgba(197, 160, 89, 0.12);
+  border: 1px solid var(--border);
+  color: var(--gold);
+  font-size: 11px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.auth-card-header h1 {
+  font-family: var(--font-display);
+  font-size: 26px;
+  color: var(--fg);
+  margin: 0 0 8px;
+  letter-spacing: -0.5px;
+}
+
+.auth-card-header p {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Banners */
+.auth-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-border);
+  color: #ffb4a6;
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  margin-bottom: 20px;
+}
+
+.auth-success-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--success-bg);
+  border: 1px solid var(--success-border);
+  color: #86efac;
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  margin-bottom: 20px;
+}
+
+.auth-info-banner {
+  background: rgba(197, 160, 89, 0.1);
+  border: 1px solid var(--border);
+  color: var(--fg-subtle);
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* Form Styling */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg-subtle);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.form-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--fg);
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.form-input:focus {
+  border-color: var(--gold);
+  background: var(--surface-raised);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.2);
+}
+
+.form-input[aria-invalid="true"] {
+  border-color: var(--danger);
+}
+
+.form-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Password Input with Toggle Button */
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-input-wrapper .form-input {
+  padding-right: 76px;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 8px;
+  background: none;
+  border: none;
+  color: var(--gold);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.password-toggle-btn:hover {
+  background: rgba(197, 160, 89, 0.12);
+}
+
+/* OTP 6-Digit Input */
+.otp-input {
+  text-align: center;
+  font-size: 30px;
+  letter-spacing: 0.35em;
+  font-weight: 700;
+  color: var(--amber);
+  min-height: 56px;
+  font-family: monospace, sans-serif;
+}
+
+.otp-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.otp-timer {
+  color: var(--gold);
+  font-weight: 600;
+}
+
+.otp-target-email {
+  text-align: center;
+  font-size: 14px;
+  color: var(--fg);
+  font-weight: 600;
+  margin: -12px 0 18px;
+  padding: 8px;
+  background: var(--surface-card);
+  border-radius: 4px;
+  border: 1px dashed var(--border);
+}
+
+/* Hints */
+.form-hint {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.4;
+  margin: 2px 0 0;
+}
+
+/* Buttons */
+.auth-actions-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.btn-primary {
+  width: 100%;
+  min-height: 46px;
+  padding: 12px 20px;
+  background: var(--gold);
+  border: 1px solid var(--gold);
+  border-radius: 6px;
+  color: var(--bg);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--gold-hover);
+  border-color: var(--gold-hover);
+  box-shadow: 0 4px 14px rgba(197, 160, 89, 0.35);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.btn-secondary {
+  min-height: 46px;
+  padding: 12px 20px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--fg);
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--gold);
+  background: rgba(197, 160, 89, 0.08);
+  color: var(--gold-light);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Links */
+.auth-links-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 13px;
+}
+
+.auth-links-row a,
+.auth-text-link {
+  color: var(--gold);
+  transition: color 0.2s;
+  cursor: pointer;
+}
+
+.auth-links-row a:hover,
+.auth-text-link:hover {
+  color: var(--gold-hover);
+  text-decoration: underline;
+}
+
+.auth-back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  margin-bottom: 16px;
+  cursor: pointer;
+}
+
+.auth-back-link:hover {
+  color: var(--gold-light);
+}
+
+/* Responsiveness */
+@media (max-width: 860px) {
+  .login-split-layout {
+    flex-direction: column;
+    max-width: 480px;
+  }
+  .login-story-side {
+    display: none;
+  }
+  .login-form-side {
+    max-width: 100%;
+    padding: 36px 28px;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-container {
+    padding: 24px 14px;
+  }
+  .login-form-side,
+  .auth-flow-card {
+    padding: 28px 20px;
+  }
+  .otp-input {
+    font-size: 24px;
+    letter-spacing: 0.25em;
+  }
+  .auth-actions-row {
+    flex-direction: column;
+  }
+}
