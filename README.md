@@ -24,4 +24,16 @@ node scripts/skills.mjs check
 node --test scripts/skills.test.mjs
 ```
 
-Repo hiện chưa có backend/frontend nên chưa có lệnh chạy ứng dụng hoặc kiểm chứng database. Hướng dẫn chi tiết: [AGENTS.md](AGENTS.md), [quy trình](CONTRIBUTING.md), [skill](SKILLS_INSTALLED.md).
+## FE quản lý món và nhóm món — DT2-9
+
+FE React/Vite được viết mới theo Figma LECKER, tham khảo luồng thực đơn ở legacy theo yêu cầu người dùng. Chỉ có dữ liệu minh họa trong bộ nhớ; chưa có backend hoặc database.
+
+```sh
+cd frontend
+npm ci
+npm run dev
+```
+
+Chi tiết phạm vi và kiểm tra FE: [frontend/README.md](frontend/README.md). Nguồn yêu cầu: [DT2-9](docs/handover/dt2-9-frontend-request.md).
+
+Hướng dẫn quy trình: [AGENTS.md](AGENTS.md), [đóng góp](CONTRIBUTING.md), [skill](SKILLS_INSTALLED.md).
