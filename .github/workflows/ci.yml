@@ -3,7 +3,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, feature/dt2-4-menu-api]
     types: [opened, synchronize, reopened, edited]
 permissions:
   contents: read

@@ -28,6 +28,7 @@ class CustomerTableMySqlTest {
     void resolvesExactActiveTableAndRejectsInvalidInactiveOrUnknownQrWithoutWrites() throws Exception {
         assertThat(jdbc.queryForObject("SELECT DATABASE()", String.class)).endsWith("_test");
         long before = jdbc.queryForObject("SELECT COUNT(*) FROM table_sessions", Long.class);
+        long clientsBefore = jdbc.queryForObject("SELECT COUNT(*) FROM session_clients", Long.class);
         jdbc.update("""
                 INSERT INTO cafe_tables(id,code,name,status,qr_public_id) VALUES
                 (81001,'QR_TEST_A','Bàn QR A','ACTIVE','7d57e0b0-dfca-4ed3-846a-5b77e4450001'),
@@ -49,5 +50,6 @@ class CustomerTableMySqlTest {
         mvc.perform(get(root + "7d57e0b0-dfca-4ed3-846a-5b77e4459999")).andExpect(status().isNotFound());
         mvc.perform(get(root + "bad-qr")).andExpect(status().isBadRequest());
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM table_sessions", Long.class)).isEqualTo(before);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM session_clients", Long.class)).isEqualTo(clientsBefore);
     }
 }
