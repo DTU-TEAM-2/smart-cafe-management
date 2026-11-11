@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from html import escape
 import json
 from pathlib import Path
+from urllib.parse import urlencode
 
 
 def summarize(source, revision, run_url):
@@ -14,7 +15,11 @@ def summarize(source, revision, run_url):
         request = execution['request']
         url = request['url']
         if isinstance(url, dict):
-            url = url.get('raw') or '/' + '/'.join(url.get('path', []))
+            raw = url.get('raw')
+            if not raw:
+                query = urlencode([(q['key'], q.get('value', '')) for q in url.get('query', []) if not q.get('disabled')])
+                raw = '/' + '/'.join(url.get('path', [])) + ('?' + query if query else '')
+            url = raw
         response = execution.get('response') or {}
         stream = response.get('stream', {})
         body = bytes(stream.get('data', [])).decode('utf-8', errors='replace') if isinstance(stream, dict) else str(stream)
