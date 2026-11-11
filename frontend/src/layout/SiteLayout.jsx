@@ -112,6 +112,7 @@ export default function SiteLayout({ children, account = null, notifications = n
             </button>
             <section className="header-panel" id={`${regionId}-account`} hidden={panel !== "account"} aria-label="Thông tin tài khoản">
               <h2>{account?.name ?? "Tài khoản"}</h2>
+              {isStaff && <p><a href="#sale" onClick={() => setPanel(null)}>Bán hàng theo bàn</a></p>}
               {account && localLink(account.profileHref) ? <a href={account.profileHref} onClick={() => setPanel(null)}>Thông tin tài khoản</a>
                 : !account && localLink(links.login) ? <a href={links.login}>Đăng nhập</a>
                   : <p>{account ? "Chưa kết nối trang hồ sơ." : "Bạn chưa đăng nhập."}</p>}

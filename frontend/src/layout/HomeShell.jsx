@@ -2,6 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import HomePage from "../home/HomePage.jsx";
 import SiteLayout from "./SiteLayout.jsx";
 import LoginPage from "../auth/LoginPage.jsx";
+import SalesWorkspace from "../sales/SalesWorkspace.jsx";
 
 function subscribeHash(callback) {
   window.addEventListener("hashchange", callback);
@@ -87,18 +88,22 @@ function ScopedHomeShell({ authorization = "", loginHref = "#login", credentials
 
   const onAccountPage = hash === "#account";
   const onLoginPage = hash === "#login";
+  const onSalesPage = hash === "#sale" || hash === "#sale-income";
   useEffect(() => {
-    if (!onAccountPage && !onLoginPage && hash) {
+    if (!onAccountPage && !onLoginPage && !onSalesPage && hash) {
       const frame = requestAnimationFrame(() => document.getElementById(hash.slice(1))?.scrollIntoView());
       return () => cancelAnimationFrame(frame);
     }
-    if (onAccountPage || onLoginPage) {
+    if (onAccountPage || onLoginPage || onSalesPage) {
       window.scrollTo(0, 0);
-      document.getElementById("main")?.focus({ preventScroll: true });
+      document.getElementById(onSalesPage ? "sale-main" : "main")?.focus({ preventScroll: true });
     }
-  }, [hash, onAccountPage, onLoginPage]);
+  }, [hash, onAccountPage, onLoginPage, onSalesPage]);
 
   const account = identity.account ? { ...identity.account, profileHref: "#account" } : null;
+  if (onSalesPage) return <SalesWorkspace account={account} identityStatus={identity.status}
+    authorization={authorization} credentials={credentials} income={hash === "#sale-income"}
+    retryIdentity={() => { setIdentity({ status: "loading", account: null }); setAccountAttempt(value => value + 1); }} />;
   const notifications = feed.data && { ...feed.data, items: feed.data.items.map(item => ({ ...item, read: readIds.has(item.id) })) };
   return <SiteLayout account={account} notifications={notifications} links={{ login: loginHref }}
     currentPage={onAccountPage ? "account" : onLoginPage ? "login" : "home"} notificationState={feed.status}
