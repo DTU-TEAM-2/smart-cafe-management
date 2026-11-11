@@ -1,0 +1,204 @@
+{
+  "info": {
+    "name": "DT2-4 Chức năng 1 - Xem Menu",
+    "description": "Postman collection kiểm thử Backend API Xem Menu (/api/v1/customer/menu).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Lấy danh sách nhóm món hợp lệ",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Trả về mảng nhóm món', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body).to.be.an('array');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/customer/menu/categories"
+      }
+    },
+    {
+      "name": "2. Lấy danh sách món toàn menu (phân trang mặc định)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Đúng cấu trúc phân trang', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body).to.have.property('content').that.is.an('array');",
+              "  pm.expect(body).to.have.property('totalElements');",
+              "  pm.expect(body.page).to.eql(0);",
+              "  pm.expect(body.size).to.eql(10);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/customer/menu/items?page=0&size=10"
+      }
+    },
+    {
+      "name": "3. Lấy danh sách món theo nhóm hợp lệ",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Tất cả món đúng categoryId', function () {",
+              "  const body = pm.response.json();",
+              "  body.content.forEach(item => pm.expect(item.categoryId).to.eql(pm.environment.get('categoryId')));",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/customer/menu/items?categoryId={{categoryId}}&page=0&size=10"
+      }
+    },
+    {
+      "name": "4. Lấy danh sách món của danh mục rỗng",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200 cho danh mục rỗng', function () { pm.response.to.have.status(200); });",
+              "pm.test('Mảng content rỗng', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body.content).to.be.an('array').that.is.empty;",
+              "  pm.expect(body.totalElements).to.eql(0);",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/customer/menu/items?categoryId={{emptyCategoryId}}"
+      }
+    },
+    {
+      "name": "5. Lấy chi tiết món hợp lệ",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', function () { pm.response.to.have.status(200); });",
+              "pm.test('Có đủ tên, giá, ảnh và trạng thái phục vụ', function () {",
+              "  const body = pm.response.json();",
+              "  pm.expect(body).to.have.keys('id','code','name','price','imageUrl','available','categoryId','categoryCode','categoryName');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/customer/menu/items/{{itemId}}"
+      }
+    },
+    {
+      "name": "6. Nhóm món không tồn tại (404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 404', function () { pm.response.to.have.status(404); });",
+              "pm.test('Thông báo tiếng Việt', function () {",
+              "  pm.expect(pm.response.json().detail).to.eql('Không tìm thấy nhóm món.');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/customer/menu/items?categoryId=999999"
+      }
+    },
+    {
+      "name": "7. Món không tồn tại (404)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 404', function () { pm.response.to.have.status(404); });",
+              "pm.test('Thông báo tiếng Việt', function () {",
+              "  pm.expect(pm.response.json().detail).to.eql('Không tìm thấy món.');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/customer/menu/items/999999"
+      }
+    },
+    {
+      "name": "8. Tham số sai định dạng hoặc vượt giới hạn (400)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', function () { pm.response.to.have.status(400); });",
+              "pm.test('Thông báo lỗi tiếng Việt', function () {",
+              "  pm.expect(pm.response.json().detail).to.eql('Tham số truy vấn thực đơn không hợp lệ.');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/customer/menu/items?page=-1&size=200"
+      }
+    },
+    {
+      "name": "9. Từ chối method POST trên API xem menu (403)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 403', function () { pm.response.to.have.status(403); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/customer/menu/items"
+      }
+    }
+  ]
+}
