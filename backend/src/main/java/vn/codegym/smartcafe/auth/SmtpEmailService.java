@@ -33,8 +33,8 @@ public class SmtpEmailService implements EmailService {
     @Override
     public void sendOtpEmail(String toEmail, String otpCode, String purpose, long validitySeconds) {
         if (mailSender == null || mailHost == null || mailHost.isBlank()) {
-            log.warn("MAIL_NOT_CONFIGURED: SMTP host is not set. Cannot send OTP email to destination.");
-            return;
+            log.error("MAIL_NOT_CONFIGURED: SMTP host is not configured. Cannot send OTP email to destination.");
+            throw new IllegalStateException("Dịch vụ gửi email chưa được cấu hình máy chủ SMTP.");
         }
 
         try {

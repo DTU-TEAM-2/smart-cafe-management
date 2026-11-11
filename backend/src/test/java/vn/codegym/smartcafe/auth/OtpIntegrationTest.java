@@ -7,17 +7,28 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -43,9 +54,8 @@ class OtpIntegrationTest {
         assertThat(dbName).isNotNull().endsWith("_test");
 
         jdbcTemplate.update("DELETE FROM users WHERE username = 'otp_user'");
-        jdbcTemplate.update("DELETE FROM auth_otp_challenges WHERE email = 'otp_user@smartcafe.vn'");
-        jdbcTemplate.update("DELETE FROM auth_otp_limits WHERE email_key = ?",
-                tokenService.hmacSha256("LIMIT:otp_user@smartcafe.vn"));
+        jdbcTemplate.update("DELETE FROM auth_otp_challenges WHERE email LIKE '%@smartcafe.vn'");
+        jdbcTemplate.update("DELETE FROM auth_otp_limits WHERE purpose = 'RESET'");
 
         String hash = passwordEncoder.encode("OldPassword@123");
         jdbcTemplate.update("""
@@ -58,9 +68,8 @@ class OtpIntegrationTest {
     void cleanUp() {
         String dbName = jdbcTemplate.queryForObject("SELECT DATABASE()", String.class);
         if (dbName != null && dbName.endsWith("_test")) {
-            jdbcTemplate.update("DELETE FROM auth_otp_challenges WHERE email = 'otp_user@smartcafe.vn'");
-            jdbcTemplate.update("DELETE FROM auth_otp_limits WHERE email_key = ?",
-                    tokenService.hmacSha256("LIMIT:otp_user@smartcafe.vn"));
+            jdbcTemplate.update("DELETE FROM auth_otp_challenges WHERE email LIKE '%@smartcafe.vn'");
+            jdbcTemplate.update("DELETE FROM auth_otp_limits WHERE purpose = 'RESET'");
             jdbcTemplate.update("DELETE FROM users WHERE username = 'otp_user'");
         }
     }
@@ -333,5 +342,234 @@ class OtpIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.purpose").value("RESET"))
                 .andExpect(jsonPath("$.token").isString());
+    }
+
+    @Test
+    void emailEnumerationIndistinguishableAcrossVerifyAndResend() throws Exception {
+        // 1. Request forgot password for existing vs non-existent email
+        MvcResult existingResult = mockMvc.perform(post("/api/v1/auth/forgot-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\": \"otp_user@smartcafe.vn\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        MvcResult nonExistingResult = mockMvc.perform(post("/api/v1/auth/forgot-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\": \"ghost_user@smartcafe.vn\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String existingChallengeId = JsonPath.read(existingResult.getResponse().getContentAsString(), "$.challengeId");
+        String nonExistingChallengeId = JsonPath.read(nonExistingResult.getResponse().getContentAsString(), "$.challengeId");
+
+        // Verify messages at step 1 are identical
+        String msg1 = JsonPath.read(existingResult.getResponse().getContentAsString(), "$.message");
+        String msg2 = JsonPath.read(nonExistingResult.getResponse().getContentAsString(), "$.message");
+        assertThat(msg1).isEqualTo(msg2);
+
+        // 2. Both return identical 400 with "Mã OTP không chính xác. Bạn còn 4 lần thử." on wrong OTP
+        String wrongOtpBodyExisting = String.format("{\"challengeId\": \"%s\", \"otp\": \"999999\"}", existingChallengeId);
+        String wrongOtpBodyNonExisting = String.format("{\"challengeId\": \"%s\", \"otp\": \"999999\"}", nonExistingChallengeId);
+
+        MvcResult verifyFail1 = mockMvc.perform(post("/api/v1/auth/verify-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(wrongOtpBodyExisting))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("OTP_ERROR"))
+                .andReturn();
+
+        MvcResult verifyFail2 = mockMvc.perform(post("/api/v1/auth/verify-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(wrongOtpBodyNonExisting))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("OTP_ERROR"))
+                .andReturn();
+
+        String detail1 = JsonPath.read(verifyFail1.getResponse().getContentAsString(), "$.detail");
+        String detail2 = JsonPath.read(verifyFail2.getResponse().getContentAsString(), "$.detail");
+        assertThat(detail1).isEqualTo(detail2).contains("còn 4 lần thử");
+
+        // 3. Enter wrong OTP 4 more times to lock out both challenges
+        for (int i = 0; i < 4; i++) {
+            mockMvc.perform(post("/api/v1/auth/verify-otp")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(wrongOtpBodyExisting));
+            mockMvc.perform(post("/api/v1/auth/verify-otp")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(wrongOtpBodyNonExisting));
+        }
+
+        // 4. 6th attempt on both returns identical lockout error
+        MvcResult lockResult1 = mockMvc.perform(post("/api/v1/auth/verify-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(wrongOtpBodyExisting))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+
+        MvcResult lockResult2 = mockMvc.perform(post("/api/v1/auth/verify-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(wrongOtpBodyNonExisting))
+                .andExpect(status().isBadRequest())
+                .andReturn();
+
+        String lockMsg1 = JsonPath.read(lockResult1.getResponse().getContentAsString(), "$.detail");
+        String lockMsg2 = JsonPath.read(lockResult2.getResponse().getContentAsString(), "$.detail");
+        assertThat(lockMsg1).isEqualTo(lockMsg2).contains("quá 5 lần");
+    }
+
+    @Test
+    void concurrentForgotPasswordDoesNotExceedRateLimit() throws Exception {
+        int threads = 20;
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        CountDownLatch startLatch = new CountDownLatch(1);
+        CountDownLatch doneLatch = new CountDownLatch(threads);
+        List<Integer> statusCodes = Collections.synchronizedList(new ArrayList<>());
+
+        for (int i = 0; i < threads; i++) {
+            executor.submit(() -> {
+                try {
+                    startLatch.await();
+                    MvcResult result = mockMvc.perform(post("/api/v1/auth/forgot-password")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"email\": \"concurrent_test@smartcafe.vn\"}"))
+                            .andReturn();
+                    statusCodes.add(result.getResponse().getStatus());
+                } catch (Exception e) {
+                    statusCodes.add(500);
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+        }
+
+        startLatch.countDown();
+        doneLatch.await();
+        executor.shutdown();
+
+        long successCount = statusCodes.stream().filter(code -> code == 200).count();
+        long rateLimitedCount = statusCodes.stream().filter(code -> code == 400).count();
+
+        assertThat(successCount).isEqualTo(1L);
+        assertThat(rateLimitedCount).isEqualTo(19L);
+
+        // Check database limit table
+        String emailKey = tokenService.hmacSha256("LIMIT:concurrent_test@smartcafe.vn");
+        Integer dbCount = jdbcTemplate.queryForObject(
+                "SELECT request_count FROM auth_otp_limits WHERE email_key = ? AND purpose = 'RESET'",
+                Integer.class,
+                emailKey
+        );
+        assertThat(dbCount).isEqualTo(1);
+    }
+
+    @Test
+    void concurrentResendOtpDoesNotExceedSendsLimit() throws Exception {
+        // Create a dummy challenge for testing resend concurrency
+        MvcResult forgotResult = mockMvc.perform(post("/api/v1/auth/forgot-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\": \"ghost_resend@smartcafe.vn\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String challengeId = JsonPath.read(forgotResult.getResponse().getContentAsString(), "$.challengeId");
+
+        // Fast-forward cooldown to the past
+        jdbcTemplate.update(
+                "UPDATE auth_otp_challenges SET next_send_at = DATE_SUB(NOW(6), INTERVAL 5 SECOND) WHERE id = ?",
+                challengeId
+        );
+
+        int threads = 2;
+        ExecutorService executor = Executors.newFixedThreadPool(threads);
+        CountDownLatch startLatch = new CountDownLatch(1);
+        CountDownLatch doneLatch = new CountDownLatch(threads);
+        List<Integer> statusCodes = Collections.synchronizedList(new ArrayList<>());
+
+        for (int i = 0; i < threads; i++) {
+            executor.submit(() -> {
+                try {
+                    startLatch.await();
+                    MvcResult result = mockMvc.perform(post("/api/v1/auth/resend-otp")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(String.format("{\"challengeId\": \"%s\"}", challengeId)))
+                            .andReturn();
+                    statusCodes.add(result.getResponse().getStatus());
+                } catch (Exception e) {
+                    statusCodes.add(500);
+                } finally {
+                    doneLatch.countDown();
+                }
+            });
+        }
+
+        startLatch.countDown();
+        doneLatch.await();
+        executor.shutdown();
+
+        long successCount = statusCodes.stream().filter(code -> code == 200).count();
+        long failureCount = statusCodes.stream().filter(code -> code == 400).count();
+
+        // Exactly 1 succeeds, other fails with cooldown/rate limit error
+        assertThat(successCount).isEqualTo(1L);
+        assertThat(failureCount).isEqualTo(1L);
+
+        Integer finalSends = jdbcTemplate.queryForObject(
+                "SELECT sends FROM auth_otp_challenges WHERE id = ?",
+                Integer.class,
+                challengeId
+        );
+        assertThat(finalSends).isEqualTo(2);
+    }
+
+    @Test
+    void verifyResetTokenViaPostAndCheckCacheControlHeader() throws Exception {
+        // 1. Forgot password
+        MvcResult forgotResult = mockMvc.perform(post("/api/v1/auth/forgot-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\": \"otp_user@smartcafe.vn\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String challengeId = JsonPath.read(forgotResult.getResponse().getContentAsString(), "$.challengeId");
+
+        // Find OTP
+        String codeHash = jdbcTemplate.queryForObject(
+                "SELECT code_hash FROM auth_otp_challenges WHERE id = ?",
+                String.class,
+                challengeId
+        );
+        String correctOtp = null;
+        for (int i = 0; i < 1_000_000; i++) {
+            String candidate = String.format("%06d", i);
+            if (tokenService.hmacSha256(challengeId + "|RESET|" + candidate).equals(codeHash)) {
+                correctOtp = candidate;
+                break;
+            }
+        }
+        assertThat(correctOtp).isNotNull();
+
+        // 2. Verify OTP to get resetToken
+        MvcResult verifyResult = mockMvc.perform(post("/api/v1/auth/verify-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.format("{\"challengeId\": \"%s\", \"otp\": \"%s\"}", challengeId, correctOtp)))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String resetToken = JsonPath.read(verifyResult.getResponse().getContentAsString(), "$.token");
+
+        // 3. Test POST /api/v1/auth/verify-reset-token with token in request body
+        mockMvc.perform(post("/api/v1/auth/verify-reset-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.format("{\"token\": \"%s\"}", resetToken)))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("no-store")))
+                .andExpect(jsonPath("$.valid").value(true));
+
+        // 4. Test GET /api/v1/auth/verify-reset-token also returns Cache-Control: no-store
+        mockMvc.perform(get("/api/v1/auth/verify-reset-token")
+                .param("token", resetToken))
+                .andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("no-store")))
+                .andExpect(jsonPath("$.valid").value(true));
     }
 }

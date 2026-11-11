@@ -3,6 +3,21 @@ import { getCurrentUserApi, loginApi, logoutApi } from "./authApi.js";
 
 const AuthContext = createContext(null);
 
+function clearAuthStorage() {
+  try {
+    sessionStorage.removeItem("smart_cafe_token");
+    sessionStorage.removeItem("smart_cafe_user");
+  } catch {
+    // ignore
+  }
+  try {
+    localStorage.removeItem("smart_cafe_token");
+    localStorage.removeItem("smart_cafe_user");
+  } catch {
+    // ignore
+  }
+}
+
 export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => {
     try {
@@ -27,37 +42,42 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (!token) {
-      sessionStorage.removeItem("smart_cafe_token");
-      sessionStorage.removeItem("smart_cafe_user");
+      clearAuthStorage();
       setUser(null);
       window.dispatchEvent(new CustomEvent("smart-cafe-auth-change"));
       return;
     }
 
-    sessionStorage.setItem("smart_cafe_token", token);
+    try {
+      sessionStorage.setItem("smart_cafe_token", token);
+    } catch {
+      // ignore
+    }
     window.dispatchEvent(new CustomEvent("smart-cafe-auth-change"));
 
     let ignore = false;
-    async function fetchUser() {
+    async function verifyAndFetchUser() {
       try {
         const currentUser = await getCurrentUserApi(token);
         if (!ignore) {
           setUser(currentUser);
-          sessionStorage.setItem("smart_cafe_user", JSON.stringify(currentUser));
+          try {
+            sessionStorage.setItem("smart_cafe_user", JSON.stringify(currentUser));
+          } catch {
+            // ignore
+          }
         }
       } catch {
         if (!ignore) {
           setToken("");
           setUser(null);
-          sessionStorage.removeItem("smart_cafe_token");
-          sessionStorage.removeItem("smart_cafe_user");
+          clearAuthStorage();
+          window.dispatchEvent(new CustomEvent("smart-cafe-auth-change"));
         }
       }
     }
 
-    if (!user) {
-      fetchUser();
-    }
+    verifyAndFetchUser();
 
     return () => {
       ignore = true;
@@ -88,8 +108,7 @@ export function AuthProvider({ children }) {
     } finally {
       setToken("");
       setUser(null);
-      sessionStorage.removeItem("smart_cafe_token");
-      sessionStorage.removeItem("smart_cafe_user");
+      clearAuthStorage();
       window.dispatchEvent(new CustomEvent("smart-cafe-auth-change"));
     }
   }

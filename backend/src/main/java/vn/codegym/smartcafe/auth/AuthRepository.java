@@ -1,5 +1,7 @@
 package vn.codegym.smartcafe.auth;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -12,6 +14,7 @@ import java.util.Optional;
 @Repository
 public class AuthRepository {
 
+    private static final Logger log = LoggerFactory.getLogger(AuthRepository.class);
     private final JdbcTemplate jdbcTemplate;
 
     public AuthRepository(JdbcTemplate jdbcTemplate) {
@@ -172,7 +175,10 @@ public class AuthRepository {
                 expires_at = ?,
                 next_send_at = ?,
                 sent_at = CURRENT_TIMESTAMP(6)
-            WHERE id = ? AND used_at IS NULL
+            WHERE id = ?
+              AND used_at IS NULL
+              AND sends < 3
+              AND CURRENT_TIMESTAMP(6) >= next_send_at
             """;
         return jdbcTemplate.update(
                 sql,
@@ -189,40 +195,79 @@ public class AuthRepository {
     }
 
     public boolean checkAndIncrementLimit(String emailKey, String purpose, Instant now, Instant windowStart, Instant nextSendAt) {
-        // Enforce rate limiting: 1 request per cooldown window, max 5 per hour
-        String selectSql = "SELECT next_send_at, window_start, request_count FROM auth_otp_limits WHERE email_key = ? AND purpose = ?";
+        // Enforce rate limiting atomically: 1 request per cooldown window, max 5 per hour
+        // 1. Try atomic conditional update first (if record already exists)
+        String updateSql = """
+            UPDATE auth_otp_limits
+            SET request_count = CASE
+                    WHEN TIMESTAMPDIFF(SECOND, window_start, ?) >= 3600 THEN 1
+                    ELSE request_count + 1
+                END,
+                window_start = CASE
+                    WHEN TIMESTAMPDIFF(SECOND, window_start, ?) >= 3600 THEN ?
+                    ELSE window_start
+                END,
+                next_send_at = ?
+            WHERE email_key = ?
+              AND purpose = ?
+              AND ? >= next_send_at
+              AND (TIMESTAMPDIFF(SECOND, window_start, ?) >= 3600 OR request_count < 5)
+            """;
+
+        String insertSql = """
+            INSERT INTO auth_otp_limits (email_key, purpose, next_send_at, window_start, request_count)
+            VALUES (?, ?, ?, ?, 1)
+            """;
+
+        Timestamp nowTs = Timestamp.from(now);
+        Timestamp nextSendTs = Timestamp.from(nextSendAt);
+
         try {
-            return jdbcTemplate.query(selectSql, rs -> {
-                if (!rs.next()) {
-                    String insertSql = "INSERT INTO auth_otp_limits (email_key, purpose, next_send_at, window_start, request_count) VALUES (?, ?, ?, ?, 1)";
-                    jdbcTemplate.update(insertSql, emailKey, purpose, Timestamp.from(nextSendAt), Timestamp.from(now));
-                    return true;
-                }
-                Timestamp nextSend = rs.getTimestamp("next_send_at");
-                Timestamp winStart = rs.getTimestamp("window_start");
-                int count = rs.getInt("request_count");
-
-                if (now.isBefore(nextSend.toInstant())) {
-                    return false; // Still in cooldown
-                }
-
-                if (now.toEpochMilli() - winStart.getTime() > 3600_000L) {
-                    // Reset 1-hour window
-                    String updateSql = "UPDATE auth_otp_limits SET window_start = ?, request_count = 1, next_send_at = ? WHERE email_key = ? AND purpose = ?";
-                    jdbcTemplate.update(updateSql, Timestamp.from(now), Timestamp.from(nextSendAt), emailKey, purpose);
-                    return true;
-                }
-
-                if (count >= 5) {
-                    return false; // Exceeded 5 requests per hour
-                }
-
-                String updateSql = "UPDATE auth_otp_limits SET request_count = request_count + 1, next_send_at = ? WHERE email_key = ? AND purpose = ?";
-                jdbcTemplate.update(updateSql, Timestamp.from(nextSendAt), emailKey, purpose);
+            int rowsUpdated = jdbcTemplate.update(
+                    updateSql,
+                    nowTs,
+                    nowTs,
+                    nowTs,
+                    nextSendTs,
+                    emailKey,
+                    purpose,
+                    nowTs,
+                    nowTs
+            );
+            if (rowsUpdated == 1) {
                 return true;
-            }, emailKey, purpose);
+            }
+
+            // If 0 rows updated, check if the record already exists
+            // If it exists, 0 rows updated means rate limit or cooldown was not satisfied
+            String checkExistsSql = "SELECT COUNT(*) FROM auth_otp_limits WHERE email_key = ? AND purpose = ?";
+            Integer count = jdbcTemplate.queryForObject(checkExistsSql, Integer.class, emailKey, purpose);
+            if (count != null && count > 0) {
+                return false;
+            }
+
+            // Record does not exist: attempt atomic insert with initial count = 1
+            try {
+                int inserted = jdbcTemplate.update(insertSql, emailKey, purpose, nextSendTs, nowTs);
+                return inserted == 1;
+            } catch (org.springframework.dao.DuplicateKeyException dke) {
+                // Another concurrent thread inserted the record first: re-evaluate rate limit via update
+                int retryUpdated = jdbcTemplate.update(
+                        updateSql,
+                        nowTs,
+                        nowTs,
+                        nowTs,
+                        nextSendTs,
+                        emailKey,
+                        purpose,
+                        nowTs,
+                        nowTs
+                );
+                return retryUpdated == 1;
+            }
         } catch (Exception e) {
-            return true;
+            log.error("Failed checking rate limit for key {}: {}", emailKey, e.getMessage());
+            return false; // Fail-closed
         }
     }
 }

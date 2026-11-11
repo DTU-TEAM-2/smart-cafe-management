@@ -74,12 +74,12 @@ public class OtpService {
         }
 
         String challengeId = tokenService.generateRandomHex(32);
-        String otpCode = generateNumericOtp();
-        String codeHash = tokenService.hmacSha256(challengeId + "|RESET|" + otpCode);
         Instant expiresAt = now.plusSeconds(otpValiditySeconds);
 
         if (userOpt.isPresent()) {
             UserRecord user = userOpt.get();
+            String otpCode = generateNumericOtp();
+            String codeHash = tokenService.hmacSha256(challengeId + "|RESET|" + otpCode);
             OtpChallengeRecord challenge = new OtpChallengeRecord(
                     challengeId,
                     user.id(),
@@ -104,7 +104,29 @@ public class OtpService {
                 log.error("Failed to send OTP email to {}: {}", user.email(), ex.getMessage());
             }
         } else {
-            log.info("Password reset requested for non-existent email: {}", email);
+            // Anti-account enumeration: create dummy challenge record with unguessable HMAC hash
+            // so subsequent verify-otp and resend-otp requests behave completely identically
+            // to existing accounts without revealing account existence or sending external emails.
+            // Conforms to database constraint ck_auth_otp_reset_user (allows user_id NULL for REGISTER).
+            String dummyHash = tokenService.hmacSha256("DUMMY|" + challengeId + "|" + tokenService.generateRandomHex(32));
+            OtpChallengeRecord dummyChallenge = new OtpChallengeRecord(
+                    challengeId,
+                    null,
+                    email.trim().toLowerCase(),
+                    "REGISTER",
+                    dummyHash,
+                    0,
+                    1,
+                    expiresAt,
+                    nextSendAt,
+                    null,
+                    "PENDING",
+                    now,
+                    null,
+                    now
+            );
+            authRepository.saveOtpChallenge(dummyChallenge);
+            log.info("Password reset dummy challenge created for non-existent email: {}", email);
         }
 
         return new ForgotPasswordResponse(
@@ -167,10 +189,10 @@ public class OtpService {
 
         if ("RESET".equalsIgnoreCase(challenge.purpose())) {
             if (challenge.userId() == null) {
-                throw new OtpException("Không tìm thấy thông tin tài khoản liên kết.");
+                throw new OtpException("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc.");
             }
             UserRecord user = authRepository.findUserById(challenge.userId())
-                    .orElseThrow(() -> new OtpException("Không tìm thấy thông tin tài khoản liên kết."));
+                    .orElseThrow(() -> new OtpException("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc."));
 
             String rawGrantToken = tokenService.generateResetGrantToken(
                     challengeId,
@@ -204,19 +226,32 @@ public class OtpService {
             throw new OtpException("Vui lòng đợi " + remainingCooldown + " giây trước khi gửi lại mã.", remainingCooldown);
         }
 
-        String newOtpCode = generateNumericOtp();
-        String newCodeHash = tokenService.hmacSha256(challengeId + "|" + challenge.purpose() + "|" + newOtpCode);
         Instant newExpiresAt = now.plusSeconds(otpValiditySeconds);
         Instant newNextSendAt = now.plusSeconds(COOLDOWN_SECONDS);
 
-        try {
-            emailService.sendOtpEmail(challenge.email(), newOtpCode, challenge.purpose(), otpValiditySeconds);
-        } catch (Exception ex) {
-            log.error("Failed to resend OTP to recipient: {}", ex.getMessage());
-            throw new OtpException("Không thể gửi email OTP qua dịch vụ gửi thư. Vui lòng thử lại sau.");
+        String newCodeHash;
+        if (challenge.userId() != null) {
+            String newOtpCode = generateNumericOtp();
+            newCodeHash = tokenService.hmacSha256(challengeId + "|" + challenge.purpose() + "|" + newOtpCode);
+
+            // Send email before updating database. If SMTP fails or is unconfigured, throw exception
+            // so the previous OTP code remains valid and unchanged in the database.
+            try {
+                emailService.sendOtpEmail(challenge.email(), newOtpCode, challenge.purpose(), otpValiditySeconds);
+            } catch (Exception ex) {
+                log.error("Failed to resend OTP to recipient {}: {}", challenge.email(), ex.getMessage());
+                throw new OtpException("Không thể gửi email OTP qua dịch vụ gửi thư. Vui lòng thử lại sau.");
+            }
+        } else {
+            // For non-existent email dummy challenge: generate new unguessable dummy hash and skip sending email
+            newCodeHash = tokenService.hmacSha256("DUMMY|" + challengeId + "|" + tokenService.generateRandomHex(32));
         }
 
-        authRepository.updateOtpResend(challengeId, newCodeHash, newExpiresAt, newNextSendAt);
+        // Atomic update with concurrency and cooldown guard (sends < 3 AND CURRENT_TIMESTAMP(6) >= next_send_at)
+        int updated = authRepository.updateOtpResend(challengeId, newCodeHash, newExpiresAt, newNextSendAt);
+        if (updated == 0) {
+            throw new OtpException("Không thể gửi lại mã vào lúc này hoặc đã vượt quá số lần cho phép.");
+        }
 
         return new ForgotPasswordResponse(
                 challengeId,

@@ -1,6 +1,7 @@
 package vn.codegym.smartcafe.auth;
 
 import jakarta.validation.Valid;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -58,10 +59,21 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/verify-reset-token")
+    public ResponseEntity<Map<String, Boolean>> verifyResetTokenPost(@RequestBody Map<String, String> body) {
+        String token = body != null ? body.get("token") : null;
+        boolean valid = otpService.verifyResetToken(token);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .body(Map.of("valid", valid));
+    }
+
     @GetMapping("/verify-reset-token")
     public ResponseEntity<Map<String, Boolean>> verifyResetToken(@RequestParam("token") String token) {
         boolean valid = otpService.verifyResetToken(token);
-        return ResponseEntity.ok(Map.of("valid", valid));
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .body(Map.of("valid", valid));
     }
 
     @PostMapping("/reset-password")

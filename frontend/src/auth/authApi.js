@@ -79,7 +79,11 @@ export async function resendOtpApi(challengeId) {
 }
 
 export async function verifyResetTokenApi(token) {
-  const res = await fetch(`/api/v1/auth/verify-reset-token?token=${encodeURIComponent(token)}`);
+  const res = await fetch("/api/v1/auth/verify-reset-token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ token }),
+  });
   const data = await handleResponse(res);
   return data?.valid === true;
 }

@@ -7,7 +7,7 @@ import "./styles.css";
 
 function readToken() {
   try {
-    return sessionStorage.getItem("smart_cafe_token") || localStorage.getItem("smart_cafe_token") || "";
+    return sessionStorage.getItem("smart_cafe_token") || "";
   } catch {
     return "";
   }
