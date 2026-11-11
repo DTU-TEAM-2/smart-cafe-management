@@ -79,6 +79,12 @@ export default function SiteLayout({ children, account = null, notifications = n
             <SiteLink key={label} href={href ?? links[key]} aria-current={index === 0 && currentPage === "home" ? "page" : undefined}
               onClick={() => { if (panel === "menu") menuButton.current?.focus(); setPanel(null); }}>{label}</SiteLink>
           ))}
+          {account?.role === "ADMIN" && (
+            <SiteLink href="#staff" aria-current={currentPage === "staff" ? "page" : undefined}
+              onClick={() => { if (panel === "menu") menuButton.current?.focus(); setPanel(null); }}>
+              Nhân viên
+            </SiteLink>
+          )}
         </nav>
         <div className="header-actions">
           <a className="icon-button" href="#newest" aria-label="Khám phá danh sách món"><Icon name="search" /></a>
@@ -113,6 +119,7 @@ export default function SiteLayout({ children, account = null, notifications = n
             <section className="header-panel" id={`${regionId}-account`} hidden={panel !== "account"} aria-label="Thông tin tài khoản">
               <h2>{account?.name ?? "Tài khoản"}</h2>
               {isStaff && <p><a href="#sale" onClick={() => setPanel(null)}>Bán hàng theo bàn</a></p>}
+              {account?.role === "ADMIN" && <p><a href="#staff" onClick={() => setPanel(null)}>Quản lý nhân viên</a></p>}
               {account && localLink(account.profileHref) ? <a href={account.profileHref} onClick={() => setPanel(null)}>Thông tin tài khoản</a>
                 : !account && localLink(links.login) ? <a href={links.login}>Đăng nhập</a>
                   : <p>{account ? "Chưa kết nối trang hồ sơ." : "Bạn chưa đăng nhập."}</p>}
