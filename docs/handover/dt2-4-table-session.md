@@ -37,4 +37,6 @@ Phần tra QR chỉ đọc `cafe_tables(id,code,name,status,qr_public_id)` theo 
 
 Test controller: truy cập public không token, không tiết lộ token/phiên, lỗi Việt hóa và DB, không mở quyền ghi. Test MySQL: hai QR trả đúng hai bàn, bàn ngừng/lưu trữ, QR sai/không tồn tại, gọi lặp không tạo phiên.
 
+Ngày 11/11/2026 đã chạy trên Docker local: Maven verify 65/65 test PASS, 0 skip; test MySQL QR có assertion không tạo session/client chạy bổ sung 1/1 PASS; collection QR 9/9 request và 16/16 assertion PASS bằng Newman. [Ảnh và dữ liệu thực tế](../reports/dt2-4-qr/README.md). Đây không phải kết quả của luồng tự mở/xác thực phiên còn bị chặn.
+
 Skills: requirements `cafe-requirements`; implementation `cafe-spring-api`, `cafe-database`; verification/review `cafe-quality`, `cafe-review` tại `.agents/skills/<identifier>/SKILL.md`. Drive metadata/read dùng `google-drive`; nội dung SRS không đọc được phải giữ là giới hạn.
