@@ -1,0 +1,82 @@
+[
+  {
+    "method": "GET",
+    "url": "http://127.0.0.1:18084/api/v1/customer/menu/categories",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?page=0&size=10",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?categoryId=1&page=0&size=10",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?categoryId=2",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "url": "http://127.0.0.1:18084/api/v1/customer/menu/items/1",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?categoryId=999999",
+    "status": 404
+  },
+  {
+    "method": "GET",
+    "url": "http://127.0.0.1:18084/api/v1/customer/menu/items/999999",
+    "status": 404
+  },
+  {
+    "method": "GET",
+    "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?page=-1&size=200",
+    "status": 400
+  },
+  {
+    "method": "POST",
+    "url": "http://127.0.0.1:18084/api/v1/customer/menu/items",
+    "status": 403
+  },
+  {
+    "method": "GET",
+    "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?keyword=50%25",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?availableOnly=true",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?page=1&size=1",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "url": "http://127.0.0.1:18084/api/v1/customer/menu/items/not-a-number",
+    "status": 400
+  },
+  {
+    "method": "GET",
+    "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?keyword=!",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?keyword=%5C",
+    "status": 200
+  },
+  {
+    "method": "GET",
+    "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?keyword=_",
+    "status": 200
+  }
+]
