@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-11-11T06:23:04.869012+00:00",
-  "revision": "ad1bb343c577492e0e47a32c28b88387e7b7accf",
-  "runUrl": "https://github.com/DTU-TEAM-2/smart-cafe-management/actions/runs/42971930124",
+  "generatedAt": "2026-11-11T07:02:48.838970+00:00",
+  "revision": "495e9dbaa5e224a25c38f8a4df095a442c53dcf3",
+  "runUrl": "https://github.com/DTU-TEAM-2/smart-cafe-management/actions/runs/42976528804",
   "runner": "Newman 6.2.1 / Postman Collection v2.1",
   "environment": "GitHub Actions / Spring Boot 4.1.2 / JDK 21 / MySQL 8.0 / smart_cafe_postman_test",
   "fixture": "Synthetic menu rows only; existing schema.sql fixture, not production DDL.",
@@ -12,37 +12,37 @@
       "failed": 0
     },
     "items": {
-      "total": 13,
+      "total": 16,
       "pending": 0,
       "failed": 0
     },
     "scripts": {
-      "total": 13,
+      "total": 16,
       "pending": 0,
       "failed": 0
     },
     "prerequests": {
-      "total": 13,
+      "total": 16,
       "pending": 0,
       "failed": 0
     },
     "requests": {
-      "total": 13,
+      "total": 16,
       "pending": 0,
       "failed": 0
     },
     "tests": {
-      "total": 13,
+      "total": 16,
       "pending": 0,
       "failed": 0
     },
     "assertions": {
-      "total": 25,
+      "total": 31,
       "pending": 0,
       "failed": 0
     },
     "testScripts": {
-      "total": 13,
+      "total": 16,
       "pending": 0,
       "failed": 0
     },
@@ -59,7 +59,7 @@
       "method": "GET",
       "url": "http://127.0.0.1:18084/api/v1/customer/menu/categories",
       "status": 200,
-      "responseTimeMs": 77,
+      "responseTimeMs": 86,
       "body": [
         {
           "id": "1",
@@ -91,13 +91,13 @@
       "method": "GET",
       "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?page=0&size=10",
       "status": 200,
-      "responseTimeMs": 31,
+      "responseTimeMs": 41,
       "body": {
         "content": [
           {
             "id": "2",
             "code": "PM_CF02",
-            "name": "Bạc xỉu 50% kiểm thử",
+            "name": "Bạc xỉu 50%_!\\ kiểm thử",
             "price": "40000",
             "imageUrl": null,
             "available": false,
@@ -138,13 +138,13 @@
       "method": "GET",
       "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?categoryId=1&page=0&size=10",
       "status": 200,
-      "responseTimeMs": 20,
+      "responseTimeMs": 29,
       "body": {
         "content": [
           {
             "id": "2",
             "code": "PM_CF02",
-            "name": "Bạc xỉu 50% kiểm thử",
+            "name": "Bạc xỉu 50%_!\\ kiểm thử",
             "price": "40000",
             "imageUrl": null,
             "available": false,
@@ -185,7 +185,7 @@
       "method": "GET",
       "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?categoryId=2",
       "status": 200,
-      "responseTimeMs": 22,
+      "responseTimeMs": 15,
       "body": {
         "content": [],
         "totalElements": 0,
@@ -209,7 +209,7 @@
       "method": "GET",
       "url": "http://127.0.0.1:18084/api/v1/customer/menu/items/1",
       "status": 200,
-      "responseTimeMs": 19,
+      "responseTimeMs": 16,
       "body": {
         "id": "1",
         "code": "PM_CF01",
@@ -262,7 +262,7 @@
       "method": "GET",
       "url": "http://127.0.0.1:18084/api/v1/customer/menu/items/999999",
       "status": 404,
-      "responseTimeMs": 13,
+      "responseTimeMs": 23,
       "body": {
         "detail": "Không tìm thấy món.",
         "instance": "/api/v1/customer/menu/items/999999",
@@ -286,7 +286,7 @@
       "method": "GET",
       "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?page=-1&size=200",
       "status": 400,
-      "responseTimeMs": 10,
+      "responseTimeMs": 12,
       "body": {
         "detail": "Tham số truy vấn thực đơn không hợp lệ.",
         "instance": "/api/v1/customer/menu/items",
@@ -310,9 +310,9 @@
       "method": "POST",
       "url": "http://127.0.0.1:18084/api/v1/customer/menu/items",
       "status": 403,
-      "responseTimeMs": 37,
+      "responseTimeMs": 32,
       "body": {
-        "timestamp": "2026-11-11T06:23:04.573Z",
+        "timestamp": "2026-11-11T07:02:48.472Z",
         "status": 403,
         "error": "Forbidden",
         "path": "/api/v1/customer/menu/items"
@@ -330,13 +330,13 @@
       "method": "GET",
       "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?keyword=50%25",
       "status": 200,
-      "responseTimeMs": 23,
+      "responseTimeMs": 20,
       "body": {
         "content": [
           {
             "id": "2",
             "code": "PM_CF02",
-            "name": "Bạc xỉu 50% kiểm thử",
+            "name": "Bạc xỉu 50%_!\\ kiểm thử",
             "price": "40000",
             "imageUrl": null,
             "available": false,
@@ -366,7 +366,7 @@
       "method": "GET",
       "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?availableOnly=true",
       "status": 200,
-      "responseTimeMs": 17,
+      "responseTimeMs": 14,
       "body": {
         "content": [
           {
@@ -402,7 +402,7 @@
       "method": "GET",
       "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?page=1&size=1",
       "status": 200,
-      "responseTimeMs": 18,
+      "responseTimeMs": 10,
       "body": {
         "content": [
           {
@@ -438,7 +438,7 @@
       "method": "GET",
       "url": "http://127.0.0.1:18084/api/v1/customer/menu/items/not-a-number",
       "status": 400,
-      "responseTimeMs": 9,
+      "responseTimeMs": 7,
       "body": {
         "detail": "Tham số truy vấn thực đơn không hợp lệ.",
         "instance": "/api/v1/customer/menu/items/not-a-number",
@@ -456,7 +456,127 @@
         }
       ],
       "passed": true
+    },
+    {
+      "name": "14. Tìm ký tự chấm than theo nghĩa đen",
+      "method": "GET",
+      "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?keyword=!",
+      "status": 200,
+      "responseTimeMs": 14,
+      "body": {
+        "content": [
+          {
+            "id": "2",
+            "code": "PM_CF02",
+            "name": "Bạc xỉu 50%_!\\ kiểm thử",
+            "price": "40000",
+            "imageUrl": null,
+            "available": false,
+            "categoryId": "1",
+            "categoryCode": "POSTMAN_COFFEE",
+            "categoryName": "Cà phê kiểm thử"
+          }
+        ],
+        "totalElements": 1,
+        "page": 0,
+        "size": 10
+      },
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Đúng số món khớp ký tự literal",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "15. Tìm ký tự gạch chéo ngược theo nghĩa đen",
+      "method": "GET",
+      "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?keyword=%5C",
+      "status": 200,
+      "responseTimeMs": 12,
+      "body": {
+        "content": [
+          {
+            "id": "2",
+            "code": "PM_CF02",
+            "name": "Bạc xỉu 50%_!\\ kiểm thử",
+            "price": "40000",
+            "imageUrl": null,
+            "available": false,
+            "categoryId": "1",
+            "categoryCode": "POSTMAN_COFFEE",
+            "categoryName": "Cà phê kiểm thử"
+          }
+        ],
+        "totalElements": 1,
+        "page": 0,
+        "size": 10
+      },
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Đúng số món khớp ký tự literal",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "16. Tìm ký tự gạch dưới theo nghĩa đen",
+      "method": "GET",
+      "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?keyword=_",
+      "status": 200,
+      "responseTimeMs": 11,
+      "body": {
+        "content": [
+          {
+            "id": "2",
+            "code": "PM_CF02",
+            "name": "Bạc xỉu 50%_!\\ kiểm thử",
+            "price": "40000",
+            "imageUrl": null,
+            "available": false,
+            "categoryId": "1",
+            "categoryCode": "POSTMAN_COFFEE",
+            "categoryName": "Cà phê kiểm thử"
+          },
+          {
+            "id": "1",
+            "code": "PM_CF01",
+            "name": "Caramel Latte kiểm thử",
+            "price": "45000",
+            "imageUrl": "https://example.invalid/postman-latte.jpg",
+            "available": true,
+            "categoryId": "1",
+            "categoryCode": "POSTMAN_COFFEE",
+            "categoryName": "Cà phê kiểm thử"
+          }
+        ],
+        "totalElements": 2,
+        "page": 0,
+        "size": 10
+      },
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Đúng số món khớp ký tự literal",
+          "passed": true
+        }
+      ],
+      "passed": true
     }
   ],
-  "requestUrlSource": "Exact resolved request URLs from Newman CLI in the same CI job 130362167632, including query parameters."
+  "sqlMode": "NO_BACKSLASH_ESCAPES",
+  "requestUrlSource": "Exact resolved request URLs from Newman CLI in the same CI job 130376796231, including query parameters."
 }

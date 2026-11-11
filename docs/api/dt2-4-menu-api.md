@@ -16,7 +16,8 @@ Các method khác (`POST`, `PUT`, `DELETE`) trên `/api/v1/customer/menu/**` b�
 ## Query params `GET /api/v1/customer/menu/items`
 
 - `categoryId` (tùy chọn, số nguyên dương): lọc theo nhóm món. Nếu nhóm không tồn tại hoặc `active = FALSE` → `404`. Nếu nhóm tồn tại nhưng chưa có món → `200` với `content: []`, `totalElements: 0`.
-- `keyword` (tùy chọn, tối đa 160 ký tự): tìm không phân biệt hoa thường theo `name` hoặc `code` (escape ký tự `%`, `_`, `\`).
+- `keyword` (tùy chọn, tối đa 160 ký tự): tìm không phân biệt hoa thường theo `name` hoặc `code`, giữ nguyên ý nghĩa literal của ký tự đặc biệt.
+- Tìm kiếm dùng `LIKE ... ESCAPE '!'`; `%`, `_` và `!` trong keyword được hiểu theo nghĩa đen. Dấu `\` cũng là ký tự thường vì không dùng làm escape. Hoạt động ở cả SQL mode mặc định và `NO_BACKSLASH_ESCAPES`; không thay cấu hình SQL mode của DB hệ thống.
 - `availableOnly` (tùy chọn, mặc định `false`): khi `true`, chỉ lấy `m.available = TRUE`.
 - `page` (mặc định `0`, `0..1000000`) và `size` (mặc định `10`, `1..100`).
 

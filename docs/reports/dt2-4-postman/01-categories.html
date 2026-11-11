@@ -9,14 +9,15 @@ article {background:white;border:1px solid #cfdae4;padding:22px;border-radius:10
 .columns {display:grid;grid-template-columns:1.1fr 1fr;gap:24px} pre {white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.5 Consolas,monospace;margin:0;background:#f4f7fa;padding:16px}
 ul {padding-left:22px;margin:0} li {padding:4px 0} .pass {color:#0e6b45} .fail {color:#a32222}
 small {overflow-wrap:anywhere;display:block} a {color:inherit}
-</style><main><header><h1>DT2-4 · API danh mục món</h1><p>13/13 requests đạt · 25 assertions · 0 failures</p>
+</style><main><header><h1>DT2-4 · API danh mục món</h1><p>16/16 requests đạt · 31 assertions · 0 failures</p>
 <p>Newman 6.2.1 / Postman Collection v2.1</p><small>GitHub Actions / Spring Boot 4.1.2 / JDK 21 / MySQL 8.0 / smart_cafe_postman_test</small>
-<small>Revision: ad1bb343c577492e0e47a32c28b88387e7b7accf · Báo cáo UTC: 2026-11-11T06:23:04.869012+00:00</small>
-<small>CI: https://github.com/DTU-TEAM-2/smart-cafe-management/actions/runs/42971930124</small></header>
+<small>SQL mode kiểm tra: NO_BACKSLASH_ESCAPES</small>
+<small>Revision: 495e9dbaa5e224a25c38f8a4df095a442c53dcf3 · Báo cáo UTC: 2026-11-11T07:02:48.838970+00:00</small>
+<small>CI: https://github.com/DTU-TEAM-2/smart-cafe-management/actions/runs/42976528804</small></header>
 <div class="note">Báo cáo từ HTTP response và assertion thực tế của Postman Collection chạy bằng Newman.
 Không phải ảnh chụp ứng dụng Postman Desktop. Dữ liệu tổng hợp chỉ trong MySQL test biệt lập; không dùng dữ liệu production.
 Fixture schema kiểm thử không chứng minh DDL production. Chỉ kiểm thử chức năng Menu; không kết luận 7 chức năng DT2-4 còn lại.</div>
-<article><h2>1. Lấy danh sách nhóm món hợp lệ</h2><div class="request">GET http://127.0.0.1:18084/api/v1/customer/menu/categories</div><p><b class="pass">PASS</b> · HTTP 200 · 77 ms</p><div class="columns"><pre>[
+<article><h2>1. Lấy danh sách nhóm món hợp lệ</h2><div class="request">GET http://127.0.0.1:18084/api/v1/customer/menu/categories</div><p><b class="pass">PASS</b> · HTTP 200 · 86 ms</p><div class="columns"><pre>[
   {
     &quot;id&quot;: &quot;1&quot;,
     &quot;code&quot;: &quot;POSTMAN_COFFEE&quot;,

@@ -69,7 +69,7 @@ class CustomerMenuService {
         }
         if (!normalizedKeyword.isEmpty()) {
             String pattern = "%" + escapeLike(normalizedKeyword.toLowerCase(Locale.ROOT)) + "%";
-            where.append(" AND (LOWER(m.name) LIKE ? ESCAPE '\\\\' OR LOWER(m.code) LIKE ? ESCAPE '\\\\')");
+            where.append(" AND (LOWER(m.name) LIKE ? ESCAPE '!' OR LOWER(m.code) LIKE ? ESCAPE '!')");
             params.add(pattern);
             params.add(pattern);
         }
@@ -132,6 +132,6 @@ class CustomerMenuService {
     }
 
     private static String escapeLike(String value) {
-        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+        return value.replace("!", "!!").replace("%", "!%").replace("_", "!_");
     }
 }

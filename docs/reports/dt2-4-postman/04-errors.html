@@ -9,10 +9,11 @@ article {background:white;border:1px solid #cfdae4;padding:22px;border-radius:10
 .columns {display:grid;grid-template-columns:1.1fr 1fr;gap:24px} pre {white-space:pre-wrap;overflow-wrap:anywhere;font:13px/1.5 Consolas,monospace;margin:0;background:#f4f7fa;padding:16px}
 ul {padding-left:22px;margin:0} li {padding:4px 0} .pass {color:#0e6b45} .fail {color:#a32222}
 small {overflow-wrap:anywhere;display:block} a {color:inherit}
-</style><main><header><h1>DT2-4 · Validation, không tồn tại và từ chối thao tác ghi</h1><p>13/13 requests đạt · 25 assertions · 0 failures</p>
+</style><main><header><h1>DT2-4 · Validation, không tồn tại và từ chối thao tác ghi</h1><p>16/16 requests đạt · 31 assertions · 0 failures</p>
 <p>Newman 6.2.1 / Postman Collection v2.1</p><small>GitHub Actions / Spring Boot 4.1.2 / JDK 21 / MySQL 8.0 / smart_cafe_postman_test</small>
-<small>Revision: ad1bb343c577492e0e47a32c28b88387e7b7accf · Báo cáo UTC: 2026-11-11T06:23:04.869012+00:00</small>
-<small>CI: https://github.com/DTU-TEAM-2/smart-cafe-management/actions/runs/42971930124</small></header>
+<small>SQL mode kiểm tra: NO_BACKSLASH_ESCAPES</small>
+<small>Revision: 495e9dbaa5e224a25c38f8a4df095a442c53dcf3 · Báo cáo UTC: 2026-11-11T07:02:48.838970+00:00</small>
+<small>CI: https://github.com/DTU-TEAM-2/smart-cafe-management/actions/runs/42976528804</small></header>
 <div class="note">Báo cáo từ HTTP response và assertion thực tế của Postman Collection chạy bằng Newman.
 Không phải ảnh chụp ứng dụng Postman Desktop. Dữ liệu tổng hợp chỉ trong MySQL test biệt lập; không dùng dữ liệu production.
 Fixture schema kiểm thử không chứng minh DDL production. Chỉ kiểm thử chức năng Menu; không kết luận 7 chức năng DT2-4 còn lại.</div>
@@ -21,22 +22,22 @@ Fixture schema kiểm thử không chứng minh DDL production. Chỉ kiểm th�
   &quot;instance&quot;: &quot;/api/v1/customer/menu/items&quot;,
   &quot;status&quot;: 404,
   &quot;title&quot;: &quot;Not Found&quot;
-}</pre><ul><li>PASS — HTTP 404</li><li>PASS — Thông báo tiếng Việt</li></ul></div></article><article><h2>7. Món không tồn tại (404)</h2><div class="request">GET http://127.0.0.1:18084/api/v1/customer/menu/items/999999</div><p><b class="pass">PASS</b> · HTTP 404 · 13 ms</p><div class="columns"><pre>{
+}</pre><ul><li>PASS — HTTP 404</li><li>PASS — Thông báo tiếng Việt</li></ul></div></article><article><h2>7. Món không tồn tại (404)</h2><div class="request">GET http://127.0.0.1:18084/api/v1/customer/menu/items/999999</div><p><b class="pass">PASS</b> · HTTP 404 · 23 ms</p><div class="columns"><pre>{
   &quot;detail&quot;: &quot;Không tìm thấy món.&quot;,
   &quot;instance&quot;: &quot;/api/v1/customer/menu/items/999999&quot;,
   &quot;status&quot;: 404,
   &quot;title&quot;: &quot;Not Found&quot;
-}</pre><ul><li>PASS — HTTP 404</li><li>PASS — Thông báo tiếng Việt</li></ul></div></article><article><h2>8. Tham số sai định dạng hoặc vượt giới hạn (400)</h2><div class="request">GET http://127.0.0.1:18084/api/v1/customer/menu/items?page=-1&amp;size=200</div><p><b class="pass">PASS</b> · HTTP 400 · 10 ms</p><div class="columns"><pre>{
+}</pre><ul><li>PASS — HTTP 404</li><li>PASS — Thông báo tiếng Việt</li></ul></div></article><article><h2>8. Tham số sai định dạng hoặc vượt giới hạn (400)</h2><div class="request">GET http://127.0.0.1:18084/api/v1/customer/menu/items?page=-1&amp;size=200</div><p><b class="pass">PASS</b> · HTTP 400 · 12 ms</p><div class="columns"><pre>{
   &quot;detail&quot;: &quot;Tham số truy vấn thực đơn không hợp lệ.&quot;,
   &quot;instance&quot;: &quot;/api/v1/customer/menu/items&quot;,
   &quot;status&quot;: 400,
   &quot;title&quot;: &quot;Bad Request&quot;
-}</pre><ul><li>PASS — HTTP 400</li><li>PASS — Thông báo lỗi tiếng Việt</li></ul></div></article><article><h2>9. Từ chối method POST trên API xem menu (403)</h2><div class="request">POST http://127.0.0.1:18084/api/v1/customer/menu/items</div><p><b class="pass">PASS</b> · HTTP 403 · 37 ms</p><div class="columns"><pre>{
-  &quot;timestamp&quot;: &quot;2026-11-11T06:23:04.573Z&quot;,
+}</pre><ul><li>PASS — HTTP 400</li><li>PASS — Thông báo lỗi tiếng Việt</li></ul></div></article><article><h2>9. Từ chối method POST trên API xem menu (403)</h2><div class="request">POST http://127.0.0.1:18084/api/v1/customer/menu/items</div><p><b class="pass">PASS</b> · HTTP 403 · 32 ms</p><div class="columns"><pre>{
+  &quot;timestamp&quot;: &quot;2026-11-11T07:02:48.472Z&quot;,
   &quot;status&quot;: 403,
   &quot;error&quot;: &quot;Forbidden&quot;,
   &quot;path&quot;: &quot;/api/v1/customer/menu/items&quot;
-}</pre><ul><li>PASS — HTTP 403</li></ul></div></article><article><h2>13. Từ chối mã món không phải số</h2><div class="request">GET http://127.0.0.1:18084/api/v1/customer/menu/items/not-a-number</div><p><b class="pass">PASS</b> · HTTP 400 · 9 ms</p><div class="columns"><pre>{
+}</pre><ul><li>PASS — HTTP 403</li></ul></div></article><article><h2>13. Từ chối mã món không phải số</h2><div class="request">GET http://127.0.0.1:18084/api/v1/customer/menu/items/not-a-number</div><p><b class="pass">PASS</b> · HTTP 400 · 7 ms</p><div class="columns"><pre>{
   &quot;detail&quot;: &quot;Tham số truy vấn thực đơn không hợp lệ.&quot;,
   &quot;instance&quot;: &quot;/api/v1/customer/menu/items/not-a-number&quot;,
   &quot;status&quot;: 400,

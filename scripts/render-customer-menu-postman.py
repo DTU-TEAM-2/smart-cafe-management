@@ -66,6 +66,7 @@ ul {{padding-left:22px;margin:0}} li {{padding:4px 0}} .pass {{color:#0e6b45}} .
 small {{overflow-wrap:anywhere;display:block}} a {{color:inherit}}
 </style><main><header><h1>{escape(title)}</h1><p>{passed}/{total} requests đạt · {assertions} assertions · {report['failureCount']} failures</p>
 <p>{escape(report['runner'])}</p><small>{escape(report['environment'])}</small>
+<small>SQL mode kiểm tra: {escape(report.get('sqlMode', 'Theo mặc định của môi trường lần chạy'))}</small>
 <small>Revision: {escape(report['revision'])} · Báo cáo UTC: {escape(report['generatedAt'])}</small>
 <small>CI: {escape(report['runUrl'])}</small></header>
 <div class="note">Báo cáo từ HTTP response và assertion thực tế của Postman Collection chạy bằng Newman.
@@ -80,10 +81,13 @@ def main():
     parser.add_argument('output', type=Path)
     parser.add_argument('--revision', default='')
     parser.add_argument('--run-url', default='')
+    parser.add_argument('--sql-mode', default='')
     parser.add_argument('--emit-log', action='store_true')
     args = parser.parse_args()
     source = json.loads(args.source.read_text(encoding='utf-8'))
     report = summarize(source, args.revision, args.run_url) if 'run' in source else source
+    if args.sql_mode:
+        report['sqlMode'] = args.sql_mode
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output / 'results.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     groups = [('index', 'DT2-4 · Kết quả kiểm thử Postman / Newman', report['cases']),
