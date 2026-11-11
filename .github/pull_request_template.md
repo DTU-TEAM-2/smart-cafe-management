@@ -15,6 +15,7 @@ Hành vi trước và sau thay đổi:
 ## Tác động và bàn giao
 
 - API / schema / cấu hình / dependency:
+- Nếu liên quan dữ liệu: bảng/cột sử dụng, nguồn sơ đồ/DDL đối chiếu, chênh lệch và link quyết định chấp thuận nếu đổi schema:
 - Rủi ro / migration / rollback nếu liên quan:
 - Reviewer / phần cần tập trung:
 - Skills đã đọc và áp dụng (identifier + SKILL.md path + ảnh hưởng):
@@ -25,3 +26,4 @@ Hành vi trước và sau thay đổi:
 - [ ] Checks phù hợp đạt; không có secret/dữ liệu cá nhân
 - [ ] Có reviewer khác tác giả, đã xử lý blocker/discussion
 - [ ] Tài liệu/hợp đồng liên quan đã cập nhật
+- [ ] Nếu liên quan dữ liệu: đã đối chiếu [rule database](../.agents/rules/database-source-of-truth.md); không tự chế bảng/cột/quan hệ hoặc sửa schema chưa được chấp thuận
