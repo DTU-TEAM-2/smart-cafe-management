@@ -695,14 +695,105 @@ class OtpIntegrationTest {
                 .andExpect(jsonPath("$.valid").value(true));
     }
 
+    @Test
+    void resendOtpUnderSmtp451RejectionProducesIdentical400ForRealAndDummyEmails() throws Exception {
+        // Start SMTP server that connects successfully but rejects MAIL FROM with 451
+        try (SimpleDummySmtpServer smtpServer = new SimpleDummySmtpServer(1025, true)) {
+            // 1. Forgot password for real user and dummy user
+            MvcResult realResult = mockMvc.perform(post("/api/v1/auth/forgot-password")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"email\": \"otp_user@smartcafe.vn\"}"))
+                    .andExpect(status().isOk())
+                    .andReturn();
+
+            MvcResult dummyResult = mockMvc.perform(post("/api/v1/auth/forgot-password")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"email\": \"ghost_451_test@smartcafe.vn\"}"))
+                    .andExpect(status().isOk())
+                    .andReturn();
+
+            String realChallengeId = JsonPath.read(realResult.getResponse().getContentAsString(), "$.challengeId");
+            String dummyChallengeId = JsonPath.read(dummyResult.getResponse().getContentAsString(), "$.challengeId");
+
+            // Query original codeHash for real user
+            String originalCodeHash = jdbcTemplate.queryForObject(
+                    "SELECT code_hash FROM auth_otp_challenges WHERE id = ?",
+                    String.class,
+                    realChallengeId
+            );
+
+            // Fast-forward cooldown in DB for both challenges
+            jdbcTemplate.update(
+                    "UPDATE auth_otp_challenges SET next_send_at = DATE_SUB(NOW(6), INTERVAL 5 SECOND) WHERE id IN (?, ?)",
+                    realChallengeId,
+                    dummyChallengeId
+            );
+
+            // 2. Call resend-otp for real user when SMTP returns 451
+            MvcResult realResendResult = mockMvc.perform(post("/api/v1/auth/resend-otp")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(String.format("{\"challengeId\": \"%s\"}", realChallengeId)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("OTP_ERROR"))
+                    .andReturn();
+
+            // 3. Call resend-otp for dummy user when SMTP returns 451
+            MvcResult dummyResendResult = mockMvc.perform(post("/api/v1/auth/resend-otp")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(String.format("{\"challengeId\": \"%s\"}", dummyChallengeId)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("OTP_ERROR"))
+                    .andReturn();
+
+            // 4. Assert responses are completely indistinguishable
+            assertThat(realResendResult.getResponse().getStatus())
+                    .isEqualTo(dummyResendResult.getResponse().getStatus())
+                    .isEqualTo(400);
+
+            String realDetail = JsonPath.read(realResendResult.getResponse().getContentAsString(), "$.detail");
+            String dummyDetail = JsonPath.read(dummyResendResult.getResponse().getContentAsString(), "$.detail");
+            assertThat(realDetail)
+                    .isEqualTo(dummyDetail)
+                    .contains("Không thể gửi email OTP qua dịch vụ gửi thư");
+
+            // 5. Verify database state is untouched (codeHash unchanged, sends still 1)
+            String codeHashAfter = jdbcTemplate.queryForObject(
+                    "SELECT code_hash FROM auth_otp_challenges WHERE id = ?",
+                    String.class,
+                    realChallengeId
+            );
+            assertThat(codeHashAfter).isEqualTo(originalCodeHash);
+
+            Integer realSends = jdbcTemplate.queryForObject(
+                    "SELECT sends FROM auth_otp_challenges WHERE id = ?",
+                    Integer.class,
+                    realChallengeId
+            );
+            assertThat(realSends).isEqualTo(1);
+
+            Integer dummySends = jdbcTemplate.queryForObject(
+                    "SELECT sends FROM auth_otp_challenges WHERE id = ?",
+                    Integer.class,
+                    dummyChallengeId
+            );
+            assertThat(dummySends).isEqualTo(1);
+        }
+    }
+
     private static class SimpleDummySmtpServer implements AutoCloseable {
         private final ServerSocket serverSocket;
         private final ExecutorService executor;
         private final AtomicInteger emailsReceived = new AtomicInteger(0);
+        private final boolean rejectWith451;
 
         public SimpleDummySmtpServer(int port) throws IOException {
+            this(port, false);
+        }
+
+        public SimpleDummySmtpServer(int port, boolean rejectWith451) throws IOException {
             this.serverSocket = new ServerSocket(port);
             this.executor = Executors.newCachedThreadPool();
+            this.rejectWith451 = rejectWith451;
             this.executor.submit(this::listen);
         }
 
@@ -726,7 +817,13 @@ class OtpIntegrationTest {
                 while ((line = reader.readLine()) != null) {
                     if (line.startsWith("HELO") || line.startsWith("EHLO")) {
                         writer.write("250 OK\r\n");
-                    } else if (line.startsWith("MAIL FROM:") || line.startsWith("RCPT TO:")) {
+                    } else if (line.startsWith("MAIL FROM:")) {
+                        if (rejectWith451) {
+                            writer.write("451 Requested action aborted: local error in processing\r\n");
+                        } else {
+                            writer.write("250 OK\r\n");
+                        }
+                    } else if (line.startsWith("RCPT TO:")) {
                         writer.write("250 OK\r\n");
                     } else if (line.startsWith("DATA")) {
                         writer.write("354 Start mail input; end with <CRLF>.<CRLF>\r\n");

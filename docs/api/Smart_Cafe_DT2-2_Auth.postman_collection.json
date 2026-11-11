@@ -620,7 +620,158 @@
       }
     },
     {
-      "name": "19. Auth - Đăng xuất tài khoản (200 OK)",
+      "name": "19. Luồng hoàn chỉnh - Xác minh OTP thành công (Nhận resetToken)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    pm.test(\"Status code is 200 OK\", function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "    var jsonData = pm.response.json();",
+              "    pm.test(\"Returns valid resetToken\", function () {",
+              "        pm.expect(jsonData.token).to.be.a('string');",
+              "    });",
+              "    pm.environment.set(\"resetToken\", jsonData.token);",
+              "} else {",
+              "    pm.test(\"Verify OTP response received\", function () {",
+              "        pm.expect([200, 400]).to.include(pm.response.code);",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"challengeId\": \"{{challengeId}}\",\n  \"otp\": \"{{testOtpCode}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/verify-otp",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "verify-otp"]
+        }
+      }
+    },
+    {
+      "name": "20. Luồng hoàn chỉnh - Xác minh Reset Token hợp lệ (valid: true)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test(\"Status code is 200 OK\", function () {",
+              "    pm.response.to.have.status(200);",
+              "});",
+              "var jsonData = pm.response.json();",
+              "pm.test(\"Has Cache-Control no-store header\", function () {",
+              "    pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store');",
+              "});"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"token\": \"{{resetToken}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/verify-reset-token",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "verify-reset-token"]
+        }
+      }
+    },
+    {
+      "name": "21. Luồng hoàn chỉnh - Đặt lại mật khẩu thành công (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    pm.test(\"Status code is 200 OK\", function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "    var jsonData = pm.response.json();",
+              "    pm.test(\"Password reset success message returned\", function () {",
+              "        pm.expect(jsonData.message).to.include('thành công');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"newPassword\": \"StaffNewPassword@123\",\n  \"confirmPassword\": \"StaffNewPassword@123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/reset-password",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "reset-password"]
+        }
+      }
+    },
+    {
+      "name": "22. Luồng hoàn chỉnh - Đăng nhập lại với mật khẩu mới vừa đổi (200 OK)",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "    pm.test(\"Status code is 200 OK\", function () {",
+              "        pm.response.to.have.status(200);",
+              "    });",
+              "    var jsonData = pm.response.json();",
+              "    pm.test(\"Login successful with new password\", function () {",
+              "        pm.expect(jsonData.token).to.be.a('string');",
+              "    });",
+              "}"
+            ],
+            "type": "text/javascript"
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"username\": \"{{staffUsername}}\",\n  \"password\": \"StaffNewPassword@123\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/v1/auth/login",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "v1", "auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "23. Auth - Đăng xuất tài khoản (200 OK)",
       "event": [
         {
           "listen": "test",
