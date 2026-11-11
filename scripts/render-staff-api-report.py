@@ -26,7 +26,7 @@ def render(report):
         expected = " · ".join(unique(observation["expected"] for observation in observations)) or "—"
         actual = " · ".join(unique(observation["actual"] for observation in observations)) or "Không có response"
         first_request = observations[0]["request"] if observations else "Không có request"
-        
+
         # Format request with method highlight
         parts = first_request.split(" ", 1)
         if len(parts) == 2:
