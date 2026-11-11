@@ -23,6 +23,7 @@ final class MenuProviderStub implements AutoCloseable {
     private final AtomicInteger status = new AtomicInteger(200);
     private final AtomicInteger calls = new AtomicInteger();
     private final AtomicReference<String> invalidRequest = new AtomicReference<>();
+    private final String assetPrefix = "menu-http-" + java.util.UUID.randomUUID();
 
     MenuProviderStub() throws IOException {
         server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
@@ -38,7 +39,7 @@ final class MenuProviderStub implements AutoCloseable {
                     && form.contains("name=\"file\"") && form.contains("filename=\"menu.png\"");
             if (!valid) invalidRequest.set("Provider did not receive the expected POST/auth/multipart contract");
             int responseStatus = valid ? status.get() : 400;
-            String body = responseStatus == 200 ? "{\"secure_url\":\"" + DELIVERY_URL + "\"}"
+            String body = responseStatus == 200 ? "{\"asset_id\":\"" + assetPrefix + "-" + calls.get() + "\",\"secure_url\":\"" + DELIVERY_URL + "\"}"
                     : "{\"error\":{\"message\":\"" + PRIVATE_ERROR + "\"}}";
             byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set("Content-Type", "application/json");
@@ -64,5 +65,6 @@ final class MenuProviderStub implements AutoCloseable {
     void respondWith(int nextStatus) { status.set(nextStatus); invalidRequest.set(null); }
     int calls() { return calls.get(); }
     String invalidRequest() { return invalidRequest.get(); }
+    String assetPrefix() { return assetPrefix; }
     @Override public void close() { server.stop(0); executor.close(); }
 }

@@ -12,18 +12,14 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.interfaces.RSAPrivateKey;
-import java.security.interfaces.RSAPublicKey;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.*;
 import java.util.zip.CRC32;
 import javax.imageio.ImageIO;
-import com.nimbusds.jose.jwk.*;
-import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -32,7 +28,6 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.*;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.security.oauth2.jwt.*;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.web.client.RestClient;
@@ -41,32 +36,20 @@ import tools.jackson.databind.json.JsonMapper;
 import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.when;
 
-/** Real loopback HTTP/Tomcat/MySQL; the signing key and decoder exist only in test classpath. */
+/** Real HTTP/MySQL using the same signed bearer and database authority contract as home. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = {"server.address=127.0.0.1", "spring.servlet.multipart.max-file-size=5MB", "spring.servlet.multipart.max-request-size=6MB"})
+        properties = {"server.address=127.0.0.1", "spring.servlet.multipart.max-file-size=5MB", "spring.servlet.multipart.max-request-size=6MB",
+                "smartcafe.auth.token-secret=menu-http-test-signing-secret-only-2026"})
 @ContextConfiguration(initializers = MenuIntegrationTest.TestDatabaseGuard.class)
-@Import(MenuHttpReportTest.TestJwtConfiguration.class)
+@Import(MenuHttpReportTest.TestProviderConfiguration.class)
 class MenuHttpReportTest {
     @TestConfiguration(proxyBeanMethods = false)
-    static class TestJwtConfiguration {
-        @Bean KeyPair reportKeyPair() throws Exception {
-            var generator = KeyPairGenerator.getInstance("RSA"); generator.initialize(2048); return generator.generateKeyPair();
-        }
-        @Bean @Primary JwtDecoder reportJwtDecoder(KeyPair pair) {
-            var decoder = NimbusJwtDecoder.withPublicKey((RSAPublicKey) pair.getPublic()).build();
-            decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer("https://report-test.invalid"));
-            return decoder;
-        }
-        @Bean JwtEncoder reportJwtEncoder(KeyPair pair) {
-            var key = new RSAKey.Builder((RSAPublicKey) pair.getPublic()).privateKey((RSAPrivateKey) pair.getPrivate()).keyID("report-test-only").build();
-            return new NimbusJwtEncoder(new ImmutableJWKSet<>(new JWKSet(key)));
-        }
+    static class TestProviderConfiguration {
         @Bean(destroyMethod = "close") MenuProviderStub reportProvider() throws Exception { return new MenuProviderStub(); }
         @Bean @Primary @Qualifier("menuImageClient") RestClient reportImageClient(MenuProviderStub provider) { return provider.client(); }
     }
 
     @LocalServerPort int port;
-    @Autowired JwtEncoder encoder;
     @Autowired JdbcTemplate jdbc;
     @Autowired MenuProviderStub provider;
     @MockitoBean MenuImageConfiguration.Cloudinary imageSettings;
@@ -78,18 +61,20 @@ class MenuHttpReportTest {
     private String admin, staff, csrfHeader, csrfToken, group, other, item, second, suffix;
     private long groupVersion, itemVersion;
 
-    private String token(String role) {
-        Instant now = Instant.now();
-        return encoder.encode(JwtEncoderParameters.from(JwtClaimsSet.builder().issuer("https://report-test.invalid")
-                .subject("report-test-only").audience(List.of("menu-report" )).issuedAt(now).expiresAt(now.plusSeconds(600))
-                .claim("roles", List.of(role)).build())).getTokenValue();
+    private String token(String role) throws Exception {
+        String username = "report-" + role.toLowerCase(Locale.ROOT) + "-" + suffix;
+        Long id = jdbc.queryForObject("SELECT id FROM users WHERE username=?", Long.class, username);
+        String payload = Base64.getUrlEncoder().withoutPadding().encodeToString((id + ":" + username + ":" + role + ":" + Instant.now().plusSeconds(600).toEpochMilli()).getBytes(StandardCharsets.UTF_8));
+        Mac mac = Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec("menu-http-test-signing-secret-only-2026".getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+        return payload + "." + HexFormat.of().formatHex(mac.doFinal(payload.getBytes(StandardCharsets.UTF_8)));
     }
     private String category(String code, String name, long version) {
         return json.writeValueAsString(Map.of("code", code, "name", name, "version", version));
     }
     private String itemBody(String code, String name, Object price, String category, long version) {
         return json.writeValueAsString(Map.of("code", code, "name", name, "price", price, "categoryCode", category,
-                "imageUrl", "/images/coffee.jpg", "description", "Postman API report fixture", "available", true, "version", version));
+                "available", true, "version", version));
     }
     private String goodItem() { return itemBody(item, "Caramel Latte Postman", 45000, group, 0); }
     private record Response(int status, JsonNode body) { }
@@ -152,6 +137,11 @@ class MenuHttpReportTest {
     @Test void recordRealHttpResults() throws Exception {
         suffix = Long.toString(System.currentTimeMillis(), 36).toUpperCase(Locale.ROOT);
         group = "PMCF_" + suffix; other = "PMTE_" + suffix; item = "PMITEM_" + suffix; second = "PMITEM2_" + suffix;
+        for (String role : List.of("ADMIN", "STAFF")) {
+            String username = "report-" + role.toLowerCase(Locale.ROOT) + "-" + suffix;
+            jdbc.update("INSERT INTO users(username,password_hash,full_name,email,role,status) VALUES (?, 'test-only-not-a-login-hash', 'Report fixture', ?, ?, 'ACTIVE')",
+                    username, username + "@example.invalid", role);
+        }
         admin = token("ADMIN"); staff = token("STAFF");
         providerConfigured(false);
         try {
@@ -212,21 +202,21 @@ class MenuHttpReportTest {
                 for (String bad : List.of("ABCDE", "A".repeat(161))) code(post("/api/v1/menu/items", itemBody("PMBAD_" + suffix, bad, 45000, group, 0), 400), "VALIDATION_ERROR");
             });
             run(20, "Từ chối giá sai / phần lẻ", () -> {
-                for (Object price : List.of(5000, 0, -1, new java.math.BigDecimal("5000.5"), 1000000000000L)) {
+                for (Object price : List.of(5000, 0, -1, new java.math.BigDecimal("5000.5"), 1000000000000000000L)) {
                     var response = post("/api/v1/menu/items", itemBody("PMBAD_" + suffix, "Valid coffee", price, group, 0), 400);
                     assertThat(response.body().path("fieldErrors").has("price")).isTrue();
                 }
             });
             run(21, "Chấp nhận hai biên giá hợp lệ", () -> {
-                for (long price : List.of(5001L, 999999999999L)) {
+                for (long price : List.of(5001L, 999999999999999999L)) {
                     String boundary = "PMBOUND" + price + suffix;
                     assertThat(post("/api/v1/menu/items", itemBody(boundary, "Boundary coffee", price, group, 0), 201).body().path("price").asLong()).isEqualTo(price);
                     delete("/api/v1/menu/items/" + boundary + "?version=0", 204);
                 }
             });
             run(22, "Không tạo món trong nhóm thiếu", () -> code(post("/api/v1/menu/items", itemBody("PMBAD_" + suffix, "Valid coffee", 45000, "PMNONE_" + suffix, 0), 409), "CATEGORY_INACTIVE"));
-            run(23, "Không lưu URL ảnh không tin cậy", () -> {
-                for (String url : List.of("https://evil.invalid/a.jpg", "//evil.invalid/a.jpg", "/images/../a.jpg", "data:image/png;base64,abc")) code(post("/api/v1/menu/items", itemBody("PMBAD_" + suffix, "Valid coffee", 45000, group, 0).replace("/images/coffee.jpg", url), 400), "INVALID_IMAGE_URL");
+            run(23, "Ảnh chỉ tham chiếu media đã đăng ký", () -> {
+                for (String url : List.of("https://evil.invalid/a.jpg", "//evil.invalid/a.jpg", "/images/../a.jpg", "data:image/png;base64,abc")) code(post("/api/v1/menu/items", itemBody("PMBAD_" + suffix, "Valid coffee", 45000, group, 0).replace("}", ",\"imageUrl\":\"" + url + "\"}"), 400), "INVALID_REQUEST");
             });
             run(24, "Đọc chi tiết món", () -> {
                 var body = get("/api/v1/menu/items/" + item, 200).body(); assertThat(body.path("code").asText()).isEqualTo(item); assertThat(body.path("price").asLong()).isEqualTo(45000); assertThat(body.path("available").asBoolean()).isTrue();
@@ -313,8 +303,10 @@ class MenuHttpReportTest {
                     assertThat(response.body().path("imageUrl").asText()).isEqualTo(MenuProviderStub.DELIVERY_URL);
                     assertThat(provider.calls()).isEqualTo(before + 1); assertThat(provider.invalidRequest()).isNull();
                     String imageItem = "PMIMAGE_" + suffix;
+                    long mediaId = response.body().path("mediaId").asLong();
+                    assertThat(mediaId).isPositive();
                     var saved = post("/api/v1/menu/items", itemBody(imageItem, "Image coffee Postman", 45000, other, 0)
-                            .replace("/images/coffee.jpg", MenuProviderStub.DELIVERY_URL), 201);
+                            .replace("}", ",\"imageMediaId\":" + mediaId + "}"), 201);
                     assertThat(saved.body().path("imageUrl").asText()).isEqualTo(MenuProviderStub.DELIVERY_URL);
                     assertThat(get("/api/v1/menu/items/" + imageItem, 200).body().path("imageUrl").asText()).isEqualTo(MenuProviderStub.DELIVERY_URL);
                     delete("/api/v1/menu/items/" + imageItem + "?version=0", 204);
@@ -340,13 +332,15 @@ class MenuHttpReportTest {
             });
         } finally {
             if (jdbc.queryForObject("SELECT DATABASE()", String.class).endsWith("_test")) {
-                jdbc.update("DELETE FROM menu_items WHERE category_code IN (?,?)", group, other);
+                jdbc.update("DELETE i FROM menu_items i JOIN menu_categories c ON c.id=i.category_id WHERE c.code IN (?,?)", group, other);
                 jdbc.update("DELETE FROM menu_categories WHERE code IN (?,?)", group, other);
+                jdbc.update("DELETE FROM media_assets WHERE provider='CLOUDINARY' AND provider_asset_id LIKE ?", provider.assetPrefix() + "%");
+                jdbc.update("DELETE FROM users WHERE username IN (?,?)", "report-admin-" + suffix, "report-staff-" + suffix);
             }
             Path output = Path.of("target/api-report/dt2-9-api-results.json"); Files.createDirectories(output.getParent());
             var report = new LinkedHashMap<String, Object>(); report.put("generatedAt", Instant.now().toString());
             report.put("transport", "HTTP thật · Spring Boot / Tomcat · MySQL " + jdbc.queryForObject("SELECT VERSION()", String.class));
-            report.put("authentication", "JWT RSA ký bằng khóa tạm trong test; không phải login/IdP thật; không thay production security.");
+            report.put("authentication", "Bearer HMAC test-only theo contract auth chung; role/status/auth_version đọc từ users của schema test. Không phải đăng nhập production.");
             report.put("provider", "TC-41/46 dùng HTTP provider giả lập trên loopback, không gọi Cloudinary thật và không cần key thật.");
             report.put("cases", results); Files.writeString(output, json.writerWithDefaultPrettyPrinter().writeValueAsString(report));
         }

@@ -9,7 +9,12 @@ Chưa có quyết định nghiệp vụ mới được ghi nhận trong vòng tr
 | QA-03 | Chỉnh/hủy món có thời hạn nào và tính từ mốc nào? | Chưa chốt |
 | QA-04 | Phân biệt yêu cầu thanh toán, lập bill, nhận tiền, ghi doanh thu và reset? | Chưa chốt |
 | QA-05 | Hành vi khi mất kết nối và cơ chế phục hồi? | Chưa chốt |
-| QA-06 | Xác nhận nghiệm thu DT2-9 theo SRS tham chiếu: tên món ≥6 ký tự, giá VND nguyên >5.000, không đổi nhóm đã gán, xóa nhóm ẩn các món cùng transaction; FE demo hiện khác một số điểm. | Backend thực hiện theo nguồn legacy do chủ repo yêu cầu ngày 2026-11-11; cần đồng bộ/nghiệm thu FE riêng |
-| QA-07 | Issuer/audience và mapping roles của auth chung, Cloudinary cloud/key thực cho môi trường tích hợp? | Chưa cấp; backend từ chối token khi thiếu issuer/audience, upload trả 503 khi thiếu cấu hình; không tạo fake account |
+| QA-06 | DT2-1: top gọi nhiều tính quantity hay số lần, trong khoảng thời gian nào; available=false có ẩn không? | Đang dùng view quantity loại CANCELLED toàn thời gian; chờ PO |
+| QA-07 | DT2-1: route menu/footer và provider session production? | Header đã đọc profile/feed từ DB và kiểm chứng provider local; chờ nhập auth/route của DT2-2, DT2-3, DT2-4, DT2-9 để smoke production integration |
 
 Mỗi câu trả lời cần người chốt, ngày, nguồn bằng chứng và task bị ảnh hưởng. Đề xuất kỹ thuật chưa được duyệt vẫn là đề xuất.
+
+
+### DT2-9: DDL triển khai theo sơ đồ mới
+
+Model đã theo sơ đồ mới do chủ repo cung cấp lại ngày 11/11. DB local legacy vẫn là bản cũ; cần chủ DB cung cấp/cập nhật DDL đúng mô hình trước smoke hoặc triển khai thực. PR không tự thay DB đó. Xem [đối chiếu](../architecture/database-contract.md#dt2-9--đối-chiếu-ngày-11112026-cho-pr-8).

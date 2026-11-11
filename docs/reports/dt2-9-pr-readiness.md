@@ -1,16 +1,21 @@
-# DT2-9 — trạng thái khi mở PR backend
+# DT2-9 — bản tích hợp PR #8
 
-Ngày 2026-11-11. Nhánh backend được tạo từ main `99acaa4`; khi chuẩn bị PR, origin/main đã ở `cf4828a` sau PR #4 (DT2-1) và các quy định DB/stack mới. Tạo Draft PR theo yêu cầu chủ repo để review, chưa đề nghị merge/deploy.
+Ngày 11/11/2026, nhánh feature/dt2-9-manage-menu-items-and-categories-backend tích hợp main cf4828a bằng merge commit, không rewrite lịch sử. Chủ repo yêu cầu xử lý conflict và chuyển PR sang Ready; không yêu cầu merge/deploy.
 
-## Bằng chứng hiện có
+## Kết quả
 
-Backend độc lập trên nhánh: Maven verify 23/23 JUnit đạt; báo cáo 46/46 mục PASS, 109 response HTTP API và một ca DB read-only. JWT test-only; TC-41/46 dùng provider HTTP giả lập theo lựa chọn người dùng. Chưa smoke IdP hoặc Cloudinary thật. Xem `docs/reports/dt2-9-api/` để biết giới hạn và các lượt chạy trước.
+Giữ CI, bootstrap, auth chung, ADR-003/004 và FE từ main. Menu dùng security chain giới hạn route, HeaderTokenFilter chung, users quyết định quyền; CSRF vẫn bắt buộc. Bỏ JWT/resource-server riêng, V001 và Flyway của bản độc lập. Không có migration đã áp dụng vào DB dùng chung bị sửa.
 
-## Blocker tích hợp với main mới
+Persistence theo sơ đồ mới chủ repo cung cấp lại: PK số, category_id, image_media_id, decimal(18,0), media_assets. Bỏ description và input imageUrl; upload trả mediaId, response món dẫn xuất URL. [Đối chiếu DDL](../architecture/database-contract.md) ghi rõ DB local cũ không phù hợp và không bị thay đổi. Fixture cấu trúc main giữ nguyên; không tuyên bố constraint/default/index triển khai đã xác minh từ ảnh.
 
-- Main có `backend/pom.xml`, application/config/security và CI riêng; nhánh này thêm các file cùng đường dẫn từ baseline cũ. Cần giải quyết conflict và kiểm thử bản tích hợp, không lấy kết quả độc lập thay kết quả tích hợp.
-- Main yêu cầu schema hệ thống theo sơ đồ ngày 11/11 và DDL thực. V001 của nhánh này tạo catalog riêng theo yêu cầu trước đó; chưa đối chiếu DDL/schema mới và **không được áp dụng vào database hệ thống**. Chưa sửa persistence/migration theo suy đoán để qua review.
-- Main dùng auth/header contract chung; nhánh này có Resource Server JWT và chain bảo mật riêng. Cần thống nhất với module auth, tránh hai chain/filter tranh quyền hoặc chặn API trang chủ.
-- ADR-003 của nhánh cũ trùng số ADR-003 đã được chốt trên main; cần hòa giải nhật ký quyết định khi tích hợp, không ghi đè quyết định merge của chủ repo.
+## Bằng chứng local
 
-Không merge main vào nhánh một cách tự động để giữ các thay đổi cần quyết định rõ ràng. Không sửa nguồn schema, tạo thêm migration hoặc thay auth chung trong task chỉ yêu cầu mở PR. Reviewer cần tập trung hợp đồng DB, auth/security chain, cấu hình/CI và hồi quy DT2-1 trước khi chuyển PR sang Ready.
+- backend/mvnw.cmd -o -B -ntp clean verify: **30/30 JUnit**, 0 failures/errors/skips, MySQL 8.0.46 smart_cafe_merge_test riêng từ fixture main.
+- [HTTP report](dt2-9-api/README.md): **46/46 PASS**, provider giả lập TC-41/46 có nhãn, không Cloudinary thật.
+- FE main giữ nguyên: npm run lint, npm run build, npm run test:ui -- --workers=2: **14/14 đạt**.
+- node scripts/skills.mjs check <full main SHA>: registry 17/16, checksum 169 files; node --test scripts/skills.test.mjs: **9/9 đạt**.
+- git diff --check loại inherited snapshots; JAR không có fixture/test/provider stub hoặc migration; schema.sql/FE/CI giữ nguyên so với main.
+
+## Phạm vi review còn lại
+
+Self-review không có blocker đã biết sau sửa lỗi tích hợp; review độc lập và quyết định merge vẫn theo ADR-003. Chưa smoke login/Cloudinary thật, chưa có SAST Aikido. DB triển khai phải được chủ DB chuẩn bị theo sơ đồ và đối chiếu DDL; không dùng DB local legacy cũ để chạy module. Kết quả CI GitHub được cập nhật trong PR, tách khỏi bằng chứng local trên.

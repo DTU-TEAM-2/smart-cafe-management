@@ -12,19 +12,18 @@ concurrency:
   cancel-in-progress: true
 jobs:
   backend:
-    name: Backend
+    name: Backend MySQL
     runs-on: ubuntu-latest
     services:
       mysql:
-        image: mysql:8.0.46
+        image: mysql:8.0
         env:
           MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
-          MYSQL_DATABASE: smart_cafe_menu_test
-        ports:
-          - 3306:3306
+          MYSQL_DATABASE: smart_cafe_ci_test
+        ports: ['3306:3306']
         options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1"
-          --health-interval=10s --health-timeout=5s --health-retries=12
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=5s --health-timeout=5s --health-retries=30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -32,13 +31,34 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - name: Verify menu on a disposable MySQL schema
+          cache-dependency-path: backend/pom.xml
+      - name: Prepare isolated schema contract fixture
+        run: docker exec -i $(docker ps -q --filter ancestor=mysql:8.0) mysql -uroot smart_cafe_ci_test < backend/src/test/resources/schema.sql
+      - name: Verify API on MySQL
         working-directory: backend
         env:
-          TEST_DB_URL: jdbc:mysql://127.0.0.1:3306/smart_cafe_menu_test?serverTimezone=UTC
+          TEST_DB_URL: jdbc:mysql://127.0.0.1:3306/smart_cafe_ci_test?connectionTimeZone=UTC
           TEST_DB_USERNAME: root
           TEST_DB_PASSWORD: ''
-        run: bash ./mvnw -B -ntp verify
+        run: sh mvnw -B -ntp verify
+  frontend:
+    name: Frontend UI
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:ui -- --workers=2
   governance:
     name: Governance
     runs-on: ubuntu-latest
@@ -49,7 +69,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22.19.0'
-      - run: node scripts/skills.mjs check
+      - name: Verify skill registry and inherited inventory
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          if [ -n "$BASE_SHA" ]; then
+            node scripts/skills.mjs check "$BASE_SHA"
+          else
+            node scripts/skills.mjs check
+          fi
       - run: node --test scripts/skills.test.mjs
       - name: Check local changes without rewriting inherited snapshots
         env:

@@ -5,6 +5,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -29,7 +30,7 @@ class MenuIntegrationTest {
         @Override public void initialize(ConfigurableApplicationContext context) {
             String url = context.getEnvironment().getProperty("spring.datasource.url", "");
             if (!url.matches("jdbc:mysql://[^/]+/[A-Za-z0-9_]+_test(?:\\?.*)?")) {
-                throw new IllegalStateException("A dedicated MySQL *_test URL is required before Flyway runs");
+                throw new IllegalStateException("A dedicated MySQL *_test URL is required before integration tests run");
             }
         }
     }
@@ -51,18 +52,41 @@ class MenuIntegrationTest {
     private String category(String code, String name, long version) {
         return "{\"code\":\"%s\",\"name\":\"%s\",\"version\":%d}".formatted(code, name, version);
     }
+
+    @AfterEach
+    void removeMenuFixturesAfterTest() {
+        cleanOnlyDedicatedTestSchema();
+    }
+
+    @Test @WithMockUser(roles = "ADMIN")
+    void mediaReferenceMustExistAndRemainAvailable() throws Exception {
+        fixtures();
+        String body = item("CF09", "Media coffee", 15000, "CF", 0);
+        mvc.perform(post("/api/v1/menu/items").with(csrf()).contentType("application/json")
+                .content(body.replace("}", ",\"imageMediaId\":9223372036854775807}")))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("MEDIA_UNAVAILABLE"));
+        jdbc.update("INSERT INTO media_assets(provider,provider_asset_id,secure_url,mime_type,size_bytes,deleted_at) VALUES ('CLOUDINARY','deleted-menu-test','https://example.invalid/deleted.jpg','image/jpeg',10,CURRENT_TIMESTAMP(6))");
+        try {
+            Long id = jdbc.queryForObject("SELECT id FROM media_assets WHERE provider_asset_id='deleted-menu-test'", Long.class);
+            mvc.perform(post("/api/v1/menu/items").with(csrf()).contentType("application/json")
+                    .content(body.replace("}", ",\"imageMediaId\":"+id+"}")))
+                    .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("MEDIA_UNAVAILABLE"));
+        } finally {
+            jdbc.update("DELETE FROM media_assets WHERE provider_asset_id='deleted-menu-test'");
+        }
+    }
     private String item(String code, String name, long price, String group, long version) {
         return """
-                {"code":"%s","name":"%s","price":%d,"categoryCode":"%s","imageUrl":"/images/coffee.jpg",
-                 "description":"Espresso","available":true,"version":%d}
+                {"code":"%s","name":"%s","price":%d,"categoryCode":"%s",
+                 "available":true,"version":%d}
                 """.formatted(code, name, price, group, version);
     }
     private void fixtures() {
         jdbc.update("INSERT INTO menu_categories(code, name) VALUES ('CF','Cà phê'),('TE','Trà')");
         jdbc.update("""
-                INSERT INTO menu_items(code,name,price,category_code,image_url) VALUES
-                ('CF01','Black coffee',15000,'CF','/images/coffee.jpg'),
-                ('CF02','Milk coffee',25000,'CF','/images/milk.jpg')
+                INSERT INTO menu_items(code,name,price,category_id) VALUES
+                ('CF01','Black coffee',15000,(SELECT id FROM menu_categories WHERE code='CF')),
+                ('CF02','Milk coffee',25000,(SELECT id FROM menu_categories WHERE code='CF'))
                 """);
     }
 
@@ -85,8 +109,6 @@ class MenuIntegrationTest {
         mvc.perform(get("/api/v1/menu/csrf")).andExpect(status().isOk()).andExpect(jsonPath("$.token").isNotEmpty());
         mvc.perform(post("/api/v1/menu/categories").contentType("application/json").content(category("CF", "Coffee", 0))).andExpect(status().isForbidden());
         mvc.perform(get("/api/v1/users")).andExpect(status().isForbidden());
-        mvc.perform(get("/api/v1/menu/items").with(jwt().authorities(() -> "ROLE_ADMIN"))).andExpect(status().isOk());
-        mvc.perform(get("/api/v1/menu/items").with(jwt().authorities(() -> "ROLE_STAFF"))).andExpect(status().isForbidden());
     }
 
     @Test @WithMockUser(roles = "ADMIN") void categoryCrudNormalizesAndPreservesDeletedCode() throws Exception {
@@ -108,7 +130,7 @@ class MenuIntegrationTest {
         fixtures();
         mvc.perform(post("/api/v1/menu/items").with(csrf()).contentType("application/json").content(item("cf03", "Caramel Latte", 45000, "cf", 0)))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.code").value("CF03"))
-                .andExpect(jsonPath("$.categoryName").value("Cà phê")).andExpect(jsonPath("$.description").value("Espresso"));
+                .andExpect(jsonPath("$.categoryName").value("Cà phê")).andExpect(jsonPath("$.imageUrl").value(org.hamcrest.Matchers.nullValue()));
         mvc.perform(put("/api/v1/menu/items/CF03").with(csrf()).contentType("application/json").content(item("CF03", "New coffee", 50000, "CF", 0)))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.version").value(1)).andExpect(jsonPath("$.price").value(50000));
         mvc.perform(put("/api/v1/menu/items/CF03").with(csrf()).contentType("application/json").content(item("CF03", "Other change", 60000, "CF", 0))).andExpect(status().isConflict());
@@ -136,14 +158,14 @@ class MenuIntegrationTest {
         for (String query : List.of("size=101", "size=0", "page=-1", "field=sql", "field=price&keyword=abc", "field=price&keyword=5000.5")) {
             mvc.perform(get("/api/v1/menu/items?" + query)).andExpect(status().isBadRequest());
         }
-        for (long price : List.of(0L, 5000L, 1000000000000L)) {
+        for (long price : List.of(0L, 5000L, 1000000000000000000L)) {
             mvc.perform(post("/api/v1/menu/items").with(csrf()).contentType("application/json").content(item("CF09", "New coffee", price, "CF", 0)))
                     .andExpect(status().isBadRequest()).andExpect(jsonPath("$.fieldErrors.price").exists());
         }
         mvc.perform(post("/api/v1/menu/items").with(csrf()).contentType("application/json").content(item("CF09", "     a", 15000, "CF", 0))).andExpect(status().isBadRequest());
         for (String url : List.of("https://evil.invalid/a.jpg", "//evil.invalid/a.jpg", "/images/../a.jpg", "data:image/png;base64,abc")) {
-            mvc.perform(post("/api/v1/menu/items").with(csrf()).contentType("application/json").content(item("CF09", "New coffee", 15000, "CF", 0).replace("/images/coffee.jpg", url)))
-                    .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_IMAGE_URL"));
+            mvc.perform(post("/api/v1/menu/items").with(csrf()).contentType("application/json").content(item("CF09", "New coffee", 15000, "CF", 0).replace("}", ",\"imageUrl\":\"" + url + "\"}")))
+                    .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
         }
         mvc.perform(post("/api/v1/menu/categories").with(csrf()).contentType("application/json").content(category("NEW", "New group", 0).replace("}", ",\"role\":\"ADMIN\"}")))
                 .andExpect(status().isBadRequest());
@@ -181,7 +203,7 @@ class MenuIntegrationTest {
     private String raceUpdate(CountDownLatch gate, String name) throws Exception {
         gate.await();
         try {
-            catalog.updateItem("CF01", new MenuModels.ItemInput("CF01", name, new java.math.BigDecimal("20000"), "CF", "/images/coffee.jpg", "", 0L, true));
+            catalog.updateItem("CF01", new MenuModels.ItemInput("CF01", name, new java.math.BigDecimal("20000"), "CF", null, 0L, true));
             return "saved";
         } catch (MenuException error) { return error.status().value() == 409 ? "conflict" : "unexpected"; }
     }
@@ -199,7 +221,7 @@ class MenuIntegrationTest {
             }));
             assertThat(locked.await(5, TimeUnit.SECONDS)).isTrue();
             var insertion = pool.submit(() -> {
-                try { catalog.createItem(new MenuModels.ItemInput("CF09", "Late coffee", new java.math.BigDecimal("15000"), "CF", "/images/coffee.jpg", "", 0L, true)); return "saved"; }
+                try { catalog.createItem(new MenuModels.ItemInput("CF09", "Late coffee", new java.math.BigDecimal("15000"), "CF", null, 0L, true)); return "saved"; }
                 catch (MenuException error) { return error.code(); }
             });
             try { assertThatThrownBy(() -> insertion.get(200, TimeUnit.MILLISECONDS)).isInstanceOf(java.util.concurrent.TimeoutException.class); }

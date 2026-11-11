@@ -1,50 +1,44 @@
-# Smart Cafe — backend thực đơn
+# Smart Cafe — backend
 
-JDK 21, Spring Boot 4.1.2, MySQL 8.0.16+ (CHECK constraints), JDBC/Flyway. Module được viết mới theo nguồn DT2-9 trong `docs/handover/`, không nhập migration history hay dữ liệu legacy. Nhánh backend tách từ main; FE ở nhánh `feature/dt2-9-manage-menu-items-and-categories-frontend` chưa được nối API.
+JDK 21, Spring Boot 4.1.2, JDBC/MySQL. DT2-9 bổ sung quản lý món/nhóm món vào backend trang chủ hiện có; không có login, tài khoản mặc định hoặc seed.
 
 ## Chạy local
 
-Tạo schema **mới, rỗng** `smart_cafe_menu` và cấp quyền cho user ứng dụng của bạn. Không trỏ vào database legacy hoặc production. Đặt `DB_URL`, `DB_USERNAME`, `DB_PASSWORD` trong môi trường terminal; xem `.env.example` để biết tên biến. Spring không tự nạp `.env`.
+Database phải được chủ DB provision theo [mô hình và đối chiếu DDL](../docs/architecture/database-contract.md). DB local legacy hiện thiếu bảng/cột cần thiết; module không tự nâng cấp database. Không có Flyway, runtime DDL hay ddl-auto=update.
+
+Đặt cấu hình trong môi trường hoặc backend/.env theo .env.example, chạy từ repo root:
 
 ```powershell
-cd backend
-.\mvnw.cmd spring-boot:run
+.\start-be.ps1
 ```
 
-Linux/macOS: `bash ./mvnw spring-boot:run`. Maven wrapper tải Maven 3.10.0 nếu chưa có cache. Backend mặc định chỉ bind `127.0.0.1:8080`. `GET /actuator/health` public và không lộ chi tiết datasource.
-
-Flyway chạy V001 tạo `menu_categories`, `menu_items`. Không seed tài khoản/món/nhóm, không `ddl-auto=update`, không `baselineOnMigrate` hoặc repair. V001 không được sửa sau khi đã áp dụng ở môi trường dùng chung; thay đổi sau đó thêm migration mới. Rollback phát hành cần backup/restore hoặc migration bù đã được review; không drop dữ liệu để rollback.
+CMD: `powershell -ExecutionPolicy Bypass -File .\start-be.ps1`. Hoặc đặt biến môi trường rồi chạy `.\mvnw.cmd spring-boot:run` trong backend. Linux/macOS: `sh mvnw spring-boot:run`. Ví dụ truy cập local: http://127.0.0.1:8080. GET /actuator/health public, không lộ chi tiết datasource. API trang chủ giữ contract main.
 
 ## Auth và CSRF
 
-API `/api/v1/menu/**` yêu cầu `ROLE_ADMIN`. Không có login/user database, tài khoản giả hoặc bypass local. Cấu hình cả `MENU_JWT_ISSUER` (HTTPS issuer OIDC) và `MENU_JWT_AUDIENCE`; Spring xác thực chữ ký/JWK, issuer, audience và hạn token. `roles` phải là array chứa `ADMIN` từ issuer tin cậy, STAFF bị từ chối. Khi thiếu cấu hình, ứng dụng vẫn chạy nhưng từ chối mọi Bearer token. Cần module auth chung/IdP thực trước khi người dùng thao tác API.
+/api/v1/menu/** chỉ dành cho ADMIN. Dùng HeaderTokenFilter và AUTH_TOKEN_SECRET của auth chung, tối thiểu 32 byte: token đã ký, chưa hết hạn, đúng id/username, users ACTIVE và auth_version=0. Quyền lấy từ users hiện tại, không lấy role từ payload. Thiếu cấu hình hoặc token hợp lệ thì từ chối; module không phát hành token.
 
-Frontend giữ Bearer token theo cơ chế auth chung, gọi `GET /api/v1/menu/csrf`, giữ cookie session CSRF và gửi header có tên `headerName` với giá trị `token` cho POST/PUT/DELETE/upload. CSRF vẫn bật, không mở CORS tùy ý. Nên dùng reverse proxy cùng origin khi tích hợp. Cookie CSRF không thay thế Bearer token. Không gửi token trong query string.
+Gọi GET /api/v1/menu/csrf bằng Bearer hợp lệ, giữ cookie session và gửi header theo headerName/token cho POST/PUT/DELETE/upload. Bearer được xác thực lại mỗi request; session chỉ giữ CSRF. Không mở CORS tùy ý; tích hợp nên dùng cùng origin.
 
-## Hợp đồng và ảnh
+## Món và ảnh
 
-Xem [OpenAPI](../docs/api/dt2-9-menu.yaml). Mã chuẩn hóa uppercase, bất biến; giá VND nguyên >5.000; version mới bằng 0. Xóa logic nhóm ẩn toàn bộ món trong cùng transaction, không xóa hàng dữ liệu. Tên tìm không phân biệt hoa/dấu theo MySQL collation; mã và giá tìm chính xác; ký tự `%`/`_` trong từ khóa được tìm literal. Món đã phân nhóm không đổi nhóm qua PUT theo SRS tham chiếu. `description`, `available` hỗ trợ trình bày FE, khác `active` nội bộ.
+[OpenAPI](../docs/api/dt2-9-menu.yaml) và [testcase Postman](../docs/qa/dt2-9-postman-test-cases.md). Mã uppercase bất biến; giá VND nguyên >5.000, tối đa 18 chữ số theo decimal(18,0). Xóa logic nhóm ẩn các món trong cùng transaction; không tái sử dụng mã đã xóa. Version kiểm soát ghi đồng thời. Nhóm của món không đổi qua PUT theo nguồn SRS tham chiếu.
 
-Kiểm thử thủ công: [Trang test case Postman DT2-9](../docs/qa/dt2-9-postman-test-cases.md), gồm môi trường, request mẫu, CSRF và 46 ca kiểm thử; chưa đánh dấu đã chạy Postman.
+Persistence dùng PK số, category_id, image_media_id. Input nhận categoryCode và imageMediaId (null nếu không ảnh); backend tra FK. Response imageUrl dẫn xuất từ media_assets.secure_url. Không nhận description hoặc imageUrl do client nhập.
 
-[Báo cáo giao diện kết quả HTTP](../docs/reports/dt2-9-api/index.html): **46 PASS**; chạy bằng Java HttpClient/Tomcat/MySQL với JWT RSA test-only. TC-41/46 dùng provider HTTP giả lập theo lựa chọn người dùng, có nhãn rõ và không cần key Cloudinary; chưa smoke Cloudinary thật. [Cách chạy lại và phạm vi bằng chứng](../docs/reports/dt2-9-api/README.md). Cấu hình CSRF áp dụng cả Bearer request; authentication stateless, session chỉ giữ CSRF nên không xoay CSRF theo mỗi request JWT. Chỉ ERROR dispatch nội bộ được phép dựng response lỗi, không mở trực tiếp các API ngoài allowlist.
+POST /api/v1/menu/images multipart file: PNG/JPEG ≤5 MiB, ≤20 triệu pixel; kiểm tra nội dung trước khi gửi Cloudinary. Cấu hình ba biến CLOUDINARY_*; thiếu cấu hình trả 503, provider lỗi trả 502 đã làm sạch. Thành công đăng ký metadata trong media_assets, trả mediaId và imageUrl. Dùng mediaId làm imageMediaId khi lưu món. Không nhận id đã xóa/không tồn tại. Không tự xóa asset cũ; upload xong nhưng hủy form hoặc DB thất bại có thể để asset chưa tham chiếu, cần quy trình cleanup riêng.
 
-Upload `POST /api/v1/menu/images` multipart `file`: PNG/JPEG, tối đa 5 MB và 20 triệu pixel; kiểm tra nội dung trước khi gọi Cloudinary. Đặt ba biến `CLOUDINARY_*`; thiếu cấu hình trả 503, provider lỗi trả 502 đã làm sạch. Test không dùng key thật/không upload ra ngoài. URL lưu chỉ chấp nhận Cloudinary của cloud đã cấu hình hoặc `/images/...` an toàn; backend không tải URL do client nhập. `/images/...` là tương thích dữ liệu local, không có ảnh mẫu hoặc API lưu file local đi kèm.
+## Kiểm thử
 
-Upload thành công nhưng hủy form/save thất bại có thể để asset chưa tham chiếu. Không tự xóa ảnh cũ vì có thể được lịch sử sử dụng; cleanup cần quy trình riêng.
-
-## Kiểm tra
-
-Tạo schema test riêng tên kết thúc `_test`, đặt `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD`, sau đó:
+Provision fixture src/test/resources/schema.sql nguyên trạng vào schema mới, riêng, kết thúc `_test`. Đây là fixture cấu trúc main, không phải migration triển khai. Đặt TEST_DB_URL, TEST_DB_USERNAME, TEST_DB_PASSWORD rồi chạy:
 
 ```powershell
-.\mvnw.cmd -B -ntp verify
+cd backend
+.\mvnw.cmd -B -ntp clean verify
 ```
 
-Test kiểm tra tên schema **trước Flyway** và trước khi dọn dữ liệu; chỉ dọn hai bảng menu trong schema test. MySQL thật là bắt buộc, không dùng H2 thay thế. CI có MySQL service tạm. Fixture quyền dùng MockMvc/test JWT, không chứng minh đã đăng nhập hoặc chạy IdP thật. Unit upload giả lập provider, integration kiểm tra CRUD/validation/CSRF/quyền/locking/version. JAR production không có fixture test.
+Test chặn URL ngoài *_test trước khi dọn fixture. MySQL thật, không H2. Report HTTP có 46 mục; TC-41/46 dùng provider HTTP loopback giả lập theo lựa chọn chủ repo, không cần key. [Báo cáo và cách chạy lại](../docs/reports/dt2-9-api/README.md) phân biệt kết quả tự động với Postman thủ công và smoke Cloudinary thật. Tài khoản/token test chỉ tồn tại trong fixture test riêng, không đóng gói JAR.
 
-## Nguồn và giấy phép
+## Nguồn
 
-Mã ứng dụng được viết lại. Hành vi tham chiếu legacy được truy xuất trong [nguồn yêu cầu](../docs/handover/dt2-9-backend-request.md); không nhận báo cáo/approval cũ thành kết quả mới. `mvnw`, `mvnw.cmd`, `.mvn/wrapper/maven-wrapper.properties` là Apache Maven Wrapper 3.3.4 lấy nguyên từ tooling của legacy, giữ header Apache License 2.0; không phải mã nghiệp vụ mới. Bản giấy phép trong `MAVEN-WRAPPER-LICENSE.txt`. Dependencies giữ giấy phép upstream qua Maven artifacts.
-
-Tham khảo kỹ thuật: [Spring Security JWT](https://docs.spring.io/spring-security/reference/servlet/oauth2/resource-server/jwt.html), [CSRF](https://docs.spring.io/spring-security/reference/servlet/exploits/csrf.html), [Cloudinary Upload API](https://cloudinary.com/documentation/image_upload_api_reference).
+Module menu viết lại theo [yêu cầu đã lưu](../docs/handover/dt2-9-backend-request.md), không nhập code nghiệp vụ, dữ liệu hoặc migration history legacy. Apache Maven Wrapper giữ header/giấy phép upstream tại MAVEN-WRAPPER-LICENSE.txt; backend chung/FE được tích hợp nguyên lịch sử main.

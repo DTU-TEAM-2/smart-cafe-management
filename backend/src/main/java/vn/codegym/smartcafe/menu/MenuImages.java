@@ -21,23 +21,25 @@ class MenuImages {
     static final long MAX_SIZE = 5L * 1024 * 1024;
     private final MenuImageConfiguration.Cloudinary settings;
     private final RestClient client;
-    MenuImages(MenuImageConfiguration.Cloudinary settings, @Qualifier("menuImageClient") RestClient client) {
-        this.settings = settings; this.client = client;
+    private final MenuMedia media;
+    MenuImages(MenuImageConfiguration.Cloudinary settings, @Qualifier("menuImageClient") RestClient client, MenuMedia media) {
+        this.settings = settings; this.client = client; this.media = media;
     }
-    record Upload(String imageUrl) { }
+    record Upload(Long mediaId, String imageUrl) { }
+    private record ImageData(String format, int width, int height) { }
 
     Upload upload(MultipartFile file) {
         if (file.isEmpty()) throw invalid();
         if (file.getSize() > MAX_SIZE) throw new MenuException(HttpStatus.PAYLOAD_TOO_LARGE, "IMAGE_TOO_LARGE", "Ảnh tối đa 5 MB.");
         byte[] bytes;
-        String format;
+        ImageData image;
         try {
             bytes = file.getBytes();
-            format = inspect(bytes);
+            image = inspect(bytes);
         } catch (IOException exception) { throw invalid(); }
         if (!configured()) throw new MenuException(HttpStatus.SERVICE_UNAVAILABLE, "IMAGE_NOT_CONFIGURED", "Dịch vụ ảnh chưa được cấu hình.");
         var form = new LinkedMultiValueMap<String, Object>();
-        String extension = format;
+        String extension = image.format();
         form.add("file", new ByteArrayResource(bytes) {
             @Override public String getFilename() { return "menu." + extension; }
         });
@@ -48,17 +50,14 @@ class MenuImages {
                     .headers(headers -> headers.setBasicAuth(settings.apiKey(), settings.apiSecret()))
                     .contentType(MediaType.MULTIPART_FORM_DATA).body(form).retrieve()
                     .body(new ParameterizedTypeReference<Map<String, Object>>() { });
-            if (response == null || !(response.get("secure_url") instanceof String url) || !isCloudinaryUrl(url)) throw providerFailure();
-            return new Upload(url);
+            if (response == null || !(response.get("secure_url") instanceof String url) || !isCloudinaryUrl(url)
+                    || !(response.get("asset_id") instanceof String assetId) || !assetId.matches("[A-Za-z0-9_-]{1,255}")) throw providerFailure();
+            Long id = media.register(assetId, url, extension.equals("png") ? "image/png" : "image/jpeg", bytes.length, image.width(), image.height());
+            return new Upload(id, url);
         } catch (RestClientException exception) { throw providerFailure(); }
     }
 
-    void requireSafeUrl(String url) {
-        if (url != null && (url.matches("/images/(?:[A-Za-z0-9_-]+/)*[A-Za-z0-9_-]+\\.(?i:png|jpe?g|webp|gif)") || isCloudinaryUrl(url))) return;
-        throw new MenuException(HttpStatus.BAD_REQUEST, "INVALID_IMAGE_URL", "Ảnh phải là URL Cloudinary của quán hoặc đường dẫn /images/ hợp lệ.");
-    }
-
-    private String inspect(byte[] bytes) throws IOException {
+    private ImageData inspect(byte[] bytes) throws IOException {
         try (var stream = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
             if (stream == null) throw invalid();
             var decoders = ImageIO.getImageReaders(stream);
@@ -70,7 +69,7 @@ class MenuImages {
                 if (!format.equalsIgnoreCase("PNG") && !format.equalsIgnoreCase("JPEG")) throw invalid();
                 long pixels = (long) decoder.getWidth(0) * decoder.getHeight(0);
                 if (pixels < 1 || pixels > 20_000_000 || decoder.read(0) == null) throw invalid();
-                return format.equalsIgnoreCase("PNG") ? "png" : "jpg";
+                return new ImageData(format.equalsIgnoreCase("PNG") ? "png" : "jpg", decoder.getWidth(0), decoder.getHeight(0));
             } finally { decoder.dispose(); }
         }
     }

@@ -1,5 +1,7 @@
 # DT2-9 — bàn giao backend
 
+> Bản ghi lịch sử trước tích hợp main. V001/JWT/kết quả đếm cũ dưới đây được thay thế bởi [bàn giao tích hợp PR #8](dt2-9-pr-readiness.md) và [báo cáo HTTP hiện tại](dt2-9-api/README.md). Không dùng làm hướng dẫn chạy hiện tại.
+
 Ngày 2026-11-11. Nhánh `feature/dt2-9-manage-menu-items-and-categories-backend`, tách từ main theo lựa chọn chủ repo; giữ nguyên nhánh FE. Chỉ lưu local, không publish/deploy/merge. Nguồn và tiêu chí: [yêu cầu backend](../handover/dt2-9-backend-request.md), [trích SRS legacy có SHA256](../handover/dt2-9-legacy-menu-source.txt).
 
 ## Kết quả

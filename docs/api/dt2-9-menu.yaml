@@ -236,8 +236,9 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [imageUrl]
+                required: [mediaId, imageUrl]
                 properties:
+                  mediaId: { type: integer, format: int64 }
                   imageUrl: { type: string, format: uri }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
@@ -247,7 +248,7 @@ paths:
         '503': { description: Cloudinary not configured }
 components:
   securitySchemes:
-    bearer: { type: http, scheme: bearer, bearerFormat: JWT }
+    bearer: { type: http, scheme: bearer, bearerFormat: Shared HMAC signed token }
   parameters:
     Page: { name: page, in: query, schema: { type: integer, minimum: 0, maximum: 2147483647, default: 0 } }
     Size: { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 10 } }
@@ -255,7 +256,7 @@ components:
     Version: { name: version, in: query, required: true, schema: { type: integer, format: int64, minimum: 0 } }
     Csrf: { name: X-CSRF-TOKEN, in: header, required: true, description: Value from GET csrf; retain the same session cookie, schema: { type: string } }
   responses:
-    Unauthorized: { description: Missing/invalid JWT, issuer/audience not configured, or token expired }
+    Unauthorized: { description: Missing/invalid shared bearer, expired/revoked token, inactive user or signing secret not configured }
     Forbidden: { description: Wrong role or missing/invalid CSRF token; security errors may have empty bodies }
     BadRequest:
       description: Validation, immutable code, malformed request or invalid image
@@ -299,27 +300,26 @@ components:
     ItemInput:
       type: object
       additionalProperties: false
-      required: [code, name, price, categoryCode, imageUrl, version]
+      required: [code, name, price, categoryCode, version]
       properties:
         code: { type: string, pattern: '^[A-Za-z0-9_-]{4,40}$', example: CF101 }
         name: { type: string, minLength: 6, maxLength: 160, example: Caramel Latte }
-        price: { type: integer, minimum: 5001, maximum: 999999999999, example: 45000, description: 'Whole VND; fractions are rejected, never rounded' }
+        price: { type: integer, minimum: 5001, maximum: 999999999999999999, example: 45000, description: 'Whole VND; fractions are rejected, never rounded' }
         categoryCode: { type: string, pattern: '^[A-Za-z0-9_-]{1,32}$', example: CF }
-        imageUrl: { type: string, maxLength: 1024, example: /images/coffee.jpg, description: Safe /images path or HTTPS delivery URL belonging to the configured Cloudinary cloud }
-        description: { type: string, maxLength: 1000, default: '' }
+        imageMediaId: { type: integer, format: int64, nullable: true, minimum: 1, description: Existing non-deleted media_assets id; null means no image }
         available: { type: boolean, default: true }
         version: { type: integer, format: int64, minimum: 0, example: 0 }
     Item:
       type: object
-      required: [code, name, price, categoryCode, categoryName, imageUrl, description, available, version]
+      required: [code, name, price, categoryCode, categoryName, imageMediaId, imageUrl, available, version]
       properties:
         code: { type: string }
         name: { type: string }
-        price: { type: integer, minimum: 5001, maximum: 999999999999 }
+        price: { type: integer, minimum: 5001, maximum: 999999999999999999 }
         categoryCode: { type: string }
         categoryName: { type: string }
-        imageUrl: { type: string }
-        description: { type: string }
+        imageMediaId: { type: integer, format: int64, nullable: true }
+        imageUrl: { type: string, nullable: true, readOnly: true, description: Derived from media_assets.secure_url }
         available: { type: boolean }
         version: { type: integer, format: int64 }
     Problem:

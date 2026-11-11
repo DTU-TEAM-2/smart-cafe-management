@@ -10,9 +10,9 @@ Tiêu chí kiểm chứng:
 2. Mã chuẩn hóa uppercase, bất biến khi sửa, không tái sử dụng sau xóa logic. Tên/giá/nhóm kiểm tra tại server, giá VND nguyên > 5.000; không đọc giá từ browser như quyền hạn chốt đơn.
 3. Xóa logic nhóm và tất cả món trong một transaction, giữ hàng dữ liệu để bảo toàn tham chiếu tương lai; cập nhật/xóa có version, khóa nhóm chống ghi trong khi xóa.
 4. Upload PNG/JPEG kiểm tra nội dung, tối đa 5 MB/20 triệu pixel, Cloudinary cấu hình bằng môi trường; thiếu cấu hình trả lỗi rõ. Không gửi ảnh/key ra provider trong test.
-5. Schema mới từ V001, không seed tài khoản/menu/dữ liệu người dùng. Kiểm chứng MySQL thật trên schema test riêng, không chạy migration vào schema legacy.
+5. Theo sơ đồ DB mới chủ repo cung cấp lại ngày 11/11: PK số, category_id, image_media_id, price decimal(18,0), media_assets. Không DDL runtime hoặc seed. MySQL thật trên schema test riêng từ fixture main; không sửa DB legacy. Xem [đối chiếu DDL](../architecture/database-contract.md).
 6. Lỗi Problem Details có mã và fieldErrors; không lộ SQL/stack/secret. Không có login, order, bill, doanh thu hoặc tích hợp FE trong nhánh backend.
 
-Khác FE demo: FE đang chặn xóa nhóm có món, cho đổi nhóm và giá dương bất kỳ, nhận WebP; backend theo nguồn legacy/SRS tham chiếu ở trên. Tích hợp FE sẽ phải đồng bộ riêng, không tự sửa nhánh FE trong task này. Các trường mô tả/trạng thái có sẵn được giữ để biểu diễn design; không tạo luồng session/order mới.
+Khác FE demo: FE đang chặn xóa nhóm có món, cho đổi nhóm và giá dương bất kỳ, nhận WebP; backend theo nguồn legacy/SRS tham chiếu ở trên. Tích hợp FE sẽ đồng bộ riêng. Bỏ description vì không có trong mô hình DB mới; available giữ theo sơ đồ. Không tạo luồng session/order mới.
 
-Không có auth chung trong repo mới. Backend cung cấp Resource Server JWT với issuer/audience cấu hình từ môi trường, roles claim phải được ký bởi issuer. Thiếu cấu hình thì từ chối token; không seed admin hay bypass. Kiểm thử quyền dùng fixture test-only, không tuyên bố đã đăng nhập thật.
+Sau tích hợp main, dùng HeaderTokenFilter và AUTH_TOKEN_SECRET chung; role/status/auth_version từ users quyết định quyền. Bỏ Resource Server JWT riêng của bản độc lập. Không seed admin hay bypass. Fixture test-only không chứng minh đăng nhập thật.

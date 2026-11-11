@@ -15,21 +15,21 @@ import static vn.codegym.smartcafe.menu.MenuModels.*;
 class MenuCatalog {
     private static final String CATEGORY_SELECT = """
             SELECT c.code, c.name, c.version,
-            (SELECT COUNT(*) FROM menu_items i WHERE i.category_code=c.code AND i.active=TRUE) AS item_count
+            (SELECT COUNT(*) FROM menu_items i WHERE i.category_id=c.id AND i.active=TRUE) AS item_count
             FROM menu_categories c
             """;
-    private static final String ITEM_FROM = " FROM menu_items i JOIN menu_categories c ON c.code=i.category_code ";
-    private static final String ITEM_SELECT = "SELECT i.*, c.name AS category_name" + ITEM_FROM;
+    private static final String ITEM_FROM = " FROM menu_items i JOIN menu_categories c ON c.id=i.category_id LEFT JOIN media_assets m ON m.id=i.image_media_id AND m.deleted_at IS NULL ";
+    private static final String ITEM_SELECT = "SELECT i.*, c.code AS category_code, c.name AS category_name, m.secure_url AS image_url" + ITEM_FROM;
     private static final RowMapper<Category> CATEGORY = (rs, index) -> new Category(
             rs.getString("code"), rs.getString("name"), rs.getLong("version"), rs.getLong("item_count"));
     private static final RowMapper<Item> ITEM = (rs, index) -> new Item(
             rs.getString("code"), rs.getString("name"), rs.getBigDecimal("price"), rs.getString("category_code"),
-            rs.getString("category_name"), rs.getString("image_url"), rs.getString("description"),
+            rs.getString("category_name"), rs.getObject("image_media_id", Long.class), rs.getString("image_url"),
             rs.getBoolean("available"), rs.getLong("version"));
     private final JdbcTemplate jdbc;
-    private final MenuImages images;
+    private final MenuMedia media;
 
-    MenuCatalog(JdbcTemplate jdbc, MenuImages images) { this.jdbc = jdbc; this.images = images; }
+    MenuCatalog(JdbcTemplate jdbc, MenuMedia media) { this.jdbc = jdbc; this.media = media; }
 
     @Transactional(readOnly = true)
     Page<Category> categories(String keyword, int page, int size) {
@@ -64,12 +64,12 @@ class MenuCatalog {
 
     void deleteCategory(String code, long version) {
         // All item writes take this same lock before touching the item row.
-        lockCategory(code);
+        long categoryId = lockCategory(code);
         requireWrite(jdbc.update("""
                 UPDATE menu_categories SET active=FALSE, version=version+1
                 WHERE code=? AND active=TRUE AND version=?
                 """, normalizeCode(code), version));
-        jdbc.update("UPDATE menu_items SET active=FALSE, version=version+1 WHERE category_code=? AND active=TRUE", normalizeCode(code));
+        jdbc.update("UPDATE menu_items SET active=FALSE, version=version+1 WHERE category_id=? AND active=TRUE", categoryId);
     }
 
     @Transactional(readOnly = true)
@@ -77,7 +77,7 @@ class MenuCatalog {
         var args = new ArrayList<Object>();
         String where = " WHERE i.active=TRUE AND c.active=TRUE";
         if (categoryCode != null && !categoryCode.isBlank()) {
-            where += " AND i.category_code=?";
+            where += " AND c.code=?";
             args.add(normalizeCode(categoryCode));
         }
         if (!keyword.isBlank()) {
@@ -93,7 +93,7 @@ class MenuCatalog {
                     BigDecimal price;
                     try { price = new BigDecimal(term); }
                     catch (NumberFormatException exception) { throw bad("INVALID_PRICE", "Giá tìm kiếm không hợp lệ."); }
-                    if (price.scale() > 0 || price.signum() < 0 || price.compareTo(new BigDecimal("999999999999")) > 0) {
+                    if (price.scale() > 0 || price.signum() < 0 || price.compareTo(new BigDecimal("999999999999999999")) > 0) {
                         throw bad("INVALID_PRICE", "Giá tìm kiếm phải là số VND nguyên trong giới hạn.");
                     }
                     where += " AND i.price=?"; args.add(price);
@@ -114,39 +114,41 @@ class MenuCatalog {
 
     Item createItem(ItemInput input) {
         requireInitialVersion(input.version());
-        images.requireSafeUrl(input.imageUrl());
-        lockCategory(input.categoryCode());
+        long categoryId = lockCategory(input.categoryCode());
+        Long mediaId = media.resolve(input.imageMediaId());
         jdbc.update("""
-                INSERT INTO menu_items(code, name, price, category_code, image_url, description, available)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, input.code(), input.name(), input.price(), input.categoryCode(), input.imageUrl(), input.description(), input.available());
+                INSERT INTO menu_items(code, name, price, category_id, image_media_id, available)
+                VALUES (?, ?, ?, ?, ?, ?)
+                """, input.code(), input.name(), input.price(), categoryId, mediaId, input.available());
         return item(input.code());
     }
 
     Item updateItem(String code, ItemInput input) {
         requireSameCode(code, input.code());
-        images.requireSafeUrl(input.imageUrl());
-        lockCategory(input.categoryCode());
+        long categoryId = lockCategory(input.categoryCode());
+        Long mediaId = media.resolve(input.imageMediaId());
         // Existing categories are immutable, matching the legacy SRS edit operation.
         requireWrite(jdbc.update("""
-                UPDATE menu_items SET name=?, price=?, image_url=?, description=?, available=?, version=version+1
-                WHERE code=? AND category_code=? AND active=TRUE AND version=?
-                """, input.name(), input.price(), input.imageUrl(), input.description(), input.available(),
-                input.code(), input.categoryCode(), input.version()));
+                UPDATE menu_items SET name=?, price=?, image_media_id=?, available=?, version=version+1
+                WHERE code=? AND category_id=? AND active=TRUE AND version=?
+                """, input.name(), input.price(), mediaId, input.available(),
+                input.code(), categoryId, input.version()));
         return item(code);
     }
 
     void deleteItem(String code, long version) {
-        var groups = jdbc.queryForList("SELECT category_code FROM menu_items WHERE code=? AND active=TRUE", String.class, normalizeCode(code));
+        var groups = jdbc.queryForList("SELECT c.code FROM menu_items i JOIN menu_categories c ON c.id=i.category_id WHERE i.code=? AND i.active=TRUE", String.class, normalizeCode(code));
         if (groups.isEmpty()) throw missing("Món");
         lockCategory(groups.getFirst());
         requireWrite(jdbc.update("UPDATE menu_items SET active=FALSE, version=version+1 WHERE code=? AND active=TRUE AND version=?", normalizeCode(code), version));
     }
 
-    private void lockCategory(String code) {
-        if (jdbc.queryForList("SELECT code FROM menu_categories WHERE code=? AND active=TRUE FOR UPDATE", String.class, normalizeCode(code)).isEmpty()) {
+    private long lockCategory(String code) {
+        var ids = jdbc.queryForList("SELECT id FROM menu_categories WHERE code=? AND active=TRUE FOR UPDATE", Long.class, normalizeCode(code));
+        if (ids.isEmpty()) {
             throw new MenuException(HttpStatus.CONFLICT, "CATEGORY_INACTIVE", "Nhóm món không tồn tại hoặc đã ngừng hoạt động.");
         }
+        return ids.getFirst();
     }
 
     private void requireWrite(int count) {
