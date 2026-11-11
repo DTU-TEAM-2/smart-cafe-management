@@ -78,4 +78,21 @@ class TokenServiceTest {
         String hash3 = tokenService.hmacSha256("different-data");
         assertNotEquals(hash1, hash3);
     }
+
+    @Test
+    void ephemeralSecretKeySharesSameSourceForSigningAndVerification() {
+        // When secret is not configured or blank, an ephemeral key is generated
+        TokenService ephemeralService = new TokenService("", 3600);
+        byte[] secretKey = ephemeralService.getSecretKey();
+        assertNotNull(secretKey);
+        assertEquals(32, secretKey.length, "Ephemeral secret key must be at least 32 bytes (256-bit)");
+
+        // Token signed with ephemeral key can be parsed and verified by the same service/key
+        String token = ephemeralService.generateToken(99L, "ephemeral_user", "ADMIN", 0L);
+        assertNotNull(token);
+        TokenService.TokenClaims claims = ephemeralService.parseToken(token);
+        assertNotNull(claims);
+        assertEquals(99L, claims.userId());
+        assertEquals("ephemeral_user", claims.username());
+    }
 }

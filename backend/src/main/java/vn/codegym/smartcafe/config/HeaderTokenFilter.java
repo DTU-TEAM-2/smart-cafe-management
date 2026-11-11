@@ -28,7 +28,12 @@ final class HeaderTokenFilter extends OncePerRequestFilter {
 
     HeaderTokenFilter(JdbcClient jdbc, String secret) {
         this.jdbc = jdbc;
-        this.secret = secret.getBytes(StandardCharsets.UTF_8);
+        this.secret = secret != null ? secret.getBytes(StandardCharsets.UTF_8) : new byte[0];
+    }
+
+    HeaderTokenFilter(JdbcClient jdbc, byte[] secret) {
+        this.jdbc = jdbc;
+        this.secret = secret != null ? secret : new byte[0];
     }
 
     @Override

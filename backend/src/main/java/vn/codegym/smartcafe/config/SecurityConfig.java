@@ -17,6 +17,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.security.web.context.NullSecurityContextRepository;
 import org.springframework.security.web.savedrequest.NullRequestCache;
 
+import vn.codegym.smartcafe.auth.TokenService;
+
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -29,8 +31,8 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, JdbcClient jdbc,
-            @Value("${smartcafe.auth.token-secret:}") String secret) throws Exception {
-        var tokenFilter = new HeaderTokenFilter(jdbc, secret);
+            TokenService tokenService) throws Exception {
+        var tokenFilter = new HeaderTokenFilter(jdbc, tokenService.getSecretKey());
 
         return http
                 .csrf(csrf -> csrf.ignoringRequestMatchers(

@@ -72,8 +72,9 @@ export default function ResetPasswordPage({ onNavigate }) {
       return;
     }
 
-    if (newPassword.length < 8 || newPassword.length > 64) {
-      setErrorMessage("Mật khẩu phải có độ dài từ 8 đến 64 ký tự.");
+    const utf8ByteLength = new TextEncoder().encode(newPassword).length;
+    if (newPassword.length < 8 || newPassword.length > 64 || utf8ByteLength > 72) {
+      setErrorMessage("Mật khẩu phải từ 8 đến 64 ký tự và không vượt quá 72 byte.");
       return;
     }
 

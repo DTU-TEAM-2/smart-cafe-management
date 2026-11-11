@@ -262,7 +262,7 @@ public class OtpService {
         }
 
         if (!PasswordPolicy.isValid(newPassword)) {
-            throw new InvalidPasswordException("Mật khẩu mới không hợp lệ. Mật khẩu phải có từ 8 đến 64 ký tự, gồm ít nhất 1 chữ hoa, 1 chữ thường và 1 chữ số.");
+            throw new InvalidPasswordException("Mật khẩu mới không hợp lệ. Mật khẩu phải có từ 8 đến 64 ký tự (tối đa 72 byte), gồm ít nhất 1 chữ hoa, 1 chữ thường và 1 chữ số.");
         }
 
         if (rawToken == null || rawToken.isBlank()) {

@@ -39,6 +39,10 @@ public class TokenService {
         this.tokenValiditySeconds = tokenValiditySeconds;
     }
 
+    public byte[] getSecretKey() {
+        return this.secretKey;
+    }
+
     public record TokenClaims(Long userId, String username, String role, long authVersion, Instant expiresAt) {}
 
     public record ResetGrantClaims(String challengeId, Long userId, long authVersion, Instant expiresAt) {}

@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -37,7 +38,10 @@ class AuthIntegrationTest {
 
     @BeforeEach
     void setupTestData() {
-        // Ensure test users exist with known passwords
+        String dbName = jdbcTemplate.queryForObject("SELECT DATABASE()", String.class);
+        assertThat(dbName).isNotNull().endsWith("_test");
+
+        // Ensure test users exist with known passwords - clean only fixture users
         jdbcTemplate.update("DELETE FROM users WHERE username IN ('test_admin', 'test_staff', 'test_inactive')");
 
         String adminHash = passwordEncoder.encode("Admin@123");
@@ -61,7 +65,10 @@ class AuthIntegrationTest {
 
     @AfterEach
     void cleanUp() {
-        jdbcTemplate.update("DELETE FROM users");
+        String dbName = jdbcTemplate.queryForObject("SELECT DATABASE()", String.class);
+        if (dbName != null && dbName.endsWith("_test")) {
+            jdbcTemplate.update("DELETE FROM users WHERE username IN ('test_admin', 'test_staff', 'test_inactive')");
+        }
     }
 
     @Test

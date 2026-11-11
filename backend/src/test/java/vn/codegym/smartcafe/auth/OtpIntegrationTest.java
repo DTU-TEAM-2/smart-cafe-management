@@ -39,6 +39,9 @@ class OtpIntegrationTest {
 
     @BeforeEach
     void setupTestData() {
+        String dbName = jdbcTemplate.queryForObject("SELECT DATABASE()", String.class);
+        assertThat(dbName).isNotNull().endsWith("_test");
+
         jdbcTemplate.update("DELETE FROM users WHERE username = 'otp_user'");
         jdbcTemplate.update("DELETE FROM auth_otp_challenges WHERE email = 'otp_user@smartcafe.vn'");
         jdbcTemplate.update("DELETE FROM auth_otp_limits WHERE email_key = ?",
@@ -53,8 +56,13 @@ class OtpIntegrationTest {
 
     @AfterEach
     void cleanUp() {
-        jdbcTemplate.update("DELETE FROM auth_otp_challenges");
-        jdbcTemplate.update("DELETE FROM users WHERE username = 'otp_user'");
+        String dbName = jdbcTemplate.queryForObject("SELECT DATABASE()", String.class);
+        if (dbName != null && dbName.endsWith("_test")) {
+            jdbcTemplate.update("DELETE FROM auth_otp_challenges WHERE email = 'otp_user@smartcafe.vn'");
+            jdbcTemplate.update("DELETE FROM auth_otp_limits WHERE email_key = ?",
+                    tokenService.hmacSha256("LIMIT:otp_user@smartcafe.vn"));
+            jdbcTemplate.update("DELETE FROM users WHERE username = 'otp_user'");
+        }
     }
 
     @Test
