@@ -40,12 +40,8 @@ Xây dựng đầy đủ tính năng Quản lý nhân viên (CRUD, tìm kiếm �
    - Xóa nhân viên:
      - Kiểm tra an toàn trước khi xóa (không cho phép tự xóa chính tài khoản Admin đang đăng nhập).
      - Xử lý ràng buộc toàn vẹn: nếu nhân viên đã từng tham gia lập bill / thao tác phiên bàn trong lịch sử, áp dụng cơ chế soft delete (chuyển `status = 'INACTIVE'`) để bảo toàn lịch sử dữ liệu tài chính theo quy định hệ thống.
-2. **Frontend (ReactJS):**
-   - Giao diện danh sách nhân viên: hiển thị bảng thông tin (Username, Name, Address, Tel, Gender, Role, Birthday, Salary, Avatar), phân trang 10 dòng/trang, ô tìm kiếm OR (Username, Name, Tel).
-   - Hiển thị trạng thái rỗng ("Not found") khi tìm kiếm không có kết quả.
-   - Màn hình/Form thêm mới nhân viên có đầy đủ validate trực quan phía client (kết hợp báo lỗi từ server), upload ảnh preview qua Cloudinary.
-   - Màn hình/Form sửa thông tin: username disabled/read-only, nạp dữ liệu cũ, validate cập nhật, nút Update và Back.
-   - Hộp thoại (Modal) xác nhận xóa nhân viên: hiển thị cảnh báo xác nhận, nút xác nhận và nút hủy (hủy thì giữ nguyên trạng thái danh sách).
+2. **Frontend (ReactJS - DT2-70):**
+   - *Tạm gác lại / đã gỡ bỏ theo yêu cầu của lập trình viên: Ưu tiên hoàn tất 100% phần Backend (Coding BE + Database + Kiểm thử API) trước khi triển khai Frontend.*
 3. **Kiểm thử (Verification & Quality):**
    - Unit/Integration test Backend với Spring Boot Test và schema MySQL `*_test`.
    - Kiểm tra các ca kiểm thử nghiệp vụ: quyền Admin, tìm kiếm OR, validate username (>6 ký tự, không đầu số, cấm admin/root), validate salary, username bất biến khi sửa, xóa an toàn và upload ảnh Cloudinary.

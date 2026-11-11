@@ -37,14 +37,10 @@ Xây dựng tính năng Quản lý nhân viên theo chuẩn kiến trúc Smart C
   - Xóa an toàn: chặn xóa tài khoản hiện tại, kiểm tra lịch sử để soft delete (`INACTIVE`) bảo vệ toàn vẹn dữ liệu.
 - [x] 4. **Backend Controller & Cloudinary Avatar**: Triển khai `StaffController.java` và tích hợp upload ảnh qua Cloudinary lưu vào `media_assets`.
 - [x] 5. **Backend Verification Tests**: Viết bộ test `StaffControllerTest.java` kiểm thử toàn diện các điều kiện AC, chạy `backend/mvnw test -Dtest=StaffControllerTest`.
-- [x] 6. **Frontend API & Components**:
-  - Xây dựng `staffApi.js`.
-  - Xây dựng component danh sách `StaffListPage.jsx` kèm phân trang 10 bản ghi và tìm kiếm OR.
-  - Xây dựng form thêm/sửa `StaffFormModal.jsx` với kiểm tra lỗi trực quan và upload ảnh.
-  - Xây dựng modal xác nhận xóa `DeleteStaffModal.jsx`.
-  - Tích hợp vào menu điều hướng cho Admin trong `SiteLayout.jsx` và routing trong `HomeShell.jsx`.
-- [x] 7. **Frontend Verification**: Chạy `npm run lint`, `npm run build`, kiểm tra giao diện trên trình duyệt.
-- [ ] 8. **Chuẩn bị Pull Request**: Rà soát diff, chuẩn bị báo cáo kiểm thử và sẵn sàng tạo PR cho Dev xác nhận.
+- [ ] 6. **Frontend API & Components (DT2-70)**: *Tạm gác lại / đã xóa theo yêu cầu của lập trình viên: Ưu tiên hoàn tất 100% phần Backend (Coding BE + Database + Kiểm thử API) trước.*
+- [ ] 7. **Frontend Verification**: *Sẽ thực hiện khi triển khai subtask DT2-70 sau.*
+- [x] 8. **Backend HTTP Report Test & Postman Verification**: Hoàn tất bộ test tích hợp HTTP thật `StaffHttpReportTest` (19/19 PASS), xuất báo cáo HTML và cung cấp Postman collection.
+- [ ] 9. **Chuẩn bị Pull Request**: Rà soát diff, chuẩn bị báo cáo kiểm thử và sẵn sàng tạo PR cho Dev xác nhận.
 
 ---
 

@@ -3,7 +3,6 @@ import HomePage from "../home/HomePage.jsx";
 import SiteLayout from "./SiteLayout.jsx";
 import LoginPage from "../auth/LoginPage.jsx";
 import SalesWorkspace from "../sales/SalesWorkspace.jsx";
-import StaffListPage from "../staff/StaffListPage.jsx";
 
 function subscribeHash(callback) {
   window.addEventListener("hashchange", callback);
@@ -90,17 +89,16 @@ function ScopedHomeShell({ authorization = "", loginHref = "#login", credentials
   const onAccountPage = hash === "#account";
   const onLoginPage = hash === "#login";
   const onSalesPage = hash === "#sale" || hash === "#sale-income";
-  const onStaffPage = hash === "#staff";
   useEffect(() => {
-    if (!onAccountPage && !onLoginPage && !onSalesPage && !onStaffPage && hash) {
+    if (!onAccountPage && !onLoginPage && !onSalesPage && hash) {
       const frame = requestAnimationFrame(() => document.getElementById(hash.slice(1))?.scrollIntoView());
       return () => cancelAnimationFrame(frame);
     }
-    if (onAccountPage || onLoginPage || onSalesPage || onStaffPage) {
+    if (onAccountPage || onLoginPage || onSalesPage) {
       window.scrollTo(0, 0);
       document.getElementById(onSalesPage ? "sale-main" : "main")?.focus({ preventScroll: true });
     }
-  }, [hash, onAccountPage, onLoginPage, onSalesPage, onStaffPage]);
+  }, [hash, onAccountPage, onLoginPage, onSalesPage]);
 
   const account = identity.account ? { ...identity.account, profileHref: "#account" } : null;
   if (onSalesPage) return <SalesWorkspace account={account} identityStatus={identity.status}
@@ -108,24 +106,14 @@ function ScopedHomeShell({ authorization = "", loginHref = "#login", credentials
     retryIdentity={() => { setIdentity({ status: "loading", account: null }); setAccountAttempt(value => value + 1); }} />;
   const notifications = feed.data && { ...feed.data, items: feed.data.items.map(item => ({ ...item, read: readIds.has(item.id) })) };
   return <SiteLayout account={account} notifications={notifications} links={{ login: loginHref }}
-    currentPage={onAccountPage ? "account" : onLoginPage ? "login" : onStaffPage ? "staff" : "home"} notificationState={feed.status}
+    currentPage={onAccountPage ? "account" : onLoginPage ? "login" : "home"} notificationState={feed.status}
     onRetryNotifications={() => { setFeed({ status: "loading", data: null }); setFeedAttempt(value => value + 1); }}
     onNotificationsOpen={() => setReadIds(previous => new Set([...previous, ...(feed.data?.items.map(item => item.id) ?? [])]))}>
     {identity.status === "error" && <div className="identity-error" role="alert">Chưa tải được thông tin tài khoản.
       <button type="button" onClick={() => setAccountAttempt(value => value + 1)}>Thử lại</button></div>}
     {onLoginPage ? account ? <section className="account-page"><h1>Bạn đã đăng nhập</h1><a href="#account">Xem thông tin tài khoản</a></section>
       : <LoginPage />
-      : onStaffPage ? (
-        account?.role === "ADMIN" ? (
-          <StaffListPage authorization={authorization} />
-        ) : (
-          <section className="account-page">
-            <h1 style={{ color: "#fc8181" }}>Truy cập bị từ chối</h1>
-            <p>Chỉ tài khoản Quản trị viên (ADMIN) mới có quyền truy cập trang quản lý nhân viên.</p>
-            <a href="#top" className="btn-primary" style={{ display: "inline-block", marginTop: "16px" }}>Về trang chủ</a>
-          </section>
-        )
-      ) : onAccountPage ? <AccountPage status={identity.status} account={identity.account} /> : <HomePage />}
+      : onAccountPage ? <AccountPage status={identity.status} account={identity.account} /> : <HomePage />}
   </SiteLayout>;
 }
 
