@@ -95,4 +95,12 @@ class TokenServiceTest {
         assertEquals(99L, claims.userId());
         assertEquals("ephemeral_user", claims.username());
     }
+
+    @Test
+    void rejectsConfiguredSecretShorterThan32BytesOnStartup() {
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
+                new TokenService("too-short-secret", 3600)
+        );
+        assertTrue(ex.getMessage().contains("at least 32 bytes (256-bit)"));
+    }
 }

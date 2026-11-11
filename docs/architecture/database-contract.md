@@ -42,3 +42,15 @@ Giữ tiền decimal/BigDecimal và biểu diễn chính xác qua API theo DDL �
 Theo yêu cầu chủ repo, đã đọc cấu hình kết nối legacy và chạy SHOW CREATE TABLE / metadata read-only trên MySQL local 8.0.46; không đọc row nghiệp vụ hoặc thay đổi database. DB local hiện chỉ có `flyway_schema_history`, `menu_item_order_totals`, `menu_items`. Bảng món còn `price decimal(12,0)` và `image_url`, thiếu `category_id`, `image_media_id`, `available`, `version`; thiếu toàn bộ `menu_categories`, `media_assets`, `users`. Đây là DDL cũ, không khớp mô hình mới và không thể dùng để smoke module hiện tại.
 
 Sau khi được báo chênh lệch, chủ repo gửi lại sơ đồ DB mới và xác nhận “tôi đã gửi sơ đồ db mới”. PR #8 lấy [sơ đồ ngày 11/11](../handover/evidence/system-database-reference-2026-11-11.jpg) làm mô hình đích: PK số, category_id, image_media_id, price decimal(18,0), media_assets; không có description hoặc cột image_url của menu_items. Không nâng cấp DB local, không thêm migration/runtime DDL. Fixture main giữ nguyên để provision schema *_test mới trên instance kiểm thử riêng. Constraint/default/index của fixture chỉ là điều kiện kiểm thử lịch sử, không được tuyên bố đã xác minh cho DB triển khai từ ảnh. Triển khai thực cần chủ DB cung cấp DDL phù hợp mô hình đích và đối chiếu lại trước khi chạy.
+
+## DT2-2 — Quy trình Flyway Baseline và Xác nhận Migration cho bảng Auth/OTP
+
+Đối chiếu cho PR #7 (DT2-2 Authentication & Password Recovery):
+1. Nhóm bảng tài khoản & xác thực gồm 4 bảng: `users`, `staff_profiles`, `auth_otp_challenges`, `auth_otp_limits`.
+2. Khi triển khai lên database hệ thống đã có sẵn dữ liệu từ các tính năng trước (DT2-1, DT2-6, DT2-9):
+   - Cấu hình Flyway tại `application.properties` được thiết lập `spring.flyway.baseline-on-migrate=true` và `spring.flyway.baseline-version=0`.
+   - Với `baseline-version=0`, Flyway ghi nhận baseline tại version 0 cho schema hiện hữu, đảm bảo **không bỏ qua** script `V001__create_users_and_auth_tables.sql`.
+   - Trong `V001`, tất cả câu lệnh đều sử dụng `CREATE TABLE IF NOT EXISTS`, đảm bảo:
+     + Bảng `users` đã tồn tại sẽ được giữ nguyên vẹn toàn bộ dữ liệu và cấu trúc.
+     + Các bảng mới `auth_otp_challenges` và `auth_otp_limits` được khởi tạo đúng chuẩn sơ đồ 20 bảng hệ thống.
+   - Khuyến nghị quy trình triển khai: Người phụ trách DB backup schema đích, đối chiếu quyền tạo bảng và kiểm tra bản ghi trong `flyway_schema_history`.

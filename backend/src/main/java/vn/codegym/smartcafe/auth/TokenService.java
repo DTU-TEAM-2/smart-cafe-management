@@ -29,7 +29,13 @@ public class TokenService {
             @Value("${smartcafe.auth.token-validity-seconds:86400}") long tokenValiditySeconds
     ) {
         if (secret != null && !secret.isBlank()) {
-            this.secretKey = secret.getBytes(StandardCharsets.UTF_8);
+            byte[] bytes = secret.getBytes(StandardCharsets.UTF_8);
+            if (bytes.length < 32) {
+                throw new IllegalStateException(
+                        "smartcafe.auth.token-secret must be at least 32 bytes (256-bit) when configured. Current length: "
+                                + bytes.length + " bytes.");
+            }
+            this.secretKey = bytes;
         } else {
             byte[] ephemeralKey = new byte[32];
             new SecureRandom().nextBytes(ephemeralKey);
