@@ -1,0 +1,193 @@
+openapi: 3.1.0
+info:
+  title: Smart Cafe DT2-6 sales and income
+  version: 1.0.0
+  description: See docs/handover/dt2-06-sales-income.md for data and role contracts.
+servers:
+  - url: /api/v1
+security:
+  - bearerAuth: []
+paths:
+  /sales/csrf:
+    get:
+      summary: Get CSRF token for same-session write requests
+      x-roles: [STAFF, ADMIN]
+      responses:
+        '200':
+          description: CSRF headerName and token; retain the same session cookie for POST.
+  /sales/tables:
+    get:
+      summary: List operating tables and session occupancy
+      x-roles: [STAFF, ADMIN]
+      responses:
+        '200': { description: "Array of tables with id, code, name, operationalStatus, occupancy, sessionCode, sessionStatus and alert counts" }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /sales/tables/{id}/services:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      summary: Read current order items, requests, total and current bill for a table
+      x-roles: [STAFF, ADMIN]
+      responses:
+        '200': { description: "tableId, sessionCode, items, totalAmount, activeRequests and nullable currentBill" }
+        '404': { description: "Table unavailable" }
+  /sales/tables/{id}/requests/{requestId}/acknowledge:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+      - { name: requestId, in: path, required: true, schema: { type: integer, format: int64 } }
+    post:
+      summary: Acknowledge one request in the expected active session
+      x-roles: [STAFF, ADMIN]
+      requestBody: { $ref: '#/components/requestBodies/Session' }
+      responses:
+        '204': { description: "Acknowledged" }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /sales/tables/{id}/bill:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      summary: Issue or replay an immutable PENDING bill
+      x-roles: [STAFF, ADMIN]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [expectedSessionCode, idempotencyKey]
+              properties:
+                expectedSessionCode: { $ref: '#/components/schemas/OpaqueKey' }
+                idempotencyKey: { $ref: '#/components/schemas/OpaqueKey' }
+      responses:
+        '201':
+          description: Bill snapshot and Location header
+          headers:
+            Location: { schema: { type: string } }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Bill' }
+        '400': { description: "Invalid command or No Service to Pay" }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /bills/{id}/payments:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      summary: Manager confirms receipt of the full server-calculated bill amount
+      x-roles: [ADMIN]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [method, idempotencyKey]
+              properties:
+                method: { type: string, enum: [CASH, BANK_TRANSFER] }
+                referenceCode: { type: [string, 'null'], maxLength: 128 }
+                idempotencyKey: { $ref: '#/components/schemas/OpaqueKey' }
+      responses:
+        '200': { description: "Receipt with bill snapshot in PAID status and payment metadata" }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /sales/tables/{id}/reset:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    post:
+      summary: Close the expected paid session and revoke its clients
+      x-roles: [ADMIN]
+      requestBody: { $ref: '#/components/requestBodies/Session' }
+      responses:
+        '204': { description: "Session closed" }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /income:
+    get:
+      summary: Paid revenue for a Vietnam business period
+      x-roles: [ADMIN]
+      parameters:
+        - $ref: '#/components/parameters/Period'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+      responses:
+        '200':
+          description: Revenue totals and daily points
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Revenue' }
+        '400': { description: "Invalid period or date range" }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /bills/{id}:
+    parameters: [{ $ref: '#/components/parameters/Id' }]
+    get:
+      summary: Read a bill snapshot for checkout and printing
+      x-roles: [ADMIN]
+      responses:
+        '200':
+          description: Immutable historical bill details
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Bill' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { description: "Bill not found" }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer }
+  parameters:
+    Id: { name: id, in: path, required: true, schema: { type: integer, format: int64 } }
+    Period: { name: period, in: query, schema: { type: string, enum: [today, in_week, in_month, in_year] } }
+    From: { name: from, in: query, schema: { type: string, format: date } }
+    To: { name: to, in: query, schema: { type: string, format: date } }
+  responses:
+    Forbidden: { description: "Authentication, role or CSRF check failed" }
+    Conflict: { description: "Current session, order, bill status or idempotency payload no longer matches" }
+  requestBodies:
+    Session:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [expectedSessionCode]
+            properties:
+              expectedSessionCode: { $ref: '#/components/schemas/OpaqueKey' }
+  schemas:
+    OpaqueKey: { type: string, minLength: 1, maxLength: 64, pattern: '^[!-~]+$' }
+    Money: { type: string, pattern: '^[0-9]+$' }
+    Bill:
+      type: object
+      properties:
+        id: { type: string }
+        billCode: { type: string }
+        sessionCode: { type: string }
+        creatorName: { type: string }
+        tableCode: { type: string }
+        tableName: { type: string }
+        totalAmount: { $ref: '#/components/schemas/Money' }
+        status: { type: string, enum: [PENDING, PAID, VOID] }
+        createdAt: { type: string, format: date-time }
+        paidAt: { type: [string, 'null'], format: date-time }
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              orderItemId: { type: string }
+              itemCode: { type: string }
+              itemName: { type: string }
+              unitPrice: { $ref: '#/components/schemas/Money' }
+              quantity: { type: integer }
+              lineTotal: { $ref: '#/components/schemas/Money' }
+    Revenue:
+      type: object
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        timezone: { const: Asia/Ho_Chi_Minh }
+        totalAmount: { $ref: '#/components/schemas/Money' }
+        billCount: { type: integer }
+        averageBillAmount: { $ref: '#/components/schemas/Money' }
+        dailyRevenue:
+          type: array
+          items:
+            type: object
+            properties:
+              date: { type: string, format: date }
+              revenue: { $ref: '#/components/schemas/Money' }
+              billCount: { type: integer }

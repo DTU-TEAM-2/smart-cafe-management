@@ -1,14 +1,14 @@
 # DT2-9 — báo cáo HTTP sau tích hợp main
 
-Ngày 11/11/2026; main tích hợp cf4828a. [HTML](index.html), [ảnh xem trước](report-preview.png), [ảnh toàn trang](report-full.png), [JSON](results.json).
+Ngày 11/11/2026; main tích hợp f36aca2. [HTML](index.html), [ảnh xem trước](report-preview.png), [ảnh toàn trang](report-full.png), [JSON](results.json).
 
 - **46 PASS, 0 FAIL, 0 BLOCKED**, 109 phản hồi HTTP và một ca DB read-only. Một mục có thể gồm nhiều request.
 - Java HttpClient → Tomcat/Spring Boot 4.1.2 → MySQL 8.0.46 thật trên instance loopback riêng, schema smart_cafe_merge_test. Fixture cấu trúc main giữ nguyên; không thay DB local legacy.
 - Bearer HMAC test-only theo contract auth chung; users test quyết định role/status/auth_version. Không phải login hoặc phát hành token production.
 - TC-41/46 dùng **provider HTTP loopback giả lập** theo lựa chọn chủ repo, không cần key, không gọi Cloudinary thật. Adapter production gửi multipart và đăng ký metadata media_assets; TC-41 tạo món tham chiếu mediaId rồi đọc URL dẫn xuất. TC-46 kiểm tra upstream 503 thành 502, không lộ body riêng tư.
-- Maven clean verify: **30 JUnit tests, 0 failures/errors/skips**, gồm test điều phối 46 mục; không cộng các dòng báo cáo thành số JUnit tests.
-- Hồi quy main: home/account/highlights/notifications, đổi role/khóa/revoke quyền menu; CSRF thiếu/sai và mutation liên tiếp; ảnh không tồn tại/đã xóa; khóa/version và xóa logic.
-- Render kiểm tra 46 dòng, details mở bằng bàn phím, desktop 1280 px/mobile 390 px không tràn toàn trang. FE main lint/build và 14/14 Playwright đạt. Registry 17 skills/16 routes, 169 inherited files, routing tests 9/9 đạt.
+- Maven clean verify: **51 JUnit tests, 0 failures/errors/skips**, gồm test điều phối 46 mục; không cộng các dòng báo cáo thành số JUnit tests.
+- Hồi quy main: home/account/highlights/notifications và sales/bills/income, đổi role/khóa/revoke quyền menu; CSRF thiếu/sai và mutation liên tiếp; ảnh không tồn tại/đã xóa; khóa/version và xóa logic.
+- Render kiểm tra 46 dòng, details mở bằng bàn phím, desktop 1280 px/mobile 390 px không tràn toàn trang. FE main lint/build và 26/26 Playwright đạt. Registry 17 skills/16 routes, 169 inherited files, routing tests 9/9 đạt.
 
 ## Chạy lại
 

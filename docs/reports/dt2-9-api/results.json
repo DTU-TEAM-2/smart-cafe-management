@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-11T04:23:33.130867700Z",
+  "generatedAt": "2026-11-11T04:31:40.614256Z",
   "transport": "HTTP thật · Spring Boot / Tomcat · MySQL 8.0.46",
   "authentication": "Bearer HMAC test-only theo contract auth chung; role/status/auth_version đọc từ users của schema test. Không phải đăng nhập production.",
   "provider": "TC-41/46 dùng HTTP provider giả lập trên loopback, không gọi Cloudinary thật và không cần key thật.",
@@ -9,128 +9,128 @@
       "title": "Health công khai",
       "observations": [
         {
+          "request": "GET /actuator/health",
           "actual": "200",
-          "expected": "200",
-          "request": "GET /actuator/health"
+          "expected": "200"
         }
       ],
       "result": "PASS",
       "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 285
+      "durationMs": 178
     },
     {
       "id": "TC-02",
       "title": "Menu không token bị từ chối",
       "observations": [
         {
+          "request": "GET /api/v1/menu/items",
           "actual": "401",
-          "expected": "401",
-          "request": "GET /api/v1/menu/items"
+          "expected": "401"
         },
         {
+          "request": "GET /api/v1/menu/categories",
           "actual": "401",
-          "expected": "401",
-          "request": "GET /api/v1/menu/categories"
+          "expected": "401"
         },
         {
+          "request": "GET /api/v1/menu/csrf",
           "actual": "401",
-          "expected": "401",
-          "request": "GET /api/v1/menu/csrf"
+          "expected": "401"
         }
       ],
       "result": "PASS",
       "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 16
+      "durationMs": 15
     },
     {
       "id": "TC-03",
       "title": "Token sai / header role không cấp quyền",
       "observations": [
         {
+          "request": "GET /api/v1/menu/items",
           "actual": "401",
-          "expected": "401",
-          "request": "GET /api/v1/menu/items"
+          "expected": "401"
         },
         {
+          "request": "GET /api/v1/menu/items (X-Role)",
           "actual": "401",
-          "expected": "401",
-          "request": "GET /api/v1/menu/items (X-Role)"
+          "expected": "401"
         }
       ],
       "result": "PASS",
       "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 10
+      "durationMs": 7
     },
     {
       "id": "TC-04",
       "title": "STAFF không được đọc API quản trị",
       "observations": [
         {
+          "request": "GET /api/v1/menu/items",
           "actual": "403",
-          "expected": "403",
-          "request": "GET /api/v1/menu/items"
+          "expected": "403"
         },
         {
+          "request": "GET /api/v1/menu/categories",
           "actual": "403",
-          "expected": "403",
-          "request": "GET /api/v1/menu/categories"
+          "expected": "403"
         },
         {
+          "request": "GET /api/v1/menu/csrf",
           "actual": "403",
-          "expected": "403",
-          "request": "GET /api/v1/menu/csrf"
+          "expected": "403"
         }
       ],
       "result": "PASS",
       "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 37
+      "durationMs": 30
     },
     {
       "id": "TC-05",
       "title": "STAFF không được tạo nhóm",
       "observations": [
         {
+          "request": "GET /api/v1/menu/csrf",
           "actual": "200",
-          "expected": "200",
-          "request": "GET /api/v1/menu/csrf"
+          "expected": "200"
         },
         {
+          "request": "POST /api/v1/menu/categories",
           "actual": "403",
-          "expected": "403",
-          "request": "POST /api/v1/menu/categories"
+          "expected": "403"
         }
       ],
       "result": "PASS",
       "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 61
+      "durationMs": 46
     },
     {
       "id": "TC-06",
       "title": "ADMIN lấy CSRF / cookie session",
       "observations": [
         {
+          "request": "GET /api/v1/menu/csrf",
           "actual": "200",
-          "expected": "200",
-          "request": "GET /api/v1/menu/csrf"
+          "expected": "200"
         }
       ],
       "result": "PASS",
       "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 6
+      "durationMs": 5
     },
     {
       "id": "TC-07",
       "title": "Thiếu hoặc sai CSRF",
       "observations": [
         {
+          "request": "POST /api/v1/menu/categories",
           "actual": "403",
-          "expected": "403",
-          "request": "POST /api/v1/menu/categories"
+          "expected": "403"
         },
         {
+          "request": "POST /api/v1/menu/categories",
           "actual": "403",
-          "expected": "403",
-          "request": "POST /api/v1/menu/categories"
+          "expected": "403"
         }
       ],
       "result": "PASS",
@@ -142,14 +142,28 @@
       "title": "Tạo hai nhóm và chuẩn hóa mã",
       "observations": [
         {
+          "request": "POST /api/v1/menu/categories",
           "actual": "201",
-          "expected": "201",
-          "request": "POST /api/v1/menu/categories"
+          "expected": "201"
         },
         {
+          "request": "POST /api/v1/menu/categories",
           "actual": "201",
-          "expected": "201",
-          "request": "POST /api/v1/menu/categories"
+          "expected": "201"
+        }
+      ],
+      "result": "PASS",
+      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
+      "durationMs": 102
+    },
+    {
+      "id": "TC-09",
+      "title": "Từ chối trùng mã nhóm",
+      "observations": [
+        {
+          "request": "POST /api/v1/menu/categories",
+          "actual": "409",
+          "expected": "409"
         }
       ],
       "result": "PASS",
@@ -157,114 +171,100 @@
       "durationMs": 95
     },
     {
-      "id": "TC-09",
-      "title": "Từ chối trùng mã nhóm",
-      "observations": [
-        {
-          "actual": "409",
-          "expected": "409",
-          "request": "POST /api/v1/menu/categories"
-        }
-      ],
-      "result": "PASS",
-      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 93
-    },
-    {
       "id": "TC-10",
       "title": "Validation mã / tên nhóm",
       "observations": [
         {
+          "request": "POST /api/v1/menu/categories",
           "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/categories"
+          "expected": "400"
         },
         {
+          "request": "POST /api/v1/menu/categories",
           "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/categories"
+          "expected": "400"
         },
         {
+          "request": "POST /api/v1/menu/categories",
           "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/categories"
+          "expected": "400"
         },
         {
+          "request": "POST /api/v1/menu/categories",
           "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/categories"
+          "expected": "400"
         },
         {
+          "request": "POST /api/v1/menu/categories",
           "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/categories"
+          "expected": "400"
         }
       ],
       "result": "PASS",
       "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 63
+      "durationMs": 57
     },
     {
       "id": "TC-11",
       "title": "Version mới phải bằng 0",
       "observations": [
         {
+          "request": "POST /api/v1/menu/categories",
           "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/categories"
+          "expected": "400"
         },
         {
+          "request": "POST /api/v1/menu/categories",
           "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/categories"
+          "expected": "400"
         },
         {
+          "request": "POST /api/v1/menu/categories",
           "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/categories"
+          "expected": "400"
         },
         {
+          "request": "POST /api/v1/menu/categories",
           "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/categories"
+          "expected": "400"
         }
       ],
       "result": "PASS",
       "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 33
+      "durationMs": 30
     },
     {
       "id": "TC-12",
       "title": "JSON sai / trường không cho phép",
       "observations": [
         {
+          "request": "POST /api/v1/menu/categories",
           "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/categories"
+          "expected": "400"
         },
         {
+          "request": "POST /api/v1/menu/categories",
           "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/categories"
+          "expected": "400"
         }
       ],
       "result": "PASS",
       "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 18
+      "durationMs": 14
     },
     {
       "id": "TC-13",
       "title": "Chi tiết và tìm nhóm",
       "observations": [
         {
+          "request": "GET /api/v1/menu/categories/PMCF_MWBMGLNN",
           "actual": "200",
-          "expected": "200",
-          "request": "GET /api/v1/menu/categories/PMCF_MWBM64R2"
+          "expected": "200"
         },
         {
+          "request": "GET /api/v1/menu/categories?keyword=PMCF_MWBMGLNN&page=0&size=10",
           "actual": "200",
-          "expected": "200",
-          "request": "GET /api/v1/menu/categories?keyword=PMCF_MWBM64R2&page=0&size=10"
+          "expected": "200"
         }
       ],
       "result": "PASS",
@@ -276,33 +276,33 @@
       "title": "Cập nhật nhóm tăng version",
       "observations": [
         {
+          "request": "PUT /api/v1/menu/categories/PMCF_MWBMGLNN",
           "actual": "200",
-          "expected": "200",
-          "request": "PUT /api/v1/menu/categories/PMCF_MWBM64R2"
+          "expected": "200"
         }
       ],
       "result": "PASS",
       "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 16
+      "durationMs": 13
     },
     {
       "id": "TC-15",
       "title": "Version cũ không cập nhật/xóa nhóm",
       "observations": [
         {
+          "request": "PUT /api/v1/menu/categories/PMCF_MWBMGLNN",
           "actual": "409",
-          "expected": "409",
-          "request": "PUT /api/v1/menu/categories/PMCF_MWBM64R2"
+          "expected": "409"
         },
         {
+          "request": "DELETE /api/v1/menu/categories/PMCF_MWBMGLNN?version=0",
           "actual": "409",
-          "expected": "409",
-          "request": "DELETE /api/v1/menu/categories/PMCF_MWBM64R2?version=0"
+          "expected": "409"
         },
         {
+          "request": "GET /api/v1/menu/categories/PMCF_MWBMGLNN",
           "actual": "200",
-          "expected": "200",
-          "request": "GET /api/v1/menu/categories/PMCF_MWBM64R2"
+          "expected": "200"
         }
       ],
       "result": "PASS",
@@ -314,9 +314,9 @@
       "title": "Mã nhóm bất biến",
       "observations": [
         {
+          "request": "PUT /api/v1/menu/categories/PMCF_MWBMGLNN",
           "actual": "400",
-          "expected": "400",
-          "request": "PUT /api/v1/menu/categories/PMCF_MWBM64R2"
+          "expected": "400"
         }
       ],
       "result": "PASS",
@@ -328,28 +328,134 @@
       "title": "Tạo món và đọc dữ liệu chuẩn",
       "observations": [
         {
+          "request": "POST /api/v1/menu/items",
           "actual": "201",
-          "expected": "201",
-          "request": "POST /api/v1/menu/items"
+          "expected": "201"
         },
         {
+          "request": "POST /api/v1/menu/items",
           "actual": "201",
-          "expected": "201",
-          "request": "POST /api/v1/menu/items"
+          "expected": "201"
         }
       ],
       "result": "PASS",
       "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 57
+      "durationMs": 43
     },
     {
       "id": "TC-18",
       "title": "Từ chối trùng mã món",
       "observations": [
         {
+          "request": "POST /api/v1/menu/items",
           "actual": "409",
-          "expected": "409",
-          "request": "POST /api/v1/menu/items"
+          "expected": "409"
+        }
+      ],
+      "result": "PASS",
+      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
+      "durationMs": 11
+    },
+    {
+      "id": "TC-19",
+      "title": "Validation độ dài mã/tên món",
+      "observations": [
+        {
+          "request": "POST /api/v1/menu/items",
+          "actual": "400",
+          "expected": "400"
+        },
+        {
+          "request": "POST /api/v1/menu/items",
+          "actual": "400",
+          "expected": "400"
+        },
+        {
+          "request": "POST /api/v1/menu/items",
+          "actual": "400",
+          "expected": "400"
+        },
+        {
+          "request": "POST /api/v1/menu/items",
+          "actual": "400",
+          "expected": "400"
+        }
+      ],
+      "result": "PASS",
+      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
+      "durationMs": 29
+    },
+    {
+      "id": "TC-20",
+      "title": "Từ chối giá sai / phần lẻ",
+      "observations": [
+        {
+          "request": "POST /api/v1/menu/items",
+          "actual": "400",
+          "expected": "400"
+        },
+        {
+          "request": "POST /api/v1/menu/items",
+          "actual": "400",
+          "expected": "400"
+        },
+        {
+          "request": "POST /api/v1/menu/items",
+          "actual": "400",
+          "expected": "400"
+        },
+        {
+          "request": "POST /api/v1/menu/items",
+          "actual": "400",
+          "expected": "400"
+        },
+        {
+          "request": "POST /api/v1/menu/items",
+          "actual": "400",
+          "expected": "400"
+        }
+      ],
+      "result": "PASS",
+      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
+      "durationMs": 91
+    },
+    {
+      "id": "TC-21",
+      "title": "Chấp nhận hai biên giá hợp lệ",
+      "observations": [
+        {
+          "request": "POST /api/v1/menu/items",
+          "actual": "201",
+          "expected": "201"
+        },
+        {
+          "request": "DELETE /api/v1/menu/items/PMBOUND5001MWBMGLNN?version=0",
+          "actual": "204",
+          "expected": "204"
+        },
+        {
+          "request": "POST /api/v1/menu/items",
+          "actual": "201",
+          "expected": "201"
+        },
+        {
+          "request": "DELETE /api/v1/menu/items/PMBOUND999999999999999999MWBMGLNN?version=0",
+          "actual": "204",
+          "expected": "204"
+        }
+      ],
+      "result": "PASS",
+      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
+      "durationMs": 49
+    },
+    {
+      "id": "TC-22",
+      "title": "Không tạo món trong nhóm thiếu",
+      "observations": [
+        {
+          "request": "POST /api/v1/menu/items",
+          "actual": "409",
+          "expected": "409"
         }
       ],
       "result": "PASS",
@@ -357,28 +463,142 @@
       "durationMs": 9
     },
     {
-      "id": "TC-19",
-      "title": "Validation độ dài mã/tên món",
+      "id": "TC-23",
+      "title": "Ảnh chỉ tham chiếu media đã đăng ký",
       "observations": [
         {
+          "request": "POST /api/v1/menu/items",
           "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/items"
+          "expected": "400"
         },
         {
+          "request": "POST /api/v1/menu/items",
           "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/items"
+          "expected": "400"
         },
         {
+          "request": "POST /api/v1/menu/items",
           "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/items"
+          "expected": "400"
         },
         {
+          "request": "POST /api/v1/menu/items",
           "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/items"
+          "expected": "400"
+        }
+      ],
+      "result": "PASS",
+      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
+      "durationMs": 24
+    },
+    {
+      "id": "TC-24",
+      "title": "Đọc chi tiết món",
+      "observations": [
+        {
+          "request": "GET /api/v1/menu/items/PMITEM_MWBMGLNN",
+          "actual": "200",
+          "expected": "200"
+        }
+      ],
+      "result": "PASS",
+      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
+      "durationMs": 10
+    },
+    {
+      "id": "TC-25",
+      "title": "Tìm mã chính xác",
+      "observations": [
+        {
+          "request": "GET /api/v1/menu/items?field=code&keyword=PMITEM_MWBMGLNN",
+          "actual": "200",
+          "expected": "200"
+        },
+        {
+          "request": "GET /api/v1/menu/items?field=code&keyword=PMITEM_MWBMGLN",
+          "actual": "200",
+          "expected": "200"
+        }
+      ],
+      "result": "PASS",
+      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
+      "durationMs": 18
+    },
+    {
+      "id": "TC-26",
+      "title": "Tìm tên / nhóm không phân biệt hoa",
+      "observations": [
+        {
+          "request": "GET /api/v1/menu/items?field=name&keyword=caramel%20latte%20postman&categoryCode=PMCF_MWBMGLNN",
+          "actual": "200",
+          "expected": "200"
+        },
+        {
+          "request": "GET /api/v1/menu/items?field=category&keyword=coffee%20postman&categoryCode=PMCF_MWBMGLNN",
+          "actual": "200",
+          "expected": "200"
+        }
+      ],
+      "result": "PASS",
+      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
+      "durationMs": 19
+    },
+    {
+      "id": "TC-27",
+      "title": "Tìm giá chính xác",
+      "observations": [
+        {
+          "request": "GET /api/v1/menu/items?field=price&keyword=45000&categoryCode=PMCF_MWBMGLNN",
+          "actual": "200",
+          "expected": "200"
+        },
+        {
+          "request": "GET /api/v1/menu/items?field=price&keyword=45001&categoryCode=PMCF_MWBMGLNN",
+          "actual": "200",
+          "expected": "200"
+        }
+      ],
+      "result": "PASS",
+      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
+      "durationMs": 23
+    },
+    {
+      "id": "TC-28",
+      "title": "Lọc nhóm / phân trang không lặp",
+      "observations": [
+        {
+          "request": "GET /api/v1/menu/items?categoryCode=PMCF_MWBMGLNN&page=0&size=1",
+          "actual": "200",
+          "expected": "200"
+        },
+        {
+          "request": "GET /api/v1/menu/items?categoryCode=PMCF_MWBMGLNN&page=1&size=1",
+          "actual": "200",
+          "expected": "200"
+        }
+      ],
+      "result": "PASS",
+      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
+      "durationMs": 19
+    },
+    {
+      "id": "TC-29",
+      "title": "Wildcard / SQL input được tìm literal",
+      "observations": [
+        {
+          "request": "GET /api/v1/menu/items?categoryCode=PMCF_MWBMGLNN&keyword=%25",
+          "actual": "200",
+          "expected": "200"
+        },
+        {
+          "request": "GET /api/v1/menu/items?categoryCode=PMCF_MWBMGLNN&keyword=%27%20OR%201%3D1%20--",
+          "actual": "200",
+          "expected": "200"
+        },
+        {
+          "request": "GET /api/v1/menu/items?categoryCode=PMCF_MWBMGLNN&keyword=_",
+          "actual": "200",
+          "expected": "200"
         }
       ],
       "result": "PASS",
@@ -386,315 +606,33 @@
       "durationMs": 28
     },
     {
-      "id": "TC-20",
-      "title": "Từ chối giá sai / phần lẻ",
-      "observations": [
-        {
-          "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/items"
-        },
-        {
-          "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/items"
-        },
-        {
-          "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/items"
-        },
-        {
-          "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/items"
-        },
-        {
-          "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/items"
-        }
-      ],
-      "result": "PASS",
-      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 60
-    },
-    {
-      "id": "TC-21",
-      "title": "Chấp nhận hai biên giá hợp lệ",
-      "observations": [
-        {
-          "actual": "201",
-          "expected": "201",
-          "request": "POST /api/v1/menu/items"
-        },
-        {
-          "actual": "204",
-          "expected": "204",
-          "request": "DELETE /api/v1/menu/items/PMBOUND5001MWBM64R2?version=0"
-        },
-        {
-          "actual": "201",
-          "expected": "201",
-          "request": "POST /api/v1/menu/items"
-        },
-        {
-          "actual": "204",
-          "expected": "204",
-          "request": "DELETE /api/v1/menu/items/PMBOUND999999999999999999MWBM64R2?version=0"
-        }
-      ],
-      "result": "PASS",
-      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 42
-    },
-    {
-      "id": "TC-22",
-      "title": "Không tạo món trong nhóm thiếu",
-      "observations": [
-        {
-          "actual": "409",
-          "expected": "409",
-          "request": "POST /api/v1/menu/items"
-        }
-      ],
-      "result": "PASS",
-      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 6
-    },
-    {
-      "id": "TC-23",
-      "title": "Ảnh chỉ tham chiếu media đã đăng ký",
-      "observations": [
-        {
-          "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/items"
-        },
-        {
-          "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/items"
-        },
-        {
-          "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/items"
-        },
-        {
-          "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/items"
-        }
-      ],
-      "result": "PASS",
-      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 25
-    },
-    {
-      "id": "TC-24",
-      "title": "Đọc chi tiết món",
-      "observations": [
-        {
-          "actual": "200",
-          "expected": "200",
-          "request": "GET /api/v1/menu/items/PMITEM_MWBM64R2"
-        }
-      ],
-      "result": "PASS",
-      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 7
-    },
-    {
-      "id": "TC-25",
-      "title": "Tìm mã chính xác",
-      "observations": [
-        {
-          "actual": "200",
-          "expected": "200",
-          "request": "GET /api/v1/menu/items?field=code&keyword=PMITEM_MWBM64R2"
-        },
-        {
-          "actual": "200",
-          "expected": "200",
-          "request": "GET /api/v1/menu/items?field=code&keyword=PMITEM_MWBM64R"
-        }
-      ],
-      "result": "PASS",
-      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 17
-    },
-    {
-      "id": "TC-26",
-      "title": "Tìm tên / nhóm không phân biệt hoa",
-      "observations": [
-        {
-          "actual": "200",
-          "expected": "200",
-          "request": "GET /api/v1/menu/items?field=name&keyword=caramel%20latte%20postman&categoryCode=PMCF_MWBM64R2"
-        },
-        {
-          "actual": "200",
-          "expected": "200",
-          "request": "GET /api/v1/menu/items?field=category&keyword=coffee%20postman&categoryCode=PMCF_MWBM64R2"
-        }
-      ],
-      "result": "PASS",
-      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 16
-    },
-    {
-      "id": "TC-27",
-      "title": "Tìm giá chính xác",
-      "observations": [
-        {
-          "actual": "200",
-          "expected": "200",
-          "request": "GET /api/v1/menu/items?field=price&keyword=45000&categoryCode=PMCF_MWBM64R2"
-        },
-        {
-          "actual": "200",
-          "expected": "200",
-          "request": "GET /api/v1/menu/items?field=price&keyword=45001&categoryCode=PMCF_MWBM64R2"
-        }
-      ],
-      "result": "PASS",
-      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 20
-    },
-    {
-      "id": "TC-28",
-      "title": "Lọc nhóm / phân trang không lặp",
-      "observations": [
-        {
-          "actual": "200",
-          "expected": "200",
-          "request": "GET /api/v1/menu/items?categoryCode=PMCF_MWBM64R2&page=0&size=1"
-        },
-        {
-          "actual": "200",
-          "expected": "200",
-          "request": "GET /api/v1/menu/items?categoryCode=PMCF_MWBM64R2&page=1&size=1"
-        }
-      ],
-      "result": "PASS",
-      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 40
-    },
-    {
-      "id": "TC-29",
-      "title": "Wildcard / SQL input được tìm literal",
-      "observations": [
-        {
-          "actual": "200",
-          "expected": "200",
-          "request": "GET /api/v1/menu/items?categoryCode=PMCF_MWBM64R2&keyword=%25"
-        },
-        {
-          "actual": "200",
-          "expected": "200",
-          "request": "GET /api/v1/menu/items?categoryCode=PMCF_MWBM64R2&keyword=%27%20OR%201%3D1%20--"
-        },
-        {
-          "actual": "200",
-          "expected": "200",
-          "request": "GET /api/v1/menu/items?categoryCode=PMCF_MWBM64R2&keyword=_"
-        }
-      ],
-      "result": "PASS",
-      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 50
-    },
-    {
       "id": "TC-30",
       "title": "Tham số phân trang / tìm kiếm sai",
       "observations": [
         {
+          "request": "GET /api/v1/menu/items?field=sql",
           "actual": "400",
-          "expected": "400",
-          "request": "GET /api/v1/menu/items?field=sql"
+          "expected": "400"
         },
         {
+          "request": "GET /api/v1/menu/items?size=0",
           "actual": "400",
-          "expected": "400",
-          "request": "GET /api/v1/menu/items?size=0"
+          "expected": "400"
         },
         {
+          "request": "GET /api/v1/menu/items?size=101",
           "actual": "400",
-          "expected": "400",
-          "request": "GET /api/v1/menu/items?size=101"
+          "expected": "400"
         },
         {
+          "request": "GET /api/v1/menu/items?page=-1",
           "actual": "400",
-          "expected": "400",
-          "request": "GET /api/v1/menu/items?page=-1"
+          "expected": "400"
         },
         {
+          "request": "GET /api/v1/menu/items?field=price&keyword=abc",
           "actual": "400",
-          "expected": "400",
-          "request": "GET /api/v1/menu/items?field=price&keyword=abc"
-        }
-      ],
-      "result": "PASS",
-      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 83
-    },
-    {
-      "id": "TC-31",
-      "title": "Cập nhật món tăng version",
-      "observations": [
-        {
-          "actual": "200",
-          "expected": "200",
-          "request": "PUT /api/v1/menu/items/PMITEM_MWBM64R2"
-        },
-        {
-          "actual": "200",
-          "expected": "200",
-          "request": "GET /api/v1/menu/items/PMITEM_MWBM64R2"
-        }
-      ],
-      "result": "PASS",
-      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 37
-    },
-    {
-      "id": "TC-32",
-      "title": "Version món cũ không ghi đè/xóa",
-      "observations": [
-        {
-          "actual": "409",
-          "expected": "409",
-          "request": "PUT /api/v1/menu/items/PMITEM_MWBM64R2"
-        },
-        {
-          "actual": "409",
-          "expected": "409",
-          "request": "DELETE /api/v1/menu/items/PMITEM_MWBM64R2?version=0"
-        },
-        {
-          "actual": "200",
-          "expected": "200",
-          "request": "GET /api/v1/menu/items/PMITEM_MWBM64R2"
-        }
-      ],
-      "result": "PASS",
-      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 47
-    },
-    {
-      "id": "TC-33",
-      "title": "Không đổi mã hoặc nhóm món",
-      "observations": [
-        {
-          "actual": "400",
-          "expected": "400",
-          "request": "PUT /api/v1/menu/items/PMITEM_MWBM64R2"
-        },
-        {
-          "actual": "409",
-          "expected": "409",
-          "request": "PUT /api/v1/menu/items/PMITEM_MWBM64R2"
+          "expected": "400"
         }
       ],
       "result": "PASS",
@@ -702,206 +640,18 @@
       "durationMs": 31
     },
     {
-      "id": "TC-34",
-      "title": "Hai PUT đồng thời chỉ một writer thắng",
+      "id": "TC-31",
+      "title": "Cập nhật món tăng version",
       "observations": [
         {
-          "actual": "201",
-          "expected": "201",
-          "request": "POST /api/v1/menu/items"
-        },
-        {
+          "request": "PUT /api/v1/menu/items/PMITEM_MWBMGLNN",
           "actual": "200",
-          "expected": "200 hoặc 409",
-          "request": "PUT /api/v1/menu/items/PMRACE_MWBM64R2"
+          "expected": "200"
         },
         {
-          "actual": "409",
-          "expected": "200 hoặc 409",
-          "request": "PUT /api/v1/menu/items/PMRACE_MWBM64R2"
-        },
-        {
+          "request": "GET /api/v1/menu/items/PMITEM_MWBMGLNN",
           "actual": "200",
-          "expected": "200",
-          "request": "GET /api/v1/menu/items/PMRACE_MWBM64R2"
-        },
-        {
-          "actual": "204",
-          "expected": "204",
-          "request": "DELETE /api/v1/menu/items/PMRACE_MWBM64R2?version=1"
-        }
-      ],
-      "result": "PASS",
-      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 108
-    },
-    {
-      "id": "TC-35",
-      "title": "Xóa món và hậu kiểm danh sách",
-      "observations": [
-        {
-          "actual": "204",
-          "expected": "204",
-          "request": "DELETE /api/v1/menu/items/PMITEM_MWBM64R2?version=1"
-        },
-        {
-          "actual": "404",
-          "expected": "404",
-          "request": "GET /api/v1/menu/items/PMITEM_MWBM64R2"
-        },
-        {
-          "actual": "200",
-          "expected": "200",
-          "request": "GET /api/v1/menu/items?field=code&keyword=PMITEM_MWBM64R2"
-        }
-      ],
-      "result": "PASS",
-      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 54
-    },
-    {
-      "id": "TC-36",
-      "title": "Không xóa lại / tái sử dụng mã món",
-      "observations": [
-        {
-          "actual": "404",
-          "expected": "404",
-          "request": "DELETE /api/v1/menu/items/PMITEM_MWBM64R2?version=2"
-        },
-        {
-          "actual": "409",
-          "expected": "409",
-          "request": "POST /api/v1/menu/items"
-        }
-      ],
-      "result": "PASS",
-      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 45
-    },
-    {
-      "id": "TC-37",
-      "title": "DELETE phải có version hợp lệ",
-      "observations": [
-        {
-          "actual": "400",
-          "expected": "400",
-          "request": "DELETE /api/v1/menu/items/PMITEM2_MWBM64R2"
-        },
-        {
-          "actual": "400",
-          "expected": "400",
-          "request": "DELETE /api/v1/menu/items/PMITEM2_MWBM64R2?version=-1"
-        },
-        {
-          "actual": "200",
-          "expected": "200",
-          "request": "GET /api/v1/menu/items/PMITEM2_MWBM64R2"
-        }
-      ],
-      "result": "PASS",
-      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 71
-    },
-    {
-      "id": "TC-38",
-      "title": "Xóa nhóm đồng thời ẩn món còn lại",
-      "observations": [
-        {
-          "actual": "204",
-          "expected": "204",
-          "request": "DELETE /api/v1/menu/categories/PMCF_MWBM64R2?version=1"
-        },
-        {
-          "actual": "404",
-          "expected": "404",
-          "request": "GET /api/v1/menu/categories/PMCF_MWBM64R2"
-        },
-        {
-          "actual": "404",
-          "expected": "404",
-          "request": "GET /api/v1/menu/items/PMITEM2_MWBM64R2"
-        },
-        {
-          "actual": "200",
-          "expected": "200",
-          "request": "GET /api/v1/menu/items?categoryCode=PMCF_MWBM64R2"
-        }
-      ],
-      "result": "PASS",
-      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 120
-    },
-    {
-      "id": "TC-39",
-      "title": "Nhóm đã xóa không nhận món / tái dùng mã",
-      "observations": [
-        {
-          "actual": "409",
-          "expected": "409",
-          "request": "POST /api/v1/menu/items"
-        },
-        {
-          "actual": "409",
-          "expected": "409",
-          "request": "POST /api/v1/menu/categories"
-        }
-      ],
-      "result": "PASS",
-      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 39
-    },
-    {
-      "id": "TC-40",
-      "title": "DB read-only: xóa logic giữ hàng dữ liệu",
-      "observations": [
-        {
-          "actual": "active=false; version đúng",
-          "expected": "row giữ lại",
-          "request": "DB SELECT (read-only)"
-        }
-      ],
-      "result": "PASS",
-      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 3
-    },
-    {
-      "id": "TC-41",
-      "title": "Upload và lưu ảnh — provider HTTP giả lập",
-      "observations": [
-        {
-          "actual": "200",
-          "expected": "200",
-          "request": "POST /api/v1/menu/images"
-        },
-        {
-          "actual": "201",
-          "expected": "201",
-          "request": "POST /api/v1/menu/items"
-        },
-        {
-          "actual": "200",
-          "expected": "200",
-          "request": "GET /api/v1/menu/items/PMIMAGE_MWBM64R2"
-        },
-        {
-          "actual": "204",
-          "expected": "204",
-          "request": "DELETE /api/v1/menu/items/PMIMAGE_MWBM64R2?version=0"
-        }
-      ],
-      "mode": "PROVIDER_STUB",
-      "result": "PASS",
-      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 472
-    },
-    {
-      "id": "TC-42",
-      "title": "Thiếu cấu hình ảnh trả 503",
-      "observations": [
-        {
-          "actual": "503",
-          "expected": "503",
-          "request": "POST /api/v1/menu/images"
+          "expected": "200"
         }
       ],
       "result": "PASS",
@@ -909,66 +659,316 @@
       "durationMs": 20
     },
     {
-      "id": "TC-43",
-      "title": "Từ chối tệp rỗng / giả ảnh",
+      "id": "TC-32",
+      "title": "Version món cũ không ghi đè/xóa",
       "observations": [
         {
-          "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/images"
+          "request": "PUT /api/v1/menu/items/PMITEM_MWBMGLNN",
+          "actual": "409",
+          "expected": "409"
         },
         {
-          "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/images"
+          "request": "DELETE /api/v1/menu/items/PMITEM_MWBMGLNN?version=0",
+          "actual": "409",
+          "expected": "409"
+        },
+        {
+          "request": "GET /api/v1/menu/items/PMITEM_MWBMGLNN",
+          "actual": "200",
+          "expected": "200"
         }
       ],
       "result": "PASS",
       "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 27
+      "durationMs": 22
+    },
+    {
+      "id": "TC-33",
+      "title": "Không đổi mã hoặc nhóm món",
+      "observations": [
+        {
+          "request": "PUT /api/v1/menu/items/PMITEM_MWBMGLNN",
+          "actual": "400",
+          "expected": "400"
+        },
+        {
+          "request": "PUT /api/v1/menu/items/PMITEM_MWBMGLNN",
+          "actual": "409",
+          "expected": "409"
+        }
+      ],
+      "result": "PASS",
+      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
+      "durationMs": 15
+    },
+    {
+      "id": "TC-34",
+      "title": "Hai PUT đồng thời chỉ một writer thắng",
+      "observations": [
+        {
+          "request": "POST /api/v1/menu/items",
+          "actual": "201",
+          "expected": "201"
+        },
+        {
+          "request": "PUT /api/v1/menu/items/PMRACE_MWBMGLNN",
+          "actual": "200",
+          "expected": "200 hoặc 409"
+        },
+        {
+          "request": "PUT /api/v1/menu/items/PMRACE_MWBMGLNN",
+          "actual": "409",
+          "expected": "200 hoặc 409"
+        },
+        {
+          "request": "GET /api/v1/menu/items/PMRACE_MWBMGLNN",
+          "actual": "200",
+          "expected": "200"
+        },
+        {
+          "request": "DELETE /api/v1/menu/items/PMRACE_MWBMGLNN?version=1",
+          "actual": "204",
+          "expected": "204"
+        }
+      ],
+      "result": "PASS",
+      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
+      "durationMs": 52
+    },
+    {
+      "id": "TC-35",
+      "title": "Xóa món và hậu kiểm danh sách",
+      "observations": [
+        {
+          "request": "DELETE /api/v1/menu/items/PMITEM_MWBMGLNN?version=1",
+          "actual": "204",
+          "expected": "204"
+        },
+        {
+          "request": "GET /api/v1/menu/items/PMITEM_MWBMGLNN",
+          "actual": "404",
+          "expected": "404"
+        },
+        {
+          "request": "GET /api/v1/menu/items?field=code&keyword=PMITEM_MWBMGLNN",
+          "actual": "200",
+          "expected": "200"
+        }
+      ],
+      "result": "PASS",
+      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
+      "durationMs": 23
+    },
+    {
+      "id": "TC-36",
+      "title": "Không xóa lại / tái sử dụng mã món",
+      "observations": [
+        {
+          "request": "DELETE /api/v1/menu/items/PMITEM_MWBMGLNN?version=2",
+          "actual": "404",
+          "expected": "404"
+        },
+        {
+          "request": "POST /api/v1/menu/items",
+          "actual": "409",
+          "expected": "409"
+        }
+      ],
+      "result": "PASS",
+      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
+      "durationMs": 16
+    },
+    {
+      "id": "TC-37",
+      "title": "DELETE phải có version hợp lệ",
+      "observations": [
+        {
+          "request": "DELETE /api/v1/menu/items/PMITEM2_MWBMGLNN",
+          "actual": "400",
+          "expected": "400"
+        },
+        {
+          "request": "DELETE /api/v1/menu/items/PMITEM2_MWBMGLNN?version=-1",
+          "actual": "400",
+          "expected": "400"
+        },
+        {
+          "request": "GET /api/v1/menu/items/PMITEM2_MWBMGLNN",
+          "actual": "200",
+          "expected": "200"
+        }
+      ],
+      "result": "PASS",
+      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
+      "durationMs": 18
+    },
+    {
+      "id": "TC-38",
+      "title": "Xóa nhóm đồng thời ẩn món còn lại",
+      "observations": [
+        {
+          "request": "DELETE /api/v1/menu/categories/PMCF_MWBMGLNN?version=1",
+          "actual": "204",
+          "expected": "204"
+        },
+        {
+          "request": "GET /api/v1/menu/categories/PMCF_MWBMGLNN",
+          "actual": "404",
+          "expected": "404"
+        },
+        {
+          "request": "GET /api/v1/menu/items/PMITEM2_MWBMGLNN",
+          "actual": "404",
+          "expected": "404"
+        },
+        {
+          "request": "GET /api/v1/menu/items?categoryCode=PMCF_MWBMGLNN",
+          "actual": "200",
+          "expected": "200"
+        }
+      ],
+      "result": "PASS",
+      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
+      "durationMs": 32
+    },
+    {
+      "id": "TC-39",
+      "title": "Nhóm đã xóa không nhận món / tái dùng mã",
+      "observations": [
+        {
+          "request": "POST /api/v1/menu/items",
+          "actual": "409",
+          "expected": "409"
+        },
+        {
+          "request": "POST /api/v1/menu/categories",
+          "actual": "409",
+          "expected": "409"
+        }
+      ],
+      "result": "PASS",
+      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
+      "durationMs": 17
+    },
+    {
+      "id": "TC-40",
+      "title": "DB read-only: xóa logic giữ hàng dữ liệu",
+      "observations": [
+        {
+          "request": "DB SELECT (read-only)",
+          "actual": "active=false; version đúng",
+          "expected": "row giữ lại"
+        }
+      ],
+      "result": "PASS",
+      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
+      "durationMs": 1
+    },
+    {
+      "id": "TC-41",
+      "title": "Upload và lưu ảnh — provider HTTP giả lập",
+      "observations": [
+        {
+          "request": "POST /api/v1/menu/images",
+          "actual": "200",
+          "expected": "200"
+        },
+        {
+          "request": "POST /api/v1/menu/items",
+          "actual": "201",
+          "expected": "201"
+        },
+        {
+          "request": "GET /api/v1/menu/items/PMIMAGE_MWBMGLNN",
+          "actual": "200",
+          "expected": "200"
+        },
+        {
+          "request": "DELETE /api/v1/menu/items/PMIMAGE_MWBMGLNN?version=0",
+          "actual": "204",
+          "expected": "204"
+        }
+      ],
+      "mode": "PROVIDER_STUB",
+      "result": "PASS",
+      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
+      "durationMs": 208
+    },
+    {
+      "id": "TC-42",
+      "title": "Thiếu cấu hình ảnh trả 503",
+      "observations": [
+        {
+          "request": "POST /api/v1/menu/images",
+          "actual": "503",
+          "expected": "503"
+        }
+      ],
+      "result": "PASS",
+      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
+      "durationMs": 17
+    },
+    {
+      "id": "TC-43",
+      "title": "Từ chối tệp rỗng / giả ảnh",
+      "observations": [
+        {
+          "request": "POST /api/v1/menu/images",
+          "actual": "400",
+          "expected": "400"
+        },
+        {
+          "request": "POST /api/v1/menu/images",
+          "actual": "400",
+          "expected": "400"
+        }
+      ],
+      "result": "PASS",
+      "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
+      "durationMs": 22
     },
     {
       "id": "TC-44",
       "title": "Upload quá 5 MiB trả 413",
       "observations": [
         {
+          "request": "POST /api/v1/menu/images",
           "actual": "413",
-          "expected": "413",
-          "request": "POST /api/v1/menu/images"
+          "expected": "413"
         }
       ],
       "result": "PASS",
       "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 126
+      "durationMs": 59
     },
     {
       "id": "TC-45",
       "title": "Ảnh vượt 20 triệu pixel bị từ chối",
       "observations": [
         {
+          "request": "POST /api/v1/menu/images",
           "actual": "400",
-          "expected": "400",
-          "request": "POST /api/v1/menu/images"
+          "expected": "400"
         }
       ],
       "result": "PASS",
       "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 38
+      "durationMs": 11
     },
     {
       "id": "TC-46",
       "title": "Upstream 503 → API 502 — provider giả lập",
       "observations": [
         {
+          "request": "POST /api/v1/menu/images",
           "actual": "502",
-          "expected": "502",
-          "request": "POST /api/v1/menu/images"
+          "expected": "502"
         }
       ],
       "mode": "PROVIDER_STUB",
       "result": "PASS",
       "note": "HTTP và kiểm tra dữ liệu đạt kỳ vọng.",
-      "durationMs": 65
+      "durationMs": 20
     }
   ]
 }

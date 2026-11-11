@@ -1,6 +1,6 @@
 # DT2-9 — bản tích hợp PR #8
 
-Ngày 11/11/2026, nhánh feature/dt2-9-manage-menu-items-and-categories-backend tích hợp main cf4828a bằng merge commit, không rewrite lịch sử. Chủ repo yêu cầu xử lý conflict và chuyển PR sang Ready; không yêu cầu merge/deploy.
+Ngày 11/11/2026, nhánh feature/dt2-9-manage-menu-items-and-categories-backend tích hợp main f36aca2 bằng merge commit, không rewrite lịch sử. Chủ repo yêu cầu xử lý conflict và chuyển PR sang Ready; không yêu cầu merge/deploy.
 
 ## Kết quả
 
@@ -10,9 +10,9 @@ Persistence theo sơ đồ mới chủ repo cung cấp lại: PK số, category_
 
 ## Bằng chứng local
 
-- backend/mvnw.cmd -o -B -ntp clean verify: **30/30 JUnit**, 0 failures/errors/skips, MySQL 8.0.46 smart_cafe_merge_test riêng từ fixture main.
+- backend/mvnw.cmd -o -B -ntp clean verify: **51/51 JUnit**, 0 failures/errors/skips, MySQL 8.0.46 smart_cafe_merge_test riêng từ fixture main.
 - [HTTP report](dt2-9-api/README.md): **46/46 PASS**, provider giả lập TC-41/46 có nhãn, không Cloudinary thật.
-- FE main giữ nguyên: npm run lint, npm run build, npm run test:ui -- --workers=2: **14/14 đạt**.
+- FE main giữ nguyên: npm run lint, npm run build, npm run test:ui -- --workers=2: **26/26 đạt**.
 - node scripts/skills.mjs check <full main SHA>: registry 17/16, checksum 169 files; node --test scripts/skills.test.mjs: **9/9 đạt**.
 - git diff --check loại inherited snapshots; JAR không có fixture/test/provider stub hoặc migration; schema.sql/FE/CI giữ nguyên so với main.
 

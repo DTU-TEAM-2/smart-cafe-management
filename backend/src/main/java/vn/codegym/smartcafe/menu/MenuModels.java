@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 import java.util.List;
 import java.util.Locale;
 import jakarta.validation.constraints.*;
+import com.fasterxml.jackson.annotation.JsonAnySetter;
 
 final class MenuModels {
     private MenuModels() { }
@@ -21,6 +22,9 @@ final class MenuModels {
             @NotBlank @Size(max = 120) String name,
             @NotNull @PositiveOrZero Long version) {
         CategoryInput { code = normalizeCode(code); name = name == null ? null : name.strip(); }
+        @JsonAnySetter void rejectUnknown(String property, Object value) {
+            throw new IllegalArgumentException("Unknown category input property");
+        }
     }
     record ItemInput(
             @NotBlank @Pattern(regexp = "[A-Z0-9_-]{4,40}") String code,
@@ -35,6 +39,9 @@ final class MenuModels {
             categoryCode = normalizeCode(categoryCode);
             name = name == null ? null : name.strip();
             available = available == null ? Boolean.TRUE : available;
+        }
+        @JsonAnySetter void rejectUnknown(String property, Object value) {
+            throw new IllegalArgumentException("Unknown item input property");
         }
     }
 }
