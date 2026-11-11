@@ -25,6 +25,10 @@ Frontend giữ Bearer token theo cơ chế auth chung, gọi `GET /api/v1/menu/c
 
 Xem [OpenAPI](../docs/api/dt2-9-menu.yaml). Mã chuẩn hóa uppercase, bất biến; giá VND nguyên >5.000; version mới bằng 0. Xóa logic nhóm ẩn toàn bộ món trong cùng transaction, không xóa hàng dữ liệu. Tên tìm không phân biệt hoa/dấu theo MySQL collation; mã và giá tìm chính xác; ký tự `%`/`_` trong từ khóa được tìm literal. Món đã phân nhóm không đổi nhóm qua PUT theo SRS tham chiếu. `description`, `available` hỗ trợ trình bày FE, khác `active` nội bộ.
 
+Kiểm thử thủ công: [Trang test case Postman DT2-9](../docs/qa/dt2-9-postman-test-cases.md), gồm môi trường, request mẫu, CSRF và 46 ca kiểm thử; chưa đánh dấu đã chạy Postman.
+
+[Báo cáo giao diện kết quả HTTP](../docs/reports/dt2-9-api/index.html): **46 PASS**; chạy bằng Java HttpClient/Tomcat/MySQL với JWT RSA test-only. TC-41/46 dùng provider HTTP giả lập theo lựa chọn người dùng, có nhãn rõ và không cần key Cloudinary; chưa smoke Cloudinary thật. [Cách chạy lại và phạm vi bằng chứng](../docs/reports/dt2-9-api/README.md). Cấu hình CSRF áp dụng cả Bearer request; authentication stateless, session chỉ giữ CSRF nên không xoay CSRF theo mỗi request JWT. Chỉ ERROR dispatch nội bộ được phép dựng response lỗi, không mở trực tiếp các API ngoài allowlist.
+
 Upload `POST /api/v1/menu/images` multipart `file`: PNG/JPEG, tối đa 5 MB và 20 triệu pixel; kiểm tra nội dung trước khi gọi Cloudinary. Đặt ba biến `CLOUDINARY_*`; thiếu cấu hình trả 503, provider lỗi trả 502 đã làm sạch. Test không dùng key thật/không upload ra ngoài. URL lưu chỉ chấp nhận Cloudinary của cloud đã cấu hình hoặc `/images/...` an toàn; backend không tải URL do client nhập. `/images/...` là tương thích dữ liệu local, không có ảnh mẫu hoặc API lưu file local đi kèm.
 
 Upload thành công nhưng hủy form/save thất bại có thể để asset chưa tham chiếu. Không tự xóa ảnh cũ vì có thể được lịch sử sử dụng; cleanup cần quy trình riêng.

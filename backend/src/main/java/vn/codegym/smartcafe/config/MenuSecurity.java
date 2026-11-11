@@ -2,11 +2,12 @@ package vn.codegym.smartcafe.config;
 
 import java.net.URI;
 import java.util.List;
+import jakarta.servlet.DispatcherType;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.Customizer;
+import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.oauth2.core.*;
@@ -15,6 +16,8 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.csrf.CsrfFilter;
+import org.springframework.security.web.authentication.session.NullAuthenticatedSessionStrategy;
 import org.springframework.http.HttpStatus;
 
 @Configuration
@@ -56,11 +59,23 @@ class MenuSecurity {
     SecurityFilterChain menuSecurityFilterChain(HttpSecurity http, JwtAuthenticationConverter menuRoles) throws Exception {
         return http
                 .authorizeHttpRequests(auth -> auth
+                        .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.GET, "/actuator/health").permitAll()
                         .requestMatchers("/api/v1/menu/**").hasRole("ADMIN")
                         .anyRequest().denyAll())
-                .csrf(Customizer.withDefaults())
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.NEVER))
+                .csrf(csrf -> csrf
+                        // Authentication is stateless Bearer on every request, not a session login.
+                        // Retain the session-bound CSRF token instead of rotating it per JWT request.
+                        .sessionAuthenticationStrategy(new NullAuthenticatedSessionStrategy())
+                        .withObjectPostProcessor(new ObjectPostProcessor<CsrfFilter>() {
+                            @Override public <O extends CsrfFilter> O postProcess(O filter) {
+                                // Resource Server exempts Bearer requests by default. This API contract
+                                // intentionally requires a session CSRF token for every unsafe request.
+                                filter.setRequireCsrfProtectionMatcher(CsrfFilter.DEFAULT_CSRF_MATCHER);
+                                return filter;
+                            }
+                        }))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .oauth2ResourceServer(resource -> resource.jwt(jwt -> jwt.jwtAuthenticationConverter(menuRoles)))
                 .exceptionHandling(errors -> errors.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .build();
