@@ -43,14 +43,25 @@ Theo yêu cầu chủ repo, đã đọc cấu hình kết nối legacy và chạ
 
 Sau khi được báo chênh lệch, chủ repo gửi lại sơ đồ DB mới và xác nhận “tôi đã gửi sơ đồ db mới”. PR #8 lấy [sơ đồ ngày 11/11](../handover/evidence/system-database-reference-2026-11-11.jpg) làm mô hình đích: PK số, category_id, image_media_id, price decimal(18,0), media_assets; không có description hoặc cột image_url của menu_items. Không nâng cấp DB local, không thêm migration/runtime DDL. Fixture main giữ nguyên để provision schema *_test mới trên instance kiểm thử riêng. Constraint/default/index của fixture chỉ là điều kiện kiểm thử lịch sử, không được tuyên bố đã xác minh cho DB triển khai từ ảnh. Triển khai thực cần chủ DB cung cấp DDL phù hợp mô hình đích và đối chiếu lại trước khi chạy.
 
-## DT2-2 — Quy trình Flyway Baseline và Xác nhận Migration cho bảng Auth/OTP
+## DT2-2 — Quy trình Flyway Baseline và Nâng cấp Migration cho bảng Auth/OTP
 
 Đối chiếu cho PR #7 (DT2-2 Authentication & Password Recovery):
-1. Nhóm bảng tài khoản & xác thực gồm 4 bảng: `users`, `staff_profiles`, `auth_otp_challenges`, `auth_otp_limits`.
-2. Khi triển khai lên database hệ thống đã có sẵn dữ liệu từ các tính năng trước (DT2-1, DT2-6, DT2-9):
-   - Cấu hình Flyway tại `application.properties` được thiết lập `spring.flyway.baseline-on-migrate=true` và `spring.flyway.baseline-version=0`.
-   - Với `baseline-version=0`, Flyway ghi nhận baseline tại version 0 cho schema hiện hữu, đảm bảo **không bỏ qua** script `V001__create_users_and_auth_tables.sql`.
-   - Trong `V001`, tất cả câu lệnh đều sử dụng `CREATE TABLE IF NOT EXISTS`, đảm bảo:
-     + Bảng `users` đã tồn tại sẽ được giữ nguyên vẹn toàn bộ dữ liệu và cấu trúc.
-     + Các bảng mới `auth_otp_challenges` và `auth_otp_limits` được khởi tạo đúng chuẩn sơ đồ 20 bảng hệ thống.
-   - Khuyến nghị quy trình triển khai: Người phụ trách DB backup schema đích, đối chiếu quyền tạo bảng và kiểm tra bản ghi trong `flyway_schema_history`.
+1. Nhóm bảng tài khoản & xác thực gồm 4 bảng trong sơ đồ 20 bảng: `users`, `staff_profiles`, `auth_otp_challenges`, `auth_otp_limits`.
+2. Hỗ trợ đa kịch bản triển khai và nâng cấp Flyway:
+   - **Kịch bản 1 — Schema sạch hoặc chưa từng có Flyway**:
+     - `spring.flyway.baseline-on-migrate=true` và `spring.flyway.baseline-version=0` ghi nhận baseline tại version 0.
+     - Flyway thực thi tuần tự `V001__create_users_and_auth_tables.sql` và `V002__create_users_and_auth_tables.sql`. Nhờ `CREATE TABLE IF NOT EXISTS`, toàn bộ bảng được khởi tạo an toàn và trơn tru.
+   - **Kịch bản 2 — Schema đã ghi nhận migration version 001 trong `flyway_schema_history`** (ví dụ môi trường thử nghiệm hoặc lịch sử schema trước đó):
+     - Flyway sẽ bỏ qua `V001` vì version <= 001.
+     - Để bảo đảm không bị lỗi thiếu bảng (`Table 'smart_cafe.users' doesn't exist`), migration `V002__create_users_and_auth_tables.sql` được bổ sung. Flyway nhận diện version 002 > 001 và tự động thực thi `V002`, bảo đảm các bảng `users`, `auth_otp_challenges`, `auth_otp_limits` luôn được khởi tạo đầy đủ.
+     - Cơ chế nâng cấp này đã được kiểm chứng tự động bằng bộ test hồi quy `FlywayUpgradeRegressionTest`.
+   - **Kịch bản 3 — Môi trường quản lý DDL thủ công (tắt Flyway / DBA provision riêng)**:
+     - Trước khi khởi động ứng dụng, người phụ trách DB / DBA xác nhận sự tồn tại của 3 bảng Auth bằng câu lệnh:
+       ```sql
+       SHOW TABLES LIKE 'users';
+       SHOW TABLES LIKE 'auth_otp_challenges';
+       SHOW TABLES LIKE 'auth_otp_limits';
+       ```
+     - Nếu bất kỳ bảng nào chưa có, áp dụng DDL trực tiếp từ `backend/src/main/resources/db/migration/V001__create_users_and_auth_tables.sql`.
+3. Tính toàn vẹn dữ liệu:
+   - Mọi câu lệnh DDL trong `V001` và `V002` đều dùng `CREATE TABLE IF NOT EXISTS`, tuyệt đối không drop hoặc ghi đè cấu trúc/dữ liệu của bảng `users` đã tồn tại trên database hệ thống.
