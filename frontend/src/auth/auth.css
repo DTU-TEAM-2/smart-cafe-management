@@ -441,3 +441,89 @@
     flex-direction: column;
   }
 }
+
+
+/* Additional DT2-2 helpers matching Image 1 colors & Image 2 layout */
+.required-asterisk {
+  color: #e55353;
+  margin-left: 4px;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.auth-link {
+  color: var(--muted, #b9aa98);
+  text-decoration: none;
+  font-size: 13px;
+  transition: color 0.2s;
+}
+
+.auth-link:hover {
+  color: var(--gold, #d9b573);
+}
+
+.login-card .auth-actions-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.login-card .btn-primary {
+  flex: 1;
+  min-height: 48px;
+  border-radius: 7px;
+  background: var(--gold, #d9b573);
+  color: #271c11;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  border: none;
+}
+
+.login-card .btn-primary:hover:not(:disabled) {
+  background: #e6c587;
+}
+
+.login-card .btn-secondary {
+  min-height: 48px;
+  padding: 0 24px;
+  border-radius: 7px;
+  background: #27211c;
+  color: #f4ede2;
+  border: 1px solid #4a3d33;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.login-card .btn-secondary:hover:not(:disabled) {
+  background: #342b24;
+  border-color: var(--gold, #d9b573);
+}
+
+.login-card .auth-links-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 24px;
+  font-size: 13px;
+}
+
+.login-card .form-input {
+  width: 100%;
+  min-width: 0;
+  min-height: 48px;
+  border: 1px solid #d9b57340;
+  border-radius: 7px;
+  background: #16120f;
+  color: #f4ede2;
+  padding: 12px 14px;
+  font: inherit;
+  font-size: 15px;
+}
+
+.login-card .form-input:focus {
+  border-color: var(--gold, #d9b573);
+  outline: 2px solid var(--gold, #d9b573);
+  outline-offset: 2px;
+}

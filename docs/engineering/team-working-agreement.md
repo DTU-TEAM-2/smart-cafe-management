@@ -11,6 +11,10 @@
 
 ## Nhận và luân chuyển việc
 
+Cả nhóm và AI dùng **Spring Boot cho BE, ReactJS cho FE, MySQL cho database nghiệp vụ** theo [rule công nghệ](../../.agents/rules/technology-constraints.md). Phần còn lại tùy chọn theo nhu cầu task và tính tương thích, không tự trở thành ràng buộc chung hay thay thế stack bắt buộc.
+
+Mọi thành viên và AI phải tuân thủ [rule database nguồn chuẩn](../../.agents/rules/database-source-of-truth.md) cho tất cả task liên quan dữ liệu: bám sơ đồ chủ repo ngày 11/11/2026, đối chiếu DDL, không tự chế bảng/cột/quan hệ. Thiếu hoặc lệch schema phải ghi rõ và chờ người có trách nhiệm chốt trước khi triển khai phần phụ thuộc.
+
 Board: Thông tin/QA → Product Backlog → Sprint To do → Doing → Review → Test → Done. `BLOCKED` là nhãn trên card tại bước hiện tại; ghi vướng gì, ai có thể giải quyết và bước tiếp theo.
 
 Mỗi người tập trung một task triển khai chính; có thể hỗ trợ review và gỡ blocker. Tách task lớn thành kết quả kiểm chứng được, thường khoảng 4–8 giờ khả dụng. Ước lượng gồm code, kiểm thử, review và tích hợp; không cộng cả story và task con hai lần.

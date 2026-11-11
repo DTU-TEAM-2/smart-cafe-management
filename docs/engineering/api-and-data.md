@@ -1,6 +1,6 @@
 # Hợp đồng API và dữ liệu
 
-Đây là quy ước cho phần triển khai tiếp theo. API hiện có: `GET /actuator/health` và public `GET /api/v1/home/highlights`. MySQL đã được người dùng xác nhận cho DT2-1; cơ chế đăng nhập còn thuộc task riêng. Các ví dụ `/api/v1` khác chưa triển khai.
+API DT2-1 gồm public `GET /api/v1/home/highlights`, authenticated `GET /api/v1/home/account` và STAFF/ADMIN `GET /api/v1/home/notifications`; chưa có health endpoint. Tất cả đọc database hệ thống smart_cafe theo [schema được xác nhận](../architecture/database-contract.md). Header kiểm bearer của module auth và trạng thái/role/version hiện hành trong DB, không có provider/đăng nhập xem thử. Mỗi món có imageUrl nullable từ media chưa bị xóa. Hợp đồng đầy đủ ở [handoff DT2-1](../handover/dt2-1-home-layout.md).
 
 ## HTTP và hợp đồng
 
@@ -22,6 +22,6 @@ Yêu cầu thanh toán, lập/in bill, nhận tiền, đóng phiên và reset b�
 
 ## Persistence và tích hợp
 
-Chọn engine qua ADR trước khi thêm JPA/driver/migration. Khi đã chọn, dùng migration versioned, seed riêng cho development, khóa ngoại/index/unique có ý nghĩa. Không dùng `ddl-auto=update` cho môi trường dùng chung và không cascade xóa lịch sử tài chính.
+Engine nghiệp vụ đã chốt là **MySQL** theo [rule công nghệ](../../.agents/rules/technology-constraints.md), BE Spring Boot và FE ReactJS; không còn bước tự chọn engine khác. JPA/JDBC/công cụ migration là lựa chọn triển khai theo task, tương thích với stack. Mọi thay đổi schema tuân thủ [rule database](../../.agents/rules/database-source-of-truth.md), chỉ triển khai migration versioned khi thay đổi đã được chốt; seed development tách riêng, không tự chạy vào DB hệ thống. Không dùng `ddl-auto=update` cho môi trường dùng chung và không cascade xóa lịch sử tài chính.
 
 Cloudinary/Firebase/mail/socket theo phạm vi đã duyệt; dùng adapter nhỏ khi có tích hợp thực tế. Không mặc định Firebase upload đồng nghĩa Firebase Auth/Firestore. Không lưu token thô hoặc URL chứa secret; giới hạn kiểu/kích cỡ upload và quyền truy cập trước khi bật upload.

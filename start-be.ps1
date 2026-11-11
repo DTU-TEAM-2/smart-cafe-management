@@ -1,19 +1,14 @@
 $ErrorActionPreference = 'Stop'
-$taskOriginalEnvironment = @{
-    DB_URL = $env:DB_URL
-    DB_USERNAME = $env:DB_USERNAME
-    DB_PASSWORD = $env:DB_PASSWORD
+$taskKeys = @('DB_URL', 'DB_USERNAME', 'DB_PASSWORD', 'SERVER_PORT', 'AUTH_TOKEN_SECRET', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USERNAME', 'SMTP_PASSWORD', 'SMTP_FROM', 'SMTP_AUTH', 'SMTP_STARTTLS', 'SMTP_SSL', 'SPRING_PROFILES_ACTIVE')
+$taskOriginal = @{}
+foreach ($taskKey in $taskKeys) {
+    $taskOriginal[$taskKey] = [Environment]::GetEnvironmentVariable($taskKey, 'Process')
 }
-$taskConfigKeys = @('DB_URL', 'DB_USERNAME', 'DB_PASSWORD', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USERNAME', 'SMTP_PASSWORD', 'SMTP_FROM', 'SMTP_AUTH', 'SMTP_STARTTLS', 'SMTP_SSL', 'AUTH_TOKEN_SECRET', 'SPRING_PROFILES_ACTIVE')
-foreach ($taskConfigKey in $taskConfigKeys) {
-    $taskOriginalEnvironment[$taskConfigKey] = [Environment]::GetEnvironmentVariable($taskConfigKey, 'Process')
-}
-
 try {
-    $taskEnvPath = Join-Path $PSScriptRoot 'backend\.env'
-    if (Test-Path -LiteralPath $taskEnvPath) {
-        foreach ($taskLine in Get-Content -LiteralPath $taskEnvPath -Encoding UTF8) {
-            if ($taskLine -match '^\s*([A-Z_]+)\s*=(.*)$' -and $taskConfigKeys -contains $Matches[1]) {
+    $taskEnv = Join-Path $PSScriptRoot 'backend\.env'
+    if (Test-Path -LiteralPath $taskEnv) {
+        foreach ($taskLine in Get-Content -LiteralPath $taskEnv -Encoding UTF8) {
+            if ($taskLine -match '^\s*([A-Z_]+)\s*=(.*)$' -and $taskKeys -contains $Matches[1]) {
                 $taskKey = $Matches[1]
                 $taskValue = $Matches[2].Trim()
                 if ($taskValue.StartsWith('"') -or $taskValue.StartsWith("'")) {
@@ -27,26 +22,19 @@ try {
             }
         }
     }
-
-    if ([string]::IsNullOrWhiteSpace($env:SPRING_PROFILES_ACTIVE)) {
-        $env:SPRING_PROFILES_ACTIVE = 'dev'
+    if ([string]::IsNullOrWhiteSpace($env:DB_USERNAME)) {
+        $env:DB_USERNAME = 'root'
     }
-
     if ([string]::IsNullOrWhiteSpace($env:DB_URL)) {
         $env:DB_URL = 'jdbc:mysql://127.0.0.1:3306/smart_cafe?connectionTimeZone=UTC'
     }
-
     Push-Location -LiteralPath (Join-Path $PSScriptRoot 'backend')
     try {
-        & .\mvnw.cmd spring-boot:run
-        if ($LASTEXITCODE -ne 0) {
-            throw "Backend stopped with exit code $LASTEXITCODE."
-        }
-    } finally {
-        Pop-Location
-    }
+        & .\mvnw.cmd -B -ntp spring-boot:run
+        if ($LASTEXITCODE -ne 0) { throw "Backend exited with code $LASTEXITCODE." }
+    } finally { Pop-Location }
 } finally {
-    foreach ($taskConfigKey in $taskConfigKeys) {
-        [Environment]::SetEnvironmentVariable($taskConfigKey, $taskOriginalEnvironment[$taskConfigKey], 'Process')
+    foreach ($taskKey in $taskKeys) {
+        [Environment]::SetEnvironmentVariable($taskKey, $taskOriginal[$taskKey], 'Process')
     }
 }

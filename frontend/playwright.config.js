@@ -4,7 +4,7 @@ export default defineConfig({
   testDir: "./tests",
   use: { baseURL: "http://127.0.0.1:15173" },
   projects: [
-    { name: "desktop", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } } },
+    { name: "desktop", use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 1300 } } },
     { name: "mobile", use: { ...devices["iPhone 13"], defaultBrowserType: "chromium" } },
   ],
   webServer: {

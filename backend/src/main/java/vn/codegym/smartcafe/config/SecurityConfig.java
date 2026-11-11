@@ -1,8 +1,12 @@
 package vn.codegym.smartcafe.config;
 
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -29,12 +33,20 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, JdbcClient jdbc,
+            @Value("${smartcafe.auth.token-secret:}") String secret) throws Exception {
+        var headerTokenFilter = new HeaderTokenFilter(jdbc, secret);
+
         http
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint((request, response, authException) -> {
+                    String path = request.getRequestURI();
+                    if (path.startsWith("/api/v1/home/")) {
+                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                        return;
+                    }
                     response.setContentType("application/problem+json");
                     response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                     response.getWriter().write("""
@@ -50,16 +62,20 @@ public class SecurityConfig {
                 })
             )
             .authorizeHttpRequests(auth -> auth
+                .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                 .requestMatchers(
                     "/actuator/health",
-                    "/api/v1/auth/**",
-                    "/api/v1/home/**"
+                    "/api/v1/auth/**"
                 ).permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/home/highlights").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/v1/home/account").authenticated()
+                .requestMatchers(HttpMethod.GET, "/api/v1/home/notifications").hasAnyRole("STAFF", "ADMIN")
                 .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/v1/staff/**").hasAnyRole("ADMIN", "STAFF")
                 .anyRequest().authenticated()
             )
-            .addFilterBefore(authTokenFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(authTokenFilter, UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(headerTokenFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

@@ -29,6 +29,8 @@ git switch -c feature/cf-07-submit-order
 3. Tự kiểm tra diff, chạy checks phù hợp và rà dữ liệu nhạy cảm.
 4. Đặt title như `feat(orders): CF-07 submit an order batch`.
 5. Mô tả vấn đề, kết quả, cách kiểm thử, ảnh nếu thay UI, ảnh hưởng dữ liệu/cấu hình và skill đã áp dụng. Link issue/Jira/Trello thực tế; không bịa URL.
+6. Nếu liên quan dữ liệu, tuân thủ [rule database nguồn chuẩn](.agents/rules/database-source-of-truth.md): nêu bảng/cột, DDL đã đối chiếu và chênh lệch; không tự bổ sung schema. Thay đổi schema chỉ thực hiện sau quyết định chấp thuận được ghi nhận.
+7. Tuân thủ [rule công nghệ](.agents/rules/technology-constraints.md): BE Spring Boot, FE ReactJS, DB MySQL bắt buộc. Công cụ còn lại tùy chọn theo task; thay dependency/công cụ cần ghi lý do và tác động, không tự thay stack chính.
 
 PR tập trung một mục tiêu, ưu tiên review được trong một lượt. Không đặt giới hạn số dòng cứng với lockfile/tài liệu sinh tự động. Nếu cần PR lớn, tách commit/phần mô tả để reviewer hiểu được.
 
@@ -40,7 +42,7 @@ PR tập trung một mục tiêu, ưu tiên review được trong một lượt.
 - `NV-DuyManh` hoặc `haitan2408` kiểm tra kết quả và quyết định merge qua PR khi CI xanh, thảo luận đã xử lý, hết blocker và đạt DoD. Nếu phạm vi thay đổi, cập nhật tiêu đề và mô tả PR theo kết quả cuối.
 - Giữ attribution khi cherry-pick/merge; dùng `cherry-pick -x` khi lấy commit chọn lọc. Không bịa `Co-authored-by`.
 
-CI hiện chạy **Governance** (registry, SHA-256, test định tuyến, whitespace) và **PR title** (định dạng tiêu đề). Bổ sung build/lint/test ứng dụng khi đưa backend hoặc frontend vào repo. Xem [thiết lập GitHub](docs/engineering/github-settings.md) để biết các điều kiện merge đang được thực thi.
+CI chạy **Governance** (registry, SHA-256, định tuyến, whitespace), **PR title**, **Backend MySQL** (Maven verify trên schema test riêng) và **Frontend UI** (lint, build, Playwright desktop/mobile). Hai job ứng dụng được bổ sung trong DT2-1; các required check trên GitHub hiện vẫn theo [thiết lập GitHub](docs/engineering/github-settings.md). CI xanh không thay thế nghiệm thu và review chéo.
 
 ## Dọn nhánh sau khi merge
 
