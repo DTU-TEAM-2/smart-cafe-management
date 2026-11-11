@@ -43,7 +43,7 @@ public class StaffService {
                     SELECT COUNT(*)
                     FROM users u
                     LEFT JOIN staff_profiles p ON p.user_id = u.id
-                    WHERE (LOWER(CONVERT(u.username USING utf8mb4)) LIKE ? OR LOWER(u.full_name) LIKE ? OR u.phone LIKE ?)
+                    WHERE u.status = 'ACTIVE' AND (LOWER(CONVERT(u.username USING utf8mb4)) LIKE ? OR LOWER(u.full_name) LIKE ? OR u.phone LIKE ?)
                     """;
             selectSql = """
                     SELECT u.id, u.username, u.full_name, u.email, u.phone,
@@ -52,7 +52,7 @@ public class StaffService {
                     FROM users u
                     LEFT JOIN staff_profiles p ON p.user_id = u.id
                     LEFT JOIN media_assets m ON m.id = u.avatar_media_id AND m.deleted_at IS NULL
-                    WHERE (LOWER(CONVERT(u.username USING utf8mb4)) LIKE ? OR LOWER(u.full_name) LIKE ? OR u.phone LIKE ?)
+                    WHERE u.status = 'ACTIVE' AND (LOWER(CONVERT(u.username USING utf8mb4)) LIKE ? OR LOWER(u.full_name) LIKE ? OR u.phone LIKE ?)
                     ORDER BY u.username ASC
                     LIMIT ? OFFSET ?
                     """;
@@ -61,6 +61,7 @@ public class StaffService {
                     SELECT COUNT(*)
                     FROM users u
                     LEFT JOIN staff_profiles p ON p.user_id = u.id
+                    WHERE u.status = 'ACTIVE'
                     """;
             selectSql = """
                     SELECT u.id, u.username, u.full_name, u.email, u.phone,
@@ -69,6 +70,7 @@ public class StaffService {
                     FROM users u
                     LEFT JOIN staff_profiles p ON p.user_id = u.id
                     LEFT JOIN media_assets m ON m.id = u.avatar_media_id AND m.deleted_at IS NULL
+                    WHERE u.status = 'ACTIVE'
                     ORDER BY u.username ASC
                     LIMIT ? OFFSET ?
                     """;
@@ -133,7 +135,7 @@ public class StaffService {
                 FROM users u
                 LEFT JOIN staff_profiles p ON p.user_id = u.id
                 LEFT JOIN media_assets m ON m.id = u.avatar_media_id AND m.deleted_at IS NULL
-                WHERE u.id = ?
+                WHERE u.id = ? AND u.status = 'ACTIVE'
                 """;
 
         List<StaffModels.StaffDetail> list = jdbc.query(sql, (rs, rowNum) -> {

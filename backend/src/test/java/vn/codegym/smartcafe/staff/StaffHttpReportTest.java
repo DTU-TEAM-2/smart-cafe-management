@@ -362,6 +362,10 @@ class StaffHttpReportTest {
                 // Verify status in DB is INACTIVE
                 String status = jdbc.queryForObject("SELECT status FROM users WHERE id=?", String.class, createdIdHolder[0]);
                 assertThat(status).isEqualTo("INACTIVE");
+                // Verify soft-deleted staff is filtered out from detail (404) and search list (empty)
+                send("GET", "/api/v1/staff/" + createdIdHolder[0], null, adminToken, false, 404);
+                var searchRes = send("GET", "/api/v1/staff?keyword=" + createdUsername, null, adminToken, false, 200);
+                assertThat(searchRes.body().path("content").size()).isZero();
             });
 
         } finally {
