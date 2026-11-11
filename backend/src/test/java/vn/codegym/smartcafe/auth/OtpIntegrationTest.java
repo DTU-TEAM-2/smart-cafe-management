@@ -323,9 +323,9 @@ class OtpIntegrationTest {
         mockMvc.perform(post("/api/v1/auth/resend-otp")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(resendBody))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("OTP_ERROR"))
-                .andExpect(jsonPath("$.detail").value(containsString("Không thể gửi email OTP")));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.challengeId").value(challengeId))
+                .andExpect(jsonPath("$.message").value(containsString("Yêu cầu gửi lại mã xác minh đã được tiếp nhận")));
 
         // 5. Verify database state is untouched (codeHash unchanged, sends still 1)
         String codeHashAfterFailedResend = jdbcTemplate.queryForObject(
@@ -470,28 +470,26 @@ class OtpIntegrationTest {
         MvcResult realResendResult = mockMvc.perform(post("/api/v1/auth/resend-otp")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(String.format("{\"challengeId\": \"%s\"}", realChallengeId)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("OTP_ERROR"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value(containsString("Yêu cầu gửi lại mã xác minh đã được tiếp nhận")))
                 .andReturn();
 
         // 5. Call resend-otp for dummy user when SMTP is down
         MvcResult dummyResendResult = mockMvc.perform(post("/api/v1/auth/resend-otp")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(String.format("{\"challengeId\": \"%s\"}", dummyChallengeId)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("OTP_ERROR"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value(containsString("Yêu cầu gửi lại mã xác minh đã được tiếp nhận")))
                 .andReturn();
 
         // 6. Assert responses are completely indistinguishable (Anti-Account Enumeration)
         assertThat(realResendResult.getResponse().getStatus())
                 .isEqualTo(dummyResendResult.getResponse().getStatus())
-                .isEqualTo(400);
+                .isEqualTo(200);
 
-        String realDetail = JsonPath.read(realResendResult.getResponse().getContentAsString(), "$.detail");
-        String dummyDetail = JsonPath.read(dummyResendResult.getResponse().getContentAsString(), "$.detail");
-        assertThat(realDetail)
-                .isEqualTo(dummyDetail)
-                .contains("Không thể gửi email OTP qua dịch vụ gửi thư");
+        String realMsg = JsonPath.read(realResendResult.getResponse().getContentAsString(), "$.message");
+        String dummyMsg = JsonPath.read(dummyResendResult.getResponse().getContentAsString(), "$.message");
+        assertThat(realMsg).isEqualTo(dummyMsg);
 
         // 7. Verify real challenge database state is untouched (codeHash unchanged, sends still 1)
         String codeHashAfterFailedResend = jdbcTemplate.queryForObject(
@@ -513,7 +511,7 @@ class OtpIntegrationTest {
                 Integer.class,
                 dummyChallengeId
         );
-        assertThat(dummySends).isEqualTo(1);
+        assertThat(dummySends).isEqualTo(2);
 
         // 8. Verify original OTP remains valid for real user
         mockMvc.perform(post("/api/v1/auth/verify-otp")
@@ -696,9 +694,27 @@ class OtpIntegrationTest {
     }
 
     @Test
-    void resendOtpUnderSmtp451RejectionProducesIdentical400ForRealAndDummyEmails() throws Exception {
-        // Start SMTP server that connects successfully but rejects MAIL FROM with 451
-        try (SimpleDummySmtpServer smtpServer = new SimpleDummySmtpServer(1025, true)) {
+    void resendOtpUnderSmtpRejectMailFromProducesIdenticalResponseAndPreservesOriginalOtp() throws Exception {
+        testSmtpFailureScenario(SmtpMockMode.REJECT_MAIL_FROM, "ghost_mail_from@smartcafe.vn");
+    }
+
+    @Test
+    void resendOtpUnderSmtpRejectRcptToProducesIdenticalResponseAndPreservesOriginalOtp() throws Exception {
+        testSmtpFailureScenario(SmtpMockMode.REJECT_RCPT_TO, "ghost_rcpt_to@smartcafe.vn");
+    }
+
+    @Test
+    void resendOtpUnderSmtpRejectDataProducesIdenticalResponseAndPreservesOriginalOtp() throws Exception {
+        testSmtpFailureScenario(SmtpMockMode.REJECT_DATA, "ghost_data@smartcafe.vn");
+    }
+
+    @Test
+    void resendOtpUnderSmtpDisconnectProducesIdenticalResponseAndPreservesOriginalOtp() throws Exception {
+        testSmtpFailureScenario(SmtpMockMode.TIMEOUT_OR_DISCONNECT, "ghost_disconnect@smartcafe.vn");
+    }
+
+    private void testSmtpFailureScenario(SmtpMockMode mode, String dummyEmail) throws Exception {
+        try (SimpleDummySmtpServer smtpServer = new SimpleDummySmtpServer(1025, mode)) {
             // 1. Forgot password for real user and dummy user
             MvcResult realResult = mockMvc.perform(post("/api/v1/auth/forgot-password")
                     .contentType(MediaType.APPLICATION_JSON)
@@ -708,19 +724,28 @@ class OtpIntegrationTest {
 
             MvcResult dummyResult = mockMvc.perform(post("/api/v1/auth/forgot-password")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .content("{\"email\": \"ghost_451_test@smartcafe.vn\"}"))
+                    .content(String.format("{\"email\": \"%s\"}", dummyEmail)))
                     .andExpect(status().isOk())
                     .andReturn();
 
             String realChallengeId = JsonPath.read(realResult.getResponse().getContentAsString(), "$.challengeId");
             String dummyChallengeId = JsonPath.read(dummyResult.getResponse().getContentAsString(), "$.challengeId");
 
-            // Query original codeHash for real user
+            // Query original codeHash and crack original OTP for real user
             String originalCodeHash = jdbcTemplate.queryForObject(
                     "SELECT code_hash FROM auth_otp_challenges WHERE id = ?",
                     String.class,
                     realChallengeId
             );
+            String originalOtp = null;
+            for (int i = 0; i < 1_000_000; i++) {
+                String candidate = String.format("%06d", i);
+                if (tokenService.hmacSha256(realChallengeId + "|RESET|" + candidate).equals(originalCodeHash)) {
+                    originalOtp = candidate;
+                    break;
+                }
+            }
+            assertThat(originalOtp).isNotNull();
 
             // Fast-forward cooldown in DB for both challenges
             jdbcTemplate.update(
@@ -729,34 +754,30 @@ class OtpIntegrationTest {
                     dummyChallengeId
             );
 
-            // 2. Call resend-otp for real user when SMTP returns 451
+            // 2. Call resend-otp for real user
             MvcResult realResendResult = mockMvc.perform(post("/api/v1/auth/resend-otp")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(String.format("{\"challengeId\": \"%s\"}", realChallengeId)))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value("OTP_ERROR"))
+                    .andExpect(status().isOk())
                     .andReturn();
 
-            // 3. Call resend-otp for dummy user when SMTP returns 451
+            // 3. Call resend-otp for dummy user
             MvcResult dummyResendResult = mockMvc.perform(post("/api/v1/auth/resend-otp")
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(String.format("{\"challengeId\": \"%s\"}", dummyChallengeId)))
-                    .andExpect(status().isBadRequest())
-                    .andExpect(jsonPath("$.code").value("OTP_ERROR"))
+                    .andExpect(status().isOk())
                     .andReturn();
 
-            // 4. Assert responses are completely indistinguishable
+            // 4. Assert responses are completely indistinguishable (Anti-Account Enumeration)
             assertThat(realResendResult.getResponse().getStatus())
                     .isEqualTo(dummyResendResult.getResponse().getStatus())
-                    .isEqualTo(400);
+                    .isEqualTo(200);
 
-            String realDetail = JsonPath.read(realResendResult.getResponse().getContentAsString(), "$.detail");
-            String dummyDetail = JsonPath.read(dummyResendResult.getResponse().getContentAsString(), "$.detail");
-            assertThat(realDetail)
-                    .isEqualTo(dummyDetail)
-                    .contains("Không thể gửi email OTP qua dịch vụ gửi thư");
+            String realMsg = JsonPath.read(realResendResult.getResponse().getContentAsString(), "$.message");
+            String dummyMsg = JsonPath.read(dummyResendResult.getResponse().getContentAsString(), "$.message");
+            assertThat(realMsg).isEqualTo(dummyMsg).contains("tiếp nhận");
 
-            // 5. Verify database state is untouched (codeHash unchanged, sends still 1)
+            // 5. Verify real challenge database state is untouched (codeHash unchanged, sends still 1)
             String codeHashAfter = jdbcTemplate.queryForObject(
                     "SELECT code_hash FROM auth_otp_challenges WHERE id = ?",
                     String.class,
@@ -771,29 +792,136 @@ class OtpIntegrationTest {
             );
             assertThat(realSends).isEqualTo(1);
 
-            Integer dummySends = jdbcTemplate.queryForObject(
-                    "SELECT sends FROM auth_otp_challenges WHERE id = ?",
-                    Integer.class,
+            // 6. Verify original OTP remains valid and can still be verified
+            mockMvc.perform(post("/api/v1/auth/verify-otp")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(String.format("{\"challengeId\": \"%s\", \"otp\": \"%s\"}", realChallengeId, originalOtp)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.purpose").value("RESET"))
+                    .andExpect(jsonPath("$.token").isString());
+
+            // 7. Verify dummy challenge NEVER produces a valid token
+            mockMvc.perform(post("/api/v1/auth/verify-otp")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(String.format("{\"challengeId\": \"%s\", \"otp\": \"123456\"}", dummyChallengeId)))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("OTP_ERROR"))
+                    .andExpect(jsonPath("$.token").doesNotExist());
+        }
+    }
+
+    @Test
+    void resendOtpUnderHealthySmtpDeliversNewOtpForRealUserAndMaintainsIdenticalResponse() throws Exception {
+        try (SimpleDummySmtpServer smtpServer = new SimpleDummySmtpServer(1025, SmtpMockMode.HEALTHY)) {
+            // 1. Forgot password for real user and dummy user
+            MvcResult realResult = mockMvc.perform(post("/api/v1/auth/forgot-password")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"email\": \"otp_user@smartcafe.vn\"}"))
+                    .andExpect(status().isOk())
+                    .andReturn();
+
+            MvcResult dummyResult = mockMvc.perform(post("/api/v1/auth/forgot-password")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"email\": \"ghost_healthy_test@smartcafe.vn\"}"))
+                    .andExpect(status().isOk())
+                    .andReturn();
+
+            String realChallengeId = JsonPath.read(realResult.getResponse().getContentAsString(), "$.challengeId");
+            String dummyChallengeId = JsonPath.read(dummyResult.getResponse().getContentAsString(), "$.challengeId");
+
+            String originalCodeHash = jdbcTemplate.queryForObject(
+                    "SELECT code_hash FROM auth_otp_challenges WHERE id = ?",
+                    String.class,
+                    realChallengeId
+            );
+
+            // Fast-forward cooldown
+            jdbcTemplate.update(
+                    "UPDATE auth_otp_challenges SET next_send_at = DATE_SUB(NOW(6), INTERVAL 5 SECOND) WHERE id IN (?, ?)",
+                    realChallengeId,
                     dummyChallengeId
             );
-            assertThat(dummySends).isEqualTo(1);
+
+            // 2. Call resend-otp for real user
+            MvcResult realResend = mockMvc.perform(post("/api/v1/auth/resend-otp")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(String.format("{\"challengeId\": \"%s\"}", realChallengeId)))
+                    .andExpect(status().isOk())
+                    .andReturn();
+
+            // 3. Call resend-otp for dummy user
+            MvcResult dummyResend = mockMvc.perform(post("/api/v1/auth/resend-otp")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(String.format("{\"challengeId\": \"%s\"}", dummyChallengeId)))
+                    .andExpect(status().isOk())
+                    .andReturn();
+
+            // 4. Assert responses are completely indistinguishable
+            assertThat(realResend.getResponse().getStatus()).isEqualTo(200);
+            assertThat(dummyResend.getResponse().getStatus()).isEqualTo(200);
+
+            String realMsg = JsonPath.read(realResend.getResponse().getContentAsString(), "$.message");
+            String dummyMsg = JsonPath.read(dummyResend.getResponse().getContentAsString(), "$.message");
+            assertThat(realMsg).isEqualTo(dummyMsg).contains("tiếp nhận");
+
+            // 5. Verify real user's DB state was updated with NEW OTP hash and sends count = 2
+            String newCodeHash = jdbcTemplate.queryForObject(
+                    "SELECT code_hash FROM auth_otp_challenges WHERE id = ?",
+                    String.class,
+                    realChallengeId
+            );
+            assertThat(newCodeHash).isNotEqualTo(originalCodeHash);
+
+            Integer realSends = jdbcTemplate.queryForObject(
+                    "SELECT sends FROM auth_otp_challenges WHERE id = ?",
+                    Integer.class,
+                    realChallengeId
+            );
+            assertThat(realSends).isEqualTo(2);
+
+            // Find new OTP
+            String newOtp = null;
+            for (int i = 0; i < 1_000_000; i++) {
+                String candidate = String.format("%06d", i);
+                if (tokenService.hmacSha256(realChallengeId + "|RESET|" + candidate).equals(newCodeHash)) {
+                    newOtp = candidate;
+                    break;
+                }
+            }
+            assertThat(newOtp).isNotNull();
+
+            // Verify with new OTP succeeds
+            mockMvc.perform(post("/api/v1/auth/verify-otp")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(String.format("{\"challengeId\": \"%s\", \"otp\": \"%s\"}", realChallengeId, newOtp)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.purpose").value("RESET"))
+                    .andExpect(jsonPath("$.token").isString());
         }
+    }
+
+    public enum SmtpMockMode {
+        HEALTHY,
+        REJECT_MAIL_FROM,
+        REJECT_RCPT_TO,
+        REJECT_DATA,
+        TIMEOUT_OR_DISCONNECT
     }
 
     private static class SimpleDummySmtpServer implements AutoCloseable {
         private final ServerSocket serverSocket;
         private final ExecutorService executor;
         private final AtomicInteger emailsReceived = new AtomicInteger(0);
-        private final boolean rejectWith451;
+        private final SmtpMockMode mode;
 
         public SimpleDummySmtpServer(int port) throws IOException {
-            this(port, false);
+            this(port, SmtpMockMode.HEALTHY);
         }
 
-        public SimpleDummySmtpServer(int port, boolean rejectWith451) throws IOException {
+        public SimpleDummySmtpServer(int port, SmtpMockMode mode) throws IOException {
             this.serverSocket = new ServerSocket(port);
             this.executor = Executors.newCachedThreadPool();
-            this.rejectWith451 = rejectWith451;
+            this.mode = mode;
             this.executor.submit(this::listen);
         }
 
@@ -818,14 +946,27 @@ class OtpIntegrationTest {
                     if (line.startsWith("HELO") || line.startsWith("EHLO")) {
                         writer.write("250 OK\r\n");
                     } else if (line.startsWith("MAIL FROM:")) {
-                        if (rejectWith451) {
+                        if (mode == SmtpMockMode.REJECT_MAIL_FROM) {
                             writer.write("451 Requested action aborted: local error in processing\r\n");
                         } else {
                             writer.write("250 OK\r\n");
                         }
                     } else if (line.startsWith("RCPT TO:")) {
-                        writer.write("250 OK\r\n");
+                        if (mode == SmtpMockMode.REJECT_RCPT_TO) {
+                            writer.write("550 Requested action not taken: mailbox unavailable\r\n");
+                        } else {
+                            writer.write("250 OK\r\n");
+                        }
                     } else if (line.startsWith("DATA")) {
+                        if (mode == SmtpMockMode.TIMEOUT_OR_DISCONNECT) {
+                            socket.close();
+                            return;
+                        }
+                        if (mode == SmtpMockMode.REJECT_DATA) {
+                            writer.write("554 Transaction failed: spam detected\r\n");
+                            writer.flush();
+                            continue;
+                        }
                         writer.write("354 Start mail input; end with <CRLF>.<CRLF>\r\n");
                         writer.flush();
                         while ((line = reader.readLine()) != null) {

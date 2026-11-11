@@ -226,43 +226,44 @@ public class OtpService {
             throw new OtpException("Vui lòng đợi " + remainingCooldown + " giây trước khi gửi lại mã.", remainingCooldown);
         }
 
+        // Validate SMTP configuration readiness upfront for ALL requests (Nam P2 & Anti-Account Enumeration)
+        try {
+            emailService.validateReady();
+        } catch (Exception ex) {
+            log.error("Failed to resend OTP due to unconfigured mail service: {}", ex.getMessage());
+            throw new OtpException("Không thể gửi email OTP qua dịch vụ gửi thư. Vui lòng thử lại sau.");
+        }
+
         Instant newExpiresAt = now.plusSeconds(otpValiditySeconds);
         Instant newNextSendAt = now.plusSeconds(COOLDOWN_SECONDS);
 
-        String newCodeHash;
         if (challenge.userId() != null) {
             String newOtpCode = generateNumericOtp();
-            newCodeHash = tokenService.hmacSha256(challengeId + "|" + challenge.purpose() + "|" + newOtpCode);
+            String newCodeHash = tokenService.hmacSha256(challengeId + "|" + challenge.purpose() + "|" + newOtpCode);
 
-            // Send email before updating database. If SMTP fails or is unconfigured, throw exception
-            // so the previous OTP code remains valid and unchanged in the database.
+            // Attempt delivery via SMTP
             try {
                 emailService.sendOtpEmail(challenge.email(), newOtpCode, challenge.purpose(), otpValiditySeconds);
+                // Delivery succeeded: update database with new OTP hash, increment sends, update nextSendAt
+                authRepository.updateOtpResend(challengeId, newCodeHash, newExpiresAt, newNextSendAt);
+                log.info("OTP successfully resent to recipient {}", challenge.email());
             } catch (Exception ex) {
-                log.error("Failed to resend OTP to recipient {}: {}", challenge.email(), ex.getMessage());
-                throw new OtpException("Không thể gửi email OTP qua dịch vụ gửi thư. Vui lòng thử lại sau.");
+                // Delivery failed (SMTP rejection at MAIL FROM, RCPT TO, DATA, timeout, etc.)
+                // DO NOT overwrite old OTP code_hash in database!
+                // Update cooldown to prevent immediate retry flood, but preserve original code_hash and sends count
+                authRepository.updateOtpCooldownOnly(challengeId, newNextSendAt);
+                log.error("Failed to deliver resend OTP email to recipient {}: {}", challenge.email(), ex.getMessage());
             }
         } else {
-            // For non-existent email dummy challenge: validate email service readiness so that
-            // if SMTP is down or unconfigured, it fails identically to real users (Anti-Account Enumeration).
-            try {
-                emailService.validateReady();
-            } catch (Exception ex) {
-                log.error("Failed to resend dummy OTP due to mail service error: {}", ex.getMessage());
-                throw new OtpException("Không thể gửi email OTP qua dịch vụ gửi thư. Vui lòng thử lại sau.");
-            }
-            newCodeHash = tokenService.hmacSha256("DUMMY|" + challengeId + "|" + tokenService.generateRandomHex(32));
-        }
-
-        // Atomic update with concurrency and cooldown guard (sends < 3 AND CURRENT_TIMESTAMP(6) >= next_send_at)
-        int updated = authRepository.updateOtpResend(challengeId, newCodeHash, newExpiresAt, newNextSendAt);
-        if (updated == 0) {
-            throw new OtpException("Không thể gửi lại mã vào lúc này hoặc đã vượt quá số lần cho phép.");
+            // Dummy challenge for non-existent email: simulate resend lifecycle without sending external email
+            String dummyHash = tokenService.hmacSha256("DUMMY|" + challengeId + "|" + tokenService.generateRandomHex(32));
+            authRepository.updateOtpResend(challengeId, dummyHash, newExpiresAt, newNextSendAt);
+            log.info("Dummy OTP resend request processed for challenge {}", challengeId);
         }
 
         return new ForgotPasswordResponse(
                 challengeId,
-                "Mã OTP mới đã được gửi tới email của bạn. Vui lòng kiểm tra hộp thư.",
+                "Yêu cầu gửi lại mã xác minh đã được tiếp nhận. Vui lòng kiểm tra hộp thư của bạn.",
                 COOLDOWN_SECONDS,
                 otpValiditySeconds
         );

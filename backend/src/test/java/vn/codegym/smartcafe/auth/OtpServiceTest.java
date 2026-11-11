@@ -67,7 +67,7 @@ class OtpServiceTest {
         when(authRepository.findOtpChallengeById(challengeId)).thenReturn(Optional.of(existingChallenge));
         when(authRepository.findOtpChallengeByIdForUpdate(challengeId)).thenReturn(Optional.of(existingChallenge));
         doThrow(new IllegalStateException("Dịch vụ gửi email chưa được cấu hình máy chủ SMTP."))
-                .when(emailService).sendOtpEmail(eq("user@smartcafe.vn"), anyString(), eq("RESET"), anyLong());
+                .when(emailService).validateReady();
 
         assertThatThrownBy(() -> otpService.resendOtp(challengeId))
                 .isInstanceOf(OtpException.class)
@@ -75,6 +75,42 @@ class OtpServiceTest {
 
         // Crucial verification: updateOtpResend must NEVER be called when email sending fails
         verify(authRepository, never()).updateOtpResend(anyString(), anyString(), any(), any());
+    }
+
+    @Test
+    void resendOtpPreservesOriginalOtpAndReturnsNeutralResponseWhenSmtpDeliveryFails() {
+        String challengeId = "test-delivery-fail-123";
+        OtpChallengeRecord existingChallenge = new OtpChallengeRecord(
+                challengeId,
+                1L,
+                "user@smartcafe.vn",
+                "RESET",
+                "initial-hash",
+                0,
+                1,
+                Instant.now().plusSeconds(600),
+                Instant.now().minusSeconds(10), // cooldown passed
+                null,
+                "SENT",
+                Instant.now().minusSeconds(60),
+                null,
+                Instant.now().minusSeconds(60)
+        );
+
+        when(authRepository.findOtpChallengeById(challengeId)).thenReturn(Optional.of(existingChallenge));
+        when(authRepository.findOtpChallengeByIdForUpdate(challengeId)).thenReturn(Optional.of(existingChallenge));
+        doThrow(new RuntimeException("SMTP delivery failed with 451"))
+                .when(emailService).sendOtpEmail(eq("user@smartcafe.vn"), anyString(), eq("RESET"), anyLong());
+
+        ForgotPasswordResponse response = otpService.resendOtp(challengeId);
+
+        assertThat(response).isNotNull();
+        assertThat(response.challengeId()).isEqualTo(challengeId);
+        assertThat(response.message()).contains("Yêu cầu gửi lại mã xác minh đã được tiếp nhận");
+
+        // Crucial verification: updateOtpResend must NEVER be called, but updateOtpCooldownOnly is called
+        verify(authRepository, never()).updateOtpResend(anyString(), anyString(), any(), any());
+        verify(authRepository, times(1)).updateOtpCooldownOnly(eq(challengeId), any());
     }
 
     @Test

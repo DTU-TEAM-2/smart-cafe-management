@@ -190,6 +190,7 @@ public class AuthRepository {
                 sends = sends + 1,
                 expires_at = ?,
                 next_send_at = ?,
+                delivery_status = 'SENT',
                 sent_at = CURRENT_TIMESTAMP(6)
             WHERE id = ?
               AND used_at IS NULL
@@ -203,6 +204,18 @@ public class AuthRepository {
                 Timestamp.from(newNextSendAt),
                 challengeId
         );
+    }
+
+    public int updateOtpCooldownOnly(String challengeId, Instant newNextSendAt) {
+        String sql = """
+            UPDATE auth_otp_challenges
+            SET next_send_at = ?,
+                delivery_status = 'FAILED'
+            WHERE id = ?
+              AND used_at IS NULL
+              AND CURRENT_TIMESTAMP(6) >= next_send_at
+            """;
+        return jdbcTemplate.update(sql, Timestamp.from(newNextSendAt), challengeId);
     }
 
     public int markOtpUsed(String challengeId) {

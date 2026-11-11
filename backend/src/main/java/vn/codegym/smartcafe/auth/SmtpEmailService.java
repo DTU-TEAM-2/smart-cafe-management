@@ -36,42 +36,6 @@ public class SmtpEmailService implements EmailService {
             log.error("MAIL_NOT_CONFIGURED: SMTP host is not configured. Cannot send OTP email to destination.");
             throw new IllegalStateException("Dịch vụ gửi email chưa được cấu hình máy chủ SMTP.");
         }
-        if (mailSender instanceof org.springframework.mail.javamail.JavaMailSenderImpl senderImpl) {
-            try {
-                jakarta.mail.Session session = senderImpl.getSession();
-                String protocol = (senderImpl.getProtocol() != null && !senderImpl.getProtocol().isBlank())
-                        ? senderImpl.getProtocol()
-                        : "smtp";
-                jakarta.mail.Transport transport = session.getTransport(protocol);
-                try {
-                    transport.connect(
-                            senderImpl.getHost(),
-                            senderImpl.getPort(),
-                            senderImpl.getUsername(),
-                            senderImpl.getPassword()
-                    );
-                    try {
-                        java.lang.reflect.Method simpleCommandMethod = transport.getClass().getMethod("simpleCommand", String.class);
-                        String sender = (fromAddress != null && !fromAddress.isBlank()) ? fromAddress : "no-reply@smartcafe.vn";
-                        int mailFromRes = (int) simpleCommandMethod.invoke(transport, "MAIL FROM:<" + sender + ">\r\n");
-                        simpleCommandMethod.invoke(transport, "RSET\r\n");
-                        if (mailFromRes >= 400) {
-                            throw new jakarta.mail.MessagingException("Máy chủ SMTP từ chối gửi thư với mã " + mailFromRes);
-                        }
-                    } catch (NoSuchMethodException ignored) {
-                        // Underlying transport does not expose simpleCommand, connection is verified
-                    }
-                } finally {
-                    try {
-                        transport.close();
-                    } catch (Exception ignored) {
-                    }
-                }
-            } catch (Exception ex) {
-                log.error("MAIL_SERVER_UNAVAILABLE: SMTP mail transaction check failed: {}", ex.getMessage());
-                throw new RuntimeException("Máy chủ SMTP hiện không phản hồi hoặc từ chối gửi thư. Vui lòng thử lại sau.", ex);
-            }
-        }
     }
 
     @Override
