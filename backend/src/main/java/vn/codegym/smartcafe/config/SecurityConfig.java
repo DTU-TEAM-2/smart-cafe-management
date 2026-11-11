@@ -8,10 +8,11 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.context.NullSecurityContextRepository;
+import org.springframework.security.web.savedrequest.NullRequestCache;
 
 @Configuration
 class SecurityConfig {
@@ -20,7 +21,11 @@ class SecurityConfig {
             @Value("${smartcafe.auth.token-secret:}") String secret) throws Exception {
         var tokenFilter = new HeaderTokenFilter(jdbc, secret);
         return http
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                // Bearer authentication is per request. A polling GET must not run a login
+                // session strategy that rotates the token issued for the next CSRF-protected POST.
+                .sessionManagement(session -> session.requireExplicitAuthenticationStrategy(true))
+                .securityContext(context -> context.securityContextRepository(new NullSecurityContextRepository()))
+                .requestCache(cache -> cache.requestCache(new NullRequestCache()))
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.FORBIDDEN)))
                 .authorizeHttpRequests(authorize -> authorize

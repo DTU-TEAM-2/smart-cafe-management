@@ -6,6 +6,7 @@ import java.util.Base64;
 import java.util.HexFormat;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
@@ -16,6 +17,7 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 import vn.codegym.smartcafe.billing.BillReader;
@@ -151,13 +153,38 @@ class SalesMySqlTest {
     }
 
     @Test void realBearerConsumerWorksAndRevocationIsRespected() throws Exception {
-        String payload=Base64.getUrlEncoder().withoutPadding().encodeToString(("1:staff:STAFF:"+Instant.now().plusSeconds(600).toEpochMilli()).getBytes(StandardCharsets.UTF_8));
-        Mac mac=Mac.getInstance("HmacSHA256");
-        mac.init(new SecretKeySpec("dt268-test-only-signing-key-at-least-32-characters".getBytes(StandardCharsets.UTF_8),"HmacSHA256"));
-        String token="Bearer "+payload+"."+HexFormat.of().formatHex(mac.doFinal(payload.getBytes(StandardCharsets.UTF_8)));
+        String token = staffBearer();
         mvc.perform(get("/api/v1/sales/tables").header("Authorization",token)).andExpect(status().isOk());
         jdbc.update("UPDATE users SET auth_version=1 WHERE id=1");
         mvc.perform(get("/api/v1/sales/tables").header("Authorization",token)).andExpect(status().isForbidden());
+    }
+
+    @Test void authenticatedPollingDoesNotInvalidateCsrfForTheNextWrite() throws Exception {
+        String authorization = staffBearer();
+        var csrfResponse = mvc.perform(get("/api/v1/sales/csrf").header("Authorization", authorization))
+                .andExpect(status().isOk()).andReturn();
+        var session = (MockHttpSession) csrfResponse.getRequest().getSession(false);
+        assertThat(session).isNotNull();
+        String csrfBody = csrfResponse.getResponse().getContentAsString();
+        String headerName = JsonPath.read(csrfBody, "$.headerName");
+        String token = JsonPath.read(csrfBody, "$.token");
+
+        mvc.perform(get("/api/v1/sales/tables").header("Authorization", authorization).session(session))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/v1/sales/tables/1/bill").header("Authorization", authorization)
+                        .header(headerName, token).session(session).contentType("application/json")
+                        .content("""
+                                {"expectedSessionCode":"SESSION-OLD","idempotencyKey":"csrf-poll"}
+                                """))
+                .andExpect(status().isCreated());
+        mvc.perform(get("/api/v1/sales/tables").session(session)).andExpect(status().isForbidden());
+    }
+
+    private static String staffBearer() throws Exception {
+        String payload=Base64.getUrlEncoder().withoutPadding().encodeToString(("1:staff:STAFF:"+Instant.now().plusSeconds(600).toEpochMilli()).getBytes(StandardCharsets.UTF_8));
+        Mac mac=Mac.getInstance("HmacSHA256");
+        mac.init(new SecretKeySpec("dt268-test-only-signing-key-at-least-32-characters".getBytes(StandardCharsets.UTF_8),"HmacSHA256"));
+        return "Bearer "+payload+"."+HexFormat.of().formatHex(mac.doFinal(payload.getBytes(StandardCharsets.UTF_8)));
     }
 
     @Test void incomeUsesPaidUtcBoundaryCountsAverageAndZeroFilledDays() throws Exception {
