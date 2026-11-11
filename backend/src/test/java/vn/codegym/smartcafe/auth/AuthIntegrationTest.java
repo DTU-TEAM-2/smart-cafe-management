@@ -1,5 +1,6 @@
 package vn.codegym.smartcafe.auth;
 
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -54,6 +55,11 @@ class AuthIntegrationTest {
             INSERT INTO users (username, password_hash, full_name, email, phone, role, status, auth_version)
             VALUES ('test_inactive', ?, 'Inactive User', 'inactive@smartcafe.vn', '0903333333', 'STAFF', 'INACTIVE', 0)
             """, staffHash);
+    }
+
+    @AfterEach
+    void cleanUp() {
+        jdbcTemplate.update("DELETE FROM users");
     }
 
     @Test

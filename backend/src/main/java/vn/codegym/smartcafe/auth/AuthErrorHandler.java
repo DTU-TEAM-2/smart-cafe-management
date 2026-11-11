@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import java.util.HashMap;
 import java.util.Map;
 
-@RestControllerAdvice
+@RestControllerAdvice(basePackages = "vn.codegym.smartcafe.auth")
 public class AuthErrorHandler {
 
     private static final Logger log = LoggerFactory.getLogger(AuthErrorHandler.class);

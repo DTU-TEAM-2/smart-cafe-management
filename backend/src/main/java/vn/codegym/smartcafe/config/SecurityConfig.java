@@ -43,15 +43,15 @@ public class SecurityConfig {
             .exceptionHandling(ex -> ex
                 .authenticationEntryPoint((request, response, authException) -> {
                     String path = request.getRequestURI();
-                    if (path.startsWith("/api/v1/home/")) {
-                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    if (path.startsWith("/api/v1/admin/") || path.startsWith("/api/v1/staff/")) {
+                        response.setContentType("application/problem+json");
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.getWriter().write("""
+                            {"type":"about:blank","title":"Unauthorized","status":401,"detail":"Xác thực không hợp lệ hoặc phiên đã hết hạn.","code":"UNAUTHORIZED"}
+                            """);
                         return;
                     }
-                    response.setContentType("application/problem+json");
-                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    response.getWriter().write("""
-                        {"type":"about:blank","title":"Unauthorized","status":401,"detail":"Xác thực không hợp lệ hoặc phiên đã hết hạn.","code":"UNAUTHORIZED"}
-                        """);
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                 })
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
                     response.setContentType("application/problem+json");

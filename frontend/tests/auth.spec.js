@@ -2,6 +2,13 @@ import { expect, test } from "@playwright/test";
 
 test.describe("Authentication and Password Recovery (DT2-2)", () => {
   test.beforeEach(async ({ page }) => {
+    await page.route("**/api/v1/home/account", route =>
+      route.fulfill({ status: 401, json: {} })
+    );
+    await page.route("**/api/v1/home/highlights", route =>
+      route.fulfill({ json: { newest: [], mostOrdered: [] } })
+    );
+
     await page.route("**/api/v1/auth/me", route =>
       route.fulfill({
         status: 200,

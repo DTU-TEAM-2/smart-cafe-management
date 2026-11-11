@@ -1,6 +1,7 @@
 package vn.codegym.smartcafe.auth;
 
 import com.jayway.jsonpath.JsonPath;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +51,13 @@ class OtpIntegrationTest {
             INSERT INTO users (username, password_hash, full_name, email, phone, role, status, auth_version)
             VALUES ('otp_user', ?, 'OTP Test User', 'otp_user@smartcafe.vn', '0909999999', 'STAFF', 'ACTIVE', 0)
             """, hash);
+    }
+
+    @AfterEach
+    void cleanUp() {
+        jdbcTemplate.update("DELETE FROM password_reset_tokens");
+        jdbcTemplate.update("DELETE FROM auth_otp_challenges");
+        jdbcTemplate.update("DELETE FROM users WHERE username = 'otp_user'");
     }
 
     @Test

@@ -98,6 +98,7 @@ export default function LoginPage({ onNavigate }) {
               id={`${id}-username`}
               name="username"
               type="text"
+              aria-label="Tên đăng nhập"
               className="form-input"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -120,6 +121,7 @@ export default function LoginPage({ onNavigate }) {
                 id={`${id}-password`}
                 name="password"
                 type={showPassword ? "text" : "password"}
+                aria-label="Mật khẩu"
                 className="form-input"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

@@ -90,13 +90,13 @@ function ScopedHomeShell({ authorization = "", loginHref = "#login", credentials
     return () => { controller.abort(); window.clearTimeout(timer); };
   }, [authorization, credentials, identity.account, feedAttempt]);
 
-  const onAccountPage = hash === "#account";
-  const onLoginPage = hash === "#login";
-  const onForgotPasswordPage = hash === "#forgot-password";
-  const onOtpPage = hash === "#verify-otp";
-  const onResetPasswordPage = hash === "#reset-password";
-  const onAdminPage = hash === "#admin";
-  const onStaffPage = hash === "#staff";
+  const onAccountPage = hash.startsWith("#account");
+  const onLoginPage = hash.startsWith("#login");
+  const onForgotPasswordPage = hash.startsWith("#forgot-password");
+  const onOtpPage = hash.startsWith("#verify-otp");
+  const onResetPasswordPage = hash.startsWith("#reset-password");
+  const onAdminPage = hash.startsWith("#admin");
+  const onStaffPage = hash.startsWith("#staff");
 
   useEffect(() => {
     if (!onAccountPage && !onLoginPage && !onForgotPasswordPage && !onOtpPage && !onResetPasswordPage && !onAdminPage && !onStaffPage && hash) {
