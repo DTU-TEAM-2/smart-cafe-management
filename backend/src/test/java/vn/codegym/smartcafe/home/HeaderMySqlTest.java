@@ -98,6 +98,21 @@ class HeaderMySqlTest {
         return signed(id, "header-" + id, java.time.Instant.now().plusSeconds(3600).toEpochMilli());
     }
 
+    @Test
+    void menuUsesSharedSignatureAndCurrentDatabasePermissions() throws Exception {
+        String admin = bearer(1);
+        mvc.perform(get("/api/v1/menu/items").header("Authorization", admin)).andExpect(status().isOk());
+        // STAFF's signed payload claims ADMIN; only the database role grants authority.
+        mvc.perform(get("/api/v1/menu/items").header("Authorization", bearer(2))).andExpect(status().isForbidden());
+        jdbc.update("UPDATE users SET role='STAFF' WHERE id=1");
+        mvc.perform(get("/api/v1/menu/items").header("Authorization", admin)).andExpect(status().isForbidden());
+        jdbc.update("UPDATE users SET role='ADMIN',status='INACTIVE' WHERE id=1");
+        mvc.perform(get("/api/v1/menu/items").header("Authorization", admin)).andExpect(status().isUnauthorized());
+        jdbc.update("UPDATE users SET status='ACTIVE',auth_version=1 WHERE id=1");
+        mvc.perform(get("/api/v1/menu/items").header("Authorization", admin)).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/v1/menu/items").header("Authorization", signed(2, "header-2", 1))).andExpect(status().isUnauthorized());
+    }
+
     private String signed(int id, String username, long expiry) throws Exception {
         // Matches the existing authentication module's four-field bearer contract.
         // The payload always claims ADMIN to ensure the server uses the current database role instead.

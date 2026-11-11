@@ -34,6 +34,7 @@ final class HeaderTokenFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI().substring(request.getContextPath().length());
         return !path.equals("/api/v1/home/account") && !path.equals("/api/v1/home/notifications")
+                && !path.equals("/api/v1/menu") && !path.startsWith("/api/v1/menu/")
                 && !path.startsWith("/api/v1/sales/") && !path.equals("/api/v1/income")
                 && !path.startsWith("/api/v1/bills/");
     }
