@@ -45,11 +45,12 @@
   - Governance check: `node scripts/skills.mjs check` -> PASS (17 skills, 16 routes, 169 inherited files validated).
   - Governance unit test: `node --test scripts/skills.test.mjs` -> PASS (9/9 passed, 0 failures).
   - Whitespace & format check: `git diff --check -- . ':(exclude).agents/skills/**'` -> PASS (Clean, 0 errors).
-  - Backend compilation, tests & packaging: `.\test-be.ps1` -> PASS (22/22 tests run, 0 failures, 0 errors, 0 skipped; build JAR success).
+  - Backend compilation, tests & packaging: `.\test-be.ps1` -> PASS (30/30 tests run, 0 failures, 0 errors, 0 skipped; build JAR success).
   - Postman automated collection run: `npx newman run docs/api/Smart_Cafe_DT2-2_Auth.postman_collection.json -e docs/api/Smart_Cafe_Local.postman_environment.json` -> PASS (19/19 requests, 34/34 assertions passed, 0 failures).
-  - Frontend code quality: `cd frontend; npm run lint` -> PASS (Oxlint 0 warnings, 0 errors across 16 files).
+  - Frontend code quality: `cd frontend; npm run lint` -> PASS (Oxlint 0 warnings, 0 errors across 21 files).
   - Frontend production build: `cd frontend; npm run build` -> PASS (Vite v8.3.5 bundle built in dist/).
-  - Frontend Playwright UI tests: `cd frontend; npx playwright test tests/auth.spec.js` -> PASS (10/10 tests passed across desktop & mobile).
+  - Frontend Playwright UI tests: `cd frontend; npm run test:ui` -> PASS (24/24 tests passed across desktop & mobile).
+  - Evidence images: `docs/handover/evidence/dt2-2/` (9 screenshots covering full auth flow, password toggle, error alert, and mobile responsive).
   - Secrets & ignore verification: `git check-ignore backend/.env _anti_reference` -> PASS (Excluded from Git tracking).
 - Open questions / blockers / responsible person:
   - Không còn blocker kỹ thuật. Mã nguồn đã hoàn thiện đầy đủ cả backend lẫn frontend, pass tất cả các cổng kiểm thử tự động.
