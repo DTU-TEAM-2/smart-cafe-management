@@ -30,6 +30,7 @@ git switch -c feature/cf-07-submit-order
 4. Đặt title như `feat(orders): CF-07 submit an order batch`.
 5. Mô tả vấn đề, kết quả, cách kiểm thử, ảnh nếu thay UI, ảnh hưởng dữ liệu/cấu hình và skill đã áp dụng. Link issue/Jira/Trello thực tế; không bịa URL.
 6. Nếu liên quan dữ liệu, tuân thủ [rule database nguồn chuẩn](.agents/rules/database-source-of-truth.md): nêu bảng/cột, DDL đã đối chiếu và chênh lệch; không tự bổ sung schema. Thay đổi schema chỉ thực hiện sau quyết định chấp thuận được ghi nhận.
+7. Tuân thủ [rule công nghệ](.agents/rules/technology-constraints.md): BE Spring Boot, FE ReactJS, DB MySQL bắt buộc. Công cụ còn lại tùy chọn theo task; thay dependency/công cụ cần ghi lý do và tác động, không tự thay stack chính.
 
 PR tập trung một mục tiêu, ưu tiên review được trong một lượt. Không đặt giới hạn số dòng cứng với lockfile/tài liệu sinh tự động. Nếu cần PR lớn, tách commit/phần mô tả để reviewer hiểu được.
 

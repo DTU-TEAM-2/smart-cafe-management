@@ -26,7 +26,9 @@ node --test scripts/skills.test.mjs
 
 ## Chạy DT2-1 trên Windows
 
-React/Vite + Spring Boot/JDBC + MySQL. Cần Java 21, Node 22.19+ (nhánh 22) hoặc Node 24+, MySQL 8.0.16+. Xem [phạm vi/API/bằng chứng](docs/handover/dt2-1-home-layout.md).
+**Công nghệ bắt buộc:** BE **Spring Boot**, FE **ReactJS**, database **MySQL** theo [rule công nghệ](.agents/rules/technology-constraints.md). Các công nghệ khác là tùy chọn theo task; không thay thế ba thành phần này.
+
+Triển khai hiện tại dùng React/Vite + Spring Boot/JDBC + MySQL. Cần Java 21, Node 22.19+ (nhánh 22) hoặc Node 24+, MySQL 8.0.16+. Đây là yêu cầu chạy bản hiện tại, không phải version bắt buộc mới từ mentor. Xem [phạm vi/API/bằng chứng](docs/handover/dt2-1-home-layout.md).
 
 Database `smart_cafe` phải có schema nhóm đã duyệt: `menu_items`, `menu_categories`, view `v_menu_item_order_totals`. Máy mới nhận script schema từ task database rồi nhập vào database mới bằng Navicat trước khi chạy backend. Backend **không tự tạo database/schema hoặc món mẫu**. Fixture trong test chỉ dùng kiểm thử, không phải migration production.
 

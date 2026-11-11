@@ -5,6 +5,7 @@ This repository contains Smart Cafe's engineering foundation. Follow the main br
 ## Before work
 
 - Read `CONTRIBUTING.md`, `docs/engineering/team-working-agreement.md` and `docs/engineering/naming-conventions.md`.
+- Follow the mandatory [technology constraints](.agents/rules/technology-constraints.md): backend Spring Boot, frontend ReactJS, business database MySQL. Other tools are optional within task scope and compatibility requirements; they do not replace the required stack. Do not treat historical stack proposals or skill suggestions as permission to change it.
 - Read `.agents/rules/mandatory-skill-router.md`; inspect `SKILLS_INSTALLED.md`, choose up to three relevant skills per phase and read their actual SKILL.md before applying them. State their identifiers and paths. Do not load the entire catalog.
 - For any data-related task, read and follow the mandatory [database source-of-truth rule](.agents/rules/database-source-of-truth.md). It applies to the entire project and all contributors/agents, including frontend contracts, persistence, scripts and test fixtures.
 - Skills guide work; they do not authorize account changes, publication, messaging, spending or deployment. Existing user authorization governs ordinary actions.

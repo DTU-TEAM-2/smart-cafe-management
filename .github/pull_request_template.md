@@ -15,6 +15,7 @@ Hành vi trước và sau thay đổi:
 ## Tác động và bàn giao
 
 - API / schema / cấu hình / dependency:
+- Nếu đổi công nghệ/dependency: lý do, tác động và tính tương thích với Spring Boot / ReactJS / MySQL:
 - Nếu liên quan dữ liệu: bảng/cột sử dụng, nguồn sơ đồ/DDL đối chiếu, chênh lệch và link quyết định chấp thuận nếu đổi schema:
 - Rủi ro / migration / rollback nếu liên quan:
 - Reviewer / phần cần tập trung:
@@ -26,4 +27,5 @@ Hành vi trước và sau thay đổi:
 - [ ] Checks phù hợp đạt; không có secret/dữ liệu cá nhân
 - [ ] Có reviewer khác tác giả, đã xử lý blocker/discussion
 - [ ] Tài liệu/hợp đồng liên quan đã cập nhật
+- [ ] Tuân thủ [rule công nghệ](../.agents/rules/technology-constraints.md): Spring Boot / ReactJS / MySQL bắt buộc; công cụ khác tùy chọn trong phạm vi task
 - [ ] Nếu liên quan dữ liệu: đã đối chiếu [rule database](../.agents/rules/database-source-of-truth.md); không tự chế bảng/cột/quan hệ hoặc sửa schema chưa được chấp thuận
