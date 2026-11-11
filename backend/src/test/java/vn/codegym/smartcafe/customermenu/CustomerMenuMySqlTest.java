@@ -35,6 +35,47 @@ class CustomerMenuMySqlTest {
     }
 
     @Test
+    void searchTreatsSpecialCharactersLiterallyWithBackslashEscapes() throws Exception {
+        verifyLiteralSearch(false);
+    }
+
+    @Test
+    void searchTreatsSpecialCharactersLiterallyWithoutBackslashEscapes() throws Exception {
+        verifyLiteralSearch(true);
+    }
+
+    private void verifyLiteralSearch(boolean noBackslashEscapes) throws Exception {
+        String original = jdbc.queryForObject("SELECT @@SESSION.sql_mode", String.class);
+        String base = java.util.Arrays.stream(original.split(","))
+                .filter(mode -> !mode.equalsIgnoreCase("NO_BACKSLASH_ESCAPES"))
+                .collect(java.util.stream.Collectors.joining(","));
+        String mode = noBackslashEscapes ? (base.isEmpty() ? "" : base + ",") + "NO_BACKSLASH_ESCAPES" : base;
+        try {
+            jdbc.update("SET SESSION sql_mode = ?", mode);
+            jdbc.update("INSERT INTO menu_categories(id,code,name,active) VALUES (901,'SEARCH','Nhóm kiểm thử tìm kiếm',1)");
+            jdbc.update("""
+                    INSERT INTO menu_items(id,category_id,code,name,price,active,available)
+                    VALUES (901,901,?,?,45000,1,1),(902,901,?,?,40000,1,1),(903,901,?,?,35000,1,1)
+                    """, "NAME_ONLY", "literal%_!\\mix", "CODE%_!\\MIX", "other", "CODEXYAMIX", "literalXYAMIX");
+            for (String keyword : new String[] {"%", "_", "!", "\\"}) {
+                mvc.perform(get("/api/v1/customer/menu/items").param("keyword", keyword))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.totalElements").value(2))
+                        .andExpect(jsonPath("$.content.length()").value(2));
+            }
+            mvc.perform(get("/api/v1/customer/menu/items").param("keyword", "LITERAL%_!\\MIX"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                    .andExpect(jsonPath("$.content[0].id").value("901"));
+            mvc.perform(get("/api/v1/customer/menu/items").param("keyword", "code%_!\\mix"))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                    .andExpect(jsonPath("$.content[0].id").value("902"));
+        } finally {
+            // Session settings are not rolled back with fixture rows; restore before returning to the pool.
+            jdbc.update("SET SESSION sql_mode = ?", original);
+        }
+    }
+
+    @Test
     void returnsCategoriesItemsAvailabilityAndHandlesEmptyAndMissing() throws Exception {
         mvc.perform(get("/api/v1/customer/menu/categories"))
                 .andExpect(status().isOk())
