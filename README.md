@@ -24,4 +24,10 @@ node scripts/skills.mjs check
 node --test scripts/skills.test.mjs
 ```
 
-Repo hiện chưa có backend/frontend nên chưa có lệnh chạy ứng dụng hoặc kiểm chứng database. Hướng dẫn chi tiết: [AGENTS.md](AGENTS.md), [quy trình](CONTRIBUTING.md), [skill](SKILLS_INSTALLED.md).
+## Backend DT2-9 — quản lý món và nhóm món
+
+Nhánh `feature/dt2-9-manage-menu-items-and-categories-backend` bổ sung backend Spring Boot/JDK 21/MySQL, viết lại từ nguồn tham chiếu legacy. Không nhập dữ liệu/migration history hay tài khoản cũ. FE nằm trên nhánh frontend riêng, chưa tích hợp API trong nhánh này.
+
+Hướng dẫn cấu hình, chạy và kiểm thử: [backend/README.md](backend/README.md). Hợp đồng: [OpenAPI](docs/api/dt2-9-menu.yaml). Nguồn: [yêu cầu backend](docs/handover/dt2-9-backend-request.md).
+
+Hướng dẫn quy trình: [AGENTS.md](AGENTS.md), [đóng góp](CONTRIBUTING.md), [skill](SKILLS_INSTALLED.md).

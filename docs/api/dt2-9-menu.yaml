@@ -1,0 +1,334 @@
+openapi: 3.0.3
+info:
+  title: Smart Cafe Menu API
+  version: 0.1.0
+  description: >-
+    Backend DT2-9 written from the versioned legacy reference. ADMIN only.
+    No login or seeded accounts. GET csrf with a valid Bearer token, retain the session cookie,
+    then send the returned token/headerName for each mutation. Codes are immutable.
+    Deleting a category atomically hides its items. Soft-deleted codes cannot be reused.
+servers:
+  - url: http://127.0.0.1:8080
+security:
+  - bearer: []
+paths:
+  /api/v1/menu/csrf:
+    get:
+      operationId: getMenuCsrf
+      responses:
+        '200':
+          description: CSRF token for this session; retain Set-Cookie and send token on mutations
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [token, headerName, parameterName]
+                properties:
+                  token: { type: string }
+                  headerName: { type: string, example: X-CSRF-TOKEN }
+                  parameterName: { type: string, example: _csrf }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+  /api/v1/menu/categories:
+    get:
+      operationId: listMenuCategories
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Size' }
+        - { $ref: '#/components/parameters/Keyword' }
+      responses:
+        '200':
+          description: Active categories ordered by code, literal keyword matches code or name
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: '#/components/schemas/Page' }
+                  - properties:
+                      content: { type: array, items: { $ref: '#/components/schemas/Category' } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      operationId: createMenuCategory
+      parameters:
+        - { $ref: '#/components/parameters/Csrf' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoryInput' }
+      responses:
+        '201':
+          description: Created, version starts at zero
+          headers:
+            Location: { schema: { type: string }, description: URL of the new category }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/menu/categories/{code}:
+    parameters:
+      - name: code
+        in: path
+        required: true
+        schema: { type: string, pattern: '^[A-Za-z0-9_-]{1,32}$' }
+    get:
+      operationId: getMenuCategory
+      responses:
+        '200':
+          description: Active category
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    put:
+      operationId: updateMenuCategory
+      parameters:
+        - { $ref: '#/components/parameters/Csrf' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CategoryInput' }
+      responses:
+        '200':
+          description: Updated category, version incremented
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Category' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      operationId: deleteMenuCategory
+      description: Hides the category and every active item in one transaction. Keeps all rows.
+      parameters:
+        - { $ref: '#/components/parameters/Csrf' }
+        - { $ref: '#/components/parameters/Version' }
+      responses:
+        '204': { description: Category and its items hidden }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/menu/items:
+    get:
+      operationId: listMenuItems
+      parameters:
+        - { $ref: '#/components/parameters/Page' }
+        - { $ref: '#/components/parameters/Size' }
+        - { $ref: '#/components/parameters/Keyword' }
+        - name: field
+          in: query
+          schema: { type: string, enum: [name, code, price, category], default: name }
+          description: Exact code/price; literal substring name/category name. Empty keyword returns all.
+        - name: categoryCode
+          in: query
+          schema: { type: string, pattern: '^[A-Za-z0-9_-]{1,32}$' }
+      responses:
+        '200':
+          description: Active items in active categories, ordered by item code
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: '#/components/schemas/Page' }
+                  - properties:
+                      content: { type: array, items: { $ref: '#/components/schemas/Item' } }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+    post:
+      operationId: createMenuItem
+      parameters:
+        - { $ref: '#/components/parameters/Csrf' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ItemInput' }
+      responses:
+        '201':
+          description: Created, version starts at zero
+          headers:
+            Location: { schema: { type: string }, description: URL of the new item }
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Item' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/menu/items/{code}:
+    parameters:
+      - name: code
+        in: path
+        required: true
+        schema: { type: string, pattern: '^[A-Za-z0-9_-]{4,40}$' }
+    get:
+      operationId: getMenuItem
+      responses:
+        '200':
+          description: Active item
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Item' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      operationId: updateMenuItem
+      description: Code and assigned category cannot change. Version must match the current row.
+      parameters:
+        - { $ref: '#/components/parameters/Csrf' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ItemInput' }
+      responses:
+        '200':
+          description: Updated item, version incremented
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Item' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '409': { $ref: '#/components/responses/Conflict' }
+    delete:
+      operationId: deleteMenuItem
+      parameters:
+        - { $ref: '#/components/parameters/Csrf' }
+        - { $ref: '#/components/parameters/Version' }
+      responses:
+        '204': { description: Item hidden, row retained }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+  /api/v1/menu/images:
+    post:
+      operationId: uploadMenuImage
+      parameters:
+        - { $ref: '#/components/parameters/Csrf' }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary, description: 'PNG/JPEG, 5 MiB maximum, 20 million pixels maximum' }
+      responses:
+        '200':
+          description: Uploaded to configured Cloudinary cloud
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [imageUrl]
+                properties:
+                  imageUrl: { type: string, format: uri }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '413': { description: File exceeds upload limit }
+        '502': { description: Sanitized provider failure }
+        '503': { description: Cloudinary not configured }
+components:
+  securitySchemes:
+    bearer: { type: http, scheme: bearer, bearerFormat: JWT }
+  parameters:
+    Page: { name: page, in: query, schema: { type: integer, minimum: 0, maximum: 2147483647, default: 0 } }
+    Size: { name: size, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 10 } }
+    Keyword: { name: keyword, in: query, schema: { type: string, maxLength: 160, default: '' } }
+    Version: { name: version, in: query, required: true, schema: { type: integer, format: int64, minimum: 0 } }
+    Csrf: { name: X-CSRF-TOKEN, in: header, required: true, description: Value from GET csrf; retain the same session cookie, schema: { type: string } }
+  responses:
+    Unauthorized: { description: Missing/invalid JWT, issuer/audience not configured, or token expired }
+    Forbidden: { description: Wrong role or missing/invalid CSRF token; security errors may have empty bodies }
+    BadRequest:
+      description: Validation, immutable code, malformed request or invalid image
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    Conflict:
+      description: Reused code, stale version, inactive group, changed category or concurrent transaction
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+    NotFound:
+      description: Active record not found
+      content:
+        application/problem+json:
+          schema: { $ref: '#/components/schemas/Problem' }
+  schemas:
+    Page:
+      type: object
+      required: [content, totalElements, page, size]
+      properties:
+        totalElements: { type: integer, format: int64, minimum: 0 }
+        page: { type: integer, minimum: 0 }
+        size: { type: integer, minimum: 1, maximum: 100 }
+    CategoryInput:
+      type: object
+      additionalProperties: false
+      required: [code, name, version]
+      properties:
+        code: { type: string, pattern: '^[A-Za-z0-9_-]{1,32}$', example: CF, description: Trimmed and normalized to uppercase }
+        name: { type: string, minLength: 1, maxLength: 120, example: Cà phê }
+        version: { type: integer, format: int64, minimum: 0, example: 0 }
+    Category:
+      type: object
+      required: [code, name, version, itemCount]
+      properties:
+        code: { type: string }
+        name: { type: string }
+        version: { type: integer, format: int64 }
+        itemCount: { type: integer, format: int64, minimum: 0 }
+    ItemInput:
+      type: object
+      additionalProperties: false
+      required: [code, name, price, categoryCode, imageUrl, version]
+      properties:
+        code: { type: string, pattern: '^[A-Za-z0-9_-]{4,40}$', example: CF101 }
+        name: { type: string, minLength: 6, maxLength: 160, example: Caramel Latte }
+        price: { type: integer, minimum: 5001, maximum: 999999999999, example: 45000, description: 'Whole VND; fractions are rejected, never rounded' }
+        categoryCode: { type: string, pattern: '^[A-Za-z0-9_-]{1,32}$', example: CF }
+        imageUrl: { type: string, maxLength: 1024, example: /images/coffee.jpg, description: Safe /images path or HTTPS delivery URL belonging to the configured Cloudinary cloud }
+        description: { type: string, maxLength: 1000, default: '' }
+        available: { type: boolean, default: true }
+        version: { type: integer, format: int64, minimum: 0, example: 0 }
+    Item:
+      type: object
+      required: [code, name, price, categoryCode, categoryName, imageUrl, description, available, version]
+      properties:
+        code: { type: string }
+        name: { type: string }
+        price: { type: integer, minimum: 5001, maximum: 999999999999 }
+        categoryCode: { type: string }
+        categoryName: { type: string }
+        imageUrl: { type: string }
+        description: { type: string }
+        available: { type: boolean }
+        version: { type: integer, format: int64 }
+    Problem:
+      type: object
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+        instance: { type: string }
+        code: { type: string }
+        fieldErrors: { type: object, additionalProperties: { type: string } }
