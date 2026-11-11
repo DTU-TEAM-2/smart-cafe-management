@@ -14,7 +14,7 @@
   - Jira: `https://duymanhdnvn20092005.atlassian.net/browse/DT2-2`
   - SRS v4.1: Mục 6.1.1 (Đăng nhập) và Other (Quên mật khẩu / Phục hồi qua email)
   - Figma: `https://www.figma.com/design/7iFkUz20p6rE2fPC9Xn8rp` (Page: `02 • Xác thực / Authentication`)
-  - ERD: Sơ đồ cơ sở dữ liệu chuẩn hệ thống (`users`, `auth_otp_challenges`, `auth_otp_limits`, `password_reset_tokens`)
+  - ERD: Sơ đồ cơ sở dữ liệu chuẩn hệ thống (`users`, `auth_otp_challenges`, `auth_otp_limits` - Schema 20 bảng)
 - Changed files / revision / PR:
   - Branch: `feature/cf-03-auth-recovery`
   - Backend:

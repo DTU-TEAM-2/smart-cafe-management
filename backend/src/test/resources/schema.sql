@@ -423,19 +423,3 @@ CREATE ALGORITHM=UNDEFINED SQL SECURITY INVOKER VIEW `v_menu_item_order_totals` 
 CREATE ALGORITHM=UNDEFINED SQL SECURITY INVOKER VIEW `v_paid_item_sales` AS select `oi`.`menu_item_id` AS `menu_item_id`,sum(`bi`.`quantity`) AS `paid_quantity`,sum(`bi`.`line_total`) AS `sales_amount` from ((`bill_items` `bi` join `bills` `b` on(((`b`.`id` = `bi`.`bill_id`) and (`b`.`status` = 'PAID')))) join `order_items` `oi` on((`oi`.`id` = `bi`.`order_item_id`))) group by `oi`.`menu_item_id`;
 CREATE ALGORITHM=UNDEFINED SQL SECURITY INVOKER VIEW `v_daily_revenue` AS select cast(convert_tz(`bills`.`paid_at`,'+00:00','+07:00') as date) AS `business_date`,count(0) AS `bill_count`,sum(`bills`.`total_amount`) AS `revenue_amount` from `bills` where (`bills`.`status` = 'PAID') group by cast(convert_tz(`bills`.`paid_at`,'+00:00','+07:00') as date);
 CREATE ALGORITHM=UNDEFINED SQL SECURITY INVOKER VIEW `v_cafe_table_occupancy` AS select `t`.`id` AS `id`,`t`.`code` AS `code`,`t`.`name` AS `name`,`t`.`status` AS `operational_status`,`s`.`id` AS `active_session_id`,`s`.`status` AS `session_status`,(case when (`s`.`id` is null) then 'EMPTY' else 'OCCUPIED' end) AS `occupancy` from (`cafe_tables` `t` left join `table_sessions` `s` on(((`s`.`table_id` = `t`.`id`) and (`s`.`status` in ('OPEN','CHECKOUT')))));
-
-
--- DT2-2 Password Recovery Table
-CREATE TABLE IF NOT EXISTS `password_reset_tokens` (
-    `id` BIGINT NOT NULL AUTO_INCREMENT,
-    `user_id` BIGINT NOT NULL,
-    `token_hash` CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
-    `expires_at` DATETIME(6) NOT NULL,
-    `used_at` DATETIME(6) NULL,
-    `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    PRIMARY KEY (`id`),
-    UNIQUE KEY `uq_reset_token_hash` (`token_hash`),
-    KEY `ix_reset_token_lookup` (`token_hash`, `expires_at`, `used_at`),
-    KEY `ix_reset_token_user` (`user_id`),
-    CONSTRAINT `fk_reset_token_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

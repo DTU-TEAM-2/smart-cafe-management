@@ -39,17 +39,34 @@ public class TokenService {
         this.tokenValiditySeconds = tokenValiditySeconds;
     }
 
-    public record TokenClaims(Long userId, String role, long authVersion, Instant expiresAt) {}
+    public record TokenClaims(Long userId, String username, String role, long authVersion, Instant expiresAt) {}
 
-    public String generateToken(Long userId, String role, long authVersion) {
-        long now = Instant.now().getEpochSecond();
-        long exp = now + tokenValiditySeconds;
-        String payload = userId + ":" + role + ":" + authVersion + ":" + exp;
+    public record ResetGrantClaims(String challengeId, Long userId, long authVersion, Instant expiresAt) {}
+
+    /**
+     * Generate standard unified bearer token:
+     * id:username:role:authVersion:expMillis
+     */
+    public String generateToken(Long userId, String username, String role, long authVersion) {
+        long expMillis = Instant.now().toEpochMilli() + (tokenValiditySeconds * 1000L);
+        String safeUsername = username != null ? username : "";
+        String payload = userId + ":" + safeUsername + ":" + role + ":" + authVersion + ":" + expMillis;
         String payloadBase64 = Base64.getUrlEncoder().withoutPadding().encodeToString(payload.getBytes(StandardCharsets.UTF_8));
         String signature = sign(payloadBase64);
         return payloadBase64 + "." + signature;
     }
 
+    public String generateToken(Long userId, String role, long authVersion) {
+        return generateToken(userId, "", role, authVersion);
+    }
+
+    /**
+     * Parse and verify bearer token.
+     * Supports:
+     * - 5 fields: id:username:role:authVersion:exp
+     * - 4 fields legacy (DT2-1 HeaderMySqlTest): id:username:role:exp (authVersion=0)
+     * - 4 fields alternative: id:role:authVersion:exp (username="")
+     */
     public TokenClaims parseToken(String token) {
         if (token == null || !token.contains(".")) {
             return null;
@@ -70,19 +87,105 @@ public class TokenService {
             byte[] decoded = Base64.getUrlDecoder().decode(payloadBase64);
             String payload = new String(decoded, StandardCharsets.UTF_8);
             String[] fields = payload.split(":");
-            if (fields.length != 4) {
+
+            Long userId;
+            String username = null;
+            String role;
+            long authVersion;
+            long expValue;
+
+            if (fields.length == 5) {
+                // id:username:role:authVersion:exp
+                userId = Long.valueOf(fields[0]);
+                username = fields[1];
+                role = fields[2];
+                authVersion = Long.parseLong(fields[3]);
+                expValue = Long.parseLong(fields[4]);
+            } else if (fields.length == 4) {
+                // Determine whether field 1 is username or role
+                if (fields[2].equalsIgnoreCase("ADMIN") || fields[2].equalsIgnoreCase("STAFF") || fields[2].equalsIgnoreCase("CUSTOMER")) {
+                    userId = Long.valueOf(fields[0]);
+                    username = fields[1];
+                    role = fields[2];
+                    authVersion = 0L;
+                    expValue = Long.parseLong(fields[3]);
+                } else {
+                    // id:role:authVersion:exp
+                    userId = Long.valueOf(fields[0]);
+                    role = fields[1];
+                    authVersion = Long.parseLong(fields[2]);
+                    expValue = Long.parseLong(fields[3]);
+                }
+            } else {
                 return null;
             }
-            Long userId = Long.valueOf(fields[0]);
-            String role = fields[1];
-            long authVersion = Long.parseLong(fields[2]);
-            long expEpoch = Long.parseLong(fields[3]);
-            Instant expiresAt = Instant.ofEpochSecond(expEpoch);
+
+            Instant expiresAt = expValue > 10_000_000_000L
+                    ? Instant.ofEpochMilli(expValue)
+                    : Instant.ofEpochSecond(expValue);
 
             if (Instant.now().isAfter(expiresAt)) {
                 return null;
             }
-            return new TokenClaims(userId, role, authVersion, expiresAt);
+
+            return new TokenClaims(userId, username, role, authVersion, expiresAt);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    /**
+     * Generate stateless HMAC reset grant token.
+     * Payload: RESET:<challengeId>:<userId>:<authVersion>:<expMillis>
+     */
+    public String generateResetGrantToken(String challengeId, Long userId, long authVersion, long validitySeconds) {
+        long expMillis = Instant.now().toEpochMilli() + (validitySeconds * 1000L);
+        String payload = "RESET:" + challengeId + ":" + userId + ":" + authVersion + ":" + expMillis;
+        String payloadBase64 = Base64.getUrlEncoder().withoutPadding().encodeToString(payload.getBytes(StandardCharsets.UTF_8));
+        String signature = sign(payloadBase64);
+        return payloadBase64 + "." + signature;
+    }
+
+    /**
+     * Parse and verify stateless HMAC reset grant token.
+     */
+    public ResetGrantClaims parseResetGrantToken(String token) {
+        if (token == null || !token.contains(".")) {
+            return null;
+        }
+        String[] parts = token.split("\\.");
+        if (parts.length != 2) {
+            return null;
+        }
+        String payloadBase64 = parts[0];
+        String providedSignature = parts[1];
+
+        String expectedSignature = sign(payloadBase64);
+        if (!MessageDigest.isEqual(providedSignature.getBytes(StandardCharsets.UTF_8), expectedSignature.getBytes(StandardCharsets.UTF_8))) {
+            return null;
+        }
+
+        try {
+            byte[] decoded = Base64.getUrlDecoder().decode(payloadBase64);
+            String payload = new String(decoded, StandardCharsets.UTF_8);
+            String[] fields = payload.split(":");
+            if (fields.length != 5 || !"RESET".equals(fields[0])) {
+                return null;
+            }
+            String challengeId = fields[1];
+            Long userId = Long.valueOf(fields[2]);
+            long authVersion = Long.parseLong(fields[3]);
+            long expMillis = Long.parseLong(fields[4]);
+
+            Instant expiresAt = expMillis > 10_000_000_000L
+                    ? Instant.ofEpochMilli(expMillis)
+                    : Instant.ofEpochSecond(expMillis);
+
+            if (Instant.now().isAfter(expiresAt)) {
+                return null;
+            }
+
+            return new ResetGrantClaims(challengeId, userId, authVersion, expiresAt);
         } catch (Exception ex) {
             return null;
         }

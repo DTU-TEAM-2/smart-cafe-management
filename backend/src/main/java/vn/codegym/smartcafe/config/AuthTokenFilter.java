@@ -29,17 +29,11 @@ public class AuthTokenFilter extends OncePerRequestFilter {
     }
 
     @Override
-    protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getRequestURI().substring(request.getContextPath().length());
-        return path.startsWith("/api/v1/home/");
-    }
-
-    @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
         String authHeader = request.getHeader("Authorization");
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+        if (authHeader != null && authHeader.regionMatches(true, 0, "Bearer ", 0, 7)) {
             String token = authHeader.substring(7).trim();
             TokenService.TokenClaims claims = tokenService.parseToken(token);
 
@@ -47,8 +41,15 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                 Optional<UserRecord> userOpt = authRepository.findUserById(claims.userId());
                 if (userOpt.isPresent()) {
                     UserRecord user = userOpt.get();
-                    if ("ACTIVE".equalsIgnoreCase(user.status()) && user.authVersion() == claims.authVersion()) {
-                        String roleName = user.role().startsWith("ROLE_") ? user.role() : "ROLE_" + user.role();
+                    boolean usernameMatches = claims.username() == null
+                            || claims.username().isBlank()
+                            || claims.username().equals(user.username());
+
+                    if ("ACTIVE".equalsIgnoreCase(user.status())
+                            && user.authVersion() == claims.authVersion()
+                            && usernameMatches) {
+                        String role = user.role();
+                        String roleName = role.startsWith("ROLE_") ? role : "ROLE_" + role;
                         SimpleGrantedAuthority authority = new SimpleGrantedAuthority(roleName);
                         UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                                 user,

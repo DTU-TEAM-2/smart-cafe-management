@@ -5,7 +5,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 import vn.codegym.smartcafe.auth.dto.ForgotPasswordResponse;
 import vn.codegym.smartcafe.auth.dto.VerifyOtpResponse;
 
@@ -32,12 +35,14 @@ public class OtpService {
     private final PasswordEncoder passwordEncoder;
     private final long otpValiditySeconds;
     private final SecureRandom secureRandom = new SecureRandom();
+    private final TransactionTemplate requiresNewTx;
 
     public OtpService(
             AuthRepository authRepository,
             TokenService tokenService,
             EmailService emailService,
             PasswordEncoder passwordEncoder,
+            PlatformTransactionManager transactionManager,
             @Value("${smartcafe.auth.otp-validity-seconds:600}") long otpValiditySeconds
     ) {
         this.authRepository = authRepository;
@@ -45,33 +50,40 @@ public class OtpService {
         this.emailService = emailService;
         this.passwordEncoder = passwordEncoder;
         this.otpValiditySeconds = otpValiditySeconds;
+        this.requiresNewTx = new TransactionTemplate(transactionManager);
+        this.requiresNewTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     @Transactional
     public ForgotPasswordResponse initiatePasswordResetOtp(String email) {
-        String normalizedEmail = email.trim().toLowerCase();
-        String emailKey = tokenService.hmacSha256("LIMIT:" + normalizedEmail);
+        if (email == null || !email.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+            throw new OtpException("Định dạng email không hợp lệ.");
+        }
+
         Instant now = Instant.now();
         Instant nextSendAt = now.plusSeconds(COOLDOWN_SECONDS);
+        Instant windowStart = now;
 
-        boolean allowed = authRepository.checkAndIncrementLimit(emailKey, "RESET", now, now, nextSendAt);
+        // Anti-enumeration: neutral response even if email doesn't exist
+        Optional<UserRecord> userOpt = authRepository.findUserByEmail(email.trim());
+
+        String emailKey = tokenService.hmacSha256("LIMIT:" + email.trim().toLowerCase());
+        boolean allowed = authRepository.checkAndIncrementLimit(emailKey, "RESET", now, windowStart, nextSendAt);
         if (!allowed) {
-            throw new OtpException("Bạn đã gửi yêu cầu quá nhiều lần. Vui lòng đợi trong giây lát rồi thử lại.", COOLDOWN_SECONDS);
+            throw new OtpException("Bạn đã yêu cầu gửi mã quá số lần cho phép. Vui lòng đợi trước khi thử lại.");
         }
 
         String challengeId = tokenService.generateRandomHex(32);
-        Optional<UserRecord> userOpt = authRepository.findUserByEmail(normalizedEmail);
+        String otpCode = generateNumericOtp();
+        String codeHash = tokenService.hmacSha256(challengeId + "|RESET|" + otpCode);
+        Instant expiresAt = now.plusSeconds(otpValiditySeconds);
 
-        if (userOpt.isPresent() && "ACTIVE".equalsIgnoreCase(userOpt.get().status())) {
+        if (userOpt.isPresent()) {
             UserRecord user = userOpt.get();
-            String otpCode = generateNumericOtp();
-            String codeHash = tokenService.hmacSha256(challengeId + "|RESET|" + otpCode);
-            Instant expiresAt = now.plusSeconds(otpValiditySeconds);
-
             OtpChallengeRecord challenge = new OtpChallengeRecord(
                     challengeId,
                     user.id(),
-                    normalizedEmail,
+                    user.email(),
                     "RESET",
                     codeHash,
                     0,
@@ -87,13 +99,12 @@ public class OtpService {
             authRepository.saveOtpChallenge(challenge);
 
             try {
-                emailService.sendOtpEmail(normalizedEmail, otpCode, "RESET", otpValiditySeconds);
+                emailService.sendOtpEmail(user.email(), otpCode, "RESET", otpValiditySeconds);
             } catch (Exception ex) {
-                log.error("Failed to send OTP to recipient: {}", ex.getMessage());
+                log.error("Failed to send OTP email to {}: {}", user.email(), ex.getMessage());
             }
         } else {
-            // Neutral behavior: record a dummy challenge or just return neutral response to prevent account enumeration
-            log.info("Password reset requested for unknown/inactive email address.");
+            log.info("Password reset requested for non-existent email: {}", email);
         }
 
         return new ForgotPasswordResponse(
@@ -104,7 +115,7 @@ public class OtpService {
         );
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = OtpException.class)
     public VerifyOtpResponse verifyOtp(String challengeId, String inputOtp) {
         if (inputOtp == null || !inputOtp.matches("^[0-9]{6}$")) {
             throw new OtpException("Mã OTP phải gồm đúng 6 chữ số.");
@@ -126,8 +137,6 @@ public class OtpService {
             throw new OtpException("Bạn đã nhập sai quá 5 lần. Mã OTP đã bị vô hiệu hóa.");
         }
 
-        authRepository.incrementOtpAttempts(challengeId);
-
         String expectedHash = tokenService.hmacSha256(challengeId + "|" + challenge.purpose() + "|" + inputOtp.trim());
         boolean isMatch = MessageDigest.isEqual(
                 expectedHash.getBytes(StandardCharsets.UTF_8),
@@ -135,24 +144,41 @@ public class OtpService {
         );
 
         if (!isMatch) {
-            int remaining = MAX_ATTEMPTS - (challenge.attempts() + 1);
-            if (remaining <= 0) {
+            // Commit attempt increment immediately in its own transaction so it cannot be rolled back
+            int updatedAttempts = requiresNewTx.execute(status -> {
+                authRepository.incrementOtpAttempts(challengeId);
+                return authRepository.findOtpChallengeById(challengeId)
+                        .map(OtpChallengeRecord::attempts)
+                        .orElse(MAX_ATTEMPTS);
+            });
+
+            if (updatedAttempts >= MAX_ATTEMPTS) {
                 throw new OtpException("Bạn đã nhập sai quá 5 lần. Mã OTP đã bị vô hiệu hóa.");
             }
+            int remaining = MAX_ATTEMPTS - updatedAttempts;
             throw new OtpException("Mã OTP không chính xác. Bạn còn " + remaining + " lần thử.");
         }
 
-        authRepository.markOtpUsed(challengeId);
+        // Atomic conditional consume: only proceed if exactly 1 row was updated
+        int consumed = authRepository.markOtpUsed(challengeId);
+        if (consumed == 0) {
+            throw new OtpException("Yêu cầu xác minh không hợp lệ hoặc đã được sử dụng.");
+        }
 
         if ("RESET".equalsIgnoreCase(challenge.purpose())) {
             if (challenge.userId() == null) {
                 throw new OtpException("Không tìm thấy thông tin tài khoản liên kết.");
             }
-            String rawGrantToken = tokenService.generateRandomHex(32);
-            String tokenHash = sha256(rawGrantToken);
-            Instant tokenExpiresAt = now.plusSeconds(otpValiditySeconds);
+            UserRecord user = authRepository.findUserById(challenge.userId())
+                    .orElseThrow(() -> new OtpException("Không tìm thấy thông tin tài khoản liên kết."));
 
-            authRepository.savePasswordResetToken(challenge.userId(), tokenHash, tokenExpiresAt);
+            String rawGrantToken = tokenService.generateResetGrantToken(
+                    challengeId,
+                    user.id(),
+                    user.authVersion(),
+                    otpValiditySeconds
+            );
+
             return new VerifyOtpResponse("RESET", rawGrantToken, "Xác minh OTP thành công. Vui lòng nhập mật khẩu mới.");
         }
 
@@ -203,13 +229,26 @@ public class OtpService {
         if (rawToken == null || rawToken.isBlank()) {
             return false;
         }
-        String tokenHash = sha256(rawToken.trim());
-        Optional<PasswordResetTokenRecord> tokenOpt = authRepository.findPasswordResetToken(tokenHash);
-        if (tokenOpt.isEmpty()) {
+        TokenService.ResetGrantClaims claims = tokenService.parseResetGrantToken(rawToken.trim());
+        if (claims == null) {
             return false;
         }
-        PasswordResetTokenRecord record = tokenOpt.get();
-        return record.usedAt() == null && Instant.now().isBefore(record.expiresAt());
+
+        Optional<OtpChallengeRecord> challengeOpt = authRepository.findOtpChallengeById(claims.challengeId());
+        if (challengeOpt.isEmpty()) {
+            return false;
+        }
+        OtpChallengeRecord challenge = challengeOpt.get();
+        if (challenge.usedAt() == null || !claims.userId().equals(challenge.userId())) {
+            return false;
+        }
+
+        Optional<UserRecord> userOpt = authRepository.findUserById(claims.userId());
+        if (userOpt.isEmpty()) {
+            return false;
+        }
+        UserRecord user = userOpt.get();
+        return "ACTIVE".equalsIgnoreCase(user.status()) && user.authVersion() == claims.authVersion();
     }
 
     @Transactional
@@ -226,40 +265,44 @@ public class OtpService {
             throw new InvalidPasswordException("Mật khẩu mới không hợp lệ. Mật khẩu phải có từ 8 đến 64 ký tự, gồm ít nhất 1 chữ hoa, 1 chữ thường và 1 chữ số.");
         }
 
-        String tokenHash = sha256(rawToken.trim());
-        PasswordResetTokenRecord tokenRecord = authRepository.findPasswordResetToken(tokenHash)
-                .orElseThrow(() -> new InvalidTokenException("Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn."));
-
-        if (tokenRecord.usedAt() != null || Instant.now().isAfter(tokenRecord.expiresAt())) {
+        if (rawToken == null || rawToken.isBlank()) {
             throw new InvalidTokenException("Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.");
         }
 
-        UserRecord user = authRepository.findUserById(tokenRecord.userId())
+        TokenService.ResetGrantClaims claims = tokenService.parseResetGrantToken(rawToken.trim());
+        if (claims == null) {
+            throw new InvalidTokenException("Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.");
+        }
+
+        OtpChallengeRecord challenge = authRepository.findOtpChallengeById(claims.challengeId())
+                .orElseThrow(() -> new InvalidTokenException("Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn."));
+
+        if (challenge.usedAt() == null || !claims.userId().equals(challenge.userId())) {
+            throw new InvalidTokenException("Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.");
+        }
+
+        UserRecord user = authRepository.findUserById(claims.userId())
                 .orElseThrow(() -> new InvalidTokenException("Không tìm thấy thông tin tài khoản hợp lệ."));
+
+        if (!"ACTIVE".equalsIgnoreCase(user.status()) || user.authVersion() != claims.authVersion()) {
+            throw new InvalidTokenException("Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.");
+        }
 
         if (passwordEncoder.matches(newPassword, user.passwordHash())) {
             throw new InvalidPasswordException("Mật khẩu mới không được trùng với mật khẩu hiện tại.");
         }
 
-        authRepository.markPasswordResetTokenUsed(tokenHash);
+        // Atomic conditional consume: optimistic locking on auth_version
+        int updated = authRepository.updateUserPassword(user.id(), passwordEncoder.encode(newPassword), claims.authVersion());
+        if (updated == 0) {
+            throw new InvalidTokenException("Liên kết đặt lại mật khẩu không hợp lệ hoặc đã được sử dụng.");
+        }
 
-        String newPasswordHash = passwordEncoder.encode(newPassword);
-        authRepository.updateUserPassword(user.id(), newPasswordHash);
         log.info("User password successfully reset for user id {}", user.id());
     }
 
     private String generateNumericOtp() {
         int code = secureRandom.nextInt(1_000_000);
         return String.format("%06d", code);
-    }
-
-    private String sha256(String data) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(data.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(hash);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 not supported", e);
-        }
     }
 }

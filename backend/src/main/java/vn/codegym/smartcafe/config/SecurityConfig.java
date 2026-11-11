@@ -2,11 +2,9 @@ package vn.codegym.smartcafe.config;
 
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -33,10 +31,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, JdbcClient jdbc,
-            @Value("${smartcafe.auth.token-secret:}") String secret) throws Exception {
-        var headerTokenFilter = new HeaderTokenFilter(jdbc, secret);
-
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -74,8 +69,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/v1/staff/**").hasAnyRole("ADMIN", "STAFF")
                 .anyRequest().authenticated()
             )
-            .addFilterBefore(authTokenFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterBefore(headerTokenFilter, UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(authTokenFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
     }

@@ -39,7 +39,7 @@ public class AuthService {
             throw new InvalidCredentialsException("Tài khoản hoặc mật khẩu không chính xác.");
         }
 
-        String token = tokenService.generateToken(user.id(), user.role(), user.authVersion());
+        String token = tokenService.generateToken(user.id(), user.username(), user.role(), user.authVersion());
         UserDto userDto = new UserDto(
                 user.id(),
                 user.username(),

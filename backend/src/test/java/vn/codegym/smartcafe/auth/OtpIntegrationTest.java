@@ -13,10 +13,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-import java.util.List;
-
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.*;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -55,7 +53,6 @@ class OtpIntegrationTest {
 
     @AfterEach
     void cleanUp() {
-        jdbcTemplate.update("DELETE FROM password_reset_tokens");
         jdbcTemplate.update("DELETE FROM auth_otp_challenges");
         jdbcTemplate.update("DELETE FROM users WHERE username = 'otp_user'");
     }
@@ -79,6 +76,69 @@ class OtpIntegrationTest {
     }
 
     @Test
+    void wrongOtpAttemptsArePersistedAndLockedAfterFiveFailures() throws Exception {
+        // 1. Request forgot password
+        String forgotBody = "{\"email\": \"otp_user@smartcafe.vn\"}";
+        MvcResult forgotResult = mockMvc.perform(post("/api/v1/auth/forgot-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(forgotBody))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String challengeId = JsonPath.read(forgotResult.getResponse().getContentAsString(), "$.challengeId");
+
+        // Find correct OTP
+        String codeHash = jdbcTemplate.queryForObject(
+                "SELECT code_hash FROM auth_otp_challenges WHERE id = ?",
+                String.class,
+                challengeId
+        );
+        String correctOtp = null;
+        for (int i = 0; i < 1_000_000; i++) {
+            String candidate = String.format("%06d", i);
+            if (tokenService.hmacSha256(challengeId + "|RESET|" + candidate).equals(codeHash)) {
+                correctOtp = candidate;
+                break;
+            }
+        }
+        assertThat(correctOtp).isNotNull();
+
+        // 2. Enter wrong OTP 5 times, verify attempt increments are committed to database
+        String wrongOtp = correctOtp.equals("000000") ? "111111" : "000000";
+        String wrongOtpBody = String.format("{\"challengeId\": \"%s\", \"otp\": \"%s\"}", challengeId, wrongOtp);
+
+        for (int i = 1; i <= 5; i++) {
+            mockMvc.perform(post("/api/v1/auth/verify-otp")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(wrongOtpBody))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.code").value("OTP_ERROR"));
+
+            Integer attemptsInDb = jdbcTemplate.queryForObject(
+                    "SELECT attempts FROM auth_otp_challenges WHERE id = ?",
+                    Integer.class,
+                    challengeId
+            );
+            assertThat(attemptsInDb).isEqualTo(i);
+        }
+
+        // 3. 6th attempt with wrong OTP is locked
+        mockMvc.perform(post("/api/v1/auth/verify-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(wrongOtpBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(containsString("quá 5 lần")));
+
+        // 4. 7th attempt with CORRECT OTP is ALSO rejected because challenge is locked
+        String correctOtpBody = String.format("{\"challengeId\": \"%s\", \"otp\": \"%s\"}", challengeId, correctOtp);
+        mockMvc.perform(post("/api/v1/auth/verify-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(correctOtpBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.detail").value(containsString("quá 5 lần")));
+    }
+
+    @Test
     void completeOtpAndResetPasswordFlow() throws Exception {
         // 1. Request forgot password
         String forgotBody = "{\"email\": \"otp_user@smartcafe.vn\"}";
@@ -90,8 +150,7 @@ class OtpIntegrationTest {
 
         String challengeId = JsonPath.read(forgotResult.getResponse().getContentAsString(), "$.challengeId");
 
-        // 2. Query codeHash and find the OTP in tests (or brute force in test environment: 6 digits)
-        // Since codeHash = HMAC(challengeId + "|RESET|" + otp), let's find the matching OTP in 1000000 space
+        // 2. Query codeHash and find the OTP in tests
         String codeHash = jdbcTemplate.queryForObject(
                 "SELECT code_hash FROM auth_otp_challenges WHERE id = ?",
                 String.class,

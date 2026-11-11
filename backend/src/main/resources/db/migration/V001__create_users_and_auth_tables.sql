@@ -65,30 +65,3 @@ CREATE TABLE IF NOT EXISTS auth_otp_limits (
     CONSTRAINT ck_auth_otp_limits_count CHECK (request_count >= 0),
     CONSTRAINT ck_auth_otp_limits_purpose CHECK (purpose IN ('REGISTER', 'RESET'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
-CREATE TABLE IF NOT EXISTS password_reset_tokens (
-    id BIGINT NOT NULL AUTO_INCREMENT,
-    user_id BIGINT NOT NULL,
-    token_hash VARCHAR(64) NOT NULL,
-    expires_at DATETIME(6) NOT NULL,
-    used_at DATETIME(6) NULL,
-    created_at DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    PRIMARY KEY (id),
-    UNIQUE KEY uq_reset_token_hash (token_hash),
-    KEY ix_reset_token_lookup (token_hash, expires_at, used_at),
-    KEY ix_reset_token_user (user_id),
-    CONSTRAINT fk_reset_token_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
-
--- Initial default system accounts for testing & operations
-INSERT INTO users (id, username, password_hash, full_name, email, phone, role, status, created_at, updated_at)
-VALUES
-(1, 'admin', '$2a$10$CQWqQs51AFyO1lj81KG4mOxo0q2pFZarxrQ3RSY6J9bKlDngZGRYa', 'Quản Trị Viên', 'khatruong2k5@gmail.com', '0901234567', 'ADMIN', 'ACTIVE', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6)),
-(2, 'staff', '$2a$10$gij91r8U.WBJvSX0RgpzFessUJStY/bRP.jlwZYoK0RFJr6KS2hSu', 'Nhân Viên Phục Vụ', 'kha0901le@gmail.com', '0907654321', 'STAFF', 'ACTIVE', CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))
-ON DUPLICATE KEY UPDATE
-    email = VALUES(email),
-    password_hash = VALUES(password_hash),
-    full_name = VALUES(full_name),
-    role = VALUES(role),
-    status = VALUES(status),
-    updated_at = CURRENT_TIMESTAMP(6);

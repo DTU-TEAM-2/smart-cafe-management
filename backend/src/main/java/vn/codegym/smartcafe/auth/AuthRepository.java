@@ -5,8 +5,6 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Optional;
@@ -49,15 +47,6 @@ public class AuthRepository {
             toInstant(rs.getTimestamp("created_at")),
             rs.getString("last_error_code"),
             toInstant(rs.getTimestamp("sent_at"))
-    );
-
-    private static final RowMapper<PasswordResetTokenRecord> RESET_TOKEN_ROW_MAPPER = (rs, rowNum) -> new PasswordResetTokenRecord(
-            rs.getLong("id"),
-            rs.getLong("user_id"),
-            rs.getString("token_hash"),
-            toInstant(rs.getTimestamp("expires_at")),
-            toInstant(rs.getTimestamp("used_at")),
-            toInstant(rs.getTimestamp("created_at"))
     );
 
     private static Instant toInstant(Timestamp ts) {
@@ -104,6 +93,19 @@ public class AuthRepository {
         } catch (EmptyResultDataAccessException e) {
             return Optional.empty();
         }
+    }
+
+    public int updateUserPassword(Long userId, String newPasswordHash, long expectedAuthVersion) {
+        String sql = """
+            UPDATE users
+            SET password_hash = ?,
+                password_changed_at = CURRENT_TIMESTAMP(6),
+                auth_version = auth_version + 1,
+                must_change_password = 0,
+                updated_at = CURRENT_TIMESTAMP(6)
+            WHERE id = ? AND auth_version = ?
+            """;
+        return jdbcTemplate.update(sql, newPasswordHash, userId, expectedAuthVersion);
     }
 
     public int updateUserPassword(Long userId, String newPasswordHash) {
@@ -158,7 +160,7 @@ public class AuthRepository {
     }
 
     public int incrementOtpAttempts(String challengeId) {
-        String sql = "UPDATE auth_otp_challenges SET attempts = attempts + 1 WHERE id = ?";
+        String sql = "UPDATE auth_otp_challenges SET attempts = attempts + 1 WHERE id = ? AND attempts < 5 AND used_at IS NULL";
         return jdbcTemplate.update(sql, challengeId);
     }
 
@@ -170,7 +172,7 @@ public class AuthRepository {
                 expires_at = ?,
                 next_send_at = ?,
                 sent_at = CURRENT_TIMESTAMP(6)
-            WHERE id = ?
+            WHERE id = ? AND used_at IS NULL
             """;
         return jdbcTemplate.update(
                 sql,
@@ -182,7 +184,7 @@ public class AuthRepository {
     }
 
     public int markOtpUsed(String challengeId) {
-        String sql = "UPDATE auth_otp_challenges SET used_at = CURRENT_TIMESTAMP(6) WHERE id = ? AND used_at IS NULL";
+        String sql = "UPDATE auth_otp_challenges SET used_at = CURRENT_TIMESTAMP(6) WHERE id = ? AND used_at IS NULL AND attempts < 5 AND expires_at > CURRENT_TIMESTAMP(6)";
         return jdbcTemplate.update(sql, challengeId);
     }
 
@@ -222,31 +224,5 @@ public class AuthRepository {
         } catch (Exception e) {
             return true;
         }
-    }
-
-    public void savePasswordResetToken(Long userId, String tokenHash, Instant expiresAt) {
-        String sql = """
-            INSERT INTO password_reset_tokens (user_id, token_hash, expires_at, created_at)
-            VALUES (?, ?, ?, CURRENT_TIMESTAMP(6))
-            """;
-        jdbcTemplate.update(sql, userId, tokenHash, Timestamp.from(expiresAt));
-    }
-
-    public Optional<PasswordResetTokenRecord> findPasswordResetToken(String tokenHash) {
-        String sql = """
-            SELECT id, user_id, token_hash, expires_at, used_at, created_at
-            FROM password_reset_tokens
-            WHERE token_hash = ?
-            """;
-        try {
-            return Optional.ofNullable(jdbcTemplate.queryForObject(sql, RESET_TOKEN_ROW_MAPPER, tokenHash));
-        } catch (EmptyResultDataAccessException e) {
-            return Optional.empty();
-        }
-    }
-
-    public int markPasswordResetTokenUsed(String tokenHash) {
-        String sql = "UPDATE password_reset_tokens SET used_at = CURRENT_TIMESTAMP(6) WHERE token_hash = ? AND used_at IS NULL";
-        return jdbcTemplate.update(sql, tokenHash);
     }
 }
