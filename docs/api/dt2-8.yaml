@@ -121,12 +121,12 @@ paths:
 
   /api/v1/statistics/revenue:
     get:
-      summary: Thống kê doanh thu, chuỗi ngày biểu đồ cột và tỷ trọng món biểu đồ tròn
+      summary: Thống kê doanh thu và chuỗi ngày biểu đồ cột
       description: >
         Dành riêng cho Quản lý (ADMIN). Thống kê tổng hợp số liệu doanh thu từ các
         hóa đơn có trạng thái PAID theo mốc paid_at trong múi giờ Asia/Ho_Chi_Minh.
         Dữ liệu này phục vụ trực tiếp cho số liệu tóm tắt, biểu đồ cột (dailyRevenue)
-        và biểu đồ tròn (itemSales).
+        và không công bố tỷ trọng khi chưa có quyết định nghiệp vụ.
       security:
         - BearerAuth: []
       parameters:
@@ -343,71 +343,11 @@ components:
           format: int64
           example: 1
 
-    ItemSales:
-      type: object
-      required:
-        - itemCode
-        - itemName
-        - quantity
-        - revenue
-        - percentage
-      properties:
-        itemCode:
-          type: string
-          example: "CF-01"
-        itemName:
-          type: string
-          example: "Cà phê sữa"
-        quantity:
-          type: integer
-          format: int64
-          example: 2
-        revenue:
-          type: string
-          example: "70000"
-        percentage:
-          type: number
-          format: double
-          example: 63.6
-
-    SummaryStatistics:
-      type: object
-      required:
-        - from
-        - to
-        - timezone
-        - totalRevenue
-        - totalBills
-        - averageBillAmount
-      properties:
-        from:
-          type: string
-          format: date
-          example: "2026-11-01"
-        to:
-          type: string
-          format: date
-          example: "2026-11-30"
-        timezone:
-          type: string
-          example: "Asia/Ho_Chi_Minh"
-        totalRevenue:
-          type: string
-          example: "110000"
-        totalBills:
-          type: integer
-          format: int64
-          example: 1
-        averageBillAmount:
-          type: string
-          example: "110000"
-
     Statistics:
       type: object
       required:
         - summary
         - dailyRevenue
-        - itemSales
       properties:
         summary:
           $ref: '#/components/schemas/SummaryStatistics'
@@ -415,7 +355,3 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DayRevenue'
-        itemSales:
-          type: array
-          items:
-            $ref: '#/components/schemas/ItemSales'

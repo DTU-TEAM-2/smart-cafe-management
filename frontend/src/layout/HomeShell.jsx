@@ -3,6 +3,7 @@ import HomePage from "../home/HomePage.jsx";
 import SiteLayout from "./SiteLayout.jsx";
 import LoginPage from "../auth/LoginPage.jsx";
 import BillsWorkspace from "../billing/BillsWorkspace.jsx";
+import SalesWorkspace from "../sales/SalesWorkspace.jsx";
 
 function subscribeHash(callback) {
   window.addEventListener("hashchange", callback);
@@ -88,19 +89,23 @@ function ScopedHomeShell({ authorization = "", loginHref = "#login", credentials
 
   const onAccountPage = hash === "#account";
   const onLoginPage = hash === "#login";
-  const onBillsPage = hash === "#bills" || hash === "#manage/bills" || hash === "#manage-bills" || hash === "#statistics";
+  const onBillsPage = ["#bills", "#manage/bills", "#manage-bills", "#statistics"].includes(hash);
+  const onSalesPage = hash === "#sale" || hash === "#sale-income";
   useEffect(() => {
-    if (!onAccountPage && !onLoginPage && !onBillsPage && hash) {
+    if (!onAccountPage && !onLoginPage && !onSalesPage && !onBillsPage && hash) {
       const frame = requestAnimationFrame(() => document.getElementById(hash.slice(1))?.scrollIntoView());
       return () => cancelAnimationFrame(frame);
     }
-    if (onAccountPage || onLoginPage || onBillsPage) {
+    if (onAccountPage || onLoginPage || onSalesPage || onBillsPage) {
       window.scrollTo(0, 0);
-      document.getElementById("main")?.focus({ preventScroll: true });
+      document.getElementById(onSalesPage ? "sale-main" : "main")?.focus({ preventScroll: true });
     }
-  }, [hash, onAccountPage, onLoginPage, onBillsPage]);
+  }, [hash, onAccountPage, onLoginPage, onSalesPage, onBillsPage]);
 
   const account = identity.account ? { ...identity.account, profileHref: "#account" } : null;
+  if (onSalesPage) return <SalesWorkspace account={account} identityStatus={identity.status}
+    authorization={authorization} credentials={credentials} income={hash === "#sale-income"}
+    retryIdentity={() => { setIdentity({ status: "loading", account: null }); setAccountAttempt(value => value + 1); }} />;
   const notifications = feed.data && { ...feed.data, items: feed.data.items.map(item => ({ ...item, read: readIds.has(item.id) })) };
   return <SiteLayout account={account} notifications={notifications} links={{ login: loginHref }}
     currentPage={onBillsPage ? "bills" : onAccountPage ? "account" : onLoginPage ? "login" : "home"} notificationState={feed.status}
@@ -110,20 +115,16 @@ function ScopedHomeShell({ authorization = "", loginHref = "#login", credentials
       <button type="button" onClick={() => setAccountAttempt(value => value + 1)}>Thử lại</button></div>}
     {onLoginPage ? account ? <section className="account-page"><h1>Bạn đã đăng nhập</h1><a href="#account">Xem thông tin tài khoản</a></section>
       : <LoginPage />
-      : onAccountPage ? <AccountPage status={identity.status} account={identity.account} />
-      : onBillsPage ? (
-          identity.status === "loading" ? (
-            <section className="account-page"><p role="status">Đang tải…</p></section>
-          ) : identity.account?.role === "ADMIN" ? (
-            <BillsWorkspace authorization={authorization} />
-          ) : (
-            <section className="account-page" aria-labelledby="bills-guard-title">
+      : onAccountPage ? <AccountPage status={identity.status} account={identity.account} /> :
+      onBillsPage ? identity.status === "loading"
+        ? <section className="account-page"><p role="status">Đang tải thông tin tài khoản…</p></section>
+        : account?.role === "ADMIN"
+          ? <BillsWorkspace authorization={authorization} statistics={hash === "#statistics"} />
+          : <section className="account-page" aria-labelledby="bills-guard-title">
               <h1 id="bills-guard-title">Khu vực quản lý hóa đơn</h1>
               <p>Khu vực quản lý chỉ dành cho Quản trị viên (ADMIN).</p>
               <a href="#top">Về trang chủ</a>
             </section>
-          )
-        )
       : <HomePage />}
   </SiteLayout>;
 }

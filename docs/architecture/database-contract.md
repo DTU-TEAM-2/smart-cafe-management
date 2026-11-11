@@ -36,3 +36,9 @@ Lần cập nhật rule ngày 11/11 chỉ lưu/đối chiếu tài liệu và fi
 Ghi task, nguồn ảnh/DDL và ngày đối chiếu, bảng/cột/constraint, khác biệt, hành vi bị ảnh hưởng, người cần quyết định và link kết luận. Trước khi có kết luận, không tự thêm migration, đổi entity để tạo schema, tắt constraint hay nạp dữ liệu cho code chạy tạm.
 
 Giữ tiền decimal/BigDecimal và biểu diễn chính xác qua API theo DDL đã chốt. Dữ liệu kiểm thử chỉ ở `_test`; không tự tạo người dùng, đơn, thanh toán hay thông báo vào DB hệ thống để lấp UI. Việc nhập dữ liệu ngày 06/11 là [yêu cầu riêng đã ghi nhận của chủ repo](../handover/2026-11-06-owner-requested-home-data.md), không phải quyền seed mặc định cho các task khác.
+
+## DT2-9 — đối chiếu ngày 11/11/2026 cho PR #8
+
+Theo yêu cầu chủ repo, đã đọc cấu hình kết nối legacy và chạy SHOW CREATE TABLE / metadata read-only trên MySQL local 8.0.46; không đọc row nghiệp vụ hoặc thay đổi database. DB local hiện chỉ có `flyway_schema_history`, `menu_item_order_totals`, `menu_items`. Bảng món còn `price decimal(12,0)` và `image_url`, thiếu `category_id`, `image_media_id`, `available`, `version`; thiếu toàn bộ `menu_categories`, `media_assets`, `users`. Đây là DDL cũ, không khớp mô hình mới và không thể dùng để smoke module hiện tại.
+
+Sau khi được báo chênh lệch, chủ repo gửi lại sơ đồ DB mới và xác nhận “tôi đã gửi sơ đồ db mới”. PR #8 lấy [sơ đồ ngày 11/11](../handover/evidence/system-database-reference-2026-11-11.jpg) làm mô hình đích: PK số, category_id, image_media_id, price decimal(18,0), media_assets; không có description hoặc cột image_url của menu_items. Không nâng cấp DB local, không thêm migration/runtime DDL. Fixture main giữ nguyên để provision schema *_test mới trên instance kiểm thử riêng. Constraint/default/index của fixture chỉ là điều kiện kiểm thử lịch sử, không được tuyên bố đã xác minh cho DB triển khai từ ảnh. Triển khai thực cần chủ DB cung cấp DDL phù hợp mô hình đích và đối chiếu lại trước khi chạy.

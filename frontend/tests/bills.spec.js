@@ -82,11 +82,7 @@ const mockStats = {
     { date: "2026-11-10", revenue: "180000", billCount: 1 },
     { date: "2026-11-11", revenue: "95000", billCount: 1 },
   ],
-  itemSales: [
-    { itemCode: "CF01", itemName: "Cà phê sữa đá", totalQuantity: 2, totalRevenue: "70000", percentage: 25.5 },
-    { itemCode: "CF02", itemName: "Bạc xỉu", totalQuantity: 1, totalRevenue: "40000", percentage: 14.5 },
-    { itemCode: "BK01", itemName: "Bánh croissant", totalQuantity: 1, totalRevenue: "70000", percentage: 25.5 },
-  ],
+
 };
 
 async function setToken(page, token) {
@@ -151,16 +147,16 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
     await setToken(page, "admin-token");
     await navigateToBills(page);
 
-    await expect(page.getByRole("heading", { name: "Quản lý Hóa đơn & Thống kê" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Quản lý hóa đơn", exact: true })).toBeVisible();
     await expect(page.getByText("BILL-2026-001")).toBeVisible();
     await expect(page.getByText("BILL-2026-002")).toBeVisible();
     await expect(page.getByText("180.000 ₫")).toBeVisible();
     await expect(page.getByText("95.000 ₫")).toBeVisible();
 
     if (page.viewportSize()?.width === 1440) {
-      await page.screenshot({ path: "../docs/handover/evidence/dt2-8/dt2-8-bills-desktop.png", fullPage: true });
+      await page.screenshot({ path: test.info().outputPath("dt2-8-bills-desktop.png"), fullPage: true });
     } else {
-      await page.screenshot({ path: "../docs/handover/evidence/dt2-8/dt2-8-bills-mobile.png", fullPage: true });
+      await page.screenshot({ path: test.info().outputPath("dt2-8-bills-mobile.png"), fullPage: true });
     }
   });
 
@@ -261,15 +257,41 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
     await expect(dialog.getByRole("button", { name: "In hóa đơn" })).toBeVisible();
 
     if (page.viewportSize()?.width === 1440) {
-      await page.screenshot({ path: "../docs/handover/evidence/dt2-8/dt2-8-detail-modal-desktop.png" });
+      await page.screenshot({ path: test.info().outputPath("dt2-8-detail-modal-desktop.png") });
     }
 
     // Close modal
-    await dialog.getByRole("button", { name: "Đóng", exact: true }).click();
+    await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
+    await expect(detailBtn).toBeFocused();
   });
 
-  test("Statistics view renders column chart, donut chart and summary KPI cards", async ({ page }) => {
+  test("Pagination uses the last submitted search rather than the edited input", async ({ page }) => {
+    await page.route("**/api/v1/home/account", route => route.fulfill({ json: admin }));
+    await page.route("**/api/v1/bills?**", route => {
+      const query = new URL(route.request().url()).searchParams;
+      const current = Number(query.get("page"));
+      return route.fulfill({
+        json: { content: [mockBills[current]], totalElements: 11, totalPages: 2, page: current },
+      });
+    });
+    await page.goto("/#bills");
+    await setToken(page, "admin-token");
+    const keyword = page.getByRole("textbox", { name: "Từ khóa tìm kiếm hóa đơn" });
+    await keyword.fill("BILL");
+    await page.getByRole("button", { name: "Search by ID" }).click();
+    await expect(page.getByText("BILL-2026-001")).toBeVisible();
+    await keyword.fill("NOT-SUBMITTED");
+    const next = page.waitForRequest(request => {
+      const url = new URL(request.url());
+      return url.pathname === "/api/v1/bills" && url.searchParams.get("page") === "1";
+    });
+    await page.getByRole("button", { name: "Trang tiếp theo" }).click();
+    expect(new URL((await next).url()).searchParams.get("code")).toBe("BILL");
+    await expect(page.getByText("BILL-2026-002")).toBeVisible();
+  });
+
+  test("Statistics route renders column chart and summary KPI cards", async ({ page }) => {
     await page.route("**/api/v1/home/account", route =>
       route.fulfill({ json: admin })
     );
@@ -286,7 +308,7 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
     await setToken(page, "admin-token");
 
     // Switch to Statistics tab
-    const statsTab = page.getByRole("tab", { name: /Biểu đồ thống kê/ });
+    const statsTab = page.getByRole("link", { name: "Thống kê doanh thu" });
     await statsTab.click();
 
     // Verify KPI cards
@@ -295,14 +317,10 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
 
     // Verify charts
     await expect(page.getByRole("img", { name: "Biểu đồ cột: Doanh thu theo ngày" })).toBeVisible();
-    await expect(page.getByRole("img", { name: "Biểu đồ tròn: Cơ cấu doanh thu theo món ăn" })).toBeVisible();
-
-    // Verify item sales breakdown in legend
-    await expect(page.getByText("Cà phê sữa đá", { exact: true })).toBeVisible();
-    await expect(page.locator(".billing-pie-legend").getByText("25.5%")).toHaveCount(2); // Two items with 25.5% in legend
+    await expect(page).toHaveURL(/#statistics$/);
 
     if (page.viewportSize()?.width === 1440) {
-      await page.screenshot({ path: "../docs/handover/evidence/dt2-8/dt2-8-statistics-desktop.png", fullPage: true });
+      await page.screenshot({ path: test.info().outputPath("dt2-8-statistics-desktop.png"), fullPage: true });
     }
   });
 });

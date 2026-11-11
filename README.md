@@ -91,3 +91,8 @@ Với xác thực thật, `HomeShell` nhận token từ module đăng nhập; en
 Server kiểm chữ ký/HMAC và thời hạn theo hợp đồng bearer của module đăng nhập, rồi đọc lại username, role, status, auth_version từ users. Payload tự nhận ADMIN không cấp quyền ADMIN. Token sai/hết hạn, user khóa/thu hồi bị từ chối. Chưa đăng nhập thì avatar hiển thị trạng thái khách; không tạo người dùng thay thế.
 
 Database hệ thống hiện chưa có món/tài khoản/order/service thì UI hiển thị rỗng đúng thực tế. Không nạp dữ liệu thử vào smart_cafe để làm đầy màn hình. Xem [hợp đồng DB](docs/architecture/database-contract.md) và [nghiệm thu DT2-1](docs/handover/dt2-1-acceptance.md).
+
+
+## Backend DT2-9: món và nhóm món
+
+API ADMIN cho CRUD, tìm kiếm, xóa logic, optimistic locking và upload ảnh tham chiếu media_assets. Dùng auth chung và mô hình DB mới; không tự DDL/seed. Xem [hướng dẫn backend](backend/README.md), [OpenAPI](docs/api/dt2-9-menu.yaml), [testcase Postman](docs/qa/dt2-9-postman-test-cases.md) và [báo cáo HTTP](docs/reports/dt2-9-api/index.html). DDL local legacy chưa khớp sơ đồ; không trỏ module này vào DB cũ để chạy thử.

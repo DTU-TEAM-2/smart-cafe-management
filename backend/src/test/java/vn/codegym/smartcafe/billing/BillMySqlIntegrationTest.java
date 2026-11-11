@@ -200,6 +200,16 @@ class BillMySqlIntegrationTest {
     }
 
     @Test
+    void wildcardCharactersInBillSearchAreLiteral() throws Exception {
+        for (String keyword : new String[] {"%", "_", "!"}) {
+            mvc.perform(get("/api/v1/bills").header("Authorization", bearer(1, "admin_u"))
+                    .param("code", keyword))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.totalElements").value(0));
+        }
+    }
+
+    @Test
     void searchBillByCreatedDate() throws Exception {
         String adminAuth = bearer(1, "admin_u");
         // Bill 1 was created on 2026-11-10
@@ -307,16 +317,7 @@ class BillMySqlIntegrationTest {
                 .andExpect(jsonPath("$.dailyRevenue.length()").value(1))
                 .andExpect(jsonPath("$.dailyRevenue[0].date").value("2026-11-11"))
                 .andExpect(jsonPath("$.dailyRevenue[0].revenue").value("110000"))
-                .andExpect(jsonPath("$.dailyRevenue[0].billCount").value(1))
-                .andExpect(jsonPath("$.itemSales.length()").value(2))
-                .andExpect(jsonPath("$.itemSales[0].itemName").value("Cà phê sữa"))
-                .andExpect(jsonPath("$.itemSales[0].quantity").value(2))
-                .andExpect(jsonPath("$.itemSales[0].revenue").value("70000"))
-                .andExpect(jsonPath("$.itemSales[0].percentage").value(63.6)) // 70000 / 110000 = 63.6%
-                .andExpect(jsonPath("$.itemSales[1].itemName").value("Bạc xỉu"))
-                .andExpect(jsonPath("$.itemSales[1].quantity").value(1))
-                .andExpect(jsonPath("$.itemSales[1].revenue").value("40000"))
-                .andExpect(jsonPath("$.itemSales[1].percentage").value(36.4)); // 40000 / 110000 = 36.4%
+                .andExpect(jsonPath("$.dailyRevenue[0].billCount").value(1));
 
         // Query Nov 10 (when Bill 1 was created): revenue should be 0 because paid_at was Nov 11!
         mvc.perform(get("/api/v1/statistics/revenue").header("Authorization", adminAuth)
@@ -326,8 +327,7 @@ class BillMySqlIntegrationTest {
                 .andExpect(jsonPath("$.summary.totalRevenue").value("0"))
                 .andExpect(jsonPath("$.summary.totalBills").value(0))
                 .andExpect(jsonPath("$.summary.averageBillAmount").value("0"))
-                .andExpect(jsonPath("$.dailyRevenue[0].revenue").value("0"))
-                .andExpect(jsonPath("$.itemSales").isEmpty());
+                .andExpect(jsonPath("$.dailyRevenue[0].revenue").value("0"));
     }
 
     @Test

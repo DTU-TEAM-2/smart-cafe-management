@@ -5,48 +5,20 @@ export default function BillDetailModal({ bill, onClose }) {
   const modalRef = useRef(null);
 
   useEffect(() => {
-    function handleKeyDown(e) {
-      if (e.key === "Escape") {
-        onClose();
-      }
-      if (e.key === "Tab" && modalRef.current) {
-        const focusables = modalRef.current.querySelectorAll(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        if (focusables.length === 0) return;
-        const first = focusables[0];
-        const last = focusables[focusables.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-    modalRef.current?.focus();
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
-
-  if (!bill) return null;
+    const dialog = modalRef.current;
+    const trigger = document.activeElement;
+    dialog.showModal();
+    return () => {
+      dialog.close();
+      if (trigger instanceof HTMLElement && trigger.isConnected) trigger.focus();
+    };
+  }, []);
 
   return (
-    <div className="billing-modal-backdrop" onClick={onClose} role="presentation">
-      <div
-        ref={modalRef}
-        className="billing-modal-content"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="bill-detail-title"
-        tabIndex={-1}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <dialog ref={modalRef} className="billing-modal-content" aria-labelledby="bill-detail-title"
+      onCancel={(event) => { event.preventDefault(); onClose(); }}>
         <div className="billing-modal-header">
           <div>
-            <span className="eyebrow">Hóa đơn #{bill.billCode}</span>
             <h2 id="bill-detail-title">Chi tiết hóa đơn {bill.billCode ? `— ${bill.billCode}` : ""}</h2>
           </div>
           <button
@@ -122,13 +94,11 @@ export default function BillDetailModal({ bill, onClose }) {
             <strong>{vnd(bill.totalAmount)}</strong>
           </div>
           <div style={{ display: "flex", gap: "10px" }}>
-            <button
-              type="button"
-              className="billing-button secondary"
-              onClick={() => window.print()}
-            >
-              In hóa đơn
-            </button>
+            {bill.status === "PAID" && (
+              <button type="button" className="billing-button secondary" onClick={() => window.print()}>
+                In hóa đơn
+              </button>
+            )}
             <button
               type="button"
               className="billing-button primary"
@@ -138,7 +108,6 @@ export default function BillDetailModal({ bill, onClose }) {
             </button>
           </div>
         </div>
-      </div>
-    </div>
+    </dialog>
   );
 }
