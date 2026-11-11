@@ -1,0 +1,97 @@
+name: DT2-4 Postman
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/**'
+      - 'docs/qa/postman/**'
+      - 'scripts/render-customer-menu-postman.py'
+      - '.github/workflows/dt2-4-postman.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: dt2-4-postman-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  postman:
+    name: Customer Menu Postman HTTP
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MYSQL_DATABASE: smart_cafe_postman_test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - name: Prepare isolated test schema and synthetic menu only
+        shell: bash
+        run: |
+          container=$(docker ps -q --filter ancestor=mysql:8.0)
+          test "$(docker exec "$container" mysql -uroot -N smart_cafe_postman_test -e 'SELECT DATABASE()')" = smart_cafe_postman_test
+          docker exec -i "$container" mysql -uroot smart_cafe_postman_test < backend/src/test/resources/schema.sql
+          docker exec -i "$container" mysql -uroot smart_cafe_postman_test < docs/qa/postman/dt2-4-menu-test-fixture.sql
+      - name: Package backend
+        working-directory: backend
+        run: sh mvnw -B -ntp -DskipTests package
+      - name: Start real backend on loopback
+        env:
+          DB_URL: jdbc:mysql://127.0.0.1:3306/smart_cafe_postman_test?connectionTimeZone=UTC
+          DB_USERNAME: root
+          DB_PASSWORD: ''
+          SERVER_PORT: '18084'
+        shell: bash
+        run: |
+          mkdir -p backend/target/postman
+          java -jar backend/target/smart-cafe-0.0.1-SNAPSHOT.jar --server.address=127.0.0.1 > backend/target/postman/server.log 2>&1 &
+          echo $! > backend/target/postman/server.pid
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:18084/actuator/health > /dev/null; then exit 0; fi
+            sleep 1
+          done
+          exit 1
+      - name: Run Postman Collection with Newman 6.2.1
+        run: >-
+          npx --yes newman@6.2.1 run docs/qa/postman/dt2-4-menu-api.postman_collection.json
+          -e docs/qa/postman/smart-cafe-local.postman_environment.example.json
+          --env-var baseUrl=http://127.0.0.1:18084
+          --timeout-request 10000 --timeout 120000
+          -r cli,json --reporter-json-export backend/target/postman/newman.json
+      - name: Build report from actual Newman responses
+        if: always()
+        run: >-
+          python scripts/render-customer-menu-postman.py
+          backend/target/postman/newman.json backend/target/postman/report
+          --revision "${{ github.event.pull_request.head.sha || github.sha }}"
+          --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          --emit-log
+      - name: Upload actual Postman evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dt2-4-postman
+          path: |
+            backend/target/postman/newman.json
+            backend/target/postman/report/
+          if-no-files-found: warn
+      - name: Stop backend started by this job
+        if: always()
+        run: |
+          if [ -f backend/target/postman/server.pid ]; then
+            kill "$(cat backend/target/postman/server.pid)" || true
+          fi

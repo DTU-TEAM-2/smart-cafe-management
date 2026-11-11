@@ -1,0 +1,462 @@
+{
+  "generatedAt": "2026-11-11T06:23:04.869012+00:00",
+  "revision": "ad1bb343c577492e0e47a32c28b88387e7b7accf",
+  "runUrl": "https://github.com/DTU-TEAM-2/smart-cafe-management/actions/runs/42971930124",
+  "runner": "Newman 6.2.1 / Postman Collection v2.1",
+  "environment": "GitHub Actions / Spring Boot 4.1.2 / JDK 21 / MySQL 8.0 / smart_cafe_postman_test",
+  "fixture": "Synthetic menu rows only; existing schema.sql fixture, not production DDL.",
+  "stats": {
+    "iterations": {
+      "total": 1,
+      "pending": 0,
+      "failed": 0
+    },
+    "items": {
+      "total": 13,
+      "pending": 0,
+      "failed": 0
+    },
+    "scripts": {
+      "total": 13,
+      "pending": 0,
+      "failed": 0
+    },
+    "prerequests": {
+      "total": 13,
+      "pending": 0,
+      "failed": 0
+    },
+    "requests": {
+      "total": 13,
+      "pending": 0,
+      "failed": 0
+    },
+    "tests": {
+      "total": 13,
+      "pending": 0,
+      "failed": 0
+    },
+    "assertions": {
+      "total": 25,
+      "pending": 0,
+      "failed": 0
+    },
+    "testScripts": {
+      "total": 13,
+      "pending": 0,
+      "failed": 0
+    },
+    "prerequestScripts": {
+      "total": 0,
+      "pending": 0,
+      "failed": 0
+    }
+  },
+  "failureCount": 0,
+  "cases": [
+    {
+      "name": "1. Lấy danh sách nhóm món hợp lệ",
+      "method": "GET",
+      "url": "http://127.0.0.1:18084/api/v1/customer/menu/categories",
+      "status": 200,
+      "responseTimeMs": 77,
+      "body": [
+        {
+          "id": "1",
+          "code": "POSTMAN_COFFEE",
+          "name": "Cà phê kiểm thử",
+          "activeItemCount": 2
+        },
+        {
+          "id": "2",
+          "code": "POSTMAN_EMPTY",
+          "name": "Danh mục rỗng kiểm thử",
+          "activeItemCount": 0
+        }
+      ],
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Trả về mảng nhóm món",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "2. Lấy danh sách món toàn menu (phân trang mặc định)",
+      "method": "GET",
+      "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?page=0&size=10",
+      "status": 200,
+      "responseTimeMs": 31,
+      "body": {
+        "content": [
+          {
+            "id": "2",
+            "code": "PM_CF02",
+            "name": "Bạc xỉu 50% kiểm thử",
+            "price": "40000",
+            "imageUrl": null,
+            "available": false,
+            "categoryId": "1",
+            "categoryCode": "POSTMAN_COFFEE",
+            "categoryName": "Cà phê kiểm thử"
+          },
+          {
+            "id": "1",
+            "code": "PM_CF01",
+            "name": "Caramel Latte kiểm thử",
+            "price": "45000",
+            "imageUrl": "https://example.invalid/postman-latte.jpg",
+            "available": true,
+            "categoryId": "1",
+            "categoryCode": "POSTMAN_COFFEE",
+            "categoryName": "Cà phê kiểm thử"
+          }
+        ],
+        "totalElements": 2,
+        "page": 0,
+        "size": 10
+      },
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Đúng cấu trúc phân trang",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "3. Lấy danh sách món theo nhóm hợp lệ",
+      "method": "GET",
+      "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?categoryId=1&page=0&size=10",
+      "status": 200,
+      "responseTimeMs": 20,
+      "body": {
+        "content": [
+          {
+            "id": "2",
+            "code": "PM_CF02",
+            "name": "Bạc xỉu 50% kiểm thử",
+            "price": "40000",
+            "imageUrl": null,
+            "available": false,
+            "categoryId": "1",
+            "categoryCode": "POSTMAN_COFFEE",
+            "categoryName": "Cà phê kiểm thử"
+          },
+          {
+            "id": "1",
+            "code": "PM_CF01",
+            "name": "Caramel Latte kiểm thử",
+            "price": "45000",
+            "imageUrl": "https://example.invalid/postman-latte.jpg",
+            "available": true,
+            "categoryId": "1",
+            "categoryCode": "POSTMAN_COFFEE",
+            "categoryName": "Cà phê kiểm thử"
+          }
+        ],
+        "totalElements": 2,
+        "page": 0,
+        "size": 10
+      },
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Tất cả món đúng categoryId",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "4. Lấy danh sách món của danh mục rỗng",
+      "method": "GET",
+      "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?categoryId=2",
+      "status": 200,
+      "responseTimeMs": 22,
+      "body": {
+        "content": [],
+        "totalElements": 0,
+        "page": 0,
+        "size": 10
+      },
+      "assertions": [
+        {
+          "name": "HTTP 200 cho danh mục rỗng",
+          "passed": true
+        },
+        {
+          "name": "Mảng content rỗng",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "5. Lấy chi tiết món hợp lệ",
+      "method": "GET",
+      "url": "http://127.0.0.1:18084/api/v1/customer/menu/items/1",
+      "status": 200,
+      "responseTimeMs": 19,
+      "body": {
+        "id": "1",
+        "code": "PM_CF01",
+        "name": "Caramel Latte kiểm thử",
+        "price": "45000",
+        "imageUrl": "https://example.invalid/postman-latte.jpg",
+        "available": true,
+        "categoryId": "1",
+        "categoryCode": "POSTMAN_COFFEE",
+        "categoryName": "Cà phê kiểm thử"
+      },
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Có đủ tên, giá, ảnh và trạng thái phục vụ",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "6. Nhóm món không tồn tại (404)",
+      "method": "GET",
+      "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?categoryId=999999",
+      "status": 404,
+      "responseTimeMs": 29,
+      "body": {
+        "detail": "Không tìm thấy nhóm món.",
+        "instance": "/api/v1/customer/menu/items",
+        "status": 404,
+        "title": "Not Found"
+      },
+      "assertions": [
+        {
+          "name": "HTTP 404",
+          "passed": true
+        },
+        {
+          "name": "Thông báo tiếng Việt",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "7. Món không tồn tại (404)",
+      "method": "GET",
+      "url": "http://127.0.0.1:18084/api/v1/customer/menu/items/999999",
+      "status": 404,
+      "responseTimeMs": 13,
+      "body": {
+        "detail": "Không tìm thấy món.",
+        "instance": "/api/v1/customer/menu/items/999999",
+        "status": 404,
+        "title": "Not Found"
+      },
+      "assertions": [
+        {
+          "name": "HTTP 404",
+          "passed": true
+        },
+        {
+          "name": "Thông báo tiếng Việt",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "8. Tham số sai định dạng hoặc vượt giới hạn (400)",
+      "method": "GET",
+      "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?page=-1&size=200",
+      "status": 400,
+      "responseTimeMs": 10,
+      "body": {
+        "detail": "Tham số truy vấn thực đơn không hợp lệ.",
+        "instance": "/api/v1/customer/menu/items",
+        "status": 400,
+        "title": "Bad Request"
+      },
+      "assertions": [
+        {
+          "name": "HTTP 400",
+          "passed": true
+        },
+        {
+          "name": "Thông báo lỗi tiếng Việt",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "9. Từ chối method POST trên API xem menu (403)",
+      "method": "POST",
+      "url": "http://127.0.0.1:18084/api/v1/customer/menu/items",
+      "status": 403,
+      "responseTimeMs": 37,
+      "body": {
+        "timestamp": "2026-11-11T06:23:04.573Z",
+        "status": 403,
+        "error": "Forbidden",
+        "path": "/api/v1/customer/menu/items"
+      },
+      "assertions": [
+        {
+          "name": "HTTP 403",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "10. Tìm kiếm ký tự phần trăm theo nghĩa đen",
+      "method": "GET",
+      "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?keyword=50%25",
+      "status": 200,
+      "responseTimeMs": 23,
+      "body": {
+        "content": [
+          {
+            "id": "2",
+            "code": "PM_CF02",
+            "name": "Bạc xỉu 50% kiểm thử",
+            "price": "40000",
+            "imageUrl": null,
+            "available": false,
+            "categoryId": "1",
+            "categoryCode": "POSTMAN_COFFEE",
+            "categoryName": "Cà phê kiểm thử"
+          }
+        ],
+        "totalElements": 1,
+        "page": 0,
+        "size": 10
+      },
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Một món có 50% trong tên",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "11. Chỉ lấy món đang phục vụ",
+      "method": "GET",
+      "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?availableOnly=true",
+      "status": 200,
+      "responseTimeMs": 17,
+      "body": {
+        "content": [
+          {
+            "id": "1",
+            "code": "PM_CF01",
+            "name": "Caramel Latte kiểm thử",
+            "price": "45000",
+            "imageUrl": "https://example.invalid/postman-latte.jpg",
+            "available": true,
+            "categoryId": "1",
+            "categoryCode": "POSTMAN_COFFEE",
+            "categoryName": "Cà phê kiểm thử"
+          }
+        ],
+        "totalElements": 1,
+        "page": 0,
+        "size": 10
+      },
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Chỉ món available",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "12. Phân trang một món mỗi trang",
+      "method": "GET",
+      "url": "http://127.0.0.1:18084/api/v1/customer/menu/items?page=1&size=1",
+      "status": 200,
+      "responseTimeMs": 18,
+      "body": {
+        "content": [
+          {
+            "id": "1",
+            "code": "PM_CF01",
+            "name": "Caramel Latte kiểm thử",
+            "price": "45000",
+            "imageUrl": "https://example.invalid/postman-latte.jpg",
+            "available": true,
+            "categoryId": "1",
+            "categoryCode": "POSTMAN_COFFEE",
+            "categoryName": "Cà phê kiểm thử"
+          }
+        ],
+        "totalElements": 2,
+        "page": 1,
+        "size": 1
+      },
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Đúng trang, cỡ trang và tổng",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "13. Từ chối mã món không phải số",
+      "method": "GET",
+      "url": "http://127.0.0.1:18084/api/v1/customer/menu/items/not-a-number",
+      "status": 400,
+      "responseTimeMs": 9,
+      "body": {
+        "detail": "Tham số truy vấn thực đơn không hợp lệ.",
+        "instance": "/api/v1/customer/menu/items/not-a-number",
+        "status": 400,
+        "title": "Bad Request"
+      },
+      "assertions": [
+        {
+          "name": "HTTP 400",
+          "passed": true
+        },
+        {
+          "name": "Problem Details tiếng Việt",
+          "passed": true
+        }
+      ],
+      "passed": true
+    }
+  ],
+  "requestUrlSource": "Exact resolved request URLs from Newman CLI in the same CI job 130362167632, including query parameters."
+}
