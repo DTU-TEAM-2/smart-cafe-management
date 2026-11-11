@@ -1,0 +1,80 @@
+{
+  "source": "ảnh task 4.zip — do người dùng cung cấp trong chat ngày 2026-11-11",
+  "images": [
+    {
+      "sourceEntry": "ảnh task 4/Screenshot 2026-11-11 101924.png",
+      "file": "01-menu-categories.png",
+      "sha256": "fc0c77e34d96c38d993afa704de70b1516ab6c71b3a881b5c6fd1a89be24e31d"
+    },
+    {
+      "sourceEntry": "ảnh task 4/Screenshot 2026-11-11 101931.png",
+      "file": "02-item-detail.png",
+      "sha256": "5961a8e62fa8eff5236a32cb6c58ece77304f30521597f910919cd4f729b1288"
+    },
+    {
+      "sourceEntry": "ảnh task 4/Screenshot 2026-11-11 101943.png",
+      "file": "03-cart.png",
+      "sha256": "1616ed52c905207b09003278e225c2ea8eb6f3feab22e192cbdf76d96efbdfba"
+    },
+    {
+      "sourceEntry": "ảnh task 4/Screenshot 2026-11-11 102001.png",
+      "file": "04-service-requests.png",
+      "sha256": "57ce93445de31c483ca9d7bdc12b32e461f1d49123a9131b864260032762038e"
+    },
+    {
+      "sourceEntry": "ảnh task 4/Screenshot 2026-11-11 102008.png",
+      "file": "05-feedback.png",
+      "sha256": "fd43f7d6c8a97b7ce45ee147080d31b20e6b21bbb56f105a2a0e9fae31a40e3c"
+    },
+    {
+      "sourceEntry": "ảnh task 4/Screenshot 2026-11-11 102022.png",
+      "file": "06-mini-game-out-of-scope.png",
+      "sha256": "d128b6ad340988ddefef94be1e0642b87560b054b3b0b8cdc8c25ebbecf8c9e1"
+    },
+    {
+      "sourceEntry": "ảnh task 4/Screenshot 2026-11-11 102029.png",
+      "file": "07-order-success.png",
+      "sha256": "ba16d734dbafcc5506e708507f5192e6a6c1ddbd07a395e2622a79d88479ab98"
+    },
+    {
+      "sourceEntry": "ảnh task 4/Screenshot 2026-11-11 102043.png",
+      "file": "08-cart-empty.png",
+      "sha256": "132a349e30a1a1ea66ab02ddbaa335375c8edcc17ae3a1874c3be09f1777ccd4"
+    },
+    {
+      "sourceEntry": "ảnh task 4/Screenshot 2026-11-11 102053.png",
+      "file": "09-menu-loading.png",
+      "sha256": "5f4f43ed64ccfa96a2fdd55520df7910702213c5f800e32a734702f1300bda0b"
+    },
+    {
+      "sourceEntry": "ảnh task 4/Screenshot 2026-11-11 102102.png",
+      "file": "10-cart-loading.png",
+      "sha256": "fe866e6912becfc7fe4bec3ac43c9dc5a0458c434e311326d46bfd5deceacb97"
+    },
+    {
+      "sourceEntry": "ảnh task 4/Screenshot 2026-11-11 102107.png",
+      "file": "11-order-failure.png",
+      "sha256": "ea0cd95ffaadc8cd10e75318cc4af7789b82955e2b3364991ba0375ebd4fd30c"
+    },
+    {
+      "sourceEntry": "ảnh task 4/Screenshot 2026-11-11 102119.png",
+      "file": "12-waiter-success.png",
+      "sha256": "8cc63d5635796facae215e19494bee341c47127c58d01dff7c95b64e0d4eeb22"
+    },
+    {
+      "sourceEntry": "ảnh task 4/Screenshot 2026-11-11 102125.png",
+      "file": "13-waiter-failure.png",
+      "sha256": "70821675152975245c696e2fea60f32ab78578eb770a89366195d4e52cd7f2a4"
+    },
+    {
+      "sourceEntry": "ảnh task 4/Screenshot 2026-11-11 102131.png",
+      "file": "14-bill-request-success.png",
+      "sha256": "c04641024d7ecc9b71a118748fea80d8e0c03e1aa843dc0ec187ae52cdba28bd"
+    },
+    {
+      "sourceEntry": "ảnh task 4/Screenshot 2026-11-11 102138.png",
+      "file": "15-bill-request-failure.png",
+      "sha256": "1f8efa01f510da999fa52fb96599cb90451343d13a0c870ebbe22a11fe89358e"
+    }
+  ]
+}

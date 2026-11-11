@@ -54,7 +54,8 @@ class MenuHttpReportTest {
     @Autowired MenuProviderStub provider;
     @MockitoBean MenuImageConfiguration.Cloudinary imageSettings;
     private final JsonMapper json = JsonMapper.builder().build();
-    private final HttpClient client = HttpClient.newBuilder().cookieHandler(new CookieManager(null, CookiePolicy.ACCEPT_ALL))
+    private final CookieManager cookies = new CookieManager(null, CookiePolicy.ACCEPT_ALL);
+    private final HttpClient client = HttpClient.newBuilder().cookieHandler(cookies)
             .connectTimeout(Duration.ofSeconds(5)).build();
     private final List<Map<String, Object>> results = new ArrayList<>();
     private Map<String, Object> current;
@@ -132,6 +133,31 @@ class MenuHttpReportTest {
                 .timeout(Duration.ofSeconds(20)).header("Authorization", "Bearer " + admin).header(csrfHeader, csrfToken)
                 .header("Content-Type", "multipart/form-data; boundary=" + boundary).POST(HttpRequest.BodyPublishers.ofByteArray(body.toByteArray())).build();
         return execute(request, "POST", "/api/v1/menu/images", expected);
+    }
+
+    @Test void bearerReadsPreserveExistingCsrfSession() throws Exception {
+        suffix = "SESSION" + Long.toString(System.nanoTime(), 36).toUpperCase(Locale.ROOT);
+        String username = "report-admin-" + suffix;
+        jdbc.update("INSERT INTO users(username,password_hash,full_name,email,role,status) VALUES (?, 'test-only-not-a-login-hash', 'Session test fixture', ?, 'ADMIN', 'ACTIVE')",
+                username, username + "@example.invalid");
+        current = new LinkedHashMap<>();
+        current.put("observations", Collections.synchronizedList(new ArrayList<Map<String, Object>>()));
+        try {
+            admin = token("ADMIN");
+            csrf();
+            String session = cookies.getCookieStore().getCookies().stream()
+                    .filter(cookie -> cookie.getName().equals("JSESSIONID")).findFirst().orElseThrow().getValue();
+            for (int attempt = 0; attempt < 3; attempt++) {
+                get("/api/v1/menu/items", 200);
+                String after = cookies.getCookieStore().getCookies().stream()
+                        .filter(cookie -> cookie.getName().equals("JSESSIONID")).findFirst().orElseThrow().getValue();
+                // Assert a boolean so a failing test never prints session credentials.
+                assertThat(after.equals(session)).as("Bearer polling must preserve the CSRF session ID").isTrue();
+            }
+            send("GET", "/api/v1/menu/items", null, null, false, 401);
+        } finally {
+            jdbc.update("DELETE FROM users WHERE username=?", username);
+        }
     }
 
     @Test void recordRealHttpResults() throws Exception {
@@ -259,16 +285,18 @@ class MenuHttpReportTest {
                 code(put("/api/v1/menu/items/" + item, itemBody(item, "Valid coffee", 45000, other, itemVersion), 409), "STALE_MENU");
             });
             run(34, "Hai PUT đồng thời chỉ một writer thắng", () -> {
-                String race = "PMRACE_" + suffix;
-                post("/api/v1/menu/items", itemBody(race, "Race coffee", 45000, group, 0), 201);
-                var gate = new CountDownLatch(1);
-                try (var pool = Executors.newFixedThreadPool(2)) {
-                    var a = pool.submit(() -> { gate.await(); return send("PUT", "/api/v1/menu/items/" + race, itemBody(race, "First coffee", 45000, group, 0), admin, true, -1).status(); });
-                    var b = pool.submit(() -> { gate.await(); return send("PUT", "/api/v1/menu/items/" + race, itemBody(race, "Second coffee", 45000, group, 0), admin, true, -1).status(); });
-                    gate.countDown(); assertThat(List.of(a.get(10, TimeUnit.SECONDS), b.get(10, TimeUnit.SECONDS))).containsExactlyInAnyOrder(200, 409);
+                for (int attempt = 0; attempt < Integer.getInteger("menu.http.race-repetitions", 20); attempt++) {
+                    String race = "PMRACE_" + suffix + "_" + attempt;
+                    post("/api/v1/menu/items", itemBody(race, "Race coffee", 45000, group, 0), 201);
+                    var gate = new CountDownLatch(1);
+                    try (var pool = Executors.newFixedThreadPool(2)) {
+                        var a = pool.submit(() -> { gate.await(); return send("PUT", "/api/v1/menu/items/" + race, itemBody(race, "First coffee", 45000, group, 0), admin, true, -1).status(); });
+                        var b = pool.submit(() -> { gate.await(); return send("PUT", "/api/v1/menu/items/" + race, itemBody(race, "Second coffee", 45000, group, 0), admin, true, -1).status(); });
+                        gate.countDown(); assertThat(List.of(a.get(10, TimeUnit.SECONDS), b.get(10, TimeUnit.SECONDS))).containsExactlyInAnyOrder(200, 409);
+                    }
+                    assertThat(get("/api/v1/menu/items/" + race, 200).body().path("version").asLong()).isEqualTo(1);
+                    delete("/api/v1/menu/items/" + race + "?version=1", 204);
                 }
-                assertThat(get("/api/v1/menu/items/" + race, 200).body().path("version").asLong()).isEqualTo(1);
-                delete("/api/v1/menu/items/" + race + "?version=1", 204);
             });
             run(35, "Xóa món và hậu kiểm danh sách", () -> {
                 delete("/api/v1/menu/items/" + item + "?version=" + itemVersion, 204); code(get("/api/v1/menu/items/" + item, 404), "MENU_NOT_FOUND");
