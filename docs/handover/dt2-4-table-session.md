@@ -1,5 +1,7 @@
 # DT2-4 — Chức năng 2: QR, bàn và phiên khách hàng
 
+[Bảng theo dõi đủ 8 chức năng DT2-4](dt2-4-progress.md).
+
 ## Nguồn đã kiểm tra ngày 11/11/2026
 
 - [DT2-4](https://duymanhdnvn20092005.atlassian.net/browse/DT2-4): menu, gọi món, phản hồi và phục vụ phải gắn đúng bàn đang hoạt động.
