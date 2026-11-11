@@ -209,7 +209,7 @@ public class OtpService {
 
     @Transactional
     public ForgotPasswordResponse resendOtp(String challengeId) {
-        OtpChallengeRecord challenge = authRepository.findOtpChallengeById(challengeId)
+        OtpChallengeRecord challenge = authRepository.findOtpChallengeByIdForUpdate(challengeId)
                 .orElseThrow(() -> new OtpException("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc."));
 
         if (challenge.usedAt() != null) {
@@ -243,7 +243,14 @@ public class OtpService {
                 throw new OtpException("Không thể gửi email OTP qua dịch vụ gửi thư. Vui lòng thử lại sau.");
             }
         } else {
-            // For non-existent email dummy challenge: generate new unguessable dummy hash and skip sending email
+            // For non-existent email dummy challenge: validate email service readiness so that
+            // if SMTP is down or unconfigured, it fails identically to real users (Anti-Account Enumeration).
+            try {
+                emailService.validateReady();
+            } catch (Exception ex) {
+                log.error("Failed to resend dummy OTP due to mail service error: {}", ex.getMessage());
+                throw new OtpException("Không thể gửi email OTP qua dịch vụ gửi thư. Vui lòng thử lại sau.");
+            }
             newCodeHash = tokenService.hmacSha256("DUMMY|" + challengeId + "|" + tokenService.generateRandomHex(32));
         }
 

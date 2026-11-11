@@ -162,6 +162,22 @@ public class AuthRepository {
         }
     }
 
+    public Optional<OtpChallengeRecord> findOtpChallengeByIdForUpdate(String challengeId) {
+        String sql = """
+            SELECT id, user_id, email, purpose, code_hash, attempts, sends,
+                   expires_at, next_send_at, used_at, delivery_status, created_at,
+                   last_error_code, sent_at
+            FROM auth_otp_challenges
+            WHERE id = ?
+            FOR UPDATE
+            """;
+        try {
+            return Optional.ofNullable(jdbcTemplate.queryForObject(sql, OTP_ROW_MAPPER, challengeId));
+        } catch (EmptyResultDataAccessException e) {
+            return Optional.empty();
+        }
+    }
+
     public int incrementOtpAttempts(String challengeId) {
         String sql = "UPDATE auth_otp_challenges SET attempts = attempts + 1 WHERE id = ? AND attempts < 5 AND used_at IS NULL";
         return jdbcTemplate.update(sql, challengeId);

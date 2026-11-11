@@ -31,6 +31,22 @@ public class SmtpEmailService implements EmailService {
     }
 
     @Override
+    public void validateReady() {
+        if (mailSender == null || mailHost == null || mailHost.isBlank()) {
+            log.error("MAIL_NOT_CONFIGURED: SMTP host is not configured. Cannot send OTP email to destination.");
+            throw new IllegalStateException("Dịch vụ gửi email chưa được cấu hình máy chủ SMTP.");
+        }
+        if (mailSender instanceof org.springframework.mail.javamail.JavaMailSenderImpl senderImpl) {
+            try {
+                senderImpl.testConnection();
+            } catch (Exception ex) {
+                log.error("MAIL_SERVER_UNAVAILABLE: SMTP connection test failed: {}", ex.getMessage());
+                throw new RuntimeException("Máy chủ SMTP hiện không phản hồi. Vui lòng thử lại sau.", ex);
+            }
+        }
+    }
+
+    @Override
     public void sendOtpEmail(String toEmail, String otpCode, String purpose, long validitySeconds) {
         if (mailSender == null || mailHost == null || mailHost.isBlank()) {
             log.error("MAIL_NOT_CONFIGURED: SMTP host is not configured. Cannot send OTP email to destination.");

@@ -14,6 +14,14 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -418,6 +426,113 @@ class OtpIntegrationTest {
     }
 
     @Test
+    void resendOtpUnderSmtpFailureProducesIdentical400ForRealAndDummyEmails() throws Exception {
+        // 1. Forgot password for real user and dummy user
+        MvcResult realResult = mockMvc.perform(post("/api/v1/auth/forgot-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\": \"otp_user@smartcafe.vn\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        MvcResult dummyResult = mockMvc.perform(post("/api/v1/auth/forgot-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\": \"ghost_resend_smtp_down@smartcafe.vn\"}"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String realChallengeId = JsonPath.read(realResult.getResponse().getContentAsString(), "$.challengeId");
+        String dummyChallengeId = JsonPath.read(dummyResult.getResponse().getContentAsString(), "$.challengeId");
+
+        // 2. Query original codeHash and crack original OTP for real user
+        String originalCodeHash = jdbcTemplate.queryForObject(
+                "SELECT code_hash FROM auth_otp_challenges WHERE id = ?",
+                String.class,
+                realChallengeId
+        );
+        String originalOtp = null;
+        for (int i = 0; i < 1_000_000; i++) {
+            String candidate = String.format("%06d", i);
+            if (tokenService.hmacSha256(realChallengeId + "|RESET|" + candidate).equals(originalCodeHash)) {
+                originalOtp = candidate;
+                break;
+            }
+        }
+        assertThat(originalOtp).isNotNull();
+
+        // 3. Fast-forward cooldown in DB for both challenges
+        jdbcTemplate.update(
+                "UPDATE auth_otp_challenges SET next_send_at = DATE_SUB(NOW(6), INTERVAL 5 SECOND) WHERE id IN (?, ?)",
+                realChallengeId,
+                dummyChallengeId
+        );
+
+        // 4. Call resend-otp for real user when SMTP is down (port 1025 has no listening service)
+        MvcResult realResendResult = mockMvc.perform(post("/api/v1/auth/resend-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.format("{\"challengeId\": \"%s\"}", realChallengeId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("OTP_ERROR"))
+                .andReturn();
+
+        // 5. Call resend-otp for dummy user when SMTP is down
+        MvcResult dummyResendResult = mockMvc.perform(post("/api/v1/auth/resend-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.format("{\"challengeId\": \"%s\"}", dummyChallengeId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("OTP_ERROR"))
+                .andReturn();
+
+        // 6. Assert responses are completely indistinguishable (Anti-Account Enumeration)
+        assertThat(realResendResult.getResponse().getStatus())
+                .isEqualTo(dummyResendResult.getResponse().getStatus())
+                .isEqualTo(400);
+
+        String realDetail = JsonPath.read(realResendResult.getResponse().getContentAsString(), "$.detail");
+        String dummyDetail = JsonPath.read(dummyResendResult.getResponse().getContentAsString(), "$.detail");
+        assertThat(realDetail)
+                .isEqualTo(dummyDetail)
+                .contains("Không thể gửi email OTP qua dịch vụ gửi thư");
+
+        // 7. Verify real challenge database state is untouched (codeHash unchanged, sends still 1)
+        String codeHashAfterFailedResend = jdbcTemplate.queryForObject(
+                "SELECT code_hash FROM auth_otp_challenges WHERE id = ?",
+                String.class,
+                realChallengeId
+        );
+        assertThat(codeHashAfterFailedResend).isEqualTo(originalCodeHash);
+
+        Integer realSends = jdbcTemplate.queryForObject(
+                "SELECT sends FROM auth_otp_challenges WHERE id = ?",
+                Integer.class,
+                realChallengeId
+        );
+        assertThat(realSends).isEqualTo(1);
+
+        Integer dummySends = jdbcTemplate.queryForObject(
+                "SELECT sends FROM auth_otp_challenges WHERE id = ?",
+                Integer.class,
+                dummyChallengeId
+        );
+        assertThat(dummySends).isEqualTo(1);
+
+        // 8. Verify original OTP remains valid for real user
+        mockMvc.perform(post("/api/v1/auth/verify-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.format("{\"challengeId\": \"%s\", \"otp\": \"%s\"}", realChallengeId, originalOtp)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.purpose").value("RESET"))
+                .andExpect(jsonPath("$.token").isString());
+
+        // 9. Verify dummy challenge NEVER produces a valid token
+        mockMvc.perform(post("/api/v1/auth/verify-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(String.format("{\"challengeId\": \"%s\", \"otp\": \"123456\"}", dummyChallengeId)))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("OTP_ERROR"))
+                .andExpect(jsonPath("$.token").doesNotExist());
+    }
+
+    @Test
     void concurrentForgotPasswordDoesNotExceedRateLimit() throws Exception {
         int threads = 20;
         ExecutorService executor = Executors.newFixedThreadPool(threads);
@@ -464,61 +579,68 @@ class OtpIntegrationTest {
 
     @Test
     void concurrentResendOtpDoesNotExceedSendsLimit() throws Exception {
-        // Create a dummy challenge for testing resend concurrency
-        MvcResult forgotResult = mockMvc.perform(post("/api/v1/auth/forgot-password")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"email\": \"ghost_resend@smartcafe.vn\"}"))
-                .andExpect(status().isOk())
-                .andReturn();
+        // Start dummy SMTP server on port 1025 to simulate healthy SMTP accepting emails
+        try (SimpleDummySmtpServer smtpServer = new SimpleDummySmtpServer(1025)) {
+            // Initial forgot password request for real existing user
+            MvcResult forgotResult = mockMvc.perform(post("/api/v1/auth/forgot-password")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"email\": \"otp_user@smartcafe.vn\"}"))
+                    .andExpect(status().isOk())
+                    .andReturn();
 
-        String challengeId = JsonPath.read(forgotResult.getResponse().getContentAsString(), "$.challengeId");
+            String challengeId = JsonPath.read(forgotResult.getResponse().getContentAsString(), "$.challengeId");
 
-        // Fast-forward cooldown to the past
-        jdbcTemplate.update(
-                "UPDATE auth_otp_challenges SET next_send_at = DATE_SUB(NOW(6), INTERVAL 5 SECOND) WHERE id = ?",
-                challengeId
-        );
+            // Fast-forward cooldown to the past
+            jdbcTemplate.update(
+                    "UPDATE auth_otp_challenges SET next_send_at = DATE_SUB(NOW(6), INTERVAL 5 SECOND) WHERE id = ?",
+                    challengeId
+            );
 
-        int threads = 2;
-        ExecutorService executor = Executors.newFixedThreadPool(threads);
-        CountDownLatch startLatch = new CountDownLatch(1);
-        CountDownLatch doneLatch = new CountDownLatch(threads);
-        List<Integer> statusCodes = Collections.synchronizedList(new ArrayList<>());
+            int threads = 2;
+            ExecutorService executor = Executors.newFixedThreadPool(threads);
+            CountDownLatch startLatch = new CountDownLatch(1);
+            CountDownLatch doneLatch = new CountDownLatch(threads);
+            List<Integer> statusCodes = Collections.synchronizedList(new ArrayList<>());
 
-        for (int i = 0; i < threads; i++) {
-            executor.submit(() -> {
-                try {
-                    startLatch.await();
-                    MvcResult result = mockMvc.perform(post("/api/v1/auth/resend-otp")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(String.format("{\"challengeId\": \"%s\"}", challengeId)))
-                            .andReturn();
-                    statusCodes.add(result.getResponse().getStatus());
-                } catch (Exception e) {
-                    statusCodes.add(500);
-                } finally {
-                    doneLatch.countDown();
-                }
-            });
+            for (int i = 0; i < threads; i++) {
+                executor.submit(() -> {
+                    try {
+                        startLatch.await();
+                        MvcResult result = mockMvc.perform(post("/api/v1/auth/resend-otp")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(String.format("{\"challengeId\": \"%s\"}", challengeId)))
+                                .andReturn();
+                        statusCodes.add(result.getResponse().getStatus());
+                    } catch (Exception e) {
+                        statusCodes.add(500);
+                    } finally {
+                        doneLatch.countDown();
+                    }
+                });
+            }
+
+            startLatch.countDown();
+            doneLatch.await();
+            executor.shutdown();
+
+            long successCount = statusCodes.stream().filter(code -> code == 200).count();
+            long failureCount = statusCodes.stream().filter(code -> code == 429 || code == 400).count();
+
+            // Exactly 1 succeeds, other fails with cooldown error (HTTP 429)
+            assertThat(successCount).isEqualTo(1L);
+            assertThat(failureCount).isEqualTo(1L);
+
+            Integer finalSends = jdbcTemplate.queryForObject(
+                    "SELECT sends FROM auth_otp_challenges WHERE id = ?",
+                    Integer.class,
+                    challengeId
+            );
+            assertThat(finalSends).isEqualTo(2);
+
+            // Row-level locking (SELECT ... FOR UPDATE) ensured exactly 1 email was sent during resend!
+            // Total emails received = 1 (forgot-password) + 1 (resend) = 2.
+            assertThat(smtpServer.getEmailsReceived()).isEqualTo(2);
         }
-
-        startLatch.countDown();
-        doneLatch.await();
-        executor.shutdown();
-
-        long successCount = statusCodes.stream().filter(code -> code == 200).count();
-        long failureCount = statusCodes.stream().filter(code -> code == 400).count();
-
-        // Exactly 1 succeeds, other fails with cooldown/rate limit error
-        assertThat(successCount).isEqualTo(1L);
-        assertThat(failureCount).isEqualTo(1L);
-
-        Integer finalSends = jdbcTemplate.queryForObject(
-                "SELECT sends FROM auth_otp_challenges WHERE id = ?",
-                Integer.class,
-                challengeId
-        );
-        assertThat(finalSends).isEqualTo(2);
     }
 
     @Test
@@ -571,5 +693,75 @@ class OtpIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("no-store")))
                 .andExpect(jsonPath("$.valid").value(true));
+    }
+
+    private static class SimpleDummySmtpServer implements AutoCloseable {
+        private final ServerSocket serverSocket;
+        private final ExecutorService executor;
+        private final AtomicInteger emailsReceived = new AtomicInteger(0);
+
+        public SimpleDummySmtpServer(int port) throws IOException {
+            this.serverSocket = new ServerSocket(port);
+            this.executor = Executors.newCachedThreadPool();
+            this.executor.submit(this::listen);
+        }
+
+        private void listen() {
+            while (!serverSocket.isClosed()) {
+                try {
+                    Socket socket = serverSocket.accept();
+                    executor.submit(() -> handleClient(socket));
+                } catch (IOException e) {
+                    break;
+                }
+            }
+        }
+
+        private void handleClient(Socket socket) {
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.UTF_8));
+                 BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(socket.getOutputStream(), StandardCharsets.UTF_8))) {
+                writer.write("220 localhost ESMTP\r\n");
+                writer.flush();
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (line.startsWith("HELO") || line.startsWith("EHLO")) {
+                        writer.write("250 OK\r\n");
+                    } else if (line.startsWith("MAIL FROM:") || line.startsWith("RCPT TO:")) {
+                        writer.write("250 OK\r\n");
+                    } else if (line.startsWith("DATA")) {
+                        writer.write("354 Start mail input; end with <CRLF>.<CRLF>\r\n");
+                        writer.flush();
+                        while ((line = reader.readLine()) != null) {
+                            if (line.equals(".")) {
+                                emailsReceived.incrementAndGet();
+                                writer.write("250 OK message queued\r\n");
+                                writer.flush();
+                                break;
+                            }
+                        }
+                    } else if (line.startsWith("QUIT")) {
+                        writer.write("221 Bye\r\n");
+                        writer.flush();
+                        break;
+                    } else if (line.startsWith("RSET")) {
+                        writer.write("250 OK\r\n");
+                    } else {
+                        writer.write("250 OK\r\n");
+                    }
+                    writer.flush();
+                }
+            } catch (Exception ignored) {
+            }
+        }
+
+        public int getEmailsReceived() {
+            return emailsReceived.get();
+        }
+
+        @Override
+        public void close() throws IOException {
+            serverSocket.close();
+            executor.shutdownNow();
+        }
     }
 }

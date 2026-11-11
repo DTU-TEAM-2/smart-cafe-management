@@ -65,6 +65,7 @@ class OtpServiceTest {
         );
 
         when(authRepository.findOtpChallengeById(challengeId)).thenReturn(Optional.of(existingChallenge));
+        when(authRepository.findOtpChallengeByIdForUpdate(challengeId)).thenReturn(Optional.of(existingChallenge));
         doThrow(new IllegalStateException("Dịch vụ gửi email chưa được cấu hình máy chủ SMTP."))
                 .when(emailService).sendOtpEmail(eq("user@smartcafe.vn"), anyString(), eq("RESET"), anyLong());
 
@@ -73,6 +74,38 @@ class OtpServiceTest {
                 .hasMessageContaining("Không thể gửi email OTP qua dịch vụ gửi thư");
 
         // Crucial verification: updateOtpResend must NEVER be called when email sending fails
+        verify(authRepository, never()).updateOtpResend(anyString(), anyString(), any(), any());
+    }
+
+    @Test
+    void resendOtpForDummyChallengeThrowsOtpExceptionWhenMailServiceFails() {
+        String challengeId = "dummy-challenge-456";
+        OtpChallengeRecord dummyChallenge = new OtpChallengeRecord(
+                challengeId,
+                null,
+                "ghost@smartcafe.vn",
+                "REGISTER",
+                "dummy-hash",
+                0,
+                1,
+                Instant.now().plusSeconds(600),
+                Instant.now().minusSeconds(10), // cooldown passed
+                null,
+                "PENDING",
+                Instant.now().minusSeconds(60),
+                null,
+                Instant.now().minusSeconds(60)
+        );
+
+        when(authRepository.findOtpChallengeByIdForUpdate(challengeId)).thenReturn(Optional.of(dummyChallenge));
+        doThrow(new RuntimeException("Máy chủ SMTP hiện không phản hồi. Vui lòng thử lại sau."))
+                .when(emailService).validateReady();
+
+        assertThatThrownBy(() -> otpService.resendOtp(challengeId))
+                .isInstanceOf(OtpException.class)
+                .hasMessageContaining("Không thể gửi email OTP qua dịch vụ gửi thư");
+
+        // Crucial verification: updateOtpResend must NEVER be called for dummy when email service fails
         verify(authRepository, never()).updateOtpResend(anyString(), anyString(), any(), any());
     }
 
