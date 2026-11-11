@@ -209,13 +209,14 @@ public class OtpService {
         Instant newExpiresAt = now.plusSeconds(otpValiditySeconds);
         Instant newNextSendAt = now.plusSeconds(COOLDOWN_SECONDS);
 
-        authRepository.updateOtpResend(challengeId, newCodeHash, newExpiresAt, newNextSendAt);
-
         try {
             emailService.sendOtpEmail(challenge.email(), newOtpCode, challenge.purpose(), otpValiditySeconds);
         } catch (Exception ex) {
             log.error("Failed to resend OTP to recipient: {}", ex.getMessage());
+            throw new OtpException("Không thể gửi email OTP qua dịch vụ gửi thư. Vui lòng thử lại sau.");
         }
+
+        authRepository.updateOtpResend(challengeId, newCodeHash, newExpiresAt, newNextSendAt);
 
         return new ForgotPasswordResponse(
                 challengeId,

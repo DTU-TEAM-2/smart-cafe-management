@@ -266,4 +266,72 @@ class OtpIntegrationTest {
                 .content(oldLoginBody))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    void resendOtpFailsGracefullyWhenSmtpUnavailableAndPreservesOriginalOtp() throws Exception {
+        // 1. Initial forgot password request
+        String forgotBody = "{\"email\": \"otp_user@smartcafe.vn\"}";
+        MvcResult forgotResult = mockMvc.perform(post("/api/v1/auth/forgot-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(forgotBody))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String challengeId = JsonPath.read(forgotResult.getResponse().getContentAsString(), "$.challengeId");
+
+        // 2. Query original codeHash and crack original OTP
+        String originalCodeHash = jdbcTemplate.queryForObject(
+                "SELECT code_hash FROM auth_otp_challenges WHERE id = ?",
+                String.class,
+                challengeId
+        );
+        String originalOtp = null;
+        for (int i = 0; i < 1_000_000; i++) {
+            String candidate = String.format("%06d", i);
+            if (tokenService.hmacSha256(challengeId + "|RESET|" + candidate).equals(originalCodeHash)) {
+                originalOtp = candidate;
+                break;
+            }
+        }
+        assertThat(originalOtp).isNotNull();
+
+        // 3. Fast-forward cooldown in DB so resend is allowed
+        jdbcTemplate.update(
+                "UPDATE auth_otp_challenges SET next_send_at = DATE_SUB(NOW(6), INTERVAL 5 SECOND) WHERE id = ?",
+                challengeId
+        );
+
+        // 4. Request resend-otp when SMTP is down (spring.mail.port=1025 has no listening server in test)
+        String resendBody = String.format("{\"challengeId\": \"%s\"}", challengeId);
+        mockMvc.perform(post("/api/v1/auth/resend-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(resendBody))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("OTP_ERROR"))
+                .andExpect(jsonPath("$.detail").value(containsString("Không thể gửi email OTP")));
+
+        // 5. Verify database state is untouched (codeHash unchanged, sends still 1)
+        String codeHashAfterFailedResend = jdbcTemplate.queryForObject(
+                "SELECT code_hash FROM auth_otp_challenges WHERE id = ?",
+                String.class,
+                challengeId
+        );
+        assertThat(codeHashAfterFailedResend).isEqualTo(originalCodeHash);
+
+        Integer sendsCount = jdbcTemplate.queryForObject(
+                "SELECT sends FROM auth_otp_challenges WHERE id = ?",
+                Integer.class,
+                challengeId
+        );
+        assertThat(sendsCount).isEqualTo(1);
+
+        // 6. Verify original OTP remains 100% valid and can be verified
+        String verifyBody = String.format("{\"challengeId\": \"%s\", \"otp\": \"%s\"}", challengeId, originalOtp);
+        mockMvc.perform(post("/api/v1/auth/verify-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(verifyBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.purpose").value("RESET"))
+                .andExpect(jsonPath("$.token").isString());
+    }
 }
