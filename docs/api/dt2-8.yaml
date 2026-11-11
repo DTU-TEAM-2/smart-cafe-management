@@ -1,0 +1,421 @@
+openapi: 3.0.3
+info:
+  title: Smart Cafe - DT2-8 Bills & Statistics API
+  version: 0.1.0
+  description: >
+    Hợp đồng API tra cứu danh sách hóa đơn, xem chi tiết hóa đơn (snapshot bất biến)
+    và số liệu thống kê/biểu đồ doanh thu thuộc phạm vi Task DT2-8 (Sprint 1, STT 08).
+paths:
+  /api/v1/bills:
+    get:
+      summary: Danh sách hóa đơn có phân trang, tìm kiếm và sắp xếp
+      description: >
+        Dành riêng cho Quản lý (ADMIN). Cho phép tìm kiếm theo mã hóa đơn,
+        khoảng ngày tạo, lọc theo trạng thái và sắp xếp ổn định.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: code
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+          description: Mã hóa đơn cần tìm (tìm chính xác hoặc theo tiền tố/chuỗi con).
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Ngày bắt đầu khoảng thời gian tạo hóa đơn (YYYY-MM-DD).
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Ngày kết thúc khoảng thời gian tạo hóa đơn (YYYY-MM-DD).
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PENDING, PAID, VOID]
+          description: Trạng thái thanh toán của hóa đơn.
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Chỉ số trang (bắt đầu từ 0).
+        - name: size
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 10
+          description: Số lượng bản ghi trên một trang.
+        - name: sort
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [createdAt,desc, createdAt,asc, totalAmount,desc, totalAmount,asc]
+            default: createdAt,desc
+          description: Tiêu chí sắp xếp.
+      responses:
+        '200':
+          description: Danh sách hóa đơn trang hiện tại
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillPage'
+        '400':
+          description: Tham số tìm kiếm, phân trang hoặc sắp xếp không hợp lệ
+        '403':
+          description: Chưa đăng nhập hoặc không có vai trò ADMIN
+
+  /api/v1/bills/{id}:
+    get:
+      summary: Xem chi tiết hóa đơn (snapshot bất biến)
+      description: >
+        Dành riêng cho Quản lý (ADMIN). Trả về dữ liệu chi tiết hóa đơn gồm thông tin
+        chung và danh sách món được chụp tại thời điểm lập hóa đơn.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+          description: Khóa chính nội bộ của hóa đơn.
+      responses:
+        '200':
+          description: Chi tiết hóa đơn
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BillSnapshot'
+        '403':
+          description: Chưa đăng nhập hoặc không có vai trò ADMIN
+        '404':
+          description: Không tìm thấy hóa đơn với ID tương ứng
+
+  /api/v1/statistics/revenue:
+    get:
+      summary: Thống kê doanh thu, chuỗi ngày biểu đồ cột và tỷ trọng món biểu đồ tròn
+      description: >
+        Dành riêng cho Quản lý (ADMIN). Thống kê tổng hợp số liệu doanh thu từ các
+        hóa đơn có trạng thái PAID theo mốc paid_at trong múi giờ Asia/Ho_Chi_Minh.
+        Dữ liệu này phục vụ trực tiếp cho số liệu tóm tắt, biểu đồ cột (dailyRevenue)
+        và biểu đồ tròn (itemSales).
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: period
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [today, in_week, in_month, in_year]
+          description: Kỳ thống kê mặc định. Không dùng cùng lúc với cặp from/to.
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Ngày bắt đầu khoảng thời gian thống kê tùy chọn.
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: Ngày kết thúc khoảng thời gian thống kê tùy chọn.
+      responses:
+        '200':
+          description: Dữ liệu thống kê và biểu đồ
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Statistics'
+        '400':
+          description: Kỳ hoặc khoảng ngày không hợp lệ
+        '403':
+          description: Chưa đăng nhập hoặc không có vai trò ADMIN
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT/HMAC
+
+  schemas:
+    BillSummary:
+      type: object
+      required:
+        - id
+        - billCode
+        - tableCode
+        - tableName
+        - creatorName
+        - createdAt
+        - totalAmount
+        - status
+      properties:
+        id:
+          type: string
+          example: "1"
+        billCode:
+          type: string
+          example: "BILL-20261111-0001"
+        tableCode:
+          type: string
+          example: "T001"
+        tableName:
+          type: string
+          example: "Bàn 1"
+        creatorName:
+          type: string
+          example: "Nhân viên Nam"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-11-11T08:30:00Z"
+        totalAmount:
+          type: string
+          description: Định dạng số tiền chính xác theo chuỗi VND
+          example: "110000"
+        status:
+          type: string
+          enum: [PENDING, PAID, VOID]
+          example: "PAID"
+
+    BillPage:
+      type: object
+      required:
+        - content
+        - page
+        - size
+        - totalElements
+        - totalPages
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/BillSummary'
+        page:
+          type: integer
+          example: 0
+        size:
+          type: integer
+          example: 10
+        totalElements:
+          type: integer
+          format: int64
+          example: 25
+        totalPages:
+          type: integer
+          example: 3
+
+    BillItemSnapshot:
+      type: object
+      required:
+        - orderItemId
+        - itemCode
+        - itemName
+        - unitPrice
+        - quantity
+        - lineTotal
+      properties:
+        orderItemId:
+          type: string
+          example: "1"
+        itemCode:
+          type: string
+          example: "CF-01"
+        itemName:
+          type: string
+          example: "Cà phê sữa"
+        unitPrice:
+          type: string
+          example: "35000"
+        quantity:
+          type: integer
+          example: 2
+        lineTotal:
+          type: string
+          example: "70000"
+
+    BillSnapshot:
+      type: object
+      required:
+        - id
+        - billCode
+        - sessionCode
+        - creatorName
+        - tableCode
+        - tableName
+        - totalAmount
+        - status
+        - createdAt
+        - items
+      properties:
+        id:
+          type: string
+          example: "1"
+        billCode:
+          type: string
+          example: "BILL-20261111-0001"
+        sessionCode:
+          type: string
+          example: "SESS-001"
+        creatorName:
+          type: string
+          example: "Nhân viên Nam"
+        tableCode:
+          type: string
+          example: "T001"
+        tableName:
+          type: string
+          example: "Bàn 1"
+        totalAmount:
+          type: string
+          example: "110000"
+        status:
+          type: string
+          example: "PAID"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2026-11-11T08:30:00Z"
+        paidAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-11-11T09:00:00Z"
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/BillItemSnapshot'
+
+    DayRevenue:
+      type: object
+      required:
+        - date
+        - revenue
+        - billCount
+      properties:
+        date:
+          type: string
+          format: date
+          example: "2026-11-11"
+        revenue:
+          type: string
+          example: "110000"
+        billCount:
+          type: integer
+          format: int64
+          example: 1
+
+    ItemSales:
+      type: object
+      required:
+        - itemCode
+        - itemName
+        - quantity
+        - revenue
+        - percentage
+      properties:
+        itemCode:
+          type: string
+          example: "CF-01"
+        itemName:
+          type: string
+          example: "Cà phê sữa"
+        quantity:
+          type: integer
+          format: int64
+          example: 2
+        revenue:
+          type: string
+          example: "70000"
+        percentage:
+          type: number
+          format: double
+          example: 63.6
+
+    SummaryStatistics:
+      type: object
+      required:
+        - from
+        - to
+        - timezone
+        - totalRevenue
+        - totalBills
+        - averageBillAmount
+      properties:
+        from:
+          type: string
+          format: date
+          example: "2026-11-01"
+        to:
+          type: string
+          format: date
+          example: "2026-11-30"
+        timezone:
+          type: string
+          example: "Asia/Ho_Chi_Minh"
+        totalRevenue:
+          type: string
+          example: "110000"
+        totalBills:
+          type: integer
+          format: int64
+          example: 1
+        averageBillAmount:
+          type: string
+          example: "110000"
+
+    Statistics:
+      type: object
+      required:
+        - summary
+        - dailyRevenue
+        - itemSales
+      properties:
+        summary:
+          $ref: '#/components/schemas/SummaryStatistics'
+        dailyRevenue:
+          type: array
+          items:
+            $ref: '#/components/schemas/DayRevenue'
+        itemSales:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemSales'

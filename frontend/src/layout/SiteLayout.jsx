@@ -75,8 +75,11 @@ export default function SiteLayout({ children, account = null, notifications = n
           <Icon name="menu" />
         </button>
         <nav id={`${regionId}-nav`} className={`header-nav ${panel === "menu" ? "is-open" : ""}`} aria-label="Điều hướng chính">
-          {navigation.map(({ label, href, key }, index) => (
-            <SiteLink key={label} href={href ?? links[key]} aria-current={index === 0 && currentPage === "home" ? "page" : undefined}
+          {[
+            ...navigation,
+            ...(account?.role === "ADMIN" ? [{ label: "Quản lý hóa đơn", href: "#bills" }] : []),
+          ].map(({ label, href, key }, index) => (
+            <SiteLink key={label} href={href ?? links[key]} aria-current={href === "#bills" && currentPage === "bills" ? "page" : index === 0 && currentPage === "home" ? "page" : undefined}
               onClick={() => { if (panel === "menu") menuButton.current?.focus(); setPanel(null); }}>{label}</SiteLink>
           ))}
         </nav>

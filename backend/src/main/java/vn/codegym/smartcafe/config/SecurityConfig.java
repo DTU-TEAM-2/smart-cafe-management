@@ -28,6 +28,8 @@ class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/home/highlights").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/home/account").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/home/notifications").hasAnyRole("STAFF", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/bills", "/api/v1/bills/*").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/statistics/**").hasRole("ADMIN")
                         .anyRequest().denyAll())
                 .addFilterBefore(tokenFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();

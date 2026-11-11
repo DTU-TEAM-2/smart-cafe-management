@@ -2,6 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import HomePage from "../home/HomePage.jsx";
 import SiteLayout from "./SiteLayout.jsx";
 import LoginPage from "../auth/LoginPage.jsx";
+import BillsWorkspace from "../billing/BillsWorkspace.jsx";
 
 function subscribeHash(callback) {
   window.addEventListener("hashchange", callback);
@@ -87,28 +88,43 @@ function ScopedHomeShell({ authorization = "", loginHref = "#login", credentials
 
   const onAccountPage = hash === "#account";
   const onLoginPage = hash === "#login";
+  const onBillsPage = hash === "#bills" || hash === "#manage/bills" || hash === "#manage-bills" || hash === "#statistics";
   useEffect(() => {
-    if (!onAccountPage && !onLoginPage && hash) {
+    if (!onAccountPage && !onLoginPage && !onBillsPage && hash) {
       const frame = requestAnimationFrame(() => document.getElementById(hash.slice(1))?.scrollIntoView());
       return () => cancelAnimationFrame(frame);
     }
-    if (onAccountPage || onLoginPage) {
+    if (onAccountPage || onLoginPage || onBillsPage) {
       window.scrollTo(0, 0);
       document.getElementById("main")?.focus({ preventScroll: true });
     }
-  }, [hash, onAccountPage, onLoginPage]);
+  }, [hash, onAccountPage, onLoginPage, onBillsPage]);
 
   const account = identity.account ? { ...identity.account, profileHref: "#account" } : null;
   const notifications = feed.data && { ...feed.data, items: feed.data.items.map(item => ({ ...item, read: readIds.has(item.id) })) };
   return <SiteLayout account={account} notifications={notifications} links={{ login: loginHref }}
-    currentPage={onAccountPage ? "account" : onLoginPage ? "login" : "home"} notificationState={feed.status}
+    currentPage={onBillsPage ? "bills" : onAccountPage ? "account" : onLoginPage ? "login" : "home"} notificationState={feed.status}
     onRetryNotifications={() => { setFeed({ status: "loading", data: null }); setFeedAttempt(value => value + 1); }}
     onNotificationsOpen={() => setReadIds(previous => new Set([...previous, ...(feed.data?.items.map(item => item.id) ?? [])]))}>
     {identity.status === "error" && <div className="identity-error" role="alert">Chưa tải được thông tin tài khoản.
       <button type="button" onClick={() => setAccountAttempt(value => value + 1)}>Thử lại</button></div>}
     {onLoginPage ? account ? <section className="account-page"><h1>Bạn đã đăng nhập</h1><a href="#account">Xem thông tin tài khoản</a></section>
       : <LoginPage />
-      : onAccountPage ? <AccountPage status={identity.status} account={identity.account} /> : <HomePage />}
+      : onAccountPage ? <AccountPage status={identity.status} account={identity.account} />
+      : onBillsPage ? (
+          identity.status === "loading" ? (
+            <section className="account-page"><p role="status">Đang tải…</p></section>
+          ) : identity.account?.role === "ADMIN" ? (
+            <BillsWorkspace authorization={authorization} />
+          ) : (
+            <section className="account-page" aria-labelledby="bills-guard-title">
+              <h1 id="bills-guard-title">Khu vực quản lý hóa đơn</h1>
+              <p>Khu vực quản lý chỉ dành cho Quản trị viên (ADMIN).</p>
+              <a href="#top">Về trang chủ</a>
+            </section>
+          )
+        )
+      : <HomePage />}
   </SiteLayout>;
 }
 
