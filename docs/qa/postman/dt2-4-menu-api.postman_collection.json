@@ -199,6 +199,82 @@
         "method": "POST",
         "url": "{{baseUrl}}/api/v1/customer/menu/items"
       }
+    },
+    {
+      "name": "10. Tìm kiếm ký tự phần trăm theo nghĩa đen",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Một món có 50% trong tên', () => { const b=pm.response.json(); pm.expect(b.totalElements).to.eql(1); pm.expect(b.content[0].name).to.include('50%'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/customer/menu/items?keyword=50%25"
+      }
+    },
+    {
+      "name": "11. Chỉ lấy món đang phục vụ",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Chỉ món available', () => { const b=pm.response.json(); pm.expect(b.totalElements).to.eql(1); b.content.forEach(i => pm.expect(i.available).to.eql(true)); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/customer/menu/items?availableOnly=true"
+      }
+    },
+    {
+      "name": "12. Phân trang một món mỗi trang",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Đúng trang, cỡ trang và tổng', () => { const b=pm.response.json(); pm.expect(b.page).to.eql(1); pm.expect(b.size).to.eql(1); pm.expect(b.totalElements).to.eql(2); pm.expect(b.content).to.have.lengthOf(1); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/customer/menu/items?page=1&size=1"
+      }
+    },
+    {
+      "name": "13. Từ chối mã món không phải số",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('Problem Details tiếng Việt', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(pm.response.json().detail).to.eql('Tham số truy vấn thực đơn không hợp lệ.'); });"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/customer/menu/items/not-a-number"
+      }
     }
   ]
 }
