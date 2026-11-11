@@ -1,5 +1,5 @@
 $ErrorActionPreference = 'Stop'
-$taskKeys = @('DB_URL', 'DB_USERNAME', 'DB_PASSWORD', 'SERVER_PORT', 'AUTH_TOKEN_SECRET', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USERNAME', 'SMTP_PASSWORD', 'SMTP_FROM', 'SMTP_AUTH', 'SMTP_STARTTLS', 'SMTP_SSL', 'SPRING_PROFILES_ACTIVE')
+$taskKeys = @('DB_URL', 'DB_USERNAME', 'DB_PASSWORD', 'SERVER_PORT', 'AUTH_TOKEN_SECRET', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USERNAME', 'SMTP_PASSWORD', 'SMTP_FROM', 'SMTP_AUTH', 'SMTP_STARTTLS', 'SMTP_SSL', 'SPRING_PROFILES_ACTIVE', 'CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET')
 $taskOriginal = @{}
 foreach ($taskKey in $taskKeys) {
     $taskOriginal[$taskKey] = [Environment]::GetEnvironmentVariable($taskKey, 'Process')
@@ -8,7 +8,7 @@ try {
     $taskEnv = Join-Path $PSScriptRoot 'backend\.env'
     if (Test-Path -LiteralPath $taskEnv) {
         foreach ($taskLine in Get-Content -LiteralPath $taskEnv -Encoding UTF8) {
-            if ($taskLine -match '^\s*([A-Z_]+)\s*=(.*)$' -and $taskKeys -contains $Matches[1]) {
+            if ($taskLine -match '^\s*([A-Za-z0-9_]+)\s*=(.*)$' -and $taskKeys -contains $Matches[1]) {
                 $taskKey = $Matches[1]
                 $taskValue = $Matches[2].Trim()
                 if ($taskValue.StartsWith('"') -or $taskValue.StartsWith("'")) {
@@ -16,7 +16,7 @@ try {
                         $taskValue = $taskValue.Substring(1, $taskValue.Length - 2)
                     }
                 }
-                if ([string]::IsNullOrEmpty([Environment]::GetEnvironmentVariable($taskKey, 'Process'))) {
+                if ($null -eq $taskOriginal[$taskKey]) {
                     [Environment]::SetEnvironmentVariable($taskKey, $taskValue, 'Process')
                 }
             }

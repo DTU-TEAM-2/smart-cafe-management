@@ -1,0 +1,46 @@
+Nguồn trích nguyên văn: smart-cafe-management-legacy/docs/handover/extracted/Quan ly quan cafe thong minh_SRS_v4.1.docx.txt
+SHA256 file nguồn: F34485B7F75DFEFCEFDE7D053AC619DE76DFA30C9151DDC50A4577A6C05D1C3D
+Trích ngày: 2026-11-11. Nội dung kế thừa, không phải tài liệu do tác giả backend mới sáng tác.
+Quyền tác giả thuộc nguồn bàn giao ban đầu; chỉ dùng làm tham chiếu theo yêu cầu chủ repo.
+
+TABLE at block 80
+R1: Screen | Quản lý danh sách món
+R2: Mô tả | Hiển thị danh sách nhóm món, món. Người dùng có thể thêm, sửa, xóa hoặc tìm kiếm nhóm món, món
+R3: Screen Access | Người dùng nhấn vào tab “MANAGE” -> Service
+R4: Screen Content
+R5: Item | Type | Data | Description
+R6: List Type: / ID / Name | Table: / Column / Column | - Tra từ SERVICE_TYPE.type_id / - Tra từ SERVICE_TYPE.type_name | Hiển thị danh sách nhóm món
+R7: List Service: / ID / Name / Unit Price / Type | Table: / Column / Column / Column / Column |  / - Tra từ SERVICES.service_id / - Tra từ SERVICES.name / - Tra từ SERVICES.price / - Tra từ SERVICES.type_id và SERVICE_TYPE.name | - Hiển thị danh sách món
+R8: Call Add Type Function | Button |  | - Kích hoạt chức năng thêm mới nhóm món
+R9: Add new Type | Button |  | - Thêm mới 1 nhóm món vào danh sách. / - Nút này xuất hiện bằng cách người dùng nhấn vào nút “Add” từ màn hình chính sau đó nút “Edit” sẽ được đổi thành “Add”.
+R10: Cancel Add New Type | Button |  | - Hủy thêm nhóm món. / - Nút này xuất hiện bằng cách người dùng nhấn vào nút “Add” từ màn hình chính sau đó nút “Remove” sẽ được đổi thành “Cancel”.
+R11: Call Add Service Function | Button |  | Kích hoạt chức năng thêm mới 1 món.
+R12: Add new Service | Button |  | - Thêm mới 1 món vào danh sách. / - Nút này xuất hiện bằng cách người dùng nhấn vào nút “Add” từ màn hình chính sau đó nút “Edit” sẽ được đổi thành “Add”.
+R13: Cancel Add New Service | Button |  | - Hủy thêm mới 1 món. / - Nút này xuất hiện bằng cách người dùng nhấn vào nút “Add” từ màn hình chính sau đó nút “Remove” sẽ được đổi thành “Cancel”.
+R14: Show List Service | Button |  | Đưa bảng danh sách món về danh sách đầy đủ
+R15: Edit Service Type | Button |  | Sửa đổi thông tin của 1 nhóm món nhất định.
+R16: Edit Service  | Button |  | Sửa đổi thông tin của 1 món nhất định.
+R17: Remove Service Type | Button |  | Xóa 1 nhóm món khỏi danh sách.
+R18: Remove Service | Button |  | Xóa 1 món khỏi danh sách.
+R19: Search | Button |  | Tìm kiếm 1 món.
+R20: Search by ID | Radio button |  | Lựa chọn tìm kiếm món theo mã số.
+R21: Search by Name | Radio button |  | Lựa chọn tìm kiếm món theo tên.
+R22: Search by Price | Radio button |  | Lựa chọn tìm kiếm món theo giá.
+R23: Search by Type | Radio button |  | Lựa chọn tìm kiếm món theo nhóm món.
+R24: Screen Actions
+R25: Action Name | Description | Success | Failure
+R26: Call Add Type Function | Người dùng nhấn nút “Add” lớn trên giao diện. | - Trường ID thay đổi trạng thái thành “Enable” cho phép người dùng nhập giá trị. / - 2 nút Edit và Remove của panel Type’s Info trở thành Add và Cancel. | 
+R27: Add new Type Service | Sau khi nhấn nút “Add” lớn từ giao diện, trường ID cho phép nhập liệu, người dùng điền thông tin vào 2 trường bắt buộc sau đó nhấn nút “Add” nhỏ | - Nhóm món mới được thêm vào danh sách. / - Các trường ID và Name trở về trạng thái trắng, trường ID trở về trạng thái “Diseditable” / - 2 nút “Add” và “Cancel” trở lại thành “Edit” và “Remove”. / - Bảng danh sách nhóm món được cập nhật. | - Báo sai định dạng nếu định dạng không đúng và yêu cầu nhập lại “Some of fields are invalid!”. / - Không tạo được nhóm món mới vì có thể đã trùng ID “The ID has existed!” – Cho phép người dùng nhập lại trường này.
+R28: Cancel Add New Type | Sau khi nhấn nút “Add” lớn từ giao diện, sau đó nhấn nút “Cancel”. | - Các trường ID và Name trở về trạng thái trắng, trường ID trở về trạng thái “Diseditable”. / - 2 nút “Add” và “Cancel” trở lại thành “Edit” và “Remove”. | 
+R29: Call Add Service Function | Người dùng nhấn nút “Add” lớn trên giao diện, từ Panel Service. | - Trường ID thay đổi trạng thái thành “Enable” cho phép người dùng nhập giá trị. / - 2 nút Edit và Remove của panel Service’s Info trở thành Add và Cancel. | 
+R30: Add New Service | Sau khi nhấn nút “Add” lớn từ giao diện, trường ID cho phép nhập liệu, người dùng điền thông tin vào 2 trường bắt buộc sau đó nhấn nút “Add” nhỏ của panel Service’s Info | - Món mới được thêm vào danh sách. / - Các trường trở về trạng thái trắng, trường ID trở về trạng thái “Diseditable”. / - 2 nút “Add” và “Cancel” trở lại thành “Edit” và “Remove”. / - Bảng danh sách món được cập nhật. | - Báo sai định dạng nếu định dạng không đúng và yêu cầu nhập lại “Some of fields are invalid!”. / - Không tạo được món mới vì có thể đã trùng ID “The ID has existed!” – Cho phép người dùng nhập lại trường này.
+R31: Cancel Add New Service | Sau khi nhấn nút “Add” lớn từ giao diện, sau đó nhấn nút “Cancel” nhỏ trong panel Service’s Info | - Các trường trở về trạng thái trắng, trường ID trở về trạng thái “Diseditable”. / - 2 nút “Add” và “Cancel” trở lại thành “Edit” và “Remove”. | 
+R32: Show List Service | Người dùng nhấn nút này thì bảng danh sách sẽ hiển thị danh sách món đầy đủ. | Bảng danh sách món hiển thị đầy đủ danh sách các món trong CSDL | 
+R33: Edit Type Service | Người dùng nhấn vào hàng của 1 nhóm món tương ứng ở bảng danh sách, sau đó thông tin của nhóm này sẽ được hiển thị lên panel “Type’s info”. Người dùng được phép chỉnh sửa trường tên nhóm, sau đó nhấn nút Edit để lưu lại thông tin mới. | - Thông tin mới của nhóm món được cập nhật. / - Bảng danh sách nhóm món được cập nhật. | - Báo lỗi nếu các trường bắt buộc chưa được điền “Some of fields are incorrect!”. / - Nếu người dùng chưa chọn 1 nhóm món nhất định, đưa ra thông báo “No Type Service is chosen!”.
+R34: Edit Service | Người dùng nhấn vào hàng của 1 món tương ứng ở bảng danh sách, sau đó thông tin của món này sẽ được hiển thị lên panel “Service’s info”. Người dùng được phép chỉnh sửa trường tên và giá đơn vị của món sau đó nhấn nút Edit để lưu lại thông tin mới. | - Thông tin mới của món được cập nhật. / - Bảng danh sách món được cập nhật. | - Báo lỗi nếu các trường bắt buộc chưa được điền “Some of fields are incorrect!”. / - Nếu người dùng chưa chọn 1 món nhất định, đưa ra thông báo “No Service is chosen!”.
+R35: Remove Type Service | Người dùng nhấn vào hàng của 1 nhóm món tương ứng ở bảng danh sách, sau đó thông tin của nhóm món này sẽ được hiển thị lên panel “Type’s info”. Người dùng nhấn nút Remove để xóa nhóm khỏi danh sách. Ứng dụng sẽ hỏi rằng người dùng có muốn xóa hết tất cả các món thuộc nhóm món này? | - Nhóm món cùng với các món thuộc nhóm món tương ứng bị xóa khỏi danh sách. / - Bảng danh sách nhóm món và bảng danh sách món được cập nhật. | - Danh sách nhóm món không bị thay đổi. / - Nếu người dùng chưa chọn 1 nhóm món nhất định, đưa ra thông báo “No Type Service is chosen!”.
+R36: Remove Service | Người dùng nhấn vào hàng của 1 món tương ứng ở bảng danh sách, sau đó thông tin của món này sẽ được hiển thị lên panel “Service’s info”. Người dùng nhấn nút Remove để xóa món khỏi danh sách.  | - Món tương ứng bị xóa khỏi danh sách. / - Bảng danh sách món được cập nhật. | - Danh sách món không bị thay đổi. / - Nếu người dùng chưa chọn 1 món nhất định, đưa ra thông báo “No Service is chosen!”.
+R37: Search by ID | Người dùng nhập từ khóa vào ô Search, sau đó chọn mục “Search by ID”, rồi nhấn vào nút Search. | Bảng danh sách món sẽ hiển thị danh sách kết quả tương ứng. | - Bảng danh sách món trống, ứng dụng báo không tìm thấy kết quả “Not found!”. / - Nếu người dùng chưa nhập từ khóa, đưa ra thông báo “Please enter a keyword!”.
+R38: Search by Name | Người dùng nhập từ khóa vào ô Search, sau đó chọn mục “Search by Name”, rồi nhấn vào nút Search. | Bảng danh món sẽ hiển thị danh sách kết quả tương ứng. | - Bảng danh món trống, ứng dụng báo không tìm thấy kết quả “Not found!”. / - Nếu người dùng chưa nhập từ khóa, đưa ra thông báo “Please enter a keyword!”.
+R39: Search by Price | Người dùng nhập từ khóa vào ô Search, sau đó chọn mục “Search by Price”, rồi nhấn vào nút Search. | Bảng danh món sẽ hiển thị danh sách kết quả tương ứng. | - Bảng danh món trống, ứng dụng báo không tìm thấy kết quả “Not found!”. / - Nếu người dùng chưa nhập từ khóa, đưa ra thông báo “Please enter a keyword!”.
+R40: Search by Type | Người dùng nhập từ khóa vào ô Search, sau đó chọn mục “Search by Type”, rồi nhấn vào nút Search. | Bảng danh món sẽ hiển thị danh sách kết quả những món thuộc nhóm món muốn tìm. | - Bảng danh món trống, ứng dụng báo không tìm thấy kết quả “Not found!”. / - Nếu người dùng chưa nhập từ khóa, đưa ra thông báo “Please enter a keyword!”.
