@@ -275,6 +275,63 @@
         "method": "GET",
         "url": "{{baseUrl}}/api/v1/customer/menu/items/not-a-number"
       }
+    },
+    {
+      "name": "14. Tìm ký tự chấm than theo nghĩa đen",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Đúng số món khớp ký tự literal', () => pm.expect(pm.response.json().totalElements).to.eql(1));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/customer/menu/items?keyword=!"
+      }
+    },
+    {
+      "name": "15. Tìm ký tự gạch chéo ngược theo nghĩa đen",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Đúng số món khớp ký tự literal', () => pm.expect(pm.response.json().totalElements).to.eql(1));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/customer/menu/items?keyword=%5C"
+      }
+    },
+    {
+      "name": "16. Tìm ký tự gạch dưới theo nghĩa đen",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Đúng số món khớp ký tự literal', () => pm.expect(pm.response.json().totalElements).to.eql(2));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/customer/menu/items?keyword=_"
+      }
     }
   ]
 }

@@ -10,6 +10,6 @@ INSERT INTO media_assets (id, provider, provider_asset_id, secure_url, mime_type
   (1, 'CLOUDINARY', 'postman-test-latte', 'https://example.invalid/postman-latte.jpg', 'image/jpeg', 1024);
 INSERT INTO menu_items (id, category_id, code, name, price, image_media_id, active, available) VALUES
   (1, 1, 'PM_CF01', 'Caramel Latte kiểm thử', 45000, 1, 1, 1),
-  (2, 1, 'PM_CF02', 'Bạc xỉu 50% kiểm thử', 40000, NULL, 1, 0),
+  (2, 1, 'PM_CF02', CONCAT('Bạc xỉu 50%_!', CHAR(92), ' kiểm thử'), 40000, NULL, 1, 0),
   (3, 1, 'PM_HIDDEN', 'Món ẩn kiểm thử', 35000, NULL, 0, 1),
   (4, 3, 'PM_HIDDEN_GROUP', 'Món thuộc nhóm ẩn kiểm thử', 30000, NULL, 1, 1);

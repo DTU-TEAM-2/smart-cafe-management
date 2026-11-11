@@ -46,6 +46,9 @@ jobs:
           test "$(docker exec "$container" mysql -uroot -N smart_cafe_postman_test -e 'SELECT DATABASE()')" = smart_cafe_postman_test
           docker exec -i "$container" mysql -uroot smart_cafe_postman_test < backend/src/test/resources/schema.sql
           docker exec -i "$container" mysql -uroot smart_cafe_postman_test < docs/qa/postman/dt2-4-menu-test-fixture.sql
+          # Regression for SQL mode used by some deployments; scope is this job's disposable MySQL.
+          docker exec "$container" mysql -uroot -e "SET GLOBAL sql_mode = CONCAT(@@GLOBAL.sql_mode, ',NO_BACKSLASH_ESCAPES')"
+          test "$(docker exec "$container" mysql -uroot -N -e "SELECT FIND_IN_SET('NO_BACKSLASH_ESCAPES', @@GLOBAL.sql_mode) > 0")" = 1
       - name: Package backend
         working-directory: backend
         run: sh mvnw -B -ntp -DskipTests package
@@ -79,6 +82,7 @@ jobs:
           backend/target/postman/newman.json backend/target/postman/report
           --revision "${{ github.event.pull_request.head.sha || github.sha }}"
           --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          --sql-mode NO_BACKSLASH_ESCAPES
           --emit-log
       - name: Upload actual Postman evidence
         if: always()
