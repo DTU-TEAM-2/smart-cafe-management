@@ -16,6 +16,8 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
+import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HexFormat;
 import java.util.Optional;
@@ -26,7 +28,7 @@ public class OtpService {
     private static final Logger log = LoggerFactory.getLogger(OtpService.class);
     private static final int OTP_LENGTH = 6;
     private static final int MAX_ATTEMPTS = 5;
-    private static final int MAX_SENDS = 3; // 1 initial send + max 2 resends
+    private static final int MAX_SENDS = 3; // 1 initial request + max 2 accepted resends, regardless of delivery
     private static final long COOLDOWN_SECONDS = 60;
 
     private final AuthRepository authRepository;
@@ -34,6 +36,7 @@ public class OtpService {
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
     private final long otpValiditySeconds;
+    private final Clock clock;
     private final SecureRandom secureRandom = new SecureRandom();
     private final TransactionTemplate requiresNewTx;
 
@@ -43,8 +46,10 @@ public class OtpService {
             EmailService emailService,
             PasswordEncoder passwordEncoder,
             PlatformTransactionManager transactionManager,
+            Clock clock,
             @Value("${smartcafe.auth.otp-validity-seconds:600}") long otpValiditySeconds
     ) {
+        this.clock = clock;
         this.authRepository = authRepository;
         this.tokenService = tokenService;
         this.emailService = emailService;
@@ -60,7 +65,7 @@ public class OtpService {
             throw new OtpException("Định dạng email không hợp lệ.");
         }
 
-        Instant now = Instant.now();
+        Instant now = clock.instant();
         Instant nextSendAt = now.plusSeconds(COOLDOWN_SECONDS);
         Instant windowStart = now;
 
@@ -150,8 +155,8 @@ public class OtpService {
             throw new OtpException("Mã OTP này đã được sử dụng. Vui lòng yêu cầu mã mới.");
         }
 
-        Instant now = Instant.now();
-        if (now.isAfter(challenge.expiresAt())) {
+        Instant now = clock.instant();
+        if (!now.isBefore(challenge.expiresAt())) {
             throw new OtpException("Mã OTP đã hết hạn. Vui lòng yêu cầu mã mới.");
         }
 
@@ -216,11 +221,15 @@ public class OtpService {
             throw new OtpException("Phiên xác minh này đã hoàn tất. Vui lòng tạo yêu cầu mới.");
         }
 
+        Instant now = clock.instant();
+        if (!now.isBefore(challenge.expiresAt())) {
+            throw new OtpException("Mã OTP đã hết hạn. Vui lòng yêu cầu mã mới.");
+        }
+
         if (challenge.sends() >= MAX_SENDS) {
             throw new OtpException("Bạn đã vượt quá số lần gửi lại mã (tối đa 2 lần). Vui lòng yêu cầu lại từ đầu.");
         }
 
-        Instant now = Instant.now();
         if (now.isBefore(challenge.nextSendAt())) {
             long remainingCooldown = challenge.nextSendAt().getEpochSecond() - now.getEpochSecond();
             throw new OtpException("Vui lòng đợi " + remainingCooldown + " giây trước khi gửi lại mã.", remainingCooldown);
@@ -234,38 +243,37 @@ public class OtpService {
             throw new OtpException("Không thể gửi email OTP qua dịch vụ gửi thư. Vui lòng thử lại sau.");
         }
 
-        Instant newExpiresAt = now.plusSeconds(otpValiditySeconds);
         Instant newNextSendAt = now.plusSeconds(COOLDOWN_SECONDS);
+        // Reserve once for real and dummy challenges while holding FOR UPDATE through delivery.
+        if (authRepository.consumeOtpResend(challengeId, now, newNextSendAt) != 1) {
+            throw new IllegalStateException("OTP resend reservation failed");
+        }
+        Duration remaining = Duration.between(now, challenge.expiresAt());
+        long remainingValidity = remaining.toSeconds() + (remaining.getNano() > 0 ? 1 : 0);
 
         if (challenge.userId() != null) {
             String newOtpCode = generateNumericOtp();
             String newCodeHash = tokenService.hmacSha256(challengeId + "|" + challenge.purpose() + "|" + newOtpCode);
-
-            // Attempt delivery via SMTP
+            boolean delivered = false;
             try {
-                emailService.sendOtpEmail(challenge.email(), newOtpCode, challenge.purpose(), otpValiditySeconds);
-                // Delivery succeeded: update database with new OTP hash, increment sends, update nextSendAt
-                authRepository.updateOtpResend(challengeId, newCodeHash, newExpiresAt, newNextSendAt);
-                log.info("OTP successfully resent to recipient {}", challenge.email());
+                emailService.sendOtpEmail(challenge.email(), newOtpCode, challenge.purpose(), remainingValidity);
+                delivered = true;
             } catch (Exception ex) {
-                // Delivery failed (SMTP rejection at MAIL FROM, RCPT TO, DATA, timeout, etc.)
-                // DO NOT overwrite old OTP code_hash in database!
-                // Update cooldown to prevent immediate retry flood, but preserve original code_hash and sends count
-                authRepository.updateOtpCooldownOnly(challengeId, newNextSendAt);
-                log.error("Failed to deliver resend OTP email to recipient {}: {}", challenge.email(), ex.getMessage());
+                log.warn("OTP resend delivery failed");
             }
-        } else {
-            // Dummy challenge for non-existent email: simulate resend lifecycle without sending external email
-            String dummyHash = tokenService.hmacSha256("DUMMY|" + challengeId + "|" + tokenService.generateRandomHex(32));
-            authRepository.updateOtpResend(challengeId, dummyHash, newExpiresAt, newNextSendAt);
-            log.info("Dummy OTP resend request processed for challenge {}", challengeId);
+            // Keep database failures outside the SMTP catch: rollback instead of reporting neutral success.
+            if (authRepository.recordOtpDelivery(challengeId, challenge.sends() + 1,
+                    newCodeHash, delivered, clock.instant()) != 1) {
+                throw new IllegalStateException("OTP delivery transition failed");
+            }
         }
+        // Dummy challenges consume the same budget/cooldown but never claim a delivered email.
 
         return new ForgotPasswordResponse(
                 challengeId,
                 "Yêu cầu gửi lại mã xác minh đã được tiếp nhận. Vui lòng kiểm tra hộp thư của bạn.",
                 COOLDOWN_SECONDS,
-                otpValiditySeconds
+                remainingValidity
         );
     }
 

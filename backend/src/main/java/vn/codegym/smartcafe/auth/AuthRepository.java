@@ -183,39 +183,29 @@ public class AuthRepository {
         return jdbcTemplate.update(sql, challengeId);
     }
 
-    public int updateOtpResend(String challengeId, String newCodeHash, Instant newExpiresAt, Instant newNextSendAt) {
-        String sql = """
+    // sends counts accepted requests, including delivery failures, rather than delivered emails.
+    public int consumeOtpResend(String challengeId, Instant acceptedAt, Instant nextSendAt) {
+        return jdbcTemplate.update("""
             UPDATE auth_otp_challenges
-            SET code_hash = ?,
-                sends = sends + 1,
-                expires_at = ?,
-                next_send_at = ?,
-                delivery_status = 'SENT',
-                sent_at = CURRENT_TIMESTAMP(6)
+            SET sends = sends + 1, next_send_at = ?
             WHERE id = ?
               AND used_at IS NULL
               AND sends < 3
-              AND CURRENT_TIMESTAMP(6) >= next_send_at
-            """;
-        return jdbcTemplate.update(
-                sql,
-                newCodeHash,
-                Timestamp.from(newExpiresAt),
-                Timestamp.from(newNextSendAt),
-                challengeId
-        );
+              AND expires_at > ?
+              AND next_send_at <= ?
+            """, Timestamp.from(nextSendAt), challengeId, Timestamp.from(acceptedAt), Timestamp.from(acceptedAt));
     }
 
-    public int updateOtpCooldownOnly(String challengeId, Instant newNextSendAt) {
-        String sql = """
+    public int recordOtpDelivery(String challengeId, int expectedSends, String newCodeHash,
+                                 boolean delivered, Instant sentAt) {
+        return jdbcTemplate.update("""
             UPDATE auth_otp_challenges
-            SET next_send_at = ?,
-                delivery_status = 'FAILED'
-            WHERE id = ?
-              AND used_at IS NULL
-              AND CURRENT_TIMESTAMP(6) >= next_send_at
-            """;
-        return jdbcTemplate.update(sql, Timestamp.from(newNextSendAt), challengeId);
+            SET code_hash = CASE WHEN ? THEN ? ELSE code_hash END,
+                delivery_status = ?,
+                sent_at = CASE WHEN ? THEN ? ELSE sent_at END
+            WHERE id = ? AND used_at IS NULL AND sends = ?
+            """, delivered, newCodeHash, delivered ? "SENT" : "FAILED", delivered,
+                Timestamp.from(sentAt), challengeId, expectedSends);
     }
 
     public int markOtpUsed(String challengeId) {

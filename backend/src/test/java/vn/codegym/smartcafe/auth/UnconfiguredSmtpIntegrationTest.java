@@ -42,11 +42,14 @@ class UnconfiguredSmtpIntegrationTest {
 
     @BeforeEach
     void setUp() {
-        jdbcTemplate.update("DELETE FROM auth_otp_challenges");
-        jdbcTemplate.update("DELETE FROM auth_otp_limits");
-        jdbcTemplate.update("DELETE FROM users WHERE username = 'smtp_unconfigured_user'");
+        for (String email : java.util.List.of("unconfigured_smtp@smartcafe.vn", "ghost_unconfigured@smartcafe.vn")) {
+            update("DELETE FROM auth_otp_challenges WHERE email = ?", email);
+            update("DELETE FROM auth_otp_limits WHERE email_key = ? AND purpose = 'RESET'",
+                    tokenService.hmacSha256("LIMIT:" + email));
+        }
+        update("DELETE FROM users WHERE username = 'smtp_unconfigured_user'");
 
-        jdbcTemplate.update(
+        update(
                 """
                 INSERT INTO users (
                     username, password_hash, full_name, email, phone, role, status,
@@ -67,9 +70,16 @@ class UnconfiguredSmtpIntegrationTest {
 
     @org.junit.jupiter.api.AfterEach
     void cleanUp() {
-        jdbcTemplate.update("DELETE FROM auth_otp_challenges");
-        jdbcTemplate.update("DELETE FROM auth_otp_limits");
-        jdbcTemplate.update("DELETE FROM users WHERE username = 'smtp_unconfigured_user'");
+        for (String email : java.util.List.of("unconfigured_smtp@smartcafe.vn", "ghost_unconfigured@smartcafe.vn")) {
+            update("DELETE FROM auth_otp_challenges WHERE email = ?", email);
+            update("DELETE FROM auth_otp_limits WHERE email_key = ? AND purpose = 'RESET'",
+                    tokenService.hmacSha256("LIMIT:" + email));
+        }
+        update("DELETE FROM users WHERE username = 'smtp_unconfigured_user'");
+    }
+
+    private int update(String sql, Object... args) {
+        return TestDatabase.update(jdbcTemplate, sql, args);
     }
 
     @Test
@@ -107,7 +117,7 @@ class UnconfiguredSmtpIntegrationTest {
         assertThat(originalOtp).isNotNull();
 
         // Fast-forward cooldown
-        jdbcTemplate.update(
+        update(
                 "UPDATE auth_otp_challenges SET next_send_at = DATE_SUB(NOW(6), INTERVAL 5 SECOND) WHERE id IN (?, ?)",
                 realChallengeId,
                 dummyChallengeId
@@ -139,6 +149,21 @@ class UnconfiguredSmtpIntegrationTest {
         assertThat(realDetail)
                 .isEqualTo(dummyDetail)
                 .contains("Không thể gửi email OTP qua dịch vụ gửi thư");
+
+        java.util.Map<String, Object> realBefore = jdbcTemplate.queryForMap("SELECT * FROM auth_otp_challenges WHERE id = ?", realChallengeId);
+        java.util.Map<String, Object> dummyBefore = jdbcTemplate.queryForMap("SELECT * FROM auth_otp_challenges WHERE id = ?", dummyChallengeId);
+        for (int i = 0; i < 3; i++) {
+            for (String id : java.util.List.of(realChallengeId, dummyChallengeId)) {
+                MvcResult result = mockMvc.perform(post("/api/v1/auth/resend-otp")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(String.format("{\"challengeId\":\"%s\"}", id)))
+                        .andExpect(status().isBadRequest()).andReturn();
+                assertThat(result.getResponse().getContentAsString())
+                        .isEqualTo(realResendResult.getResponse().getContentAsString());
+            }
+            assertThat(jdbcTemplate.queryForMap("SELECT * FROM auth_otp_challenges WHERE id = ?", realChallengeId)).isEqualTo(realBefore);
+            assertThat(jdbcTemplate.queryForMap("SELECT * FROM auth_otp_challenges WHERE id = ?", dummyChallengeId)).isEqualTo(dummyBefore);
+        }
 
         // 5. Verify database state is untouched: code_hash unchanged, sends still 1 (Nam P2 preserved)
         String codeHashAfter = jdbcTemplate.queryForObject(

@@ -6,6 +6,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.PlatformTransactionManager;
 import vn.codegym.smartcafe.auth.dto.ForgotPasswordResponse;
 
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
 
@@ -40,6 +41,7 @@ class OtpServiceTest {
                 emailService,
                 passwordEncoder,
                 transactionManager,
+                Clock.systemUTC(),
                 600
         );
     }
@@ -73,8 +75,8 @@ class OtpServiceTest {
                 .isInstanceOf(OtpException.class)
                 .hasMessageContaining("Không thể gửi email OTP qua dịch vụ gửi thư");
 
-        // Crucial verification: updateOtpResend must NEVER be called when email sending fails
-        verify(authRepository, never()).updateOtpResend(anyString(), anyString(), any(), any());
+        // Readiness failure is rejected before consuming any budget.
+        verify(authRepository, never()).consumeOtpResend(anyString(), any(), any());
     }
 
     @Test
@@ -102,15 +104,17 @@ class OtpServiceTest {
         doThrow(new RuntimeException("SMTP delivery failed with 451"))
                 .when(emailService).sendOtpEmail(eq("user@smartcafe.vn"), anyString(), eq("RESET"), anyLong());
 
+        when(authRepository.consumeOtpResend(eq(challengeId), any(), any())).thenReturn(1);
+        when(authRepository.recordOtpDelivery(eq(challengeId), eq(2), anyString(), eq(false), any())).thenReturn(1);
         ForgotPasswordResponse response = otpService.resendOtp(challengeId);
 
         assertThat(response).isNotNull();
         assertThat(response.challengeId()).isEqualTo(challengeId);
         assertThat(response.message()).contains("Yêu cầu gửi lại mã xác minh đã được tiếp nhận");
 
-        // Crucial verification: updateOtpResend must NEVER be called, but updateOtpCooldownOnly is called
-        verify(authRepository, never()).updateOtpResend(anyString(), anyString(), any(), any());
-        verify(authRepository, times(1)).updateOtpCooldownOnly(eq(challengeId), any());
+        // Delivery failure consumes one request without installing the undelivered hash.
+        verify(authRepository).consumeOtpResend(eq(challengeId), any(), any());
+        verify(authRepository).recordOtpDelivery(eq(challengeId), eq(2), anyString(), eq(false), any());
     }
 
     @Test
@@ -141,8 +145,32 @@ class OtpServiceTest {
                 .isInstanceOf(OtpException.class)
                 .hasMessageContaining("Không thể gửi email OTP qua dịch vụ gửi thư");
 
-        // Crucial verification: updateOtpResend must NEVER be called for dummy when email service fails
-        verify(authRepository, never()).updateOtpResend(anyString(), anyString(), any(), any());
+        // Apply the same readiness policy to dummy challenges.
+        verify(authRepository, never()).consumeOtpResend(anyString(), any(), any());
+    }
+
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.CsvSource({"false,false", "false,true", "true,false", "true,true"})
+    void failedDatabaseTransitionDoesNotSilentlyReportSuccessfulResend(boolean deliveryTransition, boolean sqlException) {
+        String id = "database-failure";
+        when(authRepository.findOtpChallengeByIdForUpdate(id)).thenReturn(Optional.of(new OtpChallengeRecord(
+                id, 1L, "fixture@smartcafe.vn", "RESET", "old-hash", 2, 1,
+                Instant.now().plusSeconds(300), Instant.now().minusSeconds(5), null,
+                "SENT", Instant.now().minusSeconds(300), null, Instant.now().minusSeconds(300))));
+        RuntimeException failure = new org.springframework.dao.DataAccessResourceFailureException("test database unavailable");
+        if (deliveryTransition) {
+            when(authRepository.consumeOtpResend(eq(id), any(), any())).thenReturn(1);
+            if (sqlException) {
+                when(authRepository.recordOtpDelivery(eq(id), eq(2), anyString(), eq(true), any())).thenThrow(failure);
+            }
+        } else if (sqlException) {
+            when(authRepository.consumeOtpResend(eq(id), any(), any())).thenThrow(failure);
+        }
+        assertThatThrownBy(() -> otpService.resendOtp(id))
+                .isInstanceOf(sqlException ? org.springframework.dao.DataAccessException.class : IllegalStateException.class);
+        verify(emailService, times(deliveryTransition ? 1 : 0)).sendOtpEmail(anyString(), anyString(), anyString(), anyLong());
+        verify(authRepository, times(deliveryTransition ? 1 : 0))
+                .recordOtpDelivery(eq(id), eq(2), anyString(), eq(true), any());
     }
 
     @Test

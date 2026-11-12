@@ -65,3 +65,12 @@ Sau khi được báo chênh lệch, chủ repo gửi lại sơ đồ DB mới v
      - Nếu bất kỳ bảng nào chưa có, áp dụng DDL trực tiếp từ `backend/src/main/resources/db/migration/V001__create_users_and_auth_tables.sql`.
 3. Tính toàn vẹn dữ liệu:
    - Mọi câu lệnh DDL trong `V001` và `V002` đều dùng `CREATE TABLE IF NOT EXISTS`, tuyệt đối không drop hoặc ghi đè cấu trúc/dữ liệu của bảng `users` đã tồn tại trên database hệ thống.
+
+## DT2-2 — đối chiếu read-only cho OTP retry ngày 12/11/2026
+
+Task sửa P1 của PR #7, bắt đầu tại `2ee793d5d0365c5dfc43f4ae59a13cd8d8aaefa8`, đã đọc `SHOW CREATE TABLE users`, `auth_otp_challenges`, `auth_otp_limits` trên MySQL 8.0.45. Không đọc dữ liệu tài khoản hoặc chạy DDL/DML trên `smart_cafe`.
+
+- `smart_cafe_auth_test`: các cột của ba bảng liên quan khớp fixture đã có; OTP dùng `datetime(6)`, ID/hash ASCII và các check counts/delivery/expiry/reset-user. Đây là môi trường kiểm thử, không chứng minh DDL triển khai đã khớp sơ đồ ngày 11/11.
+- `smart_cafe`: OTP/limits dùng `timestamp(6)` và `utf8mb4_unicode_ci`, khác `datetime(6)` trong sơ đồ/fixture. OTP còn có `delivery_attempts`, `next_delivery_at`, `otp_ciphertext`, `last_smtp_status`; FK OTP → users có `ON DELETE CASCADE`; thiếu các check counts/delivery/expiry/reset-user của fixture. `users.role/status` là varchar(32)/varchar(32), khác 16/24 trong sơ đồ; username/hash và timestamp/collation/index/FK cũng khác fixture.
+- Sửa retry chỉ dùng các cột chung đã xác nhận: `sends`, `next_send_at`, `expires_at`, `used_at`, `code_hash`, `delivery_status`, `sent_at`. Không thay fixture/schema/migration để hợp thức hóa các khác biệt. Connection kiểm thử dùng UTC.
+- **Giữ phần reconciliation/provisioning/deployment phụ thuộc DDL cho chủ repo/người phụ trách DB quyết định**: xác nhận DDL đích và chính sách cho các cột delivery bổ sung trước khi triển khai. Kết quả `_test` không phải nghiệm thu runtime `smart_cafe`. Xem [bàn giao retry](../handover/dt2-2-otp-retry-lifecycle.md).

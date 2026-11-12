@@ -61,12 +61,10 @@ class OtpIntegrationTest {
         String dbName = jdbcTemplate.queryForObject("SELECT DATABASE()", String.class);
         assertThat(dbName).isNotNull().endsWith("_test");
 
-        jdbcTemplate.update("DELETE FROM users WHERE username = 'otp_user'");
-        jdbcTemplate.update("DELETE FROM auth_otp_challenges WHERE email LIKE '%@smartcafe.vn'");
-        jdbcTemplate.update("DELETE FROM auth_otp_limits WHERE purpose = 'RESET'");
+        cleanUp();
 
         String hash = passwordEncoder.encode("OldPassword@123");
-        jdbcTemplate.update("""
+        update("""
             INSERT INTO users (username, password_hash, full_name, email, phone, role, status, auth_version)
             VALUES ('otp_user', ?, 'OTP Test User', 'otp_user@smartcafe.vn', '0909999999', 'STAFF', 'ACTIVE', 0)
             """, hash);
@@ -74,12 +72,20 @@ class OtpIntegrationTest {
 
     @AfterEach
     void cleanUp() {
-        String dbName = jdbcTemplate.queryForObject("SELECT DATABASE()", String.class);
-        if (dbName != null && dbName.endsWith("_test")) {
-            jdbcTemplate.update("DELETE FROM auth_otp_challenges WHERE email LIKE '%@smartcafe.vn'");
-            jdbcTemplate.update("DELETE FROM auth_otp_limits WHERE purpose = 'RESET'");
-            jdbcTemplate.update("DELETE FROM users WHERE username = 'otp_user'");
+        for (String email : java.util.List.of(
+                "otp_user@smartcafe.vn", "nonexistent_999@smartcafe.vn", "ghost_user@smartcafe.vn",
+                "ghost_resend_smtp_down@smartcafe.vn", "concurrent_test@smartcafe.vn",
+                "ghost_mail_from@smartcafe.vn", "ghost_rcpt_to@smartcafe.vn", "ghost_data@smartcafe.vn",
+                "ghost_disconnect@smartcafe.vn", "ghost_healthy_test@smartcafe.vn")) {
+            update("DELETE FROM auth_otp_challenges WHERE email = ?", email);
+            update("DELETE FROM auth_otp_limits WHERE email_key = ? AND purpose = 'RESET'",
+                    tokenService.hmacSha256("LIMIT:" + email));
         }
+        update("DELETE FROM users WHERE username = 'otp_user'");
+    }
+
+    private int update(String sql, Object... args) {
+        return TestDatabase.update(jdbcTemplate, sql, args);
     }
 
     @Test
@@ -313,7 +319,7 @@ class OtpIntegrationTest {
         assertThat(originalOtp).isNotNull();
 
         // 3. Fast-forward cooldown in DB so resend is allowed
-        jdbcTemplate.update(
+        update(
                 "UPDATE auth_otp_challenges SET next_send_at = DATE_SUB(NOW(6), INTERVAL 5 SECOND) WHERE id = ?",
                 challengeId
         );
@@ -327,7 +333,7 @@ class OtpIntegrationTest {
                 .andExpect(jsonPath("$.challengeId").value(challengeId))
                 .andExpect(jsonPath("$.message").value(containsString("Yêu cầu gửi lại mã xác minh đã được tiếp nhận")));
 
-        // 5. Verify database state is untouched (codeHash unchanged, sends still 1)
+        // 5. Preserve the previous hash while consuming one resend request.
         String codeHashAfterFailedResend = jdbcTemplate.queryForObject(
                 "SELECT code_hash FROM auth_otp_challenges WHERE id = ?",
                 String.class,
@@ -340,7 +346,7 @@ class OtpIntegrationTest {
                 Integer.class,
                 challengeId
         );
-        assertThat(sendsCount).isEqualTo(1);
+        assertThat(sendsCount).isEqualTo(2);
 
         // 6. Verify original OTP remains 100% valid and can be verified
         String verifyBody = String.format("{\"challengeId\": \"%s\", \"otp\": \"%s\"}", challengeId, originalOtp);
@@ -460,7 +466,7 @@ class OtpIntegrationTest {
         assertThat(originalOtp).isNotNull();
 
         // 3. Fast-forward cooldown in DB for both challenges
-        jdbcTemplate.update(
+        update(
                 "UPDATE auth_otp_challenges SET next_send_at = DATE_SUB(NOW(6), INTERVAL 5 SECOND) WHERE id IN (?, ?)",
                 realChallengeId,
                 dummyChallengeId
@@ -491,7 +497,7 @@ class OtpIntegrationTest {
         String dummyMsg = JsonPath.read(dummyResendResult.getResponse().getContentAsString(), "$.message");
         assertThat(realMsg).isEqualTo(dummyMsg);
 
-        // 7. Verify real challenge database state is untouched (codeHash unchanged, sends still 1)
+        // 7. Preserve the previous hash while consuming one resend request.
         String codeHashAfterFailedResend = jdbcTemplate.queryForObject(
                 "SELECT code_hash FROM auth_otp_challenges WHERE id = ?",
                 String.class,
@@ -504,7 +510,7 @@ class OtpIntegrationTest {
                 Integer.class,
                 realChallengeId
         );
-        assertThat(realSends).isEqualTo(1);
+        assertThat(realSends).isEqualTo(2);
 
         Integer dummySends = jdbcTemplate.queryForObject(
                 "SELECT sends FROM auth_otp_challenges WHERE id = ?",
@@ -556,7 +562,7 @@ class OtpIntegrationTest {
         }
 
         startLatch.countDown();
-        doneLatch.await();
+        assertTrue(doneLatch.await(20, java.util.concurrent.TimeUnit.SECONDS), "Concurrent requests must complete");
         executor.shutdown();
 
         long successCount = statusCodes.stream().filter(code -> code == 200).count();
@@ -575,7 +581,7 @@ class OtpIntegrationTest {
         assertThat(dbCount).isEqualTo(1);
     }
 
-    @Test
+    @org.junit.jupiter.api.RepeatedTest(5)
     void concurrentResendOtpDoesNotExceedSendsLimit() throws Exception {
         // Start dummy SMTP server on port 1025 to simulate healthy SMTP accepting emails
         try (SimpleDummySmtpServer smtpServer = new SimpleDummySmtpServer(1025)) {
@@ -589,7 +595,7 @@ class OtpIntegrationTest {
             String challengeId = JsonPath.read(forgotResult.getResponse().getContentAsString(), "$.challengeId");
 
             // Fast-forward cooldown to the past
-            jdbcTemplate.update(
+            update(
                     "UPDATE auth_otp_challenges SET next_send_at = DATE_SUB(NOW(6), INTERVAL 5 SECOND) WHERE id = ?",
                     challengeId
             );
@@ -618,7 +624,7 @@ class OtpIntegrationTest {
             }
 
             startLatch.countDown();
-            doneLatch.await();
+            assertTrue(doneLatch.await(20, java.util.concurrent.TimeUnit.SECONDS), "Concurrent requests must complete");
             executor.shutdown();
 
             long successCount = statusCodes.stream().filter(code -> code == 200).count();
@@ -748,7 +754,7 @@ class OtpIntegrationTest {
             assertThat(originalOtp).isNotNull();
 
             // Fast-forward cooldown in DB for both challenges
-            jdbcTemplate.update(
+            update(
                     "UPDATE auth_otp_challenges SET next_send_at = DATE_SUB(NOW(6), INTERVAL 5 SECOND) WHERE id IN (?, ?)",
                     realChallengeId,
                     dummyChallengeId
@@ -777,7 +783,7 @@ class OtpIntegrationTest {
             String dummyMsg = JsonPath.read(dummyResendResult.getResponse().getContentAsString(), "$.message");
             assertThat(realMsg).isEqualTo(dummyMsg).contains("tiếp nhận");
 
-            // 5. Verify real challenge database state is untouched (codeHash unchanged, sends still 1)
+            // 5. Verify real challenge database state is untouched (codeHash unchanged, one accepted resend consumed)
             String codeHashAfter = jdbcTemplate.queryForObject(
                     "SELECT code_hash FROM auth_otp_challenges WHERE id = ?",
                     String.class,
@@ -790,7 +796,7 @@ class OtpIntegrationTest {
                     Integer.class,
                     realChallengeId
             );
-            assertThat(realSends).isEqualTo(1);
+            assertThat(realSends).isEqualTo(2);
 
             // 6. Verify original OTP remains valid and can still be verified
             mockMvc.perform(post("/api/v1/auth/verify-otp")
@@ -836,7 +842,7 @@ class OtpIntegrationTest {
             );
 
             // Fast-forward cooldown
-            jdbcTemplate.update(
+            update(
                     "UPDATE auth_otp_challenges SET next_send_at = DATE_SUB(NOW(6), INTERVAL 5 SECOND) WHERE id IN (?, ?)",
                     realChallengeId,
                     dummyChallengeId
