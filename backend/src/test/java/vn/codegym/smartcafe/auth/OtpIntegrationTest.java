@@ -89,6 +89,12 @@ class OtpIntegrationTest {
     }
 
     @Test
+    void resetTokenValidationRejectsGetQueryTokens() throws Exception {
+        mockMvc.perform(get("/api/v1/auth/verify-reset-token").param("token", "fixture-query-token"))
+                .andExpect(status().isMethodNotAllowed());
+    }
+
+    @Test
     void forgotPasswordReturnsNeutralSuccessForAnyEmail() throws Exception {
         String existingEmail = "{\"email\": \"otp_user@smartcafe.vn\"}";
         mockMvc.perform(post("/api/v1/auth/forgot-password")
@@ -221,7 +227,7 @@ class OtpIntegrationTest {
         String resetToken = JsonPath.read(verifyResult.getResponse().getContentAsString(), "$.token");
 
         // 5. Verify reset token endpoint
-        mockMvc.perform(get("/api/v1/auth/verify-reset-token").param("token", resetToken))
+        mockMvc.perform(post("/api/v1/auth/verify-reset-token").contentType(MediaType.APPLICATION_JSON).content(String.format("{\"token\":\"%s\"}", resetToken)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.valid").value(true));
 
@@ -691,12 +697,7 @@ class OtpIntegrationTest {
                 .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("no-store")))
                 .andExpect(jsonPath("$.valid").value(true));
 
-        // 4. Test GET /api/v1/auth/verify-reset-token also returns Cache-Control: no-store
-        mockMvc.perform(get("/api/v1/auth/verify-reset-token")
-                .param("token", resetToken))
-                .andExpect(status().isOk())
-                .andExpect(header().string(HttpHeaders.CACHE_CONTROL, containsString("no-store")))
-                .andExpect(jsonPath("$.valid").value(true));
+
     }
 
     @Test

@@ -142,7 +142,6 @@ public class OtpService {
         );
     }
 
-    @Transactional(noRollbackFor = OtpException.class)
     public VerifyOtpResponse verifyOtp(String challengeId, String inputOtp) {
         if (inputOtp == null || !inputOtp.matches("^[0-9]{6}$")) {
             throw new OtpException("Mã OTP phải gồm đúng 6 chữ số.");
@@ -171,7 +170,7 @@ public class OtpService {
         );
 
         if (!isMatch) {
-            // Commit attempt increment immediately in its own transaction so it cannot be rolled back
+            // The initial read holds no connection while this independent CAS transaction runs.
             int updatedAttempts = requiresNewTx.execute(status -> {
                 if (authRepository.incrementOtpAttemptsIfCurrent(challengeId, challenge.codeHash(), challenge.sends()) != 1) {
                     throw new OtpException("Yêu cầu xác minh không hợp lệ hoặc đã được sử dụng.");
@@ -188,30 +187,32 @@ public class OtpService {
             throw new OtpException("Mã OTP không chính xác. Bạn còn " + remaining + " lần thử.");
         }
 
-        // Atomic conditional consume: only proceed if exactly 1 row was updated
-        int consumed = authRepository.markOtpUsedIfCurrent(challengeId, challenge.codeHash(), challenge.sends());
-        if (consumed != 1) {
-            throw new OtpException("Yêu cầu xác minh không hợp lệ hoặc đã được sử dụng.");
-        }
-
-        if ("RESET".equalsIgnoreCase(challenge.purpose())) {
-            if (challenge.userId() == null) {
-                throw new OtpException("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc.");
+        return requiresNewTx.execute(status -> {
+            // Atomic conditional consume: only proceed if exactly 1 row was updated
+            int consumed = authRepository.markOtpUsedIfCurrent(challengeId, challenge.codeHash(), challenge.sends());
+            if (consumed != 1) {
+                throw new OtpException("Yêu cầu xác minh không hợp lệ hoặc đã được sử dụng.");
             }
-            UserRecord user = authRepository.findUserById(challenge.userId())
-                    .orElseThrow(() -> new OtpException("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc."));
 
-            String rawGrantToken = tokenService.generateResetGrantToken(
-                    challengeId,
-                    user.id(),
-                    user.authVersion(),
-                    otpValiditySeconds
-            );
+            if ("RESET".equalsIgnoreCase(challenge.purpose())) {
+                if (challenge.userId() == null) {
+                    throw new OtpException("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc.");
+                }
+                UserRecord user = authRepository.findUserById(challenge.userId())
+                        .orElseThrow(() -> new OtpException("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc."));
 
-            return new VerifyOtpResponse("RESET", rawGrantToken, "Xác minh OTP thành công. Vui lòng nhập mật khẩu mới.");
-        }
+                String rawGrantToken = tokenService.generateResetGrantToken(
+                        challengeId,
+                        user.id(),
+                        user.authVersion(),
+                        otpValiditySeconds
+                );
 
-        return new VerifyOtpResponse(challenge.purpose(), null, "Xác minh OTP thành công.");
+                return new VerifyOtpResponse("RESET", rawGrantToken, "Xác minh OTP thành công. Vui lòng nhập mật khẩu mới.");
+            }
+
+            return new VerifyOtpResponse(challenge.purpose(), null, "Xác minh OTP thành công.");
+        });
     }
 
     @Transactional

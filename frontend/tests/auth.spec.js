@@ -112,6 +112,49 @@ test.describe("Authentication and Password Recovery (DT2-2)", () => {
     await expect(page).toHaveURL(/#login$/);
   });
 
+  for (const mode of ["pending", "network failure", "HTTP failure"]) {
+    test(`logout clears credentials with ${mode} acknowledgement`, async ({ page }) => {
+      let releaseLogout;
+      const pending = new Promise(resolve => { releaseLogout = resolve; });
+      await page.route("**/api/v1/auth/logout", async route => {
+        if (mode === "pending") await pending;
+        if (mode === "network failure") await route.abort();
+        else await route.fulfill({ status: mode === "HTTP failure" ? 503 : 200, json: { message: "Fixture logout response" } });
+      });
+      await page.addInitScript(() => {
+        if (sessionStorage.getItem("logout_fixture_initialized")) return;
+        sessionStorage.setItem("logout_fixture_initialized", "true");
+        sessionStorage.setItem("smart_cafe_token", "fixture-admin-token");
+        sessionStorage.setItem("smart_cafe_user", JSON.stringify({ username: "admin", fullName: "Fixture", role: "ADMIN" }));
+        localStorage.setItem("smart_cafe_token", "fixture-legacy-token");
+        localStorage.setItem("smart_cafe_user", "fixture-legacy-user");
+      });
+      const errors = [];
+      page.on("pageerror", error => errors.push(error.message));
+      try {
+        await page.goto("/#admin");
+        const completed = mode === "network failure"
+          ? page.waitForEvent("requestfailed", { predicate: request => request.url().endsWith("/api/v1/auth/logout") })
+          : page.waitForResponse(response => response.url().endsWith("/api/v1/auth/logout"));
+        await page.getByRole("button", { name: "Đăng xuất", exact: true }).click();
+        await expect.poll(() => page.evaluate(() => sessionStorage.getItem("smart_cafe_token"))).toBeNull();
+        await expect(page).toHaveURL(/#login$/);
+        await expect(page.getByRole("heading", { name: "Đăng nhập", exact: true })).toBeVisible();
+        await expect.poll(() => page.evaluate(() => sessionStorage.getItem("smart_cafe_user"))).toBeNull();
+        releaseLogout();
+        await completed;
+        await expect.poll(() => page.evaluate(() => sessionStorage.getItem("smart_cafe_token"))).toBeNull();
+        expect(await page.evaluate(() => ["smart_cafe_token", "smart_cafe_user"].map(key => localStorage.getItem(key)))).toEqual([null, null]);
+        await page.reload();
+        await expect(page.getByRole("heading", { name: "Đăng nhập", exact: true })).toBeVisible();
+        expect(await page.evaluate(() => ["smart_cafe_token", "smart_cafe_user"].map(key => sessionStorage.getItem(key)))).toEqual([null, null]);
+        expect(errors).toEqual([]);
+      } finally {
+        releaseLogout();
+      }
+    });
+  }
+
   test("Forgot password flow navigates to OTP page and verifies code", async ({ page }) => {
     await page.route("**/api/v1/auth/forgot-password", route =>
       route.fulfill({

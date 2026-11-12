@@ -45,6 +45,8 @@ Sau khi được báo chênh lệch, chủ repo gửi lại sơ đồ DB mới v
 
 ## DT2-2 — Quy trình Flyway Baseline và Nâng cấp Migration cho bảng Auth/OTP
 
+**Historical `_test` scenarios only. The 12/11 hardening audit below found a different migration lineage on `smart_cafe`; this section is not approval to baseline/migrate that database. CREATE TABLE IF NOT EXISTS does not reconcile existing definitions or prove compatibility. Deployment is BLOCKED pending DB owner decision.**
+
 Đối chiếu cho PR #7 (DT2-2 Authentication & Password Recovery):
 1. Nhóm bảng tài khoản & xác thực gồm 4 bảng trong sơ đồ 20 bảng: `users`, `staff_profiles`, `auth_otp_challenges`, `auth_otp_limits`.
 2. Hỗ trợ đa kịch bản triển khai và nâng cấp Flyway:
@@ -62,7 +64,7 @@ Sau khi được báo chênh lệch, chủ repo gửi lại sơ đồ DB mới v
        SHOW TABLES LIKE 'auth_otp_challenges';
        SHOW TABLES LIKE 'auth_otp_limits';
        ```
-     - Nếu bất kỳ bảng nào chưa có, áp dụng DDL trực tiếp từ `backend/src/main/resources/db/migration/V001__create_users_and_auth_tables.sql`.
+     - Nếu thiếu bảng, dừng phần triển khai phụ thuộc và yêu cầu chủ DB đối chiếu sơ đồ/DDL/history; không tự áp dụng V001 lên DB chung.
 3. Tính toàn vẹn dữ liệu:
    - Mọi câu lệnh DDL trong `V001` và `V002` đều dùng `CREATE TABLE IF NOT EXISTS`, tuyệt đối không drop hoặc ghi đè cấu trúc/dữ liệu của bảng `users` đã tồn tại trên database hệ thống.
 
@@ -74,3 +76,25 @@ Task sửa P1 của PR #7, bắt đầu tại `2ee793d5d0365c5dfc43f4ae59a13cd8d
 - `smart_cafe`: OTP/limits dùng `timestamp(6)` và `utf8mb4_unicode_ci`, khác `datetime(6)` trong sơ đồ/fixture. OTP còn có `delivery_attempts`, `next_delivery_at`, `otp_ciphertext`, `last_smtp_status`; FK OTP → users có `ON DELETE CASCADE`; thiếu các check counts/delivery/expiry/reset-user của fixture. `users.role/status` là varchar(32)/varchar(32), khác 16/24 trong sơ đồ; username/hash và timestamp/collation/index/FK cũng khác fixture.
 - Sửa retry chỉ dùng các cột chung đã xác nhận: `sends`, `next_send_at`, `expires_at`, `used_at`, `code_hash`, `delivery_status`, `sent_at`. Không thay fixture/schema/migration để hợp thức hóa các khác biệt. Connection kiểm thử dùng UTC.
 - **Giữ phần reconciliation/provisioning/deployment phụ thuộc DDL cho chủ repo/người phụ trách DB quyết định**: xác nhận DDL đích và chính sách cho các cột delivery bổ sung trước khi triển khai. Kết quả `_test` không phải nghiệm thu runtime `smart_cafe`. Xem [bàn giao retry](../handover/dt2-2-otp-retry-lifecycle.md).
+
+## DT2-2 — hardening audit read-only, 12/11/2026, base 62ca3f1
+
+Read-only MySQL 8.0.45 audit of both configured `smart_cafe` and `smart_cafe_auth_test`: `SHOW CREATE TABLE`, `information_schema.COLUMNS`/table existence, indexes/FK/checks from DDL, selected migration metadata, aggregate OTP counts only. No business/account rows or credentials copied. No baseline, migrate, validate, repair, DDL or DML executed on `smart_cafe`. Runtime settings currently enable Flyway with baseline-on-migrate/version=0 and validate-on-migrate=false; these settings have **not** been changed by this audit.
+
+| Table / contract | Expected (current source / approved diagram) | Actual configured smart_cafe | Impact / classification | Decision required |
+| --- | --- | --- | --- | --- |
+| `users` columns used by AuthRepository | id/username/hash/email/role/status/avatar/auth_version/password_changed_at; password update also must_change_password/updated_at | All mapped columns exist; role/status are varchar(32) rather than 16/24; timestamps/collation/index names differ | **COMPATIBLE at SQL-column mapping level**, **DRIFT** for semantics/DDL. No shared runtime mutation smoke performed | DB owner confirm target collation, widths and constraints; mapping presence is not deployment approval |
+| `staff_profiles` | Diagram and HeaderService account query require table with user_id | **Missing** in smart_cafe; present in test fixture | **INCOMPATIBLE** with integrated Home account SQL (unconditional LEFT JOIN), therefore **BLOCKED** for integration deployment; not hidden by auth-only tests | DB owner supply approved DDL/deployment plan; do not create it from this audit |
+| `auth_otp_challenges` common mapping | id/user/email/purpose/hash/attempts/sends/expiry/cooldown/used/delivery/created/error/sent | Common columns present | **COMPATIBLE at mapping level**, not an authenticated shared runtime acceptance | Confirm complete DDL and lineage first |
+| OTP temporal types | Diagram/fixture/migrations DATETIME(6), UTC connection | TIMESTAMP(6) in shared OTP/limits | **DRIFT**: timezone/range semantics differ; UTC used in tests does not prove every deployment connection is equivalent | DB owner approve temporal contract; do not alter silently |
+| OTP id/hash collation | Source fixture/migrations ASCII binary | utf8mb4_unicode_ci | **DRIFT**: equality semantics differ; no demonstrated runtime collision for generated lowercase hashes/hex IDs | Decide authoritative binary comparison/index contract |
+| OTP delivery/index | Diagram has last_error_code/sent_at; current source manages synchronous delivery; fixture delivery index uses delivery_status/created_at | Extra delivery_attempts/next_delivery_at/otp_ciphertext/last_smtp_status; index uses delivery_status/next_delivery_at | **DRIFT / BLOCKED** pending ownership of former queue state and any external worker | Confirm worker/deployment configuration; do not assume extra columns inert or start another sender |
+| OTP constraints/FK | Fixture counts/delivery/expiry/reset-user checks; source V001/V002 counts/delivery/expiry/purpose and FK ON DELETE CASCADE | Only purpose check in shared OTP, FK ON DELETE CASCADE; fixture FK has no cascade | **DRIFT**, not proof of current invalid data. CREATE IF NOT EXISTS cannot reconcile it | Owner reconcile approved constraints/deletion policy. No data deletion audit performed |
+| `auth_otp_limits` | email_key/purpose/next_send_at/window_start/request_count with checks in fixture/migrations | Common columns and primary key exist; no count/purpose checks, timestamp/collation differ | Mapping **COMPATIBLE**; DDL **DRIFT** | Approve target checks/types and cleanup policy |
+| `flyway_schema_history` | Repository only V001/V002 `create_users_and_auth_tables` | Shared history contains 001 home-highlights, 005 users/password-recovery, 006 registration/OTP, 007 mail queue, 008 delivery failure, then 002 bills/tables, 003 idempotency, 004 bill snapshot; all success=1 | **DRIFT / BLOCKED**: different lineage and colliding versions; disabled validation/IF NOT EXISTS do not establish safe upgrade | DB owner/leader decide lineage and upgrade procedure; never repair checksums or baseline over this history |
+
+Local version/checksum comparison uses the installed Flyway 12.4.0 algorithm (CRC32 over UTF-8 text lines, BOM/newlines excluded; verified against `ChecksumCalculator` bytecode). Current V001 checksum **-197269156**, V002 **1239506062**. Shared history version 001 has script `V001__create_home_highlights.sql`, checksum **-796760827**; 002 has `V002__create_bills_and_tables.sql`, checksum **176605066**. Shared-only 003–008 checksums: 003=1309426143, 004=-369513734, 005=2104374474, 006=-1469299444, 007=-1858867750, 008=1642156858. This is evidence of different scripts/history, not authority to edit them. No Flyway validation/migration was invoked on shared DB; no claim that a tested upgrade succeeded there. `smart_cafe_auth_test` has no normal flyway_schema_history; its isolated migration regression uses a separate temporary history table.
+
+Aggregate observations before acceptance tests: shared OTP 13 rows (13 expired, 8 used), limits 5; test DB OTP/limits 0/0. No shared rows were deleted. Counts are a dated snapshot, not a retention guarantee. Current repo has no scheduler cleanup or approved IP/global admission limit. The existing per-email forgot limit remains unchanged. Retention/admission proposals require the explicit decisions in [open questions](../product/open-questions.md#dt2-2-security-hardening--owner-clarification-12112026).
+
+Overall deployment status: **BLOCKED** for DB owner/leader reconciliation and deployment evidence. Auth/OTP column mapping can be inspected independently; a green isolated suite does not close this blocker. Raw DDL evidence remains outside Git under the local review-guides evidence directory.

@@ -101,16 +101,15 @@ export function AuthProvider({ children }) {
   }
 
   async function logout() {
-    try {
-      if (token) {
-        await logoutApi(token);
-      }
-    } finally {
-      setToken("");
-      setUser(null);
-      clearAuthStorage();
-      window.dispatchEvent(new CustomEvent("smart-cafe-auth-change"));
-    }
+    const previousToken = token;
+    setToken("");
+    setUser(null);
+    setOtpChallenge(null);
+    setRecoveryToken("");
+    clearAuthStorage();
+    window.dispatchEvent(new CustomEvent("smart-cafe-auth-change"));
+    // Stateless logout must finish locally even if its acknowledgement never arrives.
+    if (previousToken) void logoutApi(previousToken).catch(() => {});
   }
 
   function beginOtp(challenge) {

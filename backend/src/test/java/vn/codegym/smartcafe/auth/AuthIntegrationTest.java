@@ -291,4 +291,17 @@ class AuthIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.message").value("Đăng xuất thành công"));
     }
+
+    @Test
+    void logoutAcknowledgementDoesNotRevokeStatelessBearer() throws Exception {
+        MvcResult login = mockMvc.perform(post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"test_staff\",\"password\":\"Staff@123\"}"))
+                .andExpect(status().isOk()).andReturn();
+        String bearer = JsonPath.read(login.getResponse().getContentAsString(), "$.token");
+        mockMvc.perform(post("/api/v1/auth/logout").header("Authorization", "Bearer " + bearer))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/auth/me").header("Authorization", "Bearer " + bearer))
+                .andExpect(status().isOk());
+    }
 }

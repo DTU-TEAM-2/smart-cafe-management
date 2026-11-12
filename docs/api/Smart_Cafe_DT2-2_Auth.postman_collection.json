@@ -18,10 +18,10 @@
               "});",
               "var jsonData = pm.response.json();",
               "pm.test(\"Returns valid accessToken and tokenType\", function () {",
-              "    pm.expect(jsonData.token).to.be.a('string');",
+              "    pm.expect(jsonData.token).to.be.a('string').and.not.empty;",
               "    pm.expect(jsonData.user).to.be.an('object');",
               "    pm.expect(jsonData.user.role).to.eql('ADMIN');",
-              "    pm.expect(jsonData.user.username).to.eql('admin');",
+              "    pm.expect(jsonData.user.username).to.eql(pm.environment.get(\"adminUsername\"));",
               "});",
               "if (jsonData.token) {",
               "    pm.environment.set(\"adminToken\", jsonData.token);",
@@ -59,9 +59,9 @@
               "});",
               "var jsonData = pm.response.json();",
               "pm.test(\"Returns valid staff token and role STAFF\", function () {",
-              "    pm.expect(jsonData.token).to.be.a('string');",
+              "    pm.expect(jsonData.token).to.be.a('string').and.not.empty;",
               "    pm.expect(jsonData.user.role).to.eql('STAFF');",
-              "    pm.expect(jsonData.user.username).to.eql('staff');",
+              "    pm.expect(jsonData.user.username).to.eql(pm.environment.get(\"staffUsername\"));",
               "});",
               "if (jsonData.token) {",
               "    pm.environment.set(\"staffToken\", jsonData.token);",
@@ -100,6 +100,9 @@
               "var jsonData = pm.response.json();",
               "pm.test(\"Logged in successfully via email\", function () {",
               "    pm.expect(jsonData.user.email).to.eql(pm.environment.get(\"adminEmail\"));",
+              "    pm.expect(jsonData.token).to.be.a(\"string\").and.not.empty;",
+              "    pm.expect(jsonData.user.username).to.eql(pm.environment.get(\"adminUsername\"));",
+              "    pm.expect(jsonData.user.role).to.eql(\"ADMIN\");",
               "});"
             ],
             "type": "text/javascript"
@@ -148,7 +151,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"SaiMatKhau@999\"\n}"
+          "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"SaiMatKhau@999\"\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/auth/login",
@@ -235,7 +238,7 @@
               "});",
               "var jsonData = pm.response.json();",
               "pm.test(\"Profile matches admin user\", function () {",
-              "    pm.expect(jsonData.username).to.eql('admin');",
+              "    pm.expect(jsonData.username).to.eql(pm.environment.get(\"adminUsername\"));",
               "    pm.expect(jsonData.role).to.eql('ADMIN');",
               "});"
             ],
@@ -267,7 +270,7 @@
               "});",
               "var jsonData = pm.response.json();",
               "pm.test(\"Profile matches staff user\", function () {",
-              "    pm.expect(jsonData.username).to.eql('staff');",
+              "    pm.expect(jsonData.username).to.eql(pm.environment.get(\"staffUsername\"));",
               "    pm.expect(jsonData.role).to.eql('STAFF');",
               "});"
             ],
@@ -414,7 +417,7 @@
               "var jsonData = pm.response.json();",
               "pm.test(\"Returns neutral message and challengeId\", function () {",
               "    pm.expect(jsonData.message).to.be.a('string');",
-              "    pm.expect(jsonData.challengeId).to.be.a('string');",
+              "    pm.expect(jsonData.challengeId).to.be.a('string').and.not.empty;",
               "    pm.expect(jsonData.expiresInSeconds).to.eql(600);",
               "});",
               "if (jsonData.challengeId) {",
@@ -432,7 +435,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"email\": \"{{adminEmail}}\"\n}"
+          "raw": "{\n  \"email\": \"{{staffEmail}}\"\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/auth/forgot-password",
@@ -467,7 +470,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"email\": \"non_existing_email_999@gmail.com\"\n}"
+          "raw": "{\n  \"email\": \"{{unknownEmail}}\"\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/auth/forgot-password",
@@ -537,7 +540,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"challengeId\": \"{{challengeId}}\",\n  \"otp\": \"000000\"\n}"
+          "raw": "{\n  \"challengeId\": \"{{challengeId}}\",\n  \"otp\": \"{{wrongOtpCode}}\"\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/auth/verify-otp",
@@ -626,20 +629,14 @@
           "listen": "test",
           "script": {
             "exec": [
-              "if (pm.response.code === 200) {",
-              "    pm.test(\"Status code is 200 OK\", function () {",
-              "        pm.response.to.have.status(200);",
-              "    });",
-              "    var jsonData = pm.response.json();",
-              "    pm.test(\"Returns valid resetToken\", function () {",
-              "        pm.expect(jsonData.token).to.be.a('string');",
-              "    });",
-              "    pm.environment.set(\"resetToken\", jsonData.token);",
-              "} else {",
-              "    pm.test(\"Verify OTP response received\", function () {",
-              "        pm.expect([200, 400]).to.include(pm.response.code);",
-              "    });",
-              "}"
+              "pm.environment.unset(\"resetToken\");",
+              "pm.test(\"OTP verification must succeed and return a reset grant\", function () {",
+              "    pm.response.to.have.status(200);",
+              "    const data = pm.response.json();",
+              "    pm.expect(data.purpose).to.eql(\"RESET\");",
+              "    pm.expect(data.token).to.be.a(\"string\").and.not.empty;",
+              "    pm.environment.set(\"resetToken\", data.token);",
+              "});"
             ],
             "type": "text/javascript"
           }
@@ -668,12 +665,10 @@
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test(\"Status code is 200 OK\", function () {",
+              "pm.test(\"Reset grant must be valid and non-cacheable\", function () {",
               "    pm.response.to.have.status(200);",
-              "});",
-              "var jsonData = pm.response.json();",
-              "pm.test(\"Has Cache-Control no-store header\", function () {",
-              "    pm.expect(pm.response.headers.get('Cache-Control')).to.include('no-store');",
+              "    pm.expect(pm.response.json().valid).to.eql(true);",
+              "    pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"no-store\");",
               "});"
             ],
             "type": "text/javascript"
@@ -703,15 +698,10 @@
           "listen": "test",
           "script": {
             "exec": [
-              "if (pm.response.code === 200) {",
-              "    pm.test(\"Status code is 200 OK\", function () {",
-              "        pm.response.to.have.status(200);",
-              "    });",
-              "    var jsonData = pm.response.json();",
-              "    pm.test(\"Password reset success message returned\", function () {",
-              "        pm.expect(jsonData.message).to.include('thành công');",
-              "    });",
-              "}"
+              "pm.test(\"Password reset must succeed\", function () {",
+              "    pm.response.to.have.status(200);",
+              "    pm.expect(pm.response.json().message).to.include(\"thành công\");",
+              "});"
             ],
             "type": "text/javascript"
           }
@@ -724,7 +714,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"newPassword\": \"StaffNewPassword@123\",\n  \"confirmPassword\": \"StaffNewPassword@123\"\n}"
+          "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"newPassword\": \"{{newStaffPassword}}\",\n  \"confirmPassword\": \"{{newStaffPassword}}\"\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/auth/reset-password",
@@ -740,15 +730,14 @@
           "listen": "test",
           "script": {
             "exec": [
-              "if (pm.response.code === 200) {",
-              "    pm.test(\"Status code is 200 OK\", function () {",
-              "        pm.response.to.have.status(200);",
-              "    });",
-              "    var jsonData = pm.response.json();",
-              "    pm.test(\"Login successful with new password\", function () {",
-              "        pm.expect(jsonData.token).to.be.a('string');",
-              "    });",
-              "}"
+              "pm.environment.unset(\"newStaffToken\");",
+              "pm.test(\"New password must log in the expected fixture account\", function () {",
+              "    pm.response.to.have.status(200);",
+              "    const data = pm.response.json();",
+              "    pm.expect(data.token).to.be.a(\"string\").and.not.empty;",
+              "    pm.expect(data.user.username).to.eql(pm.environment.get(\"staffUsername\"));",
+              "    pm.environment.set(\"newStaffToken\", data.token);",
+              "});"
             ],
             "type": "text/javascript"
           }
@@ -761,7 +750,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"username\": \"{{staffUsername}}\",\n  \"password\": \"StaffNewPassword@123\"\n}"
+          "raw": "{\n  \"username\": \"{{staffUsername}}\",\n  \"password\": \"{{newStaffPassword}}\"\n}"
         },
         "url": {
           "raw": "{{baseUrl}}/api/v1/auth/login",
@@ -777,8 +766,9 @@
           "listen": "test",
           "script": {
             "exec": [
-              "pm.test(\"Status code is 200 OK\", function () {",
+              "pm.test(\"Stateless logout acknowledges the client request\", function () {",
               "    pm.response.to.have.status(200);",
+              "    pm.expect(pm.response.json().message).to.include(\"Đăng xuất thành công\");",
               "});"
             ],
             "type": "text/javascript"
@@ -796,6 +786,592 @@
           "path": ["api", "v1", "auth", "logout"]
         }
       }
+    },
+    {
+      "name": "24. Recovery negative cases (isolated test fixtures required)",
+      "description": "Run only with the dedicated *_test fixtures described in docs/api/dt2-2-auth-testing.md; original requests 1-23 remain in order.",
+      "item": [
+        {
+          "name": "Expired OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expired OTP\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "    pm.expect(pm.response.json().code).to.eql(\"OTP_ERROR\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/verify-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "verify-otp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"challengeId\": \"{{expiredChallengeId}}\",\n  \"otp\": \"{{expiredOtpCode}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Used OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Used OTP\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "    pm.expect(pm.response.json().code).to.eql(\"OTP_ERROR\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/verify-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "verify-otp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"challengeId\": \"{{challengeId}}\",\n  \"otp\": \"{{testOtpCode}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Replaced OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Replaced OTP\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "    pm.expect(pm.response.json().code).to.eql(\"OTP_ERROR\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/verify-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "verify-otp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"challengeId\": \"{{rotatedChallengeId}}\",\n  \"otp\": \"{{previousOtpCode}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Five wrong attempts lock OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Five wrong attempts lock OTP\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "    pm.expect(pm.response.json().code).to.eql(\"OTP_ERROR\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/verify-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "verify-otp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"challengeId\": \"{{lockedChallengeId}}\",\n  \"otp\": \"{{lockedOtpCode}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Invalid reset grant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Invalid reset grant\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "    pm.expect(pm.response.json().code).to.eql(\"INVALID_TOKEN\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/reset-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "reset-password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"invalid-reset-fixture\",\n  \"newPassword\": \"{{newStaffPassword}}\",\n  \"confirmPassword\": \"{{newStaffPassword}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Expired reset grant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expired reset grant\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "    pm.expect(pm.response.json().code).to.eql(\"INVALID_TOKEN\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/reset-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "reset-password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{expiredResetToken}}\",\n  \"newPassword\": \"{{newStaffPassword}}\",\n  \"confirmPassword\": \"{{newStaffPassword}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Used reset grant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Used reset grant\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "    pm.expect(pm.response.json().code).to.eql(\"INVALID_TOKEN\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/reset-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "reset-password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"newPassword\": \"{{newStaffPassword}}\",\n  \"confirmPassword\": \"{{newStaffPassword}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Password confirmation mismatch",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Password confirmation mismatch\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "    pm.expect(pm.response.json().code).to.eql(\"PASSWORD_MISMATCH\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/reset-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "reset-password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"newPassword\": \"{{newStaffPassword}}\",\n  \"confirmPassword\": \"DifferentFixture@123\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Weak password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Weak password\", function () {",
+                  "    pm.response.to.have.status(400);",
+                  "    pm.expect(pm.response.json().code).to.eql(\"VALIDATION_FAILED\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/reset-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "reset-password"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{resetToken}}\",\n  \"newPassword\": \"weak\",\n  \"confirmPassword\": \"weak\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Old password rejected after reset",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Old password rejected after reset\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "    pm.expect(pm.response.json().code).to.eql(\"UNAUTHORIZED\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{staffUsername}}\",\n  \"password\": \"{{staffPassword}}\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Old bearer rejected after reset",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Old bearer rejected after reset\", function () {",
+                  "    pm.response.to.have.status(401);",
+                  "    pm.expect(pm.response.json().code).to.eql(\"UNAUTHORIZED\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "GET reset validation removed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"GET reset validation removed\", function () {",
+                  "    pm.response.to.have.status(405);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/verify-reset-token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "verify-reset-token"
+              ]
+            }
+          }
+        },
+        {
+          "name": "New bearer accesses the expected fixture",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"New bearer authenticates the same Staff fixture\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().username).to.eql(pm.environment.get(\"staffUsername\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{newStaffToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Expired reset grant validates false without caching",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Expired grant is invalid and not cacheable\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "    pm.expect(pm.response.json().valid).to.eql(false);",
+                  "    pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"no-store\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{expiredResetToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/verify-reset-token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "verify-reset-token"
+              ]
+            }
+          }
+        }
+      ]
     }
   ]
 }

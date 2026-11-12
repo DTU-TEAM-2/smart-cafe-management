@@ -1,5 +1,5 @@
 $ErrorActionPreference = 'Stop'
-$taskKeys = @('DB_URL', 'DB_USERNAME', 'DB_PASSWORD', 'SERVER_PORT', 'AUTH_TOKEN_SECRET', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USERNAME', 'SMTP_PASSWORD', 'SMTP_FROM', 'SMTP_AUTH', 'SMTP_STARTTLS', 'SMTP_SSL', 'SPRING_PROFILES_ACTIVE', 'CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET')
+$taskKeys = @('DB_URL', 'DB_USERNAME', 'DB_PASSWORD', 'SERVER_PORT', 'AUTH_TOKEN_SECRET', 'OTP_VALIDITY_SECONDS', 'AUTH_TOKEN_VALIDITY_SECONDS', 'PENDING_REGISTRATION_VALIDITY_SECONDS', 'SMTP_HOST', 'SMTP_PORT', 'SMTP_USERNAME', 'SMTP_PASSWORD', 'SMTP_FROM', 'SMTP_AUTH', 'SMTP_STARTTLS', 'SMTP_SSL', 'SPRING_PROFILES_ACTIVE', 'CLOUDINARY_CLOUD_NAME', 'CLOUDINARY_API_KEY', 'CLOUDINARY_API_SECRET')
 $taskOriginal = @{}
 foreach ($taskKey in $taskKeys) {
     $taskOriginal[$taskKey] = [Environment]::GetEnvironmentVariable($taskKey, 'Process')
@@ -23,7 +23,7 @@ try {
         }
     }
     if ([string]::IsNullOrWhiteSpace($env:DB_USERNAME)) {
-        $env:DB_USERNAME = 'root'
+        $env:DB_USERNAME = 'cafe_app'
     }
     if ([string]::IsNullOrWhiteSpace($env:DB_URL)) {
         $env:DB_URL = 'jdbc:mysql://127.0.0.1:3306/smart_cafe?connectionTimeZone=UTC'

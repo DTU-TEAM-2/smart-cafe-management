@@ -68,14 +68,6 @@ public class AuthController {
                 .body(Map.of("valid", valid));
     }
 
-    @GetMapping("/verify-reset-token")
-    public ResponseEntity<Map<String, Boolean>> verifyResetToken(@RequestParam("token") String token) {
-        boolean valid = otpService.verifyResetToken(token);
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CACHE_CONTROL, "no-store")
-                .body(Map.of("valid", valid));
-    }
-
     @PostMapping("/reset-password")
     public ResponseEntity<MessageResponse> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         otpService.resetPassword(request.token(), request.newPassword(), request.confirmPassword());
