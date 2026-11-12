@@ -5,7 +5,7 @@ description: Prepare or carry out an authorized Smart Cafe release with revision
 
 # Cafe release
 
-Read `CONTRIBUTING.md`, `.agents/workflows/release.md` and the task's destination/environment. Distinguish preparing a reviewable release from publishing/deploying it; existing user authorization governs execution.
+Read `git-flow.md`, `CONTRIBUTING.md`, `.agents/workflows/release.md` and the task's destination/environment. Release branches start at develop; promotion into main is followed by a main-to-develop sync PR. Production hotfixes start at main/the production tag and follow the same sync requirement. Distinguish preparing a reviewable release from publishing/deploying it; existing user authorization governs execution.
 
 Identify the exact revision, release scope, unresolved defects, CI result and configuration changes. If persistence exists, review migration order, backup and recovery first. Use environment secret storage; never commit live `.env` values.
 
