@@ -205,6 +205,33 @@ class OtpServiceTest {
         verify(authRepository, times(1)).saveOtpChallenge(any());
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints = {0, 2})
+    void verifyNeverIssuesGrantUnlessExactlyOneCurrentSnapshotIsConsumed(int rows) {
+        OtpChallengeRecord snapshot = new OtpChallengeRecord("verify-cas", 1L, "fixture@example.test",
+                "RESET", "mocked-hash-value", 0, 2, Instant.now().plusSeconds(300),
+                Instant.now(), null, "SENT", Instant.now().minusSeconds(300), null, Instant.now());
+        when(authRepository.findOtpChallengeById(snapshot.id())).thenReturn(Optional.of(snapshot));
+        when(authRepository.markOtpUsedIfCurrent(snapshot.id(), snapshot.codeHash(), snapshot.sends())).thenReturn(rows);
+        assertThatThrownBy(() -> otpService.verifyOtp(snapshot.id(), "123456")).isInstanceOf(OtpException.class);
+        verify(authRepository).markOtpUsedIfCurrent(snapshot.id(), snapshot.codeHash(), snapshot.sends());
+        verify(authRepository, never()).findUserById(anyLong());
+        verify(tokenService, never()).generateResetGrantToken(anyString(), anyLong(), anyLong(), anyLong());
+    }
+
+    @Test
+    void verifyDoesNotConvertConsumeDatabaseFailureIntoSuccess() {
+        OtpChallengeRecord snapshot = new OtpChallengeRecord("verify-db-failure", 1L, "fixture@example.test",
+                "RESET", "mocked-hash-value", 0, 1, Instant.now().plusSeconds(300),
+                Instant.now(), null, "SENT", Instant.now().minusSeconds(300), null, Instant.now());
+        when(authRepository.findOtpChallengeById(snapshot.id())).thenReturn(Optional.of(snapshot));
+        when(authRepository.markOtpUsedIfCurrent(snapshot.id(), snapshot.codeHash(), snapshot.sends()))
+                .thenThrow(new org.springframework.dao.DataAccessResourceFailureException("fixture database failure"));
+        assertThatThrownBy(() -> otpService.verifyOtp(snapshot.id(), "123456"))
+                .isInstanceOf(org.springframework.dao.DataAccessException.class);
+        verify(tokenService, never()).generateResetGrantToken(anyString(), anyLong(), anyLong(), anyLong());
+    }
+
     @Test
     void initiatePasswordResetCreatesDummyChallengeForNonExistentEmailWithoutSendingEmail() {
         String email = "ghost@smartcafe.vn";

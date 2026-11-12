@@ -106,7 +106,7 @@ public class AuthRepository {
                 auth_version = auth_version + 1,
                 must_change_password = 0,
                 updated_at = CURRENT_TIMESTAMP(6)
-            WHERE id = ? AND auth_version = ?
+            WHERE id = ? AND auth_version = ? AND status = 'ACTIVE'
             """;
         return jdbcTemplate.update(sql, newPasswordHash, userId, expectedAuthVersion);
     }
@@ -178,9 +178,13 @@ public class AuthRepository {
         }
     }
 
-    public int incrementOtpAttempts(String challengeId) {
-        String sql = "UPDATE auth_otp_challenges SET attempts = attempts + 1 WHERE id = ? AND attempts < 5 AND used_at IS NULL";
-        return jdbcTemplate.update(sql, challengeId);
+    public int incrementOtpAttemptsIfCurrent(String challengeId, String expectedCodeHash, int expectedSends) {
+        String sql = """
+            UPDATE auth_otp_challenges SET attempts = attempts + 1
+            WHERE id = ? AND code_hash = ? AND sends = ?
+              AND attempts < 5 AND used_at IS NULL AND expires_at > CURRENT_TIMESTAMP(6)
+            """;
+        return jdbcTemplate.update(sql, challengeId, expectedCodeHash, expectedSends);
     }
 
     // sends counts accepted requests, including delivery failures, rather than delivered emails.
@@ -208,9 +212,13 @@ public class AuthRepository {
                 Timestamp.from(sentAt), challengeId, expectedSends);
     }
 
-    public int markOtpUsed(String challengeId) {
-        String sql = "UPDATE auth_otp_challenges SET used_at = CURRENT_TIMESTAMP(6) WHERE id = ? AND used_at IS NULL AND attempts < 5 AND expires_at > CURRENT_TIMESTAMP(6)";
-        return jdbcTemplate.update(sql, challengeId);
+    public int markOtpUsedIfCurrent(String challengeId, String expectedCodeHash, int expectedSends) {
+        String sql = """
+            UPDATE auth_otp_challenges SET used_at = CURRENT_TIMESTAMP(6)
+            WHERE id = ? AND code_hash = ? AND sends = ?
+              AND used_at IS NULL AND attempts < 5 AND expires_at > CURRENT_TIMESTAMP(6)
+            """;
+        return jdbcTemplate.update(sql, challengeId, expectedCodeHash, expectedSends);
     }
 
     public boolean checkAndIncrementLimit(String emailKey, String purpose, Instant now, Instant windowStart, Instant nextSendAt) {

@@ -173,7 +173,9 @@ public class OtpService {
         if (!isMatch) {
             // Commit attempt increment immediately in its own transaction so it cannot be rolled back
             int updatedAttempts = requiresNewTx.execute(status -> {
-                authRepository.incrementOtpAttempts(challengeId);
+                if (authRepository.incrementOtpAttemptsIfCurrent(challengeId, challenge.codeHash(), challenge.sends()) != 1) {
+                    throw new OtpException("Yêu cầu xác minh không hợp lệ hoặc đã được sử dụng.");
+                }
                 return authRepository.findOtpChallengeById(challengeId)
                         .map(OtpChallengeRecord::attempts)
                         .orElse(MAX_ATTEMPTS);
@@ -187,8 +189,8 @@ public class OtpService {
         }
 
         // Atomic conditional consume: only proceed if exactly 1 row was updated
-        int consumed = authRepository.markOtpUsed(challengeId);
-        if (consumed == 0) {
+        int consumed = authRepository.markOtpUsedIfCurrent(challengeId, challenge.codeHash(), challenge.sends());
+        if (consumed != 1) {
             throw new OtpException("Yêu cầu xác minh không hợp lệ hoặc đã được sử dụng.");
         }
 
