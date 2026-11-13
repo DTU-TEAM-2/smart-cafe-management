@@ -1,9 +1,11 @@
 package vn.codegym.smartcafe.staff;
 
 import java.math.BigDecimal;
+import java.security.SecureRandom;
 import java.sql.Date;
 import java.sql.Statement;
 import java.time.LocalDate;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -18,6 +20,9 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class StaffService {
+    private static final String PWD_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*";
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
     private final JdbcTemplate jdbc;
     private final PasswordEncoder passwordEncoder;
 
@@ -26,11 +31,19 @@ public class StaffService {
         this.passwordEncoder = passwordEncoder;
     }
 
+    private String generateRandomPassword() {
+        StringBuilder sb = new StringBuilder(12);
+        for (int i = 0; i < 12; i++) {
+            sb.append(PWD_CHARS.charAt(SECURE_RANDOM.nextInt(PWD_CHARS.length())));
+        }
+        return sb.toString();
+    }
+
     @Transactional(readOnly = true)
     public StaffModels.PageResponse<StaffModels.StaffSummary> getStaffList(String keyword, int page, int size) {
         int pageSize = (size <= 0) ? 10 : Math.min(size, 100);
-        int pageNumber = Math.max(0, page);
-        int offset = pageNumber * pageSize;
+        long pageNumber = Math.max(0, (long) page);
+        long offset = pageNumber * (long) pageSize;
 
         boolean hasKeyword = keyword != null && !keyword.trim().isEmpty();
         String searchPattern = hasKeyword ? "%" + keyword.trim().toLowerCase(Locale.ROOT) + "%" : "";
@@ -43,7 +56,8 @@ public class StaffService {
                     SELECT COUNT(*)
                     FROM users u
                     LEFT JOIN staff_profiles p ON p.user_id = u.id
-                    WHERE u.status = 'ACTIVE' AND (LOWER(CONVERT(u.username USING utf8mb4)) LIKE ? OR LOWER(u.full_name) LIKE ? OR u.phone LIKE ?)
+                    WHERE u.status = 'ACTIVE' AND u.role IN ('ADMIN', 'STAFF')
+                          AND (LOWER(CONVERT(u.username USING utf8mb4)) LIKE ? OR LOWER(u.full_name) LIKE ? OR u.phone LIKE ?)
                     """;
             selectSql = """
                     SELECT u.id, u.username, u.full_name, u.email, u.phone,
@@ -52,7 +66,8 @@ public class StaffService {
                     FROM users u
                     LEFT JOIN staff_profiles p ON p.user_id = u.id
                     LEFT JOIN media_assets m ON m.id = u.avatar_media_id AND m.deleted_at IS NULL
-                    WHERE u.status = 'ACTIVE' AND (LOWER(CONVERT(u.username USING utf8mb4)) LIKE ? OR LOWER(u.full_name) LIKE ? OR u.phone LIKE ?)
+                    WHERE u.status = 'ACTIVE' AND u.role IN ('ADMIN', 'STAFF')
+                          AND (LOWER(CONVERT(u.username USING utf8mb4)) LIKE ? OR LOWER(u.full_name) LIKE ? OR u.phone LIKE ?)
                     ORDER BY u.username ASC
                     LIMIT ? OFFSET ?
                     """;
@@ -61,7 +76,7 @@ public class StaffService {
                     SELECT COUNT(*)
                     FROM users u
                     LEFT JOIN staff_profiles p ON p.user_id = u.id
-                    WHERE u.status = 'ACTIVE'
+                    WHERE u.status = 'ACTIVE' AND u.role IN ('ADMIN', 'STAFF')
                     """;
             selectSql = """
                     SELECT u.id, u.username, u.full_name, u.email, u.phone,
@@ -70,60 +85,62 @@ public class StaffService {
                     FROM users u
                     LEFT JOIN staff_profiles p ON p.user_id = u.id
                     LEFT JOIN media_assets m ON m.id = u.avatar_media_id AND m.deleted_at IS NULL
-                    WHERE u.status = 'ACTIVE'
+                    WHERE u.status = 'ACTIVE' AND u.role IN ('ADMIN', 'STAFF')
                     ORDER BY u.username ASC
                     LIMIT ? OFFSET ?
                     """;
         }
 
-        Long total;
-        List<StaffModels.StaffSummary> items;
-        if (hasKeyword) {
-            total = jdbc.queryForObject(countSql, Long.class, searchPattern, searchPattern, searchPattern);
-            items = jdbc.query(selectSql, (rs, rowNum) -> {
-                Date bDate = rs.getDate("birthday");
-                LocalDate birthday = (bDate != null) ? bDate.toLocalDate() : null;
-                return new StaffModels.StaffSummary(
-                        rs.getLong("id"),
-                        rs.getString("username"),
-                        rs.getString("full_name"),
-                        rs.getString("email"),
-                        rs.getString("phone"),
-                        rs.getString("address"),
-                        rs.getString("gender"),
-                        birthday,
-                        rs.getString("role"),
-                        rs.getBigDecimal("salary"),
-                        rs.getString("status"),
-                        rs.getString("avatar_url")
-                );
-            }, searchPattern, searchPattern, searchPattern, pageSize, offset);
-        } else {
-            total = jdbc.queryForObject(countSql, Long.class);
-            items = jdbc.query(selectSql, (rs, rowNum) -> {
-                Date bDate = rs.getDate("birthday");
-                LocalDate birthday = (bDate != null) ? bDate.toLocalDate() : null;
-                return new StaffModels.StaffSummary(
-                        rs.getLong("id"),
-                        rs.getString("username"),
-                        rs.getString("full_name"),
-                        rs.getString("email"),
-                        rs.getString("phone"),
-                        rs.getString("address"),
-                        rs.getString("gender"),
-                        birthday,
-                        rs.getString("role"),
-                        rs.getBigDecimal("salary"),
-                        rs.getString("status"),
-                        rs.getString("avatar_url")
-                );
-            }, pageSize, offset);
-        }
+        Long total = hasKeyword
+                ? jdbc.queryForObject(countSql, Long.class, searchPattern, searchPattern, searchPattern)
+                : jdbc.queryForObject(countSql, Long.class);
 
         long totalElements = total != null ? total : 0L;
         int totalPages = (int) Math.ceil((double) totalElements / pageSize);
 
-        return new StaffModels.PageResponse<>(items, pageNumber, pageSize, totalElements, totalPages);
+        if (totalElements == 0 || offset >= totalElements) {
+            return new StaffModels.PageResponse<>(Collections.emptyList(), (int) pageNumber, pageSize, totalElements, totalPages);
+        }
+
+        List<StaffModels.StaffSummary> items = hasKeyword
+                ? jdbc.query(selectSql, (rs, rowNum) -> {
+                    Date bDate = rs.getDate("birthday");
+                    LocalDate birthday = (bDate != null) ? bDate.toLocalDate() : null;
+                    return new StaffModels.StaffSummary(
+                            rs.getLong("id"),
+                            rs.getString("username"),
+                            rs.getString("full_name"),
+                            rs.getString("email"),
+                            rs.getString("phone"),
+                            rs.getString("address"),
+                            rs.getString("gender"),
+                            birthday,
+                            rs.getString("role"),
+                            rs.getBigDecimal("salary"),
+                            rs.getString("status"),
+                            rs.getString("avatar_url")
+                    );
+                }, searchPattern, searchPattern, searchPattern, pageSize, offset)
+                : jdbc.query(selectSql, (rs, rowNum) -> {
+                    Date bDate = rs.getDate("birthday");
+                    LocalDate birthday = (bDate != null) ? bDate.toLocalDate() : null;
+                    return new StaffModels.StaffSummary(
+                            rs.getLong("id"),
+                            rs.getString("username"),
+                            rs.getString("full_name"),
+                            rs.getString("email"),
+                            rs.getString("phone"),
+                            rs.getString("address"),
+                            rs.getString("gender"),
+                            birthday,
+                            rs.getString("role"),
+                            rs.getBigDecimal("salary"),
+                            rs.getString("status"),
+                            rs.getString("avatar_url")
+                    );
+                }, pageSize, offset);
+
+        return new StaffModels.PageResponse<>(items, (int) pageNumber, pageSize, totalElements, totalPages);
     }
 
     @Transactional(readOnly = true)
@@ -135,7 +152,7 @@ public class StaffService {
                 FROM users u
                 LEFT JOIN staff_profiles p ON p.user_id = u.id
                 LEFT JOIN media_assets m ON m.id = u.avatar_media_id AND m.deleted_at IS NULL
-                WHERE u.id = ? AND u.status = 'ACTIVE'
+                WHERE u.id = ? AND u.status = 'ACTIVE' AND u.role IN ('ADMIN', 'STAFF')
                 """;
 
         List<StaffModels.StaffDetail> list = jdbc.query(sql, (rs, rowNum) -> {
@@ -175,18 +192,25 @@ public class StaffService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username đã tồn tại trong hệ thống.");
         }
 
-        String email = request.email() != null && !request.email().trim().isEmpty() ? request.email().trim() : null;
-        if (email != null) {
-            Integer emailCount = jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE email = ?", Integer.class, email);
-            if (emailCount != null && emailCount > 0) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT, "Email đã tồn tại trong hệ thống.");
-            }
+        String email = request.email().trim();
+        Integer emailCount = jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE email = ?", Integer.class, email);
+        if (emailCount != null && emailCount > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email đã tồn tại trong hệ thống.");
         }
 
         String role = (request.role() != null && !request.role().trim().isEmpty())
                 ? request.role().trim().toUpperCase(Locale.ROOT)
                 : "STAFF";
-        String passwordHash = passwordEncoder.encode("Staff@123");
+
+        if ("ADMIN".equalsIgnoreCase(role)) {
+            Integer adminCount = jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE role = 'ADMIN' AND status = 'ACTIVE'", Integer.class);
+            if (adminCount != null && adminCount >= 2) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hệ thống chỉ cho phép tối đa 2 tài khoản Quản trị viên (ADMIN).");
+            }
+        }
+
+        String tempPassword = generateRandomPassword();
+        String passwordHash = passwordEncoder.encode(tempPassword);
 
         var keyHolder = new GeneratedKeyHolder();
         try {
@@ -233,12 +257,30 @@ public class StaffService {
 
     @Transactional
     public StaffModels.StaffDetail updateStaff(Long id, StaffModels.UpdateStaffRequest request) {
+        return updateStaff(id, request, null);
+    }
+
+    @Transactional
+    public StaffModels.StaffDetail updateStaff(Long id, StaffModels.UpdateStaffRequest request, String currentUsername) {
         StaffValidation.validateUpdate(request);
 
         StaffModels.StaffDetail existing = getStaffById(id);
 
-        String email = request.email() != null && !request.email().trim().isEmpty() ? request.email().trim() : null;
-        if (email != null && !Objects.equals(email, existing.email())) {
+        if (currentUsername != null && currentUsername.equalsIgnoreCase(existing.username())
+                && "ADMIN".equalsIgnoreCase(existing.role())
+                && request.role() != null && "STAFF".equalsIgnoreCase(request.role().trim())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không được tự hạ quyền tài khoản Quản trị viên đang đăng nhập.");
+        }
+
+        if ("STAFF".equalsIgnoreCase(existing.role()) && request.role() != null && "ADMIN".equalsIgnoreCase(request.role().trim())) {
+            Integer adminCount = jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE role = 'ADMIN' AND status = 'ACTIVE'", Integer.class);
+            if (adminCount != null && adminCount >= 2) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hệ thống chỉ cho phép tối đa 2 tài khoản Quản trị viên (ADMIN).");
+            }
+        }
+
+        String email = request.email().trim();
+        if (!Objects.equals(email, existing.email())) {
             Integer emailCount = jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE email = ? AND id != ?", Integer.class, email, id);
             if (emailCount != null && emailCount > 0) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Email đã tồn tại trong hệ thống.");

@@ -41,7 +41,7 @@ class StaffControllerTest {
     @BeforeEach
     void setUp() {
         jdbc.update("DELETE FROM staff_profiles");
-        jdbc.update("DELETE FROM users WHERE username LIKE 'test_%' OR username LIKE 'staff_%'");
+        jdbc.update("DELETE FROM users");
 
         // Insert Admin test user
         jdbc.update("""
@@ -214,5 +214,87 @@ class StaffControllerTest {
         // Status is updated to INACTIVE
         String status = jdbc.queryForObject("SELECT status FROM users WHERE id = ?", String.class, testStaffId);
         org.assertj.core.api.Assertions.assertThat(status).isEqualTo("INACTIVE");
+    }
+
+    @Test
+    void customerUsersAreIsolatedFromStaffEndpoints() throws Exception {
+        jdbc.update("""
+                INSERT INTO users(username, password_hash, full_name, email, phone, role, status)
+                VALUES ('test_cust_isolation', 'hash', 'Test Customer', 'cust@test.vn', '0909000000', 'CUSTOMER', 'ACTIVE')
+                """);
+        Long custId = jdbc.queryForObject("SELECT id FROM users WHERE username = 'test_cust_isolation'", Long.class);
+
+        // GET /api/v1/staff/{customerId} must return 404
+        mvc.perform(get("/api/v1/staff/" + custId).with(user("test_admin").roles("ADMIN")))
+                .andExpect(status().isNotFound());
+
+        // Search must not return customer
+        mvc.perform(get("/api/v1/staff?keyword=test_cust_isolation").with(user("test_admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", empty()));
+    }
+
+    @Test
+    void largePageNumberDoesNotCauseIntegerOverflow() throws Exception {
+        mvc.perform(get("/api/v1/staff?page=21474837&size=100").with(user("test_admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content", empty()));
+    }
+
+    @Test
+    void adminCannotSelfDemoteToStaff() throws Exception {
+        String demoteJson = """
+                {
+                    "fullName": "Test Admin",
+                    "email": "admin@test.vn",
+                    "phone": "0901111111",
+                    "address": "Da Nang",
+                    "gender": "MALE",
+                    "role": "STAFF",
+                    "salary": 15000000
+                }
+                """;
+        mvc.perform(put("/api/v1/staff/" + testAdminId).with(user("test_admin").roles("ADMIN")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(demoteJson))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void cannotCreateMoreThanTwoAdmins() throws Exception {
+        // System currently has 1 admin (test_admin)
+        // Create 2nd admin -> OK
+        String admin2Json = """
+                {
+                    "username": "staff_admin2",
+                    "fullName": "Admin Number Two",
+                    "email": "admin2@smartcafe.vn",
+                    "phone": "0912345679",
+                    "address": "Da Nang",
+                    "role": "ADMIN",
+                    "salary": 20000000
+                }
+                """;
+        mvc.perform(post("/api/v1/staff").with(user("test_admin").roles("ADMIN")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(admin2Json))
+                .andExpect(status().isCreated());
+
+        // Create 3rd admin -> 400 Bad Request
+        String admin3Json = """
+                {
+                    "username": "staff_admin3",
+                    "fullName": "Admin Number Three",
+                    "email": "admin3@smartcafe.vn",
+                    "phone": "0912345680",
+                    "address": "Da Nang",
+                    "role": "ADMIN",
+                    "salary": 20000000
+                }
+                """;
+        mvc.perform(post("/api/v1/staff").with(user("test_admin").roles("ADMIN")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(admin3Json))
+                .andExpect(status().isBadRequest());
     }
 }

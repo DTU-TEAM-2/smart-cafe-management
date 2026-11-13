@@ -2,6 +2,7 @@ package vn.codegym.smartcafe.staff;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.net.URI;
 import java.sql.Statement;
 import java.util.Map;
 import javax.imageio.ImageIO;
@@ -46,6 +47,8 @@ public class StaffImageService {
         return !cloudName.isBlank() && !apiKey.isBlank() && !apiSecret.isBlank();
     }
 
+    private record ImageData(String format, int width, int height) {}
+
     @Transactional
     public StaffModels.ImageUploadResponse upload(MultipartFile file) {
         if (file == null || file.isEmpty()) {
@@ -56,31 +59,19 @@ public class StaffImageService {
         }
 
         byte[] bytes;
-        String format;
-        int width;
-        int height;
+        ImageData imageData;
         try {
             bytes = file.getBytes();
-            var image = ImageIO.read(new ByteArrayInputStream(bytes));
-            if (image == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Định dạng ảnh không được hỗ trợ (chỉ nhận PNG, JPG).");
-            }
-            width = image.getWidth();
-            height = image.getHeight();
-            String contentType = file.getContentType();
-            if (contentType != null && contentType.equalsIgnoreCase("image/png")) {
-                format = "png";
-            } else {
-                format = "jpg";
-            }
+            imageData = inspect(bytes);
         } catch (IOException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không đọc được tệp ảnh.");
         }
 
         if (!isConfigured()) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Dịch vụ Cloudinary chưa được cấu hình biến môi trường.");
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Dịch vụ Cloudinary chưa được cấu hình.");
         }
 
+        String format = imageData.format();
         var form = new LinkedMultiValueMap<String, Object>();
         form.add("file", new ByteArrayResource(bytes) {
             @Override
@@ -100,8 +91,10 @@ public class StaffImageService {
                     .body(new ParameterizedTypeReference<Map<String, Object>>() {});
 
             if (response == null || !(response.get("secure_url") instanceof String url)
-                    || !(response.get("asset_id") instanceof String assetId)) {
-                throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Lỗi phản hồi từ nhà cung cấp Cloudinary.");
+                    || !isCloudinaryUrl(url)
+                    || !(response.get("asset_id") instanceof String assetId)
+                    || !assetId.matches("[A-Za-z0-9_-]{1,255}")) {
+                throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Lỗi phản hồi từ nhà cung cấp Cloudinary.");
             }
 
             var keys = new GeneratedKeyHolder();
@@ -114,8 +107,8 @@ public class StaffImageService {
                 ps.setString(2, url);
                 ps.setString(3, format.equals("png") ? "image/png" : "image/jpeg");
                 ps.setLong(4, bytes.length);
-                ps.setInt(5, width);
-                ps.setInt(6, height);
+                ps.setInt(5, imageData.width());
+                ps.setInt(6, imageData.height());
                 return ps;
             }, keys);
 
@@ -125,7 +118,49 @@ public class StaffImageService {
             }
             return new StaffModels.ImageUploadResponse(key.longValue(), url);
         } catch (RestClientException ex) {
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Không thể kết nối đến máy chủ Cloudinary.");
+            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Không thể kết nối đến máy chủ Cloudinary.");
+        }
+    }
+
+    private ImageData inspect(byte[] bytes) {
+        try (var stream = ImageIO.createImageInputStream(new ByteArrayInputStream(bytes))) {
+            if (stream == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chọn ảnh PNG/JPEG hợp lệ, tối đa 20 triệu pixel.");
+            }
+            var decoders = ImageIO.getImageReaders(stream);
+            if (!decoders.hasNext()) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chọn ảnh PNG/JPEG hợp lệ, tối đa 20 triệu pixel.");
+            }
+            var decoder = decoders.next();
+            try {
+                decoder.setInput(stream, true, true);
+                String format = decoder.getFormatName();
+                if (!format.equalsIgnoreCase("PNG") && !format.equalsIgnoreCase("JPEG")) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chỉ chấp nhận định dạng ảnh PNG hoặc JPEG.");
+                }
+                long pixels = (long) decoder.getWidth(0) * decoder.getHeight(0);
+                if (pixels < 1 || pixels > 20_000_000 || decoder.read(0) == null) {
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Kích thước ảnh không hợp lệ hoặc vượt quá 20 triệu pixel.");
+                }
+                return new ImageData(format.equalsIgnoreCase("PNG") ? "png" : "jpg", decoder.getWidth(0), decoder.getHeight(0));
+            } finally {
+                decoder.dispose();
+            }
+        } catch (IOException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chọn ảnh PNG/JPEG hợp lệ, tối đa 20 triệu pixel.");
+        }
+    }
+
+    private boolean isCloudinaryUrl(String url) {
+        if (url == null || url.length() > 1024 || cloudName.isBlank()) return false;
+        try {
+            URI uri = URI.create(url);
+            return "https".equals(uri.getScheme()) && "res.cloudinary.com".equals(uri.getHost())
+                    && uri.getUserInfo() == null && uri.getPort() == -1 && uri.getQuery() == null && uri.getFragment() == null
+                    && uri.getPath().startsWith("/" + cloudName + "/image/upload/")
+                    && !uri.getPath().contains("..") && !url.contains("\\");
+        } catch (IllegalArgumentException exception) {
+            return false;
         }
     }
 }

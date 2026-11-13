@@ -149,10 +149,15 @@ def main():
     parser.add_argument("--output", default="docs/reports/dt2-10-api/report.html", type=Path)
     args = parser.parse_args()
 
-    report = json.loads(args.input.read_text(encoding="utf-8"))
+    input_path = args.input
+    if not input_path.exists() and (Path("backend") / input_path).exists():
+        input_path = Path("backend") / input_path
+
+    report = json.loads(input_path.read_text(encoding="utf-8"))
     html = render(report)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(html, encoding="utf-8")
+    (args.output.parent / "results.json").write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"Wrote report to {args.output}")
 
 

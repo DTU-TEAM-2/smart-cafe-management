@@ -143,7 +143,7 @@ class StaffHttpReportTest {
 
         // Cleanup any leftovers in dedicated test database
         jdbc.update("DELETE FROM staff_profiles");
-        jdbc.update("DELETE FROM users WHERE username LIKE 'adm_%' OR username LIKE 'stf_%' OR username LIKE 'test_%' OR username LIKE 'extra_%'");
+        jdbc.update("DELETE FROM users");
 
         // 1. Seed Admin
         jdbc.update("""
@@ -160,6 +160,14 @@ class StaffHttpReportTest {
                 """, staffUser, staffUser + "@cafe.vn");
         staffUserId = jdbc.queryForObject("SELECT id FROM users WHERE username=?", Long.class, staffUser);
         jdbc.update("INSERT INTO staff_profiles(user_id, address, gender, salary) VALUES (?, 'Huế', 'FEMALE', 7500000)", staffUserId);
+
+        // Seed a Customer user to verify scope isolation
+        String custUser = "cust_" + suffix;
+        jdbc.update("""
+                INSERT INTO users(username, password_hash, full_name, email, phone, role, status, auth_version)
+                VALUES (?, '$2a$10$abcdefghijklmnopqrstuvwxyz1234567890', 'Khách hàng thử nghiệm', ?, '0907777777', 'CUSTOMER', 'ACTIVE', 0)
+                """, custUser, custUser + "@cafe.vn");
+        Long custUserId = jdbc.queryForObject("SELECT id FROM users WHERE username=?", Long.class, custUser);
 
         // 3. Seed 12 more staff users for pagination testing
         for (int i = 1; i <= 12; i++) {
@@ -265,6 +273,8 @@ class StaffHttpReportTest {
                             "username": "abc",
                             "fullName": "Nguyen Short",
                             "email": "short@cafe.vn",
+                            "phone": "0987111222",
+                            "address": "123 Da Nang",
                             "salary": 5000000
                         }
                         """;
@@ -278,19 +288,23 @@ class StaffHttpReportTest {
                             "username": "9staffname",
                             "fullName": "Nguyen Digit",
                             "email": "digit@cafe.vn",
+                            "phone": "0987111222",
+                            "address": "123 Da Nang",
                             "salary": 5000000
                         }
                         """;
                 send("POST", "/api/v1/staff", payload, adminToken, true, 400);
             });
 
-            // TC-13: Create staff username contains admin/root
-            run(13, "Thêm nhân viên với Username chứa từ khóa cấm (admin/root) bị từ chối", () -> {
+            // TC-13: Create staff username is admin or root
+            run(13, "Thêm nhân viên với Username trùng tên cấm (admin/root) bị từ chối", () -> {
                 String payload = """
                         {
-                            "username": "superadmin99",
+                            "username": "admin",
                             "fullName": "Nguyen Admin",
                             "email": "admin99@cafe.vn",
+                            "phone": "0987111222",
+                            "address": "123 Da Nang",
                             "salary": 5000000
                         }
                         """;
@@ -304,6 +318,8 @@ class StaffHttpReportTest {
                             "username": "staff_odd_sal",
                             "fullName": "Nguyen Odd Salary",
                             "email": "oddsal@cafe.vn",
+                            "phone": "0987111222",
+                            "address": "123 Da Nang",
                             "salary": 5000050
                         }
                         """;
@@ -366,6 +382,63 @@ class StaffHttpReportTest {
                 send("GET", "/api/v1/staff/" + createdIdHolder[0], null, adminToken, false, 404);
                 var searchRes = send("GET", "/api/v1/staff?keyword=" + createdUsername, null, adminToken, false, 200);
                 assertThat(searchRes.body().path("content").size()).isZero();
+            });
+
+            // TC-20: Customer ID is excluded from staff scope (returns 404)
+            run(20, "Tài khoản khách hàng (CUSTOMER) bị cô lập khỏi API nhân sự (404 Not Found)", () -> {
+                send("GET", "/api/v1/staff/" + custUserId, null, adminToken, false, 404);
+                var custSearch = send("GET", "/api/v1/staff?keyword=" + custUser, null, adminToken, false, 200);
+                assertThat(custSearch.body().path("content").size()).isZero();
+            });
+
+            // TC-21: Large page number does not overflow offset (returns 200 with empty list)
+            run(21, "Phân trang với chỉ số page lớn không gây lỗi tràn số 503 (trả về danh sách rỗng 200 OK)", () -> {
+                var bigPage = send("GET", "/api/v1/staff?page=21474837&size=100", null, adminToken, false, 200);
+                assertThat(bigPage.body().path("content").size()).isZero();
+            });
+
+            // TC-22: Admin cannot demote self
+            run(22, "Quản trị viên tự hạ quyền thành STAFF bị hệ thống từ chối (400 Bad Request)", () -> {
+                String demotePayload = """
+                        {
+                            "fullName": "Quản trị viên Hệ thống",
+                            "email": "%s@cafe.vn",
+                            "phone": "0901111111",
+                            "address": "Đà Nẵng",
+                            "role": "STAFF",
+                            "salary": 20000000
+                        }
+                        """.formatted(adminUser);
+                send("PUT", "/api/v1/staff/" + adminUserId, demotePayload, adminToken, true, 400);
+            });
+
+            // TC-23: Maximum 2 Admins limit
+            run(23, "Giới hạn tối đa 2 Quản trị viên: từ chối tạo thêm Quản trị viên thứ 3", () -> {
+                String secondAdminPayload = """
+                        {
+                            "username": "adm2_%s",
+                            "fullName": "Quản trị viên thứ hai",
+                            "email": "adm2_%s@cafe.vn",
+                            "phone": "0909999991",
+                            "address": "Đà Nẵng",
+                            "role": "ADMIN",
+                            "salary": 22000000
+                        }
+                        """.formatted(suffix, suffix);
+                send("POST", "/api/v1/staff", secondAdminPayload, adminToken, true, 201);
+
+                String thirdAdminPayload = """
+                        {
+                            "username": "adm3_%s",
+                            "fullName": "Quản trị viên thứ ba",
+                            "email": "adm3_%s@cafe.vn",
+                            "phone": "0909999992",
+                            "address": "Đà Nẵng",
+                            "role": "ADMIN",
+                            "salary": 22000000
+                        }
+                        """.formatted(suffix, suffix);
+                send("POST", "/api/v1/staff", thirdAdminPayload, adminToken, true, 400);
             });
 
         } finally {

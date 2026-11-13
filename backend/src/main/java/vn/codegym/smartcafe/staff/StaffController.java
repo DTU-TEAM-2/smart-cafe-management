@@ -47,8 +47,10 @@ public class StaffController {
     @PutMapping("/{id}")
     public StaffModels.StaffDetail updateStaff(
             @PathVariable Long id,
-            @RequestBody StaffModels.UpdateStaffRequest request) {
-        return staffService.updateStaff(id, request);
+            @RequestBody StaffModels.UpdateStaffRequest request,
+            Authentication authentication) {
+        String currentUsername = authentication != null ? authentication.getName() : null;
+        return staffService.updateStaff(id, request, currentUsername);
     }
 
     @DeleteMapping("/{id}")

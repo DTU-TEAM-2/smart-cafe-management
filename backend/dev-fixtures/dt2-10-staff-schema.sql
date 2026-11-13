@@ -1,20 +1,24 @@
 -- DT2-68: Schema đồng bộ mô hình chuẩn users + staff_profiles + media_assets
--- Cho database smart_cafe
+-- Cho môi trường phát triển cục bộ (dev/test), đối chiếu theo backend/src/test/resources/schema.sql
 
--- 1. Bảng media_assets (lưu trữ metadata ảnh Cloudinary)
+-- 1. Bảng media_assets (lưu trữ metadata ảnh Cloudinary/Firebase)
 CREATE TABLE IF NOT EXISTS `media_assets` (
   `id` bigint NOT NULL AUTO_INCREMENT,
-  `provider` varchar(16) NOT NULL DEFAULT 'CLOUDINARY',
+  `provider` varchar(16) NOT NULL,
   `provider_asset_id` varchar(255) NOT NULL,
-  `secure_url` varchar(2024) NOT NULL,
+  `secure_url` varchar(1024) NOT NULL,
   `mime_type` varchar(80) NOT NULL,
   `size_bytes` bigint NOT NULL,
-  `width_px` int NOT NULL,
-  `height_px` int NOT NULL,
+  `width_px` int DEFAULT NULL,
+  `height_px` int DEFAULT NULL,
   `created_at` datetime(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `deleted_at` datetime(6) DEFAULT NULL,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uq_media_provider` (`provider`,`provider_asset_id`),
+  CONSTRAINT `ck_media_dimensions` CHECK ((((`width_px` is null) or (`width_px` > 0)) and ((`height_px` is null) or (`height_px` > 0)))),
+  CONSTRAINT `ck_media_provider` CHECK ((`provider` in (_utf8mb4'CLOUDINARY',_utf8mb4'FIREBASE'))),
+  CONSTRAINT `ck_media_size` CHECK ((`size_bytes` > 0))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 -- 2. Đảm bảo bảng users có cột avatar_media_id nếu chưa có
 SET @exist_avatar := (
@@ -35,11 +39,6 @@ CREATE TABLE IF NOT EXISTS `staff_profiles` (
   `salary` decimal(18,0) NOT NULL,
   PRIMARY KEY (`user_id`),
   CONSTRAINT `fk_staff_profiles_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`),
-  CONSTRAINT `ck_staff_gender` CHECK ((`gender` IS NULL) OR (`gender` IN ('MALE', 'FEMALE'))),
-  CONSTRAINT `ck_staff_salary` CHECK ((`salary` > 0) AND ((`salary` % 100000) = 0))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 4. Đồng bộ dữ liệu hồ sơ từ bảng users cũ sang staff_profiles (nếu users có các cột address, salary)
-INSERT IGNORE INTO `staff_profiles` (`user_id`, `address`, `birthday`, `gender`, `salary`)
-SELECT `id`, COALESCE(`address`, 'Đà Nẵng'), `birthday`, `gender`, COALESCE(`salary`, 6000000)
-FROM `users`;
+  CONSTRAINT `ck_staff_gender` CHECK (((`gender` is null) or (`gender` in (_utf8mb4'MALE',_utf8mb4'FEMALE')))),
+  CONSTRAINT `ck_staff_salary` CHECK (((`salary` > 0) and ((`salary` % 100000) = 0)))
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;

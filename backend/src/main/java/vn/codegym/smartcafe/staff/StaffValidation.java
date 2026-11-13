@@ -8,7 +8,8 @@ import org.springframework.web.server.ResponseStatusException;
 
 public final class StaffValidation {
     private static final BigDecimal MULTIPLE_OF = new BigDecimal("100000");
-    private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-zA-Z][a-zA-Z0-9_]{6,}$");
+    private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-zA-Z][a-zA-Z0-9_]{6,63}$");
+    private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
 
     private StaffValidation() {}
 
@@ -17,6 +18,7 @@ public final class StaffValidation {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dữ liệu yêu cầu không được rỗng.");
         }
         validateUsername(request.username());
+        validateEmail(request.email());
         validateCommonFields(request.fullName(), request.address(), request.phone(), request.gender(), request.role(), request.salary());
     }
 
@@ -24,6 +26,7 @@ public final class StaffValidation {
         if (request == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dữ liệu yêu cầu không được rỗng.");
         }
+        validateEmail(request.email());
         validateCommonFields(request.fullName(), request.address(), request.phone(), request.gender(), request.role(), request.salary());
     }
 
@@ -34,6 +37,9 @@ public final class StaffValidation {
         String trimmed = username.trim();
         if (trimmed.length() <= 6) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username phải dài hơn 6 ký tự.");
+        }
+        if (trimmed.length() > 64) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username không được vượt quá 64 ký tự.");
         }
         if (Character.isDigit(trimmed.charAt(0))) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username không được bắt đầu bằng chữ số.");
@@ -47,15 +53,37 @@ public final class StaffValidation {
         }
     }
 
+    public static void validateEmail(String email) {
+        if (email == null || email.trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email không được để trống.");
+        }
+        String trimmed = email.trim();
+        if (trimmed.length() > 255) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Email không được vượt quá 255 ký tự.");
+        }
+        if (!EMAIL_PATTERN.matcher(trimmed).matches()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Định dạng email không hợp lệ.");
+        }
+    }
+
     public static void validateCommonFields(String fullName, String address, String phone, String gender, String role, BigDecimal salary) {
         if (fullName == null || fullName.trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Họ và tên không được để trống.");
         }
+        if (fullName.trim().length() > 160) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Họ và tên không được vượt quá 160 ký tự.");
+        }
         if (address == null || address.trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Địa chỉ không được để trống.");
         }
+        if (address.trim().length() > 255) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Địa chỉ không được vượt quá 255 ký tự.");
+        }
         if (phone == null || phone.trim().isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số điện thoại không được để trống.");
+        }
+        if (phone.trim().length() > 20) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Số điện thoại không được vượt quá 20 ký tự.");
         }
         if (gender != null && !gender.trim().isEmpty()) {
             String g = gender.trim().toUpperCase(Locale.ROOT);
