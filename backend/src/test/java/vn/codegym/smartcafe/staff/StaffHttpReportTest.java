@@ -533,6 +533,62 @@ class StaffHttpReportTest {
                 assertThat(totalAdmins).isEqualTo(2);
             });
 
+            // TC-28: Admin cannot delete another Admin account (protect system admin invariant)
+            run(28, "Không được phép xóa tài khoản Quản trị viên (ADMIN) qua API Staff (400 Bad Request, bảo đảm tối thiểu 1 Admin)", () -> {
+                Long secondAdminId = jdbc.queryForObject(
+                        "SELECT id FROM users WHERE role = 'ADMIN' AND status = 'ACTIVE' AND id != ? LIMIT 1",
+                        Long.class,
+                        adminUserId);
+                String secondAdminUsername = jdbc.queryForObject(
+                        "SELECT username FROM users WHERE id = ?",
+                        String.class,
+                        secondAdminId);
+                String secondAdminToken = token(secondAdminUsername, "ADMIN");
+
+                // 1. Admin A attempts to delete Admin B -> 400 Bad Request
+                send("DELETE", "/api/v1/staff/" + secondAdminId, null, adminToken, true, 400);
+
+                // 2. Concurrency test: Admin A tries to delete Admin B while Admin B tries to delete Admin A simultaneously
+                int threads = 2;
+                var executor = java.util.concurrent.Executors.newFixedThreadPool(threads);
+                var latch = new java.util.concurrent.CountDownLatch(1);
+                var statuses = new java.util.concurrent.atomic.AtomicIntegerArray(threads);
+
+                executor.submit(() -> {
+                    try {
+                        latch.await();
+                        var resp = send("DELETE", "/api/v1/staff/" + secondAdminId, null, adminToken, true, -1);
+                        statuses.set(0, resp.status());
+                    } catch (Exception e) {
+                        statuses.set(0, 500);
+                    }
+                });
+
+                executor.submit(() -> {
+                    try {
+                        latch.await();
+                        var resp = send("DELETE", "/api/v1/staff/" + adminUserId, null, secondAdminToken, true, -1);
+                        statuses.set(1, resp.status());
+                    } catch (Exception e) {
+                        statuses.set(1, 500);
+                    }
+                });
+
+                latch.countDown();
+                executor.shutdown();
+                executor.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS);
+
+                // Both cross-delete requests must be rejected with 400 Bad Request
+                assertThat(statuses.get(0)).isEqualTo(400);
+                assertThat(statuses.get(1)).isEqualTo(400);
+
+                // Assert both Admins remain ACTIVE
+                Integer totalAdmins = jdbc.queryForObject(
+                        "SELECT COUNT(*) FROM users WHERE role = 'ADMIN' AND status = 'ACTIVE'",
+                        Integer.class);
+                assertThat(totalAdmins).isEqualTo(2);
+            });
+
         } finally {
             // Write results to JSON
             Path output = Path.of("target/api-report/dt2-10-api-results.json");

@@ -49,7 +49,6 @@ public class StaffImageService {
 
     private record ImageData(String format, int width, int height) {}
 
-    @Transactional
     public StaffModels.ImageUploadResponse upload(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Tệp ảnh không được rỗng.");

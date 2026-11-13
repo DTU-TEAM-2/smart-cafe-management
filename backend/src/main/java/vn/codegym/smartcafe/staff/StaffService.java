@@ -329,6 +329,10 @@ public class StaffService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Không thể tự xóa tài khoản đang đăng nhập.");
         }
 
+        if ("ADMIN".equalsIgnoreCase(target.role())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không được phép xóa tài khoản Quản trị viên (ADMIN) theo quy định hệ thống.");
+        }
+
         // Soft delete: chuyển trạng thái INACTIVE để bảo toàn tham chiếu hóa đơn / phiên bàn
         jdbc.update("UPDATE users SET status = 'INACTIVE' WHERE id = ?", id);
     }

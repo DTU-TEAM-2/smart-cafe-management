@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-13T02:36:12.765168900Z",
+  "generatedAt": "2026-11-13T03:55:25.919251600Z",
   "transport": "HTTP thật · Spring Boot / Tomcat · MySQL 9.6.0 · BCrypt",
   "authentication": "Bearer HMAC test-only theo contract auth chung; role/status/auth_version đọc từ users của schema test.",
   "cases": [
@@ -15,7 +15,7 @@
       ],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 153
+      "durationMs": 168
     },
     {
       "id": "TC-02",
@@ -29,7 +29,7 @@
       ],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 24
+      "durationMs": 21
     },
     {
       "id": "TC-03",
@@ -43,7 +43,7 @@
       ],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 5
+      "durationMs": 4
     },
     {
       "id": "TC-04",
@@ -57,21 +57,21 @@
       ],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 19
+      "durationMs": 18
     },
     {
       "id": "TC-05",
       "title": "Tìm kiếm nhân viên theo Username (Điều kiện OR)",
       "observations": [
         {
-          "request": "GET /api/v1/staff?keyword=stf_mwed7u1p",
+          "request": "GET /api/v1/staff?keyword=stf_mweg1pl9",
           "actual": "200",
           "expected": "200"
         }
       ],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 12
+      "durationMs": 13
     },
     {
       "id": "TC-06",
@@ -85,7 +85,7 @@
       ],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 10
+      "durationMs": 8
     },
     {
       "id": "TC-07",
@@ -99,7 +99,7 @@
       ],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 11
+      "durationMs": 9
     },
     {
       "id": "TC-08",
@@ -113,7 +113,7 @@
       ],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 10
+      "durationMs": 13
     },
     {
       "id": "TC-09",
@@ -127,7 +127,7 @@
       ],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 28
+      "durationMs": 22
     },
     {
       "id": "TC-10",
@@ -141,7 +141,7 @@
       ],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 99
+      "durationMs": 94
     },
     {
       "id": "TC-11",
@@ -155,7 +155,7 @@
       ],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 17
+      "durationMs": 9
     },
     {
       "id": "TC-12",
@@ -169,7 +169,7 @@
       ],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 16
+      "durationMs": 9
     },
     {
       "id": "TC-13",
@@ -183,7 +183,7 @@
       ],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 15
+      "durationMs": 11
     },
     {
       "id": "TC-14",
@@ -197,7 +197,7 @@
       ],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 16
+      "durationMs": 8
     },
     {
       "id": "TC-15",
@@ -211,14 +211,14 @@
       ],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 12
+      "durationMs": 9
     },
     {
       "id": "TC-16",
       "title": "Admin xem chi tiết thông tin nhân viên theo ID",
       "observations": [
         {
-          "request": "GET /api/v1/staff/407",
+          "request": "GET /api/v1/staff/471",
           "actual": "200",
           "expected": "200"
         }
@@ -232,71 +232,71 @@
       "title": "Admin cập nhật thông tin nhân viên thành công",
       "observations": [
         {
-          "request": "PUT /api/v1/staff/407",
+          "request": "PUT /api/v1/staff/471",
           "actual": "200",
           "expected": "200"
         }
       ],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 22
+      "durationMs": 21
     },
     {
       "id": "TC-18",
       "title": "Admin tự xóa tài khoản của chính mình bị hệ thống từ chối",
       "observations": [
         {
-          "request": "DELETE /api/v1/staff/392",
+          "request": "DELETE /api/v1/staff/456",
           "actual": "409",
           "expected": "409"
         }
       ],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 8
+      "durationMs": 7
     },
     {
       "id": "TC-19",
       "title": "Admin xóa nhân viên thành công (Xóa mềm INACTIVE, bảo toàn toàn vẹn dữ liệu)",
       "observations": [
         {
-          "request": "DELETE /api/v1/staff/407",
+          "request": "DELETE /api/v1/staff/471",
           "actual": "204",
           "expected": "204"
         },
         {
-          "request": "GET /api/v1/staff/407",
+          "request": "GET /api/v1/staff/471",
           "actual": "404",
           "expected": "404"
         },
         {
-          "request": "GET /api/v1/staff?keyword=nv_moi_mwed7u1p",
+          "request": "GET /api/v1/staff?keyword=nv_moi_mweg1pl9",
           "actual": "200",
           "expected": "200"
         }
       ],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 23
+      "durationMs": 28
     },
     {
       "id": "TC-20",
       "title": "Tài khoản khách hàng (CUSTOMER) bị cô lập khỏi API nhân sự (404 Not Found)",
       "observations": [
         {
-          "request": "GET /api/v1/staff/394",
+          "request": "GET /api/v1/staff/458",
           "actual": "404",
           "expected": "404"
         },
         {
-          "request": "GET /api/v1/staff?keyword=cust_mwed7u1p",
+          "request": "GET /api/v1/staff?keyword=cust_mweg1pl9",
           "actual": "200",
           "expected": "200"
         }
       ],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 14
+      "durationMs": 15
     },
     {
       "id": "TC-21",
@@ -317,14 +317,14 @@
       "title": "Quản trị viên tự hạ quyền thành STAFF bị hệ thống từ chối (400 Bad Request)",
       "observations": [
         {
-          "request": "PUT /api/v1/staff/392",
+          "request": "PUT /api/v1/staff/456",
           "actual": "400",
           "expected": "400"
         }
       ],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 8
+      "durationMs": 9
     },
     {
       "id": "TC-23",
@@ -343,7 +343,7 @@
       ],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 101
+      "durationMs": 99
     },
     {
       "id": "TC-24",
@@ -357,21 +357,21 @@
       ],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 10
+      "durationMs": 8
     },
     {
       "id": "TC-25",
       "title": "Quản trị viên không được phép hạ quyền Quản trị viên khác thành STAFF (400 Bad Request)",
       "observations": [
         {
-          "request": "PUT /api/v1/staff/408",
+          "request": "PUT /api/v1/staff/472",
           "actual": "400",
           "expected": "400"
         }
       ],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 11
+      "durationMs": 10
     },
     {
       "id": "TC-26",
@@ -379,7 +379,7 @@
       "observations": [],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 0
+      "durationMs": 1
     },
     {
       "id": "TC-27",
@@ -398,7 +398,31 @@
       ],
       "result": "PASS",
       "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
-      "durationMs": 106
+      "durationMs": 115
+    },
+    {
+      "id": "TC-28",
+      "title": "Không được phép xóa tài khoản Quản trị viên (ADMIN) qua API Staff (400 Bad Request, bảo đảm tối thiểu 1 Admin)",
+      "observations": [
+        {
+          "request": "DELETE /api/v1/staff/473",
+          "actual": "400",
+          "expected": "400"
+        },
+        {
+          "request": "DELETE /api/v1/staff/456",
+          "actual": "400",
+          "expected": "-1"
+        },
+        {
+          "request": "DELETE /api/v1/staff/473",
+          "actual": "400",
+          "expected": "-1"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 20
     }
   ]
 }

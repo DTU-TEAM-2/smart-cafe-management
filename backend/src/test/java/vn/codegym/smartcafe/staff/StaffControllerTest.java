@@ -365,4 +365,23 @@ class StaffControllerTest {
                         .content(demoteJson))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void adminCannotDeleteOtherAdmin() throws Exception {
+        // Create 2nd admin
+        jdbc.update("""
+                INSERT INTO users(username, password_hash, full_name, email, phone, role, status)
+                VALUES ('admin_c_del', 'hash', 'Admin C', 'admin_c_del@test.vn', '0901111113', 'ADMIN', 'ACTIVE')
+                """);
+        Long adminCId = jdbc.queryForObject("SELECT id FROM users WHERE username = 'admin_c_del'", Long.class);
+        jdbc.update("INSERT INTO staff_profiles(user_id, address, gender, salary) VALUES (?, 'Da Nang', 'MALE', 15000000)", adminCId);
+
+        // Admin A tries to delete Admin C -> 400 Bad Request
+        mvc.perform(delete("/api/v1/staff/" + adminCId).with(user("test_admin").roles("ADMIN")).with(csrf()))
+                .andExpect(status().isBadRequest());
+
+        // Status is still ACTIVE
+        String status = jdbc.queryForObject("SELECT status FROM users WHERE id = ?", String.class, adminCId);
+        org.assertj.core.api.Assertions.assertThat(status).isEqualTo("ACTIVE");
+    }
 }
