@@ -137,17 +137,17 @@ class StaffImageServiceTest {
         var builder = RestClient.builder();
         var server = MockRestServiceServer.bindTo(builder).build();
 
-        // 1. Upload to Cloudinary succeeds
+        // 1. Upload to Cloudinary succeeds with distinct asset_id and public_id
         server.expect(requestTo("https://api.cloudinary.com/v1_1/test-cloud/image/upload"))
                 .andExpect(method(HttpMethod.POST))
                 .andRespond(withSuccess(
-                        "{\"asset_id\":\"orphan-asset-456\",\"secure_url\":\"https://res.cloudinary.com/test-cloud/image/upload/v1/avatar.png\"}",
+                        "{\"asset_id\":\"orphan-asset-456\",\"public_id\":\"orphan-pub-789\",\"secure_url\":\"https://res.cloudinary.com/test-cloud/image/upload/v1/avatar.png\"}",
                         MediaType.APPLICATION_JSON));
 
-        // 2. Expect destroy call to clean up orphan asset when DB fails
+        // 2. Expect destroy call to clean up orphan asset using public_id (orphan-pub-789)
         server.expect(requestTo("https://api.cloudinary.com/v1_1/test-cloud/image/destroy"))
                 .andExpect(method(HttpMethod.POST))
-                .andExpect(content().string(org.hamcrest.Matchers.containsString("orphan-asset-456")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("orphan-pub-789")))
                 .andRespond(withSuccess("{\"result\":\"ok\"}", MediaType.APPLICATION_JSON));
 
         // Mock DB failure

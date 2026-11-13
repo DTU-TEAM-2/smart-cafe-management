@@ -102,6 +102,8 @@ public class StaffImageService {
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Lỗi phản hồi từ nhà cung cấp Cloudinary.");
             }
 
+            String publicId = response.get("public_id") instanceof String pid && !pid.isBlank() ? pid : assetId;
+
             try {
                 var keys = new GeneratedKeyHolder();
                 jdbc.update(conn -> {
@@ -124,7 +126,10 @@ public class StaffImageService {
                 }
                 return new StaffModels.ImageUploadResponse(key.longValue(), url);
             } catch (Exception dbEx) {
-                cleanupOrphanAsset(assetId);
+                boolean cleaned = cleanupOrphanAsset(publicId);
+                if (!cleaned) {
+                    System.err.println("WARN: Failed to clean up orphan Cloudinary asset with public_id: " + publicId);
+                }
                 if (dbEx instanceof ResponseStatusException rse) {
                     throw rse;
                 }
@@ -135,19 +140,24 @@ public class StaffImageService {
         }
     }
 
-    void cleanupOrphanAsset(String assetId) {
+    boolean cleanupOrphanAsset(String publicId) {
+        if (publicId == null || publicId.isBlank()) {
+            return false;
+        }
         try {
             var form = new LinkedMultiValueMap<String, Object>();
-            form.add("public_id", assetId);
-            client.post()
+            form.add("public_id", publicId);
+            var destroyRes = client.post()
                     .uri("https://api.cloudinary.com/v1_1/{cloud}/image/destroy", cloudName)
                     .headers(headers -> headers.setBasicAuth(apiKey, apiSecret))
                     .contentType(MediaType.MULTIPART_FORM_DATA)
                     .body(form)
                     .retrieve()
-                    .toBodilessEntity();
-        } catch (Exception ignored) {
-            // Logged or handled, does not disrupt failure reporting
+                    .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+            return destroyRes != null && "ok".equals(destroyRes.get("result"));
+        } catch (Exception ex) {
+            System.err.println("WARN: Error while requesting Cloudinary destroy for orphan public_id: " + publicId + ", error: " + ex.getMessage());
+            return false;
         }
     }
 
