@@ -24,3 +24,11 @@ Các phương án cần quyết định: cho phép NULL để thể hiện khác
 ### DT2-9: DDL triển khai theo sơ đồ mới
 
 Model đã theo sơ đồ mới do chủ repo cung cấp lại ngày 11/11. DB local legacy vẫn là bản cũ; cần chủ DB cung cấp/cập nhật DDL đúng mô hình trước smoke hoặc triển khai thực. PR không tự thay DB đó. Xem [đối chiếu](../architecture/database-contract.md#dt2-9--đối-chiếu-ngày-11112026-cho-pr-8).
+
+### QA-08 — DT2-10: Onboarding nhân viên và luồng gửi Email kích hoạt (13/11/2026)
+
+- **Mã issue / Dependency:** `DT2-2` (Module Authentication & Account Onboarding / Email Service).
+- **Owner:** Nhóm phụ trách module Auth (`DT2-2`).
+- **Blocker tích hợp:** Hạ tầng SMTP / JavaMailSender chưa tích hợp trong backend Spring Boot ở sprint này.
+- **Tiêu chí E2E Acceptance:** Khi module Auth hoàn thiện: Admin tạo nhân viên (`POST /api/v1/staff`) -> Backend lưu `must_change_password=1` và mật khẩu ngẫu nhiên an toàn -> Auth Module phát hành email kèm activation/reset token một lần -> Nhân viên truy cập link xác thực, tự đặt mật khẩu mới -> Đăng nhập thành công lần đầu.
+- **Trạng thái:** Backend User & Security State của Staff hoàn tất; đang chờ module Auth (DT2-2) kết nối luồng gửi email và trang đặt mật khẩu.

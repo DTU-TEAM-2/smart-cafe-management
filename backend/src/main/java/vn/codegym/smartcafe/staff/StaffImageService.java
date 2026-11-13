@@ -6,6 +6,7 @@ import java.net.URI;
 import java.sql.Statement;
 import java.util.Map;
 import javax.imageio.ImageIO;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.core.io.ByteArrayResource;
@@ -31,15 +32,20 @@ public class StaffImageService {
     private final RestClient client;
     private final JdbcTemplate jdbc;
 
+    @Autowired
     public StaffImageService(
             @Value("${menu.images.cloud-name:${CLOUDINARY_CLOUD_NAME:}}") String cloudName,
             @Value("${menu.images.api-key:${CLOUDINARY_API_KEY:}}") String apiKey,
             @Value("${menu.images.api-secret:${CLOUDINARY_API_SECRET:}}") String apiSecret,
             JdbcTemplate jdbc) {
+        this(cloudName, apiKey, apiSecret, RestClient.builder().build(), jdbc);
+    }
+
+    StaffImageService(String cloudName, String apiKey, String apiSecret, RestClient client, JdbcTemplate jdbc) {
         this.cloudName = cloudName != null ? cloudName.trim() : "";
         this.apiKey = apiKey != null ? apiKey.trim() : "";
         this.apiSecret = apiSecret != null ? apiSecret.trim() : "";
-        this.client = RestClient.builder().build();
+        this.client = client != null ? client : RestClient.builder().build();
         this.jdbc = jdbc;
     }
 
@@ -96,28 +102,52 @@ public class StaffImageService {
                 throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Lỗi phản hồi từ nhà cung cấp Cloudinary.");
             }
 
-            var keys = new GeneratedKeyHolder();
-            jdbc.update(conn -> {
-                var ps = conn.prepareStatement("""
-                        INSERT INTO media_assets(provider, provider_asset_id, secure_url, mime_type, size_bytes, width_px, height_px)
-                        VALUES ('CLOUDINARY', ?, ?, ?, ?, ?, ?)
-                        """, Statement.RETURN_GENERATED_KEYS);
-                ps.setString(1, assetId);
-                ps.setString(2, url);
-                ps.setString(3, format.equals("png") ? "image/png" : "image/jpeg");
-                ps.setLong(4, bytes.length);
-                ps.setInt(5, imageData.width());
-                ps.setInt(6, imageData.height());
-                return ps;
-            }, keys);
+            try {
+                var keys = new GeneratedKeyHolder();
+                jdbc.update(conn -> {
+                    var ps = conn.prepareStatement("""
+                            INSERT INTO media_assets(provider, provider_asset_id, secure_url, mime_type, size_bytes, width_px, height_px)
+                            VALUES ('CLOUDINARY', ?, ?, ?, ?, ?, ?)
+                            """, Statement.RETURN_GENERATED_KEYS);
+                    ps.setString(1, assetId);
+                    ps.setString(2, url);
+                    ps.setString(3, format.equals("png") ? "image/png" : "image/jpeg");
+                    ps.setLong(4, bytes.length);
+                    ps.setInt(5, imageData.width());
+                    ps.setInt(6, imageData.height());
+                    return ps;
+                }, keys);
 
-            Number key = keys.getKey();
-            if (key == null) {
-                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Không thể lưu thông tin ảnh vào cơ sở dữ liệu.");
+                Number key = keys.getKey();
+                if (key == null) {
+                    throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Không thể lưu thông tin ảnh vào cơ sở dữ liệu.");
+                }
+                return new StaffModels.ImageUploadResponse(key.longValue(), url);
+            } catch (Exception dbEx) {
+                cleanupOrphanAsset(assetId);
+                if (dbEx instanceof ResponseStatusException rse) {
+                    throw rse;
+                }
+                throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Không thể lưu thông tin ảnh vào cơ sở dữ liệu.", dbEx);
             }
-            return new StaffModels.ImageUploadResponse(key.longValue(), url);
         } catch (RestClientException ex) {
             throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Không thể kết nối đến máy chủ Cloudinary.");
+        }
+    }
+
+    void cleanupOrphanAsset(String assetId) {
+        try {
+            var form = new LinkedMultiValueMap<String, Object>();
+            form.add("public_id", assetId);
+            client.post()
+                    .uri("https://api.cloudinary.com/v1_1/{cloud}/image/destroy", cloudName)
+                    .headers(headers -> headers.setBasicAuth(apiKey, apiSecret))
+                    .contentType(MediaType.MULTIPART_FORM_DATA)
+                    .body(form)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (Exception ignored) {
+            // Logged or handled, does not disrupt failure reporting
         }
     }
 

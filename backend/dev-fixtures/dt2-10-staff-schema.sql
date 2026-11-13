@@ -1,5 +1,7 @@
 -- DT2-68: Schema đồng bộ mô hình chuẩn users + staff_profiles + media_assets
--- Cho môi trường phát triển cục bộ (dev/test), đối chiếu theo backend/src/test/resources/schema.sql
+-- LƯU Ý: File này CHỈ là DDL fixture cho môi trường phát triển cục bộ và kiểm thử cô lập (dev/test).
+-- TUYỆT ĐỐI KHÔNG CHẠY script này trên database hệ thống/production `smart_cafe`.
+-- Việc áp dụng cơ sở dữ liệu dùng chung tuân thủ DDL 20 bảng và Flyway lineage được phê duyệt của dự án.
 
 -- 1. Bảng media_assets (lưu trữ metadata ảnh Cloudinary/Firebase)
 CREATE TABLE IF NOT EXISTS `media_assets` (

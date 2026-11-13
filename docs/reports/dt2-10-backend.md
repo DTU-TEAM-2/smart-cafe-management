@@ -13,7 +13,7 @@
   - Khởi tạo bảng `staff_profiles` (PK `user_id` FK tới `users.id`) kèm ràng buộc Check Constraint:
     - `ck_staff_salary`: Lương > 0 và là bội số của 100.000 VNĐ (`salary > 0 AND salary % 100000 = 0`).
     - `ck_staff_gender`: Giới tính thuộc `MALE` hoặc `FEMALE`.
-  - Script DDL chuẩn hóa tại [`backend/dev-fixtures/dt2-10-staff-schema.sql`](../../backend/dev-fixtures/dt2-10-staff-schema.sql).
+  - Script DDL tại [`backend/dev-fixtures/dt2-10-staff-schema.sql`](../../backend/dev-fixtures/dt2-10-staff-schema.sql) (chỉ dùng cho môi trường dev/test fixture cô lập; việc áp dụng cơ sở dữ liệu dùng chung tuân thủ DDL 20 bảng và Flyway lineage được phê duyệt của dự án, tuyệt đối không chạy script này trên database hệ thống `smart_cafe`).
 
 - **Phần mềm Backend (Spring Boot / Subtask DT2-69):**
   - Package: `vn.codegym.smartcafe.staff`.
@@ -25,7 +25,7 @@
     - Mã hóa mật khẩu ban đầu an toàn bằng BCrypt.
   - **Sửa thông tin (AC-5):** Khóa `username` (read-only, bất biến); cập nhật an toàn các thông tin họ tên, số điện thoại, địa chỉ, giới tính, ngày sinh, lương, trạng thái.
   - **Xóa an toàn & Bảo toàn dữ liệu (AC-6):** Chặn Admin tự xóa tài khoản của chính mình (`409 Conflict`); áp dụng cơ chế soft delete (`status = 'INACTIVE'`) để bảo toàn tính toàn vẹn và khóa ngoại với các bảng lịch sử (như hóa đơn thanh toán `bills`).
-  - **Upload ảnh đại diện (AC-7):** Tích hợp dịch vụ `StaffImageService` xử lý upload ảnh Cloudinary, kiểm tra định dạng và lưu vào `media_assets`.
+  - **Upload ảnh đại diện (AC-7):** Tích hợp dịch vụ `StaffImageService` xử lý upload ảnh Cloudinary, kiểm tra định dạng và lưu vào `media_assets`. Tách biệt gọi HTTP external khỏi transaction DB và xử lý dọn dẹp asset orphan khi DB insert thất bại.
 
 ---
 
@@ -45,13 +45,29 @@
    - Báo cáo HTML trực quan xuất ra tại: [`docs/reports/dt2-10-api/report.html`](dt2-10-api/report.html).
 2. **Bộ kiểm thử MockMvc ([`StaffControllerTest.java`](../../backend/src/test/java/vn/codegym/smartcafe/staff/StaffControllerTest.java)):**
    - Kết quả: **`14 / 14 PASS`**.
-3. **Bộ kiểm thử hồi quy xác thực ([`HeaderMySqlTest.java`](../../backend/src/test/java/vn/codegym/smartcafe/home/HeaderMySqlTest.java)):**
+3. **Bộ kiểm thử Upload Avatar ([`StaffImageServiceTest.java`](../../backend/src/test/java/vn/codegym/smartcafe/staff/StaffImageServiceTest.java)):**
+   - Kết quả: **`7 / 7 PASS`** (kiểm tra đầy đủ upload hợp lệ, từ chối file rỗng/giả ảnh, oversize > 5MB, pixel bomb > 20Mpx, 503 khi thiếu cấu hình, 502 khi Cloudinary lỗi và tự động dọn asset orphan khi DB insert lỗi).
+4. **Bộ kiểm thử hồi quy xác thực ([`HeaderMySqlTest.java`](../../backend/src/test/java/vn/codegym/smartcafe/home/HeaderMySqlTest.java)):**
    - Kết quả: **`5 / 5 PASS`**.
-4. **Kiểm tra quy tắc Governance & Whitespace:**
+5. **Kiểm tra quy tắc Governance & Whitespace:**
    - Lệnh: `node scripts/skills.mjs check; node --test scripts/skills.test.mjs; git diff --check`.
    - Kết quả: **`9 / 9 PASS`**, diff hoàn toàn sạch lỗi whitespace.
-5. **Kiểm tra Frontend:**
+6. **Kiểm tra Frontend:**
    - Thư mục `frontend/` hoàn toàn nguyên vẹn so với `main` (`git diff main -- frontend` rỗng).
    - `npm run lint` (0 lỗi, 0 cảnh báo), `npm run build` thành công 100%.
-6. **Bộ kịch bản kiểm thử Postman:**
+7. **Bộ kịch bản kiểm thử Postman:**
    - Đã đóng gói tại: [`docs/api/dt2-10-staff-management.postman_collection.json`](../api/dt2-10-staff-management.postman_collection.json).
+
+---
+
+## 3. Ranh giới kiến trúc, Handoff & Rollback
+
+- **Blocker tích hợp & Tiêu chí E2E Onboarding (Dependency: DT2-2):**
+  - **Mã issue / Dependency:** `DT2-2` (Module Authentication & Account Onboarding / Email Service).
+  - **Owner phụ trách:** Nhóm phụ trách module Auth (`DT2-2`).
+  - **Blocker tích hợp:** Hạ tầng SMTP / JavaMailSender chưa tích hợp trong backend Spring Boot ở sprint này.
+  - **Tiêu chí E2E Acceptance:** Khi module Auth hoàn thiện: Admin tạo nhân viên (`POST /api/v1/staff`) $\rightarrow$ Backend lưu trạng thái an toàn (`must_change_password=1`, mật khẩu ngẫu nhiên phức tạp `SecureRandom` + BCrypt, không bao giờ lộ plaintext) $\rightarrow$ Auth Module phát hành email kèm activation/reset token một lần $\rightarrow$ Nhân viên truy cập link xác thực, tự đặt mật khẩu mới $\rightarrow$ Đăng nhập thành công lần đầu.
+  - **Trạng thái:** Backend User & Security State của Staff hoàn tất; đang chờ module Auth (DT2-2) kết nối luồng gửi email và trang đặt mật khẩu.
+- **Kế hoạch Rollback an toàn:**
+  - Tuyệt đối **KHÔNG DROP TABLE** `staff_profiles` khi hệ thống đã có dữ liệu thực tế vì sẽ gây mất mát dữ liệu hồ sơ nhân sự không thể phục hồi.
+  - Quy trình rollback an toàn khi phát sinh sự cố: (1) Revert code backend về commit trước đó, (2) Khóa endpoint `/api/v1/staff/**` qua cấu hình Security / routing, (3) Dữ liệu trong bảng `staff_profiles` được bảo toàn nguyên vẹn hoặc phục hồi từ bản sao lưu DB gần nhất trước sự kiện.
