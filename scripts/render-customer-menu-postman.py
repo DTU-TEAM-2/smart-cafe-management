@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from html import escape
 import json
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import quote
 
 
 def summarize(source, revision, run_url):
@@ -17,7 +17,10 @@ def summarize(source, revision, run_url):
         if isinstance(url, dict):
             raw = url.get('raw')
             if not raw:
-                query = urlencode([(q['key'], q.get('value', '')) for q in url.get('query', []) if not q.get('disabled')])
+                # Newman exports already-escaped SDK values (%25, %5C). Keep those
+                # escapes when rendering the request instead of encoding '%' again.
+                query = '&'.join(f"{quote(str(q['key']), safe='%')}={quote(str(q.get('value', '')), safe='%')}"
+                                 for q in url.get('query', []) if not q.get('disabled'))
                 raw = '/' + '/'.join(url.get('path', [])) + ('?' + query if query else '')
             url = raw
         response = execution.get('response') or {}
@@ -53,6 +56,8 @@ def render(report, cases, title):
     passed = sum(c['passed'] for c in report['cases'])
     total = len(report['cases'])
     assertions = sum(len(c['assertions']) for c in report['cases'])
+    scope_note = ('Chỉ kiểm thử tra QR/bàn, không cấp token hoặc tự mở phiên.' if report.get('feature') == 'qr'
+                  else 'Chỉ kiểm thử chức năng Menu; không kết luận 7 chức năng DT2-4 còn lại.')
     return f'''<!doctype html><html lang="vi"><meta charset="utf-8"><title>{escape(title)}</title>
 <style>
 * {{box-sizing:border-box}} body {{margin:0;background:#eef2f6;color:#182e42;font:16px/1.5 "Segoe UI",Arial,sans-serif}}
@@ -68,10 +73,10 @@ small {{overflow-wrap:anywhere;display:block}} a {{color:inherit}}
 <p>{escape(report['runner'])}</p><small>{escape(report['environment'])}</small>
 <small>SQL mode kiểm tra: {escape(report.get('sqlMode', 'Theo mặc định của môi trường lần chạy'))}</small>
 <small>Revision: {escape(report['revision'])} · Báo cáo UTC: {escape(report['generatedAt'])}</small>
-<small>CI: {escape(report['runUrl'])}</small></header>
+<small>Nguồn chạy: {escape(report['runUrl'])}</small></header>
 <div class="note">Báo cáo từ HTTP response và assertion thực tế của Postman Collection chạy bằng Newman.
 Không phải ảnh chụp ứng dụng Postman Desktop. Dữ liệu tổng hợp chỉ trong MySQL test biệt lập; không dùng dữ liệu production.
-Fixture schema kiểm thử không chứng minh DDL production. Chỉ kiểm thử chức năng Menu; không kết luận 7 chức năng DT2-4 còn lại.</div>
+Fixture schema kiểm thử không chứng minh DDL production. {scope_note}</div>
 {''.join(cards)}</main></html>'''
 
 
@@ -82,6 +87,8 @@ def main():
     parser.add_argument('--revision', default='')
     parser.add_argument('--run-url', default='')
     parser.add_argument('--sql-mode', default='')
+    parser.add_argument('--feature', choices=['menu', 'qr'], default='menu')
+    parser.add_argument('--environment', default='')
     parser.add_argument('--emit-log', action='store_true')
     parser.add_argument('--require-newman', action='store_true', help='Accept only raw Newman HTTP results')
     args = parser.parse_args()
@@ -97,6 +104,9 @@ def main():
         parser.exit(1, 'Cannot render report: missing, invalid or incomplete Newman JSON.\n')
     if args.sql_mode:
         report['sqlMode'] = args.sql_mode
+    if args.environment:
+        report['environment'] = args.environment
+    report['feature'] = args.feature
     args.output.mkdir(parents=True, exist_ok=True)
     (args.output / 'results.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     groups = [('index', 'DT2-4 · Kết quả kiểm thử Postman / Newman', report['cases']),
@@ -104,6 +114,10 @@ def main():
               ('02-list-filter', 'DT2-4 · Danh sách, lọc, tìm kiếm và phân trang', [c for c in report['cases'] if c['status'] == 200 and '/items' in c['url'] and '/items/' not in c['url']]),
               ('03-detail', 'DT2-4 · API chi tiết món', [c for c in report['cases'] if c['status'] == 200 and '/items/' in c['url']]),
               ('04-errors', 'DT2-4 · Validation, không tồn tại và từ chối thao tác ghi', [c for c in report['cases'] if c['status'] is None or c['status'] >= 400])]
+    if args.feature == 'qr':
+        groups = [('index', 'DT2-4 · QR nhận diện bàn / chưa cấp phiên', report['cases']),
+                  ('01-qr-tables', 'DT2-4 · QR trả đúng bàn và gọi lặp', [c for c in report['cases'] if c['status'] == 200]),
+                  ('02-qr-errors', 'DT2-4 · QR sai, bàn không phục vụ và từ chối quyền ghi', [c for c in report['cases'] if c['status'] is None or c['status'] >= 400])]
     for name, title, cases in groups:
         (args.output / f'{name}.html').write_text(render(report, cases, title), encoding='utf-8')
     if args.emit_log:

@@ -33,7 +33,7 @@ jobs:
           MYSQL_DATABASE: smart_cafe_ci_test
         ports: ['3306:3306']
         options: >-
-          --health-cmd="mysqladmin ping --silent"
+          --health-cmd="mysqladmin ping --host=127.0.0.1 --protocol=TCP --silent"
           --health-interval=5s --health-timeout=5s --health-retries=30
     steps:
       - uses: actions/checkout@v4
@@ -44,7 +44,7 @@ jobs:
           cache: maven
           cache-dependency-path: backend/pom.xml
       - name: Prepare isolated schema contract fixture
-        run: docker exec -i $(docker ps -q --filter ancestor=mysql:8.0) mysql -uroot smart_cafe_ci_test < backend/src/test/resources/schema.sql
+        run: docker exec -i $(docker ps -q --filter ancestor=mysql:8.0) mysql --protocol=TCP --host=127.0.0.1 -uroot smart_cafe_ci_test < backend/src/test/resources/schema.sql
       - name: Verify API on MySQL
         working-directory: backend
         env:

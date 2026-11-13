@@ -2,6 +2,7 @@ name: DT2-4 Postman
 on:
   pull_request:
     branches: [main, develop, 'release/**']
+    types: [opened, synchronize, reopened, edited]
     paths:
       - 'backend/**'
       - 'docs/qa/postman/**'
@@ -26,7 +27,7 @@ jobs:
           MYSQL_DATABASE: smart_cafe_postman_test
         ports: ['3306:3306']
         options: >-
-          --health-cmd="mysqladmin ping --silent"
+          --health-cmd="mysqladmin ping --host=127.0.0.1 --protocol=TCP --silent"
           --health-interval=5s --health-timeout=5s --health-retries=30
     steps:
       - uses: actions/checkout@v4
@@ -46,6 +47,7 @@ jobs:
           test "$(docker exec "$container" mysql -uroot -N smart_cafe_postman_test -e 'SELECT DATABASE()')" = smart_cafe_postman_test
           docker exec -i "$container" mysql -uroot smart_cafe_postman_test < backend/src/test/resources/schema.sql
           docker exec -i "$container" mysql -uroot smart_cafe_postman_test < docs/qa/postman/dt2-4-menu-test-fixture.sql
+          docker exec -i "$container" mysql -uroot smart_cafe_postman_test < docs/qa/postman/dt2-4-qr-test-fixture.sql
           # Regression for SQL mode used by some deployments; scope is this job's disposable MySQL.
           docker exec "$container" mysql -uroot -e "SET GLOBAL sql_mode = CONCAT(@@GLOBAL.sql_mode, ',NO_BACKSLASH_ESCAPES')"
           test "$(docker exec "$container" mysql -uroot -N -e "SELECT FIND_IN_SET('NO_BACKSLASH_ESCAPES', @@GLOBAL.sql_mode) > 0")" = 1
@@ -105,6 +107,7 @@ jobs:
       - name: Build report from actual Newman responses
         id: postman-report
         if: always()
+<<<<<<< HEAD
         env:
           NEWMAN_OUTCOME: ${{ steps.newman.outcome }}
           REPORT_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -124,6 +127,28 @@ jobs:
             --require-newman --revision "$REPORT_REVISION" --run-url "$REPORT_RUN_URL" \
             --sql-mode NO_BACKSLASH_ESCAPES --emit-log
           echo 'rendered=true' >> "$GITHUB_OUTPUT"
+=======
+        run: >-
+          python scripts/render-customer-menu-postman.py
+          backend/target/postman/newman.json backend/target/postman/report
+          --revision "${{ github.event.pull_request.head.sha || github.sha }}"
+          --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          --sql-mode NO_BACKSLASH_ESCAPES
+          --emit-log
+      - name: Run QR Postman Collection on the same isolated backend
+        run: >-
+          npx --yes newman@6.2.1 run docs/qa/postman/dt2-4-qr-api.postman_collection.json
+          --timeout-request 10000 --timeout 120000
+          -r cli,json --reporter-json-export backend/target/postman/qr-newman.json
+      - name: Build QR report from actual responses
+        if: always()
+        run: >-
+          python scripts/render-customer-menu-postman.py
+          backend/target/postman/qr-newman.json backend/target/postman/qr-report
+          --feature qr --sql-mode NO_BACKSLASH_ESCAPES
+          --revision "${{ github.event.pull_request.head.sha || github.sha }}"
+          --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+>>>>>>> origin/develop
       - name: Upload actual Postman evidence
         if: always() && steps.postman-report.outputs.rendered == 'true'
         uses: actions/upload-artifact@v4
@@ -132,7 +157,13 @@ jobs:
           path: |
             backend/target/postman/newman.json
             backend/target/postman/report/
+<<<<<<< HEAD
           if-no-files-found: error
+=======
+            backend/target/postman/qr-newman.json
+            backend/target/postman/qr-report/
+          if-no-files-found: warn
+>>>>>>> origin/develop
       - name: Stop backend started by this job
         if: always()
         run: |
