@@ -165,7 +165,7 @@ async function main() {
     const expiredResetToken = `${payload}.${crypto.createHmac('sha256', secret).update(payload).digest('hex')}`;
     environment = envValues({ ...prior, expiredChallengeId: expired.id, expiredOtpCode: expired.code,
       rotatedChallengeId: rotated.id, previousOtpCode: rotated.code, lockedChallengeId: locked.id, lockedOtpCode: locked.code, expiredResetToken });
-    await run('recovery negative cases', collection.item.slice(23), environment);
+    await run('recovery negative cases', collection.item.slice(23, 24), environment);
 
     const fresh = await forgot();
     await run('fault: wrong testOtpCode', [collection.item[18]], envValues({ ...prior, challengeId: fresh.id, testOtpCode: fresh.code === '000000' ? '111111' : '000000' }), true);
@@ -181,6 +181,7 @@ async function main() {
       assert.equal(sql(`SELECT COUNT(*) FROM auth_otp_challenges WHERE email=${quote(email)} AND user_id IS NULL`), '1');
     }
     results.push({ audit: 'no login throttle at six failures; eight distinct dummy emails accepted from loopback', policy: 'NEEDS OWNER DECISION' });
+    await run('Home account after recovery', collection.item.slice(24), environment);
   } finally {
     if (child && child.exitCode === null) { const exited = once(child, 'exit'); child.kill(); await exited; }
     for (const socket of sockets) socket.destroy();

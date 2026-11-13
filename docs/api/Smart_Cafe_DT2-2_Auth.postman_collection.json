@@ -1372,6 +1372,95 @@
           }
         }
       ]
+    },
+    {
+      "name": "25. Auth and Home integration (requires reconciled test schema)",
+      "item": [
+        {
+          "name": "New login bearer accesses Home account after recovery",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Home account must succeed after password recovery\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Home returns the same authenticated Staff fixture\", function () {",
+                  "    const data = pm.response.json();",
+                  "    pm.expect(data.username).to.eql(pm.environment.get(\"staffUsername\"));",
+                  "    pm.expect(data.role).to.eql(\"STAFF\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{newStaffToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/home/account",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "home",
+                "account"
+              ]
+            }
+          }
+        },
+        {
+          "name": "New login bearer accesses Home notifications after recovery",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Home notifications must succeed after recovery\", function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "pm.test(\"Notifications have an authenticated recipient and list\", function () {",
+                  "    const data = pm.response.json();",
+                  "    pm.expect(data.recipientId).to.be.a(\"string\").and.not.empty;",
+                  "    pm.expect(data.items).to.be.an(\"array\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{newStaffToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/home/notifications",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "home",
+                "notifications"
+              ]
+            }
+          }
+        }
+      ]
     }
   ]
 }
