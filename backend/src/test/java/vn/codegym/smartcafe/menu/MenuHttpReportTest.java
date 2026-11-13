@@ -236,7 +236,9 @@ class MenuHttpReportTest {
             run(21, "Chấp nhận hai biên giá hợp lệ", () -> {
                 for (long price : List.of(5001L, 999999999999999999L)) {
                     String boundary = "PMBOUND" + price + suffix;
-                    assertThat(post("/api/v1/menu/items", itemBody(boundary, "Boundary coffee", price, group, 0), 201).body().path("price").asLong()).isEqualTo(price);
+                    var input = itemBody(boundary, "Boundary coffee", Long.toString(price), group, 0)
+                            .replace("\"version\":0", "\"version\":\"0\"");
+                    assertThat(post("/api/v1/menu/items", input, 201).body().path("price").asLong()).isEqualTo(price);
                     delete("/api/v1/menu/items/" + boundary + "?version=0", 204);
                 }
             });
