@@ -6,7 +6,8 @@
 
 - PO/mentor chốt ưu tiên, phạm vi và câu trả lời QA; nhóm không thay đề xuất bằng quyết định đã duyệt.
 - Leader giữ luồng tích hợp, môi trường, phụ thuộc và blocker. Leader không phải người duyệt duy nhất cho mọi PR.
-- Mỗi task có một owner chịu trách nhiệm cập nhật và một reviewer có năng lực phù hợp. Không tự tính self-review là review chéo.
+- Mỗi task có một owner chịu trách nhiệm cập nhật và ít nhất hai reviewer độc lập khác tác giả approve trước khi merge vào nhánh chung. Không tự tính self-review là review chéo, không dùng nhiều tài khoản của cùng một người để đủ số approval.
+- [Git Flow](../../git-flow.md) là quy trình bắt buộc từ 12/11/2026: develop tích hợp task; main dành release/hotfix. Mọi PR vào nhánh chung cần 2 người khác tác giả approve, CI xanh và xử lý thảo luận; commit mới yêu cầu review lại. Giữ mức bảo vệ chủ repo đã chốt, không hạ xuống tối thiểu 1 của file mẫu.
 - Người thay API/schema chủ động thông báo tác động cho người dùng hợp đồng đó. Giữ ghi nhận tác giả, nguồn tích hợp và bằng chứng của cộng tác viên.
 
 ## Nhận và luân chuyển việc
@@ -39,7 +40,7 @@ Reviewer phản hồi trong ngày làm việc kế tiếp nếu có thể. Nếu
 - Đã tích hợp đúng nhánh và kiểm tra tác động với phần liên quan.
 - Không có secret, dữ liệu cá nhân, debug log hoặc mock bị trình bày như dữ liệu thật.
 
-CI xanh là một điều kiện; không tự thay thế nghiệm thu, review hoặc kiểm thử trình duyệt. DoD cũ nhắc IE, Bootstrap, I18n và `dev` chỉ là tài liệu tham khảo; baseline này dùng PR từ nhánh task vào `main`, trình duyệt hiện hành và tiêu chí phù hợp task. Một task đang review tiếp tục dùng cùng nhánh; merge xong dọn nhánh.
+CI xanh là một điều kiện; không tự thay thế nghiệm thu, review hoặc kiểm thử trình duyệt. DoD cũ nhắc IE, Bootstrap, I18n chỉ là tham khảo. Baseline hiện dùng PR task vào `develop`; release/hotfix vào `main` rồi PR đồng bộ main → develop. Một task đang review tiếp tục dùng cùng nhánh; chỉ dọn sau khi mọi đích cần thiết đã tích hợp. Merge task không tự đồng nghĩa đã deploy.
 
 ## Bàn giao và bất đồng
 

@@ -1,9 +1,9 @@
 name: CI
 on:
   push:
-    branches: [main]
+    branches: [main, develop, 'release/**']
   pull_request:
-    branches: [main, develop, feature/dt2-4-menu-api]
+    branches: [main, develop, 'release/**']
     types: [opened, synchronize, reopened, edited]
 permissions:
   contents: read
@@ -11,6 +11,17 @@ concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
+  git-flow:
+    name: Git Flow
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - run: node --test scripts/git-flow.test.mjs
+      - run: node scripts/git-flow.mjs
   backend:
     name: Backend MySQL
     runs-on: ubuntu-latest
@@ -79,6 +90,7 @@ jobs:
             node scripts/skills.mjs check
           fi
       - run: node --test scripts/skills.test.mjs
+      - run: node --test scripts/git-flow.test.mjs
       - name: Check local changes without rewriting inherited snapshots
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
