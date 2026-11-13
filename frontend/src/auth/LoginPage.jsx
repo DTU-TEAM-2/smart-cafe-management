@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useAuth } from "./useAuth.js";
 import "./auth.css";
 
@@ -10,11 +10,14 @@ export default function LoginPage({ onNavigate }) {
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const loginRequest = useRef(null);
+  useEffect(() => () => loginRequest.current?.abort(), []);
 
   const handleNavigate = onNavigate || ((href) => { window.location.hash = href; });
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (loginRequest.current) return;
     setErrorMessage("");
 
     const trimmed = username.trim();
@@ -23,20 +26,21 @@ export default function LoginPage({ onNavigate }) {
       return;
     }
 
+    const request = new AbortController();
+    loginRequest.current = request;
     setIsSubmitting(true);
     try {
-      const user = await login(trimmed, password);
-      if (user.role === "ADMIN") {
-        handleNavigate("#admin");
-      } else if (user.role === "STAFF") {
-        handleNavigate("#staff");
-      } else {
-        handleNavigate("#top");
-      }
+      await login(trimmed, password, {
+        signal: request.signal,
+        onAuthenticated(user) {
+          handleNavigate({ ADMIN: "#admin", STAFF: "#staff" }[user.role] ?? "#top");
+        },
+      });
     } catch (err) {
-      setErrorMessage(err.message || "Tài khoản hoặc mật khẩu không chính xác.");
+      if (!request.signal.aborted) setErrorMessage(err.message || "Tài khoản hoặc mật khẩu không chính xác.");
     } finally {
-      setIsSubmitting(false);
+      loginRequest.current = null;
+      if (!request.signal.aborted) setIsSubmitting(false);
     }
   }
 

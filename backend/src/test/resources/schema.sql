@@ -423,3 +423,15 @@ CREATE ALGORITHM=UNDEFINED SQL SECURITY INVOKER VIEW `v_menu_item_order_totals` 
 CREATE ALGORITHM=UNDEFINED SQL SECURITY INVOKER VIEW `v_paid_item_sales` AS select `oi`.`menu_item_id` AS `menu_item_id`,sum(`bi`.`quantity`) AS `paid_quantity`,sum(`bi`.`line_total`) AS `sales_amount` from ((`bill_items` `bi` join `bills` `b` on(((`b`.`id` = `bi`.`bill_id`) and (`b`.`status` = 'PAID')))) join `order_items` `oi` on((`oi`.`id` = `bi`.`order_item_id`))) group by `oi`.`menu_item_id`;
 CREATE ALGORITHM=UNDEFINED SQL SECURITY INVOKER VIEW `v_daily_revenue` AS select cast(convert_tz(`bills`.`paid_at`,'+00:00','+07:00') as date) AS `business_date`,count(0) AS `bill_count`,sum(`bills`.`total_amount`) AS `revenue_amount` from `bills` where (`bills`.`status` = 'PAID') group by cast(convert_tz(`bills`.`paid_at`,'+00:00','+07:00') as date);
 CREATE ALGORITHM=UNDEFINED SQL SECURITY INVOKER VIEW `v_cafe_table_occupancy` AS select `t`.`id` AS `id`,`t`.`code` AS `code`,`t`.`name` AS `name`,`t`.`status` AS `operational_status`,`s`.`id` AS `active_session_id`,`s`.`status` AS `session_status`,(case when (`s`.`id` is null) then 'EMPTY' else 'OCCUPIED' end) AS `occupancy` from (`cafe_tables` `t` left join `table_sessions` `s` on(((`s`.`table_id` = `t`.`id`) and (`s`.`status` in ('OPEN','CHECKOUT')))));
+
+-- ADR-005: owner-approved extension 2026-11-11; later applied to system DB under ADR-006.
+-- The original migration text/comments below are preserved verbatim from its initial test-only review.
+-- Approved by the repository owner in chat on 2026-11-11 (ADR-005).
+-- Manual, versioned schema extension. Application startup never executes this file.
+-- Currently verified only against an isolated *_test database; system smart_cafe is unchanged.
+-- Existing articles default to no audience and remain visible only to ADMIN until assigned.
+ALTER TABLE news_posts
+    ADD COLUMN audience_staff TINYINT(1) NOT NULL DEFAULT 0,
+    ADD COLUMN audience_customer TINYINT(1) NOT NULL DEFAULT 0,
+    ADD CONSTRAINT ck_news_audience_flags
+        CHECK (audience_staff IN (0, 1) AND audience_customer IN (0, 1));

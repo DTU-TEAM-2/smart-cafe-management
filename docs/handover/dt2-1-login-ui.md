@@ -1,21 +1,24 @@
-# Chuẩn bị giao diện đăng nhập
+# Giao diện đăng nhập và tích hợp DT2-2
 
-Nguồn: yêu cầu mới nhất ngày 07/11/2026 của chủ repo: bỏ demo, chỉ làm sẵn UI; xác thực và phân quyền do người phụ trách khác triển khai. Yêu cầu này thay thế cấu hình tài khoản mock trước đó.
+Ngày 07/11/2026 chủ repo yêu cầu bỏ demo và chỉ chuẩn bị UI. Ngày 11/11/2026 yêu cầu mở rộng sang full Task 7 và kiểm tra đăng nhập thật; phạm vi hiện hành theo ADR-008 trong [nhật ký quyết định](../architecture/decisions.md). DT2-2 vẫn sở hữu phát hành credential và chính sách xác thực.
 
-## Phạm vi hiện tại
+## Hành vi hiện tại
 
-- Nút Đăng nhập ở Header dẫn tới #login, dùng chung Header/Footer.
-- Form nâu/vàng cùng phong cách trang chủ, ảnh quán sẵn có, label tiếng Việt, trường tên đăng nhập/mật khẩu và nút hiện/ẩn mật khẩu.
-- Nút submit chưa khả dụng và có giải thích ngắn trong form. Không gửi mật khẩu, không tạo/lưu token hoặc tài khoản, không chọn vai trò, không gọi API login giả.
-- Đã gỡ demoAuth.js, banner, tài khoản dùng thử, logout giả và biến VITE_DEMO_AUTH. Username mock còn trong sessionStorage từ phiên cũ không được đọc hay khôi phục.
-- Header vẫn tiêu thụ phiên thật của module auth khi tích hợp. Hồ sơ/thông báo hiện có không đổi hợp đồng API. Không thay backend hoặc database trong lần chỉnh UI này.
+- Header mở `#login`, dùng chung Header/Footer và phong cách LECKER. Form có tên đăng nhập/email, mật khẩu, hiện/ẩn mật khẩu, trạng thái chờ và lỗi có thể tiếp cận bằng bàn phím.
+- Submit gọi `POST /api/v1/auth/login` thật. Token trả về phải được `/api/v1/home/account` xác minh trước khi lưu vào sessionStorage `smart_cafe_token` và mở `#news`. Không lấy role từ response login để tự cấp quyền.
+- Không lưu mật khẩu; hủy request khi rời form để tránh giữ phiên từ response đến muộn. Không có demo account, role selector hoặc auth provider tự dựng.
+- Đăng xuất xác nhận khi có bản soạn chưa lưu, xóa credential ứng dụng khỏi cả sessionStorage và localStorage cũ, phát `smart-cafe-auth-change`. Đây là đăng xuất tại trình duyệt, không tuyên bố thu hồi token trên các thiết bị khác.
 
-## Bàn giao tích hợp
+## Cấu hình tích hợp
 
-DT2-2 cung cấp luồng đăng nhập thật và xử lý lỗi theo thiết kế được duyệt, sau đó nối form và bật submit. Token hiện được Header đọc từ smart_cafe_token trong sessionStorage; phát smart-cafe-auth-change khi đổi phiên. Backend là nơi kiểm tra phân quyền; UI không tự cấp vai trò. Không ghi Done luồng xác thực dựa trên form hiện tại.
+Vite dùng `VITE_API_PROXY_TARGET` tới BE consumer. Nếu DT2-2 chạy riêng, `VITE_AUTH_PROXY_TARGET` chỉ định issuer cho login/me/logout. Production cần reverse proxy tương ứng; hai module dùng cùng DB và `AUTH_TOKEN_SECRET`. Không đặt secret trong biến VITE. Không merge source auth vào Task 7 hoặc tự đổi schema để thay thế tích hợp này.
 
-## Kiểm chứng
+## Kiểm chứng và giới hạn
 
-Chạy npm run lint, npm run build và npm run test:ui -- --workers=2 từ frontend. Các case login kiểm tra không nhận tài khoản mock cũ, không phát hành token/gửi mật khẩu khi Enter, hiện/ẩn mật khẩu, một Header/Footer dùng chung và không tràn ngang ở 320/390/768/1440px. API/profile/notification UI được kiểm trong bộ test Header hiện có; HTTP fixtures chỉ dành cho test tự động.
+Lint, production build và 68 test Playwright desktop/mobile đạt trong lần full Task 7, gồm 36 test tin tức, 20 hồi quy login/Header/trang chủ và 12 test Sales. Test login bao gồm lỗi API, token bị consumer từ chối, hủy request khi rời form, giữ phiên đã xác minh và đăng xuất. Regression tin tức gồm response lưu trữ đến muộn sau khi rời trang, socket kiểm tra lại danh tính/kết nối lại và thông báo xung đột đúng nguyên nhân.
 
-Skills áp dụng: vercel-react-best-practices (.agents/skills/react-best-practices/SKILL.md), fixing-accessibility (.agents/skills/fixing-accessibility/SKILL.md), cafe-quality (.agents/skills/cafe-quality/SKILL.md). Lint/build và 14 test desktop/mobile đạt ngày 09/11/2026. Bàn giao qua PR để nhóm review; chưa merge và chưa thay thế review độc lập.
+Kiểm thử tích hợp mới nhất ngày 12/11/2026 chạy nguyên module auth PR #7 ở revision `fbaa9528039a3df258165b3765e03a86374b6e5f` trên MySQL `_test` riêng và Firebase Storage Emulator. Trình duyệt nhập credential fixture vào form thật cho ADMIN/STAFF/CUSTOMER; không ký hoặc chèn bearer để bỏ qua UI. Toàn bộ HTTP/WebSocket/browser/ảnh local đạt 113/113 checks, không dùng route mock trong lượt tích hợp này. Lượt trước khi bật emulator đạt 95/95 tại revision `72de814`. Fixture không được ghi vào DB hệ thống. Báo cáo/ảnh/log ở `F:/CODEGYM/_local-reviews/dt2-7-be`, ngoài Git; không coi emulator là bằng chứng cloud thật.
+
+Chưa có mật khẩu account hệ thống nên không tuyên bố login thành công bằng user thật của `smart_cafe`. Không đổi mật khẩu hay seed account để vượt giới hạn đó. Auth PR vẫn cần người phụ trách xử lý findings trước merge; tính tương thích login không chứng minh toàn module auth đã đủ điều kiện approve.
+
+Skills áp dụng: vercel-react-best-practices (`.agents/skills/react-best-practices/SKILL.md`), fixing-accessibility (`.agents/skills/fixing-accessibility/SKILL.md`), cafe-quality (`.agents/skills/cafe-quality/SKILL.md`). Không commit/push.

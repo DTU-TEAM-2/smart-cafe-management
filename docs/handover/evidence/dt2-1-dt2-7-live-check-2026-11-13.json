@@ -1,0 +1,662 @@
+{
+  "revision": "c0fa0805c7bba38122e6f70768fccba9ddc30393",
+  "timestamp": "2026-11-13T12:07:06.939Z",
+  "scope": "DT2-1 Header/account/notifications and DT2-7 News; real HTTP, WebSocket and Chromium with actual Auth endpoints, official Firebase Storage Emulator and isolated MySQL fixture data",
+  "database": "isolated *_test container, removed after verification",
+  "accountSource": "synthetic accounts only in the isolated test database; tokens issued by the real login endpoint",
+  "notificationSource": "controlled order and service-request records in the isolated test database",
+  "cloudStorageUsed": false,
+  "systemDatabaseWritten": false,
+  "total": 126,
+  "passed": 126,
+  "results": [
+    {
+      "name": "real issuer login ADMIN",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "issuer emits five-field token ADMIN",
+      "pass": true
+    },
+    {
+      "name": "issuer verifies /me ADMIN",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "real issuer login STAFF",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "issuer emits five-field token STAFF",
+      "pass": true
+    },
+    {
+      "name": "issuer verifies /me STAFF",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "real issuer login CUSTOMER",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "issuer emits five-field token CUSTOMER",
+      "pass": true
+    },
+    {
+      "name": "issuer verifies /me CUSTOMER",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "Home profile for ADMIN",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "Home profile selects signed-in ADMIN",
+      "pass": true
+    },
+    {
+      "name": "Home notifications for ADMIN",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "Home feed is scoped and deduplicated for ADMIN",
+      "pass": true
+    },
+    {
+      "name": "Home profile for STAFF",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "Home profile selects signed-in STAFF",
+      "pass": true
+    },
+    {
+      "name": "Home notifications for STAFF",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "Home feed is scoped and deduplicated for STAFF",
+      "pass": true
+    },
+    {
+      "name": "CUSTOMER cannot read staff Header feed",
+      "expected": 403,
+      "actual": 403,
+      "pass": true
+    },
+    {
+      "name": "wrong password rejected by real issuer",
+      "expected": 401,
+      "actual": 401,
+      "pass": true
+    },
+    {
+      "name": "email login",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "real token accepted ADMIN",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "real token accepted STAFF",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "real token accepted CUSTOMER",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "anonymous denied",
+      "expected": 403,
+      "actual": 403,
+      "pass": true
+    },
+    {
+      "name": "tampered signature denied",
+      "expected": 403,
+      "actual": 403,
+      "pass": true
+    },
+    {
+      "name": "real STAFF socket authenticated at auth_version 7",
+      "pass": true
+    },
+    {
+      "name": "ADMIN socket denied",
+      "pass": true
+    },
+    {
+      "name": "CUSTOMER socket denied",
+      "pass": true
+    },
+    {
+      "name": "create flow-staff",
+      "expected": 201,
+      "actual": 201,
+      "pass": true
+    },
+    {
+      "name": "publish STAFF sends generic event",
+      "pass": true
+    },
+    {
+      "name": "create flow-customer",
+      "expected": 201,
+      "actual": 201,
+      "pass": true
+    },
+    {
+      "name": "create flow-draft",
+      "expected": 201,
+      "actual": 201,
+      "pass": true
+    },
+    {
+      "name": "customer-only and draft do not notify STAFF",
+      "pass": true
+    },
+    {
+      "name": "create flow-both",
+      "expected": 201,
+      "actual": 201,
+      "pass": true
+    },
+    {
+      "name": "STAFF own audience detail",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "STAFF other audience hidden",
+      "expected": 404,
+      "actual": 404,
+      "pass": true
+    },
+    {
+      "name": "STAFF draft hidden",
+      "expected": 404,
+      "actual": 404,
+      "pass": true
+    },
+    {
+      "name": "STAFF BOTH detail",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "STAFF pagination",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "STAFF list/count audience predicate",
+      "pass": true
+    },
+    {
+      "name": "STAFF cannot create",
+      "expected": 403,
+      "actual": 403,
+      "pass": true
+    },
+    {
+      "name": "STAFF cannot edit",
+      "expected": 403,
+      "actual": 403,
+      "pass": true
+    },
+    {
+      "name": "STAFF cannot delete",
+      "expected": 403,
+      "actual": 403,
+      "pass": true
+    },
+    {
+      "name": "CUSTOMER own audience detail",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "CUSTOMER other audience hidden",
+      "expected": 404,
+      "actual": 404,
+      "pass": true
+    },
+    {
+      "name": "CUSTOMER draft hidden",
+      "expected": 404,
+      "actual": 404,
+      "pass": true
+    },
+    {
+      "name": "CUSTOMER BOTH detail",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "CUSTOMER pagination",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "CUSTOMER list/count audience predicate",
+      "pass": true
+    },
+    {
+      "name": "CUSTOMER cannot create",
+      "expected": 403,
+      "actual": 403,
+      "pass": true
+    },
+    {
+      "name": "CUSTOMER cannot edit",
+      "expected": 403,
+      "actual": 403,
+      "pass": true
+    },
+    {
+      "name": "CUSTOMER cannot delete",
+      "expected": 403,
+      "actual": 403,
+      "pass": true
+    },
+    {
+      "name": "ADMIN sees draft",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "invalid pagination size=0",
+      "expected": 400,
+      "actual": 400,
+      "pass": true
+    },
+    {
+      "name": "invalid pagination page=-1",
+      "expected": 400,
+      "actual": 400,
+      "pass": true
+    },
+    {
+      "name": "invalid pagination sort=sql-injection",
+      "expected": 400,
+      "actual": 400,
+      "pass": true
+    },
+    {
+      "name": "invalid pagination size=101",
+      "expected": 400,
+      "actual": 400,
+      "pass": true
+    },
+    {
+      "name": "invalid audience []",
+      "expected": 400,
+      "actual": 400,
+      "pass": true
+    },
+    {
+      "name": "invalid audience [\"ADMIN\"]",
+      "expected": 400,
+      "actual": 400,
+      "pass": true
+    },
+    {
+      "name": "invalid audience [\"STAFF\",\"STAFF\"]",
+      "expected": 400,
+      "actual": 400,
+      "pass": true
+    },
+    {
+      "name": "missing required audience",
+      "expected": 400,
+      "actual": 400,
+      "pass": true
+    },
+    {
+      "name": "duplicate explicit slug",
+      "expected": 409,
+      "actual": 409,
+      "pass": true
+    },
+    {
+      "name": "missing If-Match",
+      "expected": 428,
+      "actual": 428,
+      "pass": true
+    },
+    {
+      "name": "update preserves absent audiences",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "preserved STAFF audience",
+      "pass": true
+    },
+    {
+      "name": "stale If-Match rejected",
+      "expected": 412,
+      "actual": 412,
+      "pass": true
+    },
+    {
+      "name": "private image wrong audience",
+      "expected": 404,
+      "actual": 404,
+      "pass": true
+    },
+    {
+      "name": "private image missing storage object",
+      "expected": 404,
+      "actual": 404,
+      "pass": true
+    },
+    {
+      "name": "valid PNG upload through official Firebase Emulator",
+      "expected": 201,
+      "actual": 201,
+      "pass": true
+    },
+    {
+      "name": "uploaded metadata uses existing FIREBASE schema and private backend URL",
+      "pass": true
+    },
+    {
+      "name": "unlinked private upload hidden from STAFF",
+      "expected": 404,
+      "actual": 404,
+      "pass": true
+    },
+    {
+      "name": "create flow-real-image",
+      "expected": 201,
+      "actual": 201,
+      "pass": true
+    },
+    {
+      "name": "ADMIN reads actual emulator PNG through protected API",
+      "pass": true
+    },
+    {
+      "name": "STAFF reads actual emulator PNG through protected API",
+      "pass": true
+    },
+    {
+      "name": "CUSTOMER cannot read staff-only uploaded PNG",
+      "expected": 404,
+      "actual": 404,
+      "pass": true
+    },
+    {
+      "name": "anonymous cannot read uploaded PNG",
+      "expected": 403,
+      "actual": 403,
+      "pass": true
+    },
+    {
+      "name": "archive illustrated article",
+      "expected": 204,
+      "actual": 204,
+      "pass": true
+    },
+    {
+      "name": "archived private PNG hidden from STAFF",
+      "expected": 404,
+      "actual": 404,
+      "pass": true
+    },
+    {
+      "name": "soft archive retains actual object for ADMIN",
+      "pass": true
+    },
+    {
+      "name": "phone JPEG upload through Firebase Emulator",
+      "expected": 201,
+      "actual": 201,
+      "pass": true
+    },
+    {
+      "name": "phone JPEG metadata reflects corrected portrait orientation",
+      "pass": true
+    },
+    {
+      "name": "create flow-jpeg",
+      "expected": 201,
+      "actual": 201,
+      "pass": true
+    },
+    {
+      "name": "STAFF reads corrected JPEG without EXIF over protected API",
+      "pass": true
+    },
+    {
+      "name": "STAFF upload denied",
+      "expected": 403,
+      "actual": 403,
+      "pass": true
+    },
+    {
+      "name": "concurrent updates one winner one stale",
+      "pass": true
+    },
+    {
+      "name": "concurrent fields/audience atomic",
+      "pass": true
+    },
+    {
+      "name": "soft archive",
+      "expected": 204,
+      "actual": 204,
+      "pass": true
+    },
+    {
+      "name": "archived hidden from STAFF",
+      "expected": 404,
+      "actual": 404,
+      "pass": true
+    },
+    {
+      "name": "ADMIN sees archived",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "archive status persisted",
+      "pass": true
+    },
+    {
+      "name": "repeat archive with current ETag",
+      "expected": 204,
+      "actual": 204,
+      "pass": true
+    },
+    {
+      "name": "archive retains image metadata/link",
+      "pass": true
+    },
+    {
+      "name": "real old STAFF token revoked",
+      "expected": 403,
+      "actual": 403,
+      "pass": true
+    },
+    {
+      "name": "revoked real token socket closes",
+      "pass": true
+    },
+    {
+      "name": "real issuer re-login after version change",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "real fresh token at version 8 accepted",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "fresh version 8 socket accepted",
+      "pass": true
+    },
+    {
+      "name": "live role change closes STAFF socket",
+      "pass": true
+    },
+    {
+      "name": "token role cannot override DB role",
+      "expected": 200,
+      "actual": 200,
+      "pass": true
+    },
+    {
+      "name": "inactive real account denied",
+      "expected": 403,
+      "actual": 403,
+      "pass": true
+    },
+    {
+      "name": "no runtime migration/seed tables",
+      "pass": true
+    },
+    {
+      "name": "browser ADMIN logs in through actual UI and real auth issuer",
+      "pass": true
+    },
+    {
+      "name": "browser STAFF logs in through actual UI and real auth issuer",
+      "pass": true
+    },
+    {
+      "name": "browser CUSTOMER logs in through actual UI and real auth issuer",
+      "pass": true
+    },
+    {
+      "name": "Home profile displays the real signed-in ADMIN identity",
+      "pass": true
+    },
+    {
+      "name": "Home Header renders order and waiter notifications once for real ADMIN",
+      "pass": true
+    },
+    {
+      "name": "Home profile displays the real signed-in STAFF identity",
+      "pass": true
+    },
+    {
+      "name": "Home Header renders order and waiter notifications once for real STAFF",
+      "pass": true
+    },
+    {
+      "name": "browser real STAFF authenticates through Vite WebSocket proxy",
+      "pass": true
+    },
+    {
+      "name": "browser STAFF revalidates real identity and reconnects after actual server policy-close",
+      "pass": true
+    },
+    {
+      "name": "browser displays corrected phone JPEG from authenticated blob URL",
+      "pass": true
+    },
+    {
+      "name": "browser uploads PNG through actual API to official Firebase Emulator",
+      "pass": true
+    },
+    {
+      "name": "browser ADMIN creates PUBLISHED article with both audiences in real MySQL",
+      "pass": true
+    },
+    {
+      "name": "browser STAFF feed updates after actual after-commit socket event",
+      "pass": true
+    },
+    {
+      "name": "browser STAFF displays protected PNG blob from emulator after socket refresh",
+      "pass": true
+    },
+    {
+      "name": "browser CUSTOMER sees selected published article via REST",
+      "pass": true
+    },
+    {
+      "name": "browser real edit/If-Match updates staff view",
+      "pass": true
+    },
+    {
+      "name": "browser removed customer audience cannot reopen article",
+      "pass": true
+    },
+    {
+      "name": "browser archive disappears from real STAFF feed",
+      "pass": true
+    },
+    {
+      "name": "browser ADMIN restores archived article",
+      "pass": true
+    },
+    {
+      "name": "real editor has no horizontal overflow at 320px",
+      "pass": true
+    },
+    {
+      "name": "real editor has no horizontal overflow at 390px",
+      "pass": true
+    },
+    {
+      "name": "real editor has no horizontal overflow at 768px",
+      "pass": true
+    },
+    {
+      "name": "real editor has no horizontal overflow at 1440px",
+      "pass": true
+    },
+    {
+      "name": "browser CUSTOMER editor gate uses actual account response",
+      "pass": true
+    },
+    {
+      "name": "browser logout clears actual local session and private news UI",
+      "pass": true
+    }
+  ]
+}
