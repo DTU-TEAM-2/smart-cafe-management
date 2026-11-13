@@ -43,3 +43,15 @@ Skills áp dụng: `cafe-workflow`, `cafe-quality`, `cafe-review`, `cafe-spring-
 - Đã giải quyết xung đột ở 12 file với `develop@ffa4d95`. REST và WebSocket dùng cùng bộ xác minh token DT2-2. Frontend dùng luồng đăng nhập và khôi phục mật khẩu của DT2-2, xác minh phiên qua `/api/v1/auth/me` trước khi lưu, rồi chuyển trang theo vai trò.
 - Maven verify trên MySQL 8.0 Docker riêng đạt **295/295**, 0 bỏ qua. Test tích hợp kiểm tra token do luồng login phát hành đọc được News. Frontend lint/build và Playwright desktop/mobile đạt **112/112**. Registry/checksum, Git Flow, định tuyến, launcher và kiểm tra whitespace đều đạt.
 - Test dùng database riêng và không chạy Firebase cloud. Các quyết định schema và quy trình chạy migration hiện hành được giữ nguyên.
+
+## Kiểm lại trực tiếp DT2-1 và DT2-7 trên bản tích hợp
+
+Revision `c0fa0805c7bba38122e6f70768fccba9ddc30393`, ngày 13/11/2026. HTTP, WebSocket và Chromium dùng Auth trong cùng bản mã nguồn, MySQL 8.0 riêng và Firebase Storage Emulator chính thức. Kết quả **126/126 bước đạt**.
+
+- ADMIN/STAFF/CUSTOMER đăng nhập qua API Auth thật. REST và socket kiểm quyền theo dữ liệu hiện tại, phiên bị thu hồi và thay đổi vai trò.
+- Header mở đúng hồ sơ ADMIN/STAFF và hiển thị thông báo gọi món/phục vụ một lần từ các bản ghi thử nghiệm được kiểm soát.
+- Tin tức tạo/sửa/lưu trữ/khôi phục đúng bài, nhóm nhận và ETag. Hai trình duyệt kiểm cập nhật STAFF sau commit và tải lại dữ liệu.
+- PNG/JPEG được upload vào Firebase Storage Emulator, đọc qua API phân quyền và hiển thị trong trình duyệt. Có kiểm EXIF, ảnh riêng và quyền sau lưu trữ.
+- Giao diện editor kiểm ở độ rộng 320, 390, 768 và 1440 px. Toàn bộ runtime và database do lượt kiểm tạo đã được dừng sau kiểm tra.
+
+[Bằng chứng từng bước](evidence/dt2-1-dt2-7-live-check-2026-11-13.json). Tài khoản và dữ liệu thử nằm trong database riêng. Storage cloud và luồng tự cấp phiên khách tại bàn chưa được kiểm trong lượt này.

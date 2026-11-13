@@ -1,4 +1,14 @@
-# DT2-1 — Đối chiếu task con
+# DT2-1 — Đối chiếu nghiệm thu
+
+Cập nhật 13/11/2026. Duy Mạnh xác nhận prototype Figma đã hoàn tất. [PR #4](https://github.com/DTU-TEAM-2/smart-cafe-management/pull/4) có hai lượt duyệt và đã merge. Các subtask DT2-13–DT2-18 đã Done.
+
+Bản tích hợp Auth/News tại `c0fa080` đã kiểm lại qua HTTP và Chromium. ADMIN và STAFF đăng nhập bằng endpoint Auth thật, mở đúng hồ sơ, đọc hai thông báo gọi món/gọi phục vụ trên Header với đúng danh tính và không lặp. Dữ liệu sự kiện được chuẩn bị trong MySQL riêng `*_test`. Đây là kiểm tra phần đọc và hiển thị của DT2-1. Luồng tạo phiên khách và giao diện gọi món thuộc module phụ thuộc.
+
+Kết quả chung của lượt kiểm DT2-1/DT2-7 là **126/126 bước đạt**, bao gồm tin tức và ảnh qua Firebase Storage Emulator. [Bằng chứng kết quả](evidence/dt2-1-dt2-7-live-check-2026-11-13.json).
+
+## Bàn giao ngày 09/11/2026
+
+Các ghi nhận dưới đây mô tả bản bàn giao trước khi Auth và News được tích hợp.
 
 Owner NV-DuyManh, cập nhật 09/11/2026. Bàn giao review trên nhánh feature/dt2-1-home-review, chưa merge/Done. Theo yêu cầu mới nhất, chỉ có [UI đăng nhập](dt2-1-login-ui.md), đã gỡ tài khoản và cơ chế demo; chưa triển khai luồng đăng nhập production.
 
