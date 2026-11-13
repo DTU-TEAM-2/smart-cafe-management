@@ -10,14 +10,17 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.CannotCreateTransactionException;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest(properties = {"spring.datasource.url=jdbc:mysql://127.0.0.1:1/unavailable_test",
-        "spring.datasource.username=unused", "spring.datasource.password="})
+        "spring.datasource.username=unused", "spring.datasource.password=",
+        "feedback.limits.csrf-per-source-per-minute=2", "feedback.limits.csrf-total-per-minute=3"})
 @AutoConfigureMockMvc
 class CustomerFeedbackUnavailableTest {
     @Autowired MockMvc mvc;
@@ -45,6 +48,41 @@ class CustomerFeedbackUnavailableTest {
             }
         }
         org.mockito.Mockito.verifyNoInteractions(service);
+    }
+
+    @Test
+    void boundsCookielessCsrfRequestsBeforeCreatingSessionsAndKeepsPostQuotaSeparate() throws Exception {
+        for (int i = 0; i < 2; i++) {
+            var accepted = mvc.perform(get("/api/v1/customer/feedback/csrf")
+                            .with(request -> { request.setRemoteAddr("192.0.2.51"); return request; }))
+                    .andExpect(status().isOk())
+                    .andExpect(header().string("Cache-Control", "no-store"))
+                    .andExpect(jsonPath("$.token").isNotEmpty())
+                    .andReturn();
+            assertThat(accepted.getRequest().getSession(false)).isNotNull();
+        }
+
+        mvc.perform(get("/api/v1/customer/feedback/csrf")
+                        .with(request -> { request.setRemoteAddr("192.0.2.51"); return request; })
+                        .header("X-Forwarded-For", "198.51.100.42"))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().string("Retry-After", "55"))
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.status").value(429))
+                .andExpect(result -> assertThat(result.getRequest().getSession(false)).isNull());
+
+        mvc.perform(get("/api/v1/customer/feedback/csrf")
+                        .with(request -> { request.setRemoteAddr("192.0.2.52"); return request; }))
+                .andExpect(status().isOk());
+        mvc.perform(get("/api/v1/customer/feedback/csrf")
+                        .with(request -> { request.setRemoteAddr("192.0.2.53"); return request; }))
+                .andExpect(status().isTooManyRequests())
+                .andExpect(result -> assertThat(result.getRequest().getSession(false)).isNull());
+
+        mvc.perform(post("/api/v1/customer/feedback").with(csrf())
+                        .with(request -> { request.setRemoteAddr("192.0.2.51"); return request; })
+                        .contentType("application/json").content("{"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

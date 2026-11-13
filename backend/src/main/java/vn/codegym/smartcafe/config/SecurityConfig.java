@@ -25,9 +25,12 @@ class SecurityConfig {
             @Value("${smartcafe.auth.token-secret:}") String secret,
             @Value("${feedback.limits.per-source-per-minute:20}") int perSource,
             @Value("${feedback.limits.total-per-minute:120}") int total,
-            @Value("${feedback.limits.concurrent-multipart:2}") int multipart) throws Exception {
+            @Value("${feedback.limits.concurrent-multipart:2}") int multipart,
+            @Value("${feedback.limits.csrf-per-source-per-minute:12}") int csrfPerSource,
+            @Value("${feedback.limits.csrf-total-per-minute:60}") int csrfTotal) throws Exception {
         var tokenFilter = new HeaderTokenFilter(jdbc, secret);
         var feedbackPost = PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/v1/customer/feedback");
+        var feedbackCsrf = PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, "/api/v1/customer/feedback/csrf");
         return http
                 // Bearer authentication is per request. A polling GET must not run a login
                 // session strategy that rotates the token issued for the next CSRF-protected POST.
@@ -40,8 +43,7 @@ class SecurityConfig {
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/home/highlights").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/customer/menu/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/customer/feedback/csrf").permitAll()
-                        .requestMatchers(feedbackPost).permitAll()
+                        .requestMatchers(feedbackCsrf, feedbackPost).permitAll()
                         // The controller/service verifies an existing guest token against session_clients.
                         .requestMatchers(HttpMethod.POST, "/api/v1/customer/sessions/*/orders").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/customer/csrf").permitAll()
@@ -55,7 +57,8 @@ class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/income", "/api/v1/bills/*").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/v1/bills/*/payments", "/api/v1/sales/tables/*/reset").hasRole("ADMIN")
                         .anyRequest().denyAll())
-                .addFilterBefore(new FeedbackAdmissionFilter(feedbackPost, clock, perSource, total, multipart), CsrfFilter.class)
+                .addFilterBefore(new FeedbackAdmissionFilter(
+                        feedbackPost, feedbackCsrf, clock, perSource, total, multipart, csrfPerSource, csrfTotal), CsrfFilter.class)
                 .addFilterBefore(tokenFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }

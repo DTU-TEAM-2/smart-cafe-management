@@ -27,6 +27,8 @@ Mặc định mỗi tiến trình nhận tối đa 20 lượt POST Feedback/phú
 
 Mỗi tiến trình mặc định nhận tối đa 2 request multipart đồng thời, tính từ trước khi parse đến khi xử lý xong upload và ghi DB. Request vượt giới hạn trả `503` kèm `Retry-After: 1`. Với mặc định này, tối đa 2 raster đang giải mã (mỗi raster ≤4 triệu điểm ảnh) và 30 MiB dữ liệu ảnh nén giữ trong các lượt upload, chưa tính chi phí bộ nhớ của decoder, SDK và servlet. Đo heap/CPU ở môi trường triển khai trước khi nâng giới hạn hoặc bật Firebase.
 
+GET cấp CSRF có hạn mức riêng mặc định 12 lượt/phút/nguồn và 60 lượt/phút/tiến trình, tính cả lượt có cookie. Quá hạn mức trả `429` kèm `Retry-After` và `Cache-Control: no-store` trước khi tạo session. Client dùng lại token và cookie để tránh gọi GET nhiều lần. Khi triển khai, cấu hình giới hạn và thời gian hết hạn của session store theo tài nguyên thực tế, đồng thời áp dụng quota GET chung tại gateway nếu có nhiều replica.
+
 ```dotenv
 FEEDBACK_FIREBASE_ENABLED=false
 FIREBASE_STORAGE_BUCKET=
@@ -34,6 +36,8 @@ GOOGLE_APPLICATION_CREDENTIALS=
 FEEDBACK_PER_SOURCE_PER_MINUTE=20
 FEEDBACK_TOTAL_PER_MINUTE=120
 FEEDBACK_CONCURRENT_MULTIPART=2
+FEEDBACK_CSRF_PER_SOURCE_PER_MINUTE=12
+FEEDBACK_CSRF_TOTAL_PER_MINUTE=60
 ```
 
 Admin SDK 9.11.0 dùng Application Default Credentials; GOOGLE_APPLICATION_CREDENTIALS là đường dẫn file ngoài Git, không phải JSON/key dán vào .env.example. Không hardcode project/bucket/credential, không tự tạo project/billing/IAM. Chỉ bật enabled khi thành viên phụ trách cung cấp bucket và quyền cần thiết. Chưa cấu hình thì multipart ảnh hợp lệ trả 503, không ghi feedback/media; Feedback JSON vẫn hoạt động.

@@ -20,7 +20,7 @@ class FeedbackAdmissionTest {
     void boundsAttemptsAcrossSourcesAndResetsAtNextMinute() throws Exception {
         Clock clock = mock(Clock.class);
         when(clock.instant()).thenReturn(Instant.ofEpochSecond(65));
-        var filter = new FeedbackAdmissionFilter(request -> true, clock, 2, 3, 1);
+        var filter = new FeedbackAdmissionFilter(request -> true, request -> false, clock, 2, 3, 1, 12, 60);
 
         assertThat(send(filter, "192.0.2.1", false).getStatus()).isEqualTo(200);
         assertThat(send(filter, "192.0.2.1", false).getStatus()).isEqualTo(200);
@@ -36,8 +36,8 @@ class FeedbackAdmissionTest {
 
     @Test
     void rejectsConcurrentMultipartBeforeBodyProcessingAndReleasesSlot() throws Exception {
-        var filter = new FeedbackAdmissionFilter(request -> true,
-                Clock.fixed(Instant.ofEpochSecond(65), ZoneOffset.UTC), 20, 120, 1);
+        var filter = new FeedbackAdmissionFilter(request -> true, request -> false,
+                Clock.fixed(Instant.ofEpochSecond(65), ZoneOffset.UTC), 20, 120, 1, 12, 60);
         var entered = new CountDownLatch(1);
         var release = new CountDownLatch(1);
         var processed = new AtomicReference<Integer>();
