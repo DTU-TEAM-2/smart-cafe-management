@@ -2,6 +2,7 @@ package vn.codegym.smartcafe.config;
 
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
+import java.nio.charset.StandardCharsets;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -58,6 +59,7 @@ public class SecurityConfig {
                         })
                         .accessDeniedHandler((request, response, accessDeniedException) -> {
                             response.setContentType("application/problem+json");
+                            response.setCharacterEncoding(StandardCharsets.UTF_8.name());
                             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                             response.getWriter().write("""
                                 {"type":"about:blank","title":"Forbidden","status":403,"detail":"Bạn không có quyền truy cập chức năng này.","code":"FORBIDDEN"}
