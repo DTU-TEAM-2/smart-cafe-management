@@ -124,9 +124,21 @@ class CustomerActionsMySqlTest {
             Callable<String> send = ()->{gate.await(); return orders.submit(ID,AUTH,"parallel",command(1)).id();};
             var a = pool.submit(send); var b = pool.submit(send); gate.countDown();
             assertThat(a.get(10,TimeUnit.SECONDS)).isEqualTo(b.get(10,TimeUnit.SECONDS));
-            Callable<String> waiter = ()->requests.submit(ID,AUTH,java.util.UUID.randomUUID().toString(),"WAITER").id();
-            var c=pool.submit(waiter);var d=pool.submit(waiter);
-            assertThat(c.get(10,TimeUnit.SECONDS)).isEqualTo(d.get(10,TimeUnit.SECONDS));
+            var waiterGate = new CountDownLatch(1);
+            Callable<Integer> waiter = () -> {
+                waiterGate.await();
+                try {
+                    requests.submit(ID, AUTH, java.util.UUID.randomUUID().toString(), "WAITER");
+                    return 200;
+                } catch (ResponseStatusException error) {
+                    return error.getStatusCode().value();
+                }
+            };
+            var c = pool.submit(waiter);
+            var d = pool.submit(waiter);
+            waiterGate.countDown();
+            assertThat(List.of(c.get(10, TimeUnit.SECONDS), d.get(10, TimeUnit.SECONDS)))
+                    .containsExactlyInAnyOrder(200, 409);
         }
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM order_batches WHERE session_id=93001",Integer.class)).isEqualTo(1);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM service_requests WHERE session_id=93001",Integer.class)).isEqualTo(1);
@@ -161,13 +173,55 @@ class CustomerActionsMySqlTest {
         assertThatThrownBy(()->requests.submit(ID,AUTH,"empty-bill","BILL")).hasMessageContaining("400");
         order();
         var waiter=requests.submit(ID,AUTH,"waiter","WAITER");
-        assertThat(requests.submit(ID,AUTH,"waiter-second-key","WAITER").id()).isEqualTo(waiter.id());
+        assertThat(requests.submit(ID,AUTH,"waiter","WAITER")).isEqualTo(waiter);
         assertThatThrownBy(()->requests.submit(ID,AUTH,"waiter","BILL")).hasMessageContaining("409");
         requests.submit(ID,AUTH,"bill","BILL");
         mvc.perform(get("/api/v1/home/notifications").with(user("guest-fixture-staff").roles("STAFF"))).andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[?(@.type == 'WAITER')]").isNotEmpty()).andExpect(jsonPath("$.items[?(@.type == 'ORDER')]").isNotEmpty());
         mvc.perform(get("/api/v1/sales/tables/93001/services").with(user("guest-fixture-staff").roles("STAFF"))).andExpect(status().isOk());
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM bills WHERE session_id=93001",Integer.class)).isZero();
+    }
+
+    @Test void rejectedDuplicateKeyRemainsAvailableButAcceptedKeyIsBoundToType() throws Exception {
+        order();
+        requests.submit(ID, AUTH, "key-a", "WAITER");
+        mvc.perform(post(BASE + "/waiter-requests").with(csrf()).header("Authorization", AUTH)
+                        .header("Idempotency-Key", "key-b"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.detail").value("Đã có yêu cầu cùng loại đang mở. Mã gửi lần này chưa được chấp nhận hoặc lưu."));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM service_requests WHERE session_id=? AND idempotency_key=?",
+                Integer.class, ID, "key-b")).isZero();
+
+        mvc.perform(post(BASE + "/bill-requests").with(csrf()).header("Authorization", AUTH)
+                        .header("Idempotency-Key", "key-a"))
+                .andExpect(status().isConflict());
+        mvc.perform(post(BASE + "/bill-requests").with(csrf()).header("Authorization", AUTH)
+                        .header("Idempotency-Key", "key-b"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.type").value("BILL"));
+        assertThatThrownBy(() -> requests.submit(ID, AUTH, "key-b", "WAITER"))
+                .isInstanceOf(ResponseStatusException.class).hasMessageContaining("409");
+    }
+
+    @Test void retryAfterResolutionReturnsOriginalAndDoesNotReserveRejectedKey() {
+        var original = requests.submit(ID, AUTH, "original", "WAITER");
+        assertThatThrownBy(() -> requests.submit(ID, AUTH, "new-key", "WAITER"))
+                .isInstanceOf(ResponseStatusException.class).hasMessageContaining("409");
+        jdbc.update("""
+                UPDATE service_requests SET status='RESOLVED',resolved_at=?,resolved_by_user_id=?
+                WHERE id=? AND session_id=?
+                """, Timestamp.from(NOW), ID, Long.parseLong(original.id()), ID);
+
+        var replay = requests.submit(ID, AUTH, "original", "WAITER");
+        assertThat(replay.id()).isEqualTo(original.id());
+        assertThat(replay.status()).isEqualTo("RESOLVED");
+        assertThatThrownBy(() -> requests.submit(ID, AUTH, "original", "BILL"))
+                .isInstanceOf(ResponseStatusException.class).hasMessageContaining("409");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM service_requests WHERE session_id=?", Integer.class, ID))
+                .isEqualTo(1);
+        var next = requests.submit(ID, AUTH, "new-key", "WAITER");
+        assertThat(next.id()).isNotEqualTo(original.id());
+        assertThat(next.status()).isEqualTo("PENDING");
     }
 
     @Test void creatingBillLocksOutFurtherNewOrdersAndEdits() {

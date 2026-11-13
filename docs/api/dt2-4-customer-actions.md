@@ -22,6 +22,8 @@ Chỉ gửi **các món mới chưa Order** trong payload batch. Gửi lại cù
 
 Danh sách món được sắp theo ID trước khi băm payload và khóa; batch chỉ ghi khi tất cả món/danh mục active và available. Server không lấy giá/tên/tổng từ client. Snapshot không đổi khi menu đổi giá. Giới hạn sửa/hủy là 180 giây và trạng thái SUBMITTED theo xác nhận QA-03 ngày 13/11/2026; tại đúng editableUntil đã hết hạn. Chỉ client đã gửi batch được sửa/hủy, không mở quyền sửa đơn của thiết bị khác.
 
-Service request dùng uniqueness hiện có `(session_id,idempotency_key)` và active_request_key. Cùng key khác loại bị 409; một yêu cầu cùng loại đang PENDING/ACKNOWLEDGED được gộp về request đó, kể cả thiết bị khác cùng phiên. Key khác bị gộp không tạo thêm receipt riêng: sau khi request đã kết thúc, thao tác mới dùng key mới. Header hiện có đọc ORDER/WAITER từ DB; Sales đọc BILL, không tạo hệ thống thông báo riêng hoặc giả WebSocket đã tích hợp.
+Service request dùng ràng buộc duy nhất hiện có `(session_id,idempotency_key)` và `active_request_key`. Gửi lại khóa đã lưu với cùng loại trả HTTP 200 cùng ID và trạng thái hiện tại, kể cả khi yêu cầu đã kết thúc. Dùng khóa đã lưu cho loại khác trả 409.
+
+Nếu gửi khóa mới trong lúc có yêu cầu cùng loại đang PENDING hoặc ACKNOWLEDGED, API trả 409 với thông báo mã chưa được chấp nhận hoặc lưu. Sau khi yêu cầu cũ kết thúc, khách có thể dùng khóa chưa được lưu đó cho một thao tác mới có chủ ý. Khi retry vì mất kết nối, giữ nguyên khóa của thao tác ban đầu. Header đọc ORDER/WAITER từ DB và Sales đọc BILL.
 
 Problem Details tiếng Việt: 400 dữ liệu sai, 401 token/scope/hạn, 403 CSRF/route không mở, 404 dòng không thuộc người gửi, 409 trạng thái/version/idempotency, 503 DB gián đoạn (retry giữ key). Không lưu đơn offline. Provider phát token và DDL triển khai vẫn cần bàn giao riêng, không tính phần QR đã hoàn tất.

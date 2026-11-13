@@ -27,8 +27,10 @@ public class CustomerRequestService {
             if (!type.equals(previous.getFirst().get("request_type"))) throw conflict("Mã gửi lại đã được dùng cho loại yêu cầu khác.");
             return response(previous.getFirst());
         }
-        var active = jdbc.queryForList("SELECT id,request_type,status FROM service_requests WHERE session_id=? AND request_type=? AND status IN ('PENDING','ACKNOWLEDGED')", sessionId, type);
-        if (!active.isEmpty()) return response(active.getFirst());
+        var active = jdbc.queryForList("SELECT id FROM service_requests WHERE session_id=? AND request_type=? AND status IN ('PENDING','ACKNOWLEDGED')", sessionId, type);
+        if (!active.isEmpty()) {
+            throw conflict("Đã có yêu cầu cùng loại đang mở. Mã gửi lần này chưa được chấp nhận hoặc lưu.");
+        }
         if (type.equals("BILL")) {
             access.requireWritable(client);
             if (jdbc.queryForObject("SELECT COUNT(*) FROM order_items WHERE session_id=? AND status<>'CANCELLED'", Long.class, sessionId) == 0)
