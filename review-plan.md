@@ -52,5 +52,5 @@
 - [x] Dev approved plan (Điểm kiểm soát 1)
 - [x] Changes implemented
 - [x] Checks run: command and result
-- [ ] PR/MR replies: posted or draft
+- [x] PR/MR replies: posted or draft
 - [ ] Dev final confirmation (Điểm kiểm soát 2)
