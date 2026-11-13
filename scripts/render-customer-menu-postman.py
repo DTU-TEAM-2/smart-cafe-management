@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from html import escape
 import json
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import quote
 
 
 def summarize(source, revision, run_url):
@@ -17,7 +17,10 @@ def summarize(source, revision, run_url):
         if isinstance(url, dict):
             raw = url.get('raw')
             if not raw:
-                query = urlencode([(q['key'], q.get('value', '')) for q in url.get('query', []) if not q.get('disabled')])
+                # Newman exports already-escaped SDK values (%25, %5C). Keep those
+                # escapes when rendering the request instead of encoding '%' again.
+                query = '&'.join(f"{quote(str(q['key']), safe='%')}={quote(str(q.get('value', '')), safe='%')}"
+                                 for q in url.get('query', []) if not q.get('disabled'))
                 raw = '/' + '/'.join(url.get('path', [])) + ('?' + query if query else '')
             url = raw
         response = execution.get('response') or {}
