@@ -107,7 +107,6 @@ jobs:
       - name: Build report from actual Newman responses
         id: postman-report
         if: always()
-<<<<<<< HEAD
         env:
           NEWMAN_OUTCOME: ${{ steps.newman.outcome }}
           REPORT_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -127,43 +126,45 @@ jobs:
             --require-newman --revision "$REPORT_REVISION" --run-url "$REPORT_RUN_URL" \
             --sql-mode NO_BACKSLASH_ESCAPES --emit-log
           echo 'rendered=true' >> "$GITHUB_OUTPUT"
-=======
-        run: >-
-          python scripts/render-customer-menu-postman.py
-          backend/target/postman/newman.json backend/target/postman/report
-          --revision "${{ github.event.pull_request.head.sha || github.sha }}"
-          --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          --sql-mode NO_BACKSLASH_ESCAPES
-          --emit-log
       - name: Run QR Postman Collection on the same isolated backend
+        id: qr-newman
         run: >-
           npx --yes newman@6.2.1 run docs/qa/postman/dt2-4-qr-api.postman_collection.json
           --timeout-request 10000 --timeout 120000
           -r cli,json --reporter-json-export backend/target/postman/qr-newman.json
       - name: Build QR report from actual responses
+        id: qr-report
         if: always()
-        run: >-
-          python scripts/render-customer-menu-postman.py
-          backend/target/postman/qr-newman.json backend/target/postman/qr-report
-          --feature qr --sql-mode NO_BACKSLASH_ESCAPES
-          --revision "${{ github.event.pull_request.head.sha || github.sha }}"
-          --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
->>>>>>> origin/develop
+        env:
+          NEWMAN_OUTCOME: ${{ steps.qr-newman.outcome }}
+          REPORT_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+          REPORT_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          if [ "$NEWMAN_OUTCOME" != success ] && [ "$NEWMAN_OUTCOME" != failure ]; then
+            echo '::notice::QR report skipped because Newman did not complete an HTTP run.'
+            exit 0
+          fi
+          if [ ! -s backend/target/postman/qr-newman.json ]; then
+            echo '::error::Newman produced no QR JSON report. No HTTP evidence can be rendered.'
+            exit 1
+          fi
+          python scripts/render-customer-menu-postman.py \
+            backend/target/postman/qr-newman.json backend/target/postman/qr-report \
+            --require-newman --feature qr --sql-mode NO_BACKSLASH_ESCAPES \
+            --revision "$REPORT_REVISION" --run-url "$REPORT_RUN_URL" --emit-log
+          echo 'rendered=true' >> "$GITHUB_OUTPUT"
       - name: Upload actual Postman evidence
-        if: always() && steps.postman-report.outputs.rendered == 'true'
+        if: always() && (steps.postman-report.outputs.rendered == 'true' || steps.qr-report.outputs.rendered == 'true')
         uses: actions/upload-artifact@v4
         with:
           name: dt2-4-postman
           path: |
             backend/target/postman/newman.json
             backend/target/postman/report/
-<<<<<<< HEAD
-          if-no-files-found: error
-=======
             backend/target/postman/qr-newman.json
             backend/target/postman/qr-report/
-          if-no-files-found: warn
->>>>>>> origin/develop
+          if-no-files-found: error
       - name: Stop backend started by this job
         if: always()
         run: |

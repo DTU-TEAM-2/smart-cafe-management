@@ -62,12 +62,10 @@ Các phương án cần quyết định: cho phép NULL để thể hiện khác
 
 Model đã theo sơ đồ mới do chủ repo cung cấp lại ngày 11/11. DB local legacy vẫn là bản cũ; cần chủ DB cung cấp/cập nhật DDL đúng mô hình trước smoke hoặc triển khai thực. PR không tự thay DB đó. Xem [đối chiếu](../architecture/database-contract.md#dt2-9--đối-chiếu-ngày-11112026-cho-pr-8).
 
-<<<<<<< HEAD
 ### DT2-2 OTP retry — DDL triển khai cần chủ DB xác nhận (12/11/2026)
 
 `smart_cafe` đang có kiểu timestamp/collation, cột delivery và constraint khác sơ đồ 11/11 và schema `_test`. Chủ repo/người phụ trách DB cần xác nhận DDL đích và chính sách cho các cột delivery bổ sung trước reconciliation/provisioning/deployment; chưa tự chọn nguồn để migrate. Sửa retry dùng các cột chung không cần thay schema. Nguồn và tác động: [database contract](../architecture/database-contract.md#dt2-2--đối-chiếu-read-only-cho-otp-retry-ngày-12112026).
-=======
+
 ### DT2-9: form Figma có Mô tả / WebP ngoài contract hiện tại
 
 Frame Figma 8:319 có Mô tả và nhãn WebP, nhưng API/ERD menu chưa có description và backend chỉ nhận PNG/JPEG. Reviewer nêu P3 cần PO/UX/BE chốt. **Chủ repo chọn ngày 13/11: giữ contract hiện tại, ghi rõ chênh lệch và chờ PO chốt Figma.** Không tự thêm schema/field/format; phần cập nhật thiết kế vẫn chờ PO. Xem [đối chiếu và quyết định](../handover/dt2-9-figma-contract-alignment.md).
->>>>>>> origin/develop
