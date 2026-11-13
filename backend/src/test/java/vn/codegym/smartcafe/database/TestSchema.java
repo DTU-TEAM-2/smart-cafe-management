@@ -27,6 +27,7 @@ final class TestSchema implements AutoCloseable {
         server.execute("CREATE DATABASE `" + name + "` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci");
         source = new DriverManagerDataSource(prefix + name + query, user, password);
         jdbc = new JdbcTemplate(source);
+        if (fixture == null) { assertIsolated(); return; }
         try {
             String sql = new ClassPathResource(fixture).getContentAsString(java.nio.charset.StandardCharsets.UTF_8).replaceFirst("^\\uFEFF", "");
             var populator = new ResourceDatabasePopulator(new org.springframework.core.io.ByteArrayResource(sql.getBytes(java.nio.charset.StandardCharsets.UTF_8)));

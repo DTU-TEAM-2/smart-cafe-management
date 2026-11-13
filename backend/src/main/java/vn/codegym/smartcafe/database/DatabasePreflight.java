@@ -90,14 +90,26 @@ public final class DatabasePreflight {
                 while (rows.next()) observations.add(new Issue("OTP_COLLATION", rows.getString(1) + "=" + rows.getString(2)));
             }
         }
-        try (var statement = connection.createStatement(); var rows = statement.executeQuery("SELECT @@session.time_zone")) {
-            rows.next();
-            if (!List.of("+00:00", "UTC", "Etc/UTC").contains(rows.getString(1))) blockers.add(new Issue("UTC_SESSION_REQUIRED", "Set the connection session time_zone to UTC"));
-        }
+        inspectTimezone(connection, blockers);
         boolean history = present.contains("flyway_schema_history");
         if (!history) blockers.add(new Issue("UNTRACKED_SCHEMA", "No migration history: automatic baseline is not reconciliation"));
         else inspectHistory(connection, blockers);
         return new Report(List.copyOf(blockers), List.copyOf(observations));
+    }
+
+    public static Report inspect(Connection connection, String policy) throws Exception {
+        return switch (policy) {
+            case "auth-local" -> inspect(connection);
+            case "verified-20261113" -> new VerifiedSchemaContract(VerifiedSchemaContract.RESOURCE).inspect(connection, true);
+            default -> throw new IllegalArgumentException("Unknown database contract policy");
+        };
+    }
+
+    static void inspectTimezone(Connection connection, List<Issue> blockers) throws Exception {
+        try (var statement = connection.createStatement(); var rows = statement.executeQuery("SELECT @@session.time_zone")) {
+            rows.next();
+            if (!List.of("+00:00", "UTC", "Etc/UTC").contains(rows.getString(1))) blockers.add(new Issue("UTC_SESSION_REQUIRED", "Set the connection session time_zone to UTC"));
+        }
     }
 
     private static void inspectHistory(Connection connection, List<Issue> blockers) throws Exception {
@@ -151,7 +163,8 @@ public final class DatabasePreflight {
                 try (var statement = connection.createStatement()) { statement.execute("SET SESSION time_zone = '+00:00'"); }
                 connection.setReadOnly(true);
                 connection.setAutoCommit(false);
-                var report = inspect(connection);
+                String policy = System.getenv().getOrDefault("DB_MIGRATION_POLICY", "auth-local");
+                var report = inspect(connection, policy);
                 report.observations().forEach(item -> System.out.println("OBSERVATION " + item.code() + " " + item.detail()));
                 report.blockers().forEach(item -> System.out.println("BLOCKED " + item.code() + " " + item.detail()));
                 connection.rollback();
