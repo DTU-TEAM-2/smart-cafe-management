@@ -2,6 +2,7 @@ name: DT2-4 Postman
 on:
   pull_request:
     branches: [main, develop, 'release/**']
+    types: [opened, synchronize, reopened, edited]
     paths:
       - 'backend/**'
       - 'docs/qa/postman/**'
@@ -26,7 +27,7 @@ jobs:
           MYSQL_DATABASE: smart_cafe_postman_test
         ports: ['3306:3306']
         options: >-
-          --health-cmd="mysqladmin ping --silent"
+          --health-cmd="mysqladmin ping --host=127.0.0.1 --protocol=TCP --silent"
           --health-interval=5s --health-timeout=5s --health-retries=30
     steps:
       - uses: actions/checkout@v4
@@ -84,6 +85,41 @@ jobs:
           --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           --sql-mode NO_BACKSLASH_ESCAPES
           --emit-log
+      - name: Run Feedback Postman Collection with real CSRF session
+        run: >-
+          npx --yes newman@6.2.1 run docs/qa/postman/dt2-4-feedback-api.postman_collection.json
+          --timeout-request 10000 --timeout 120000
+          -r cli,json --reporter-json-export backend/target/postman/feedback-newman.json
+      - name: Build sanitized Feedback report
+        if: always()
+        run: >-
+          python scripts/render-customer-menu-postman.py
+          backend/target/postman/feedback-newman.json backend/target/postman/feedback-report
+          --feature feedback --sql-mode NO_BACKSLASH_ESCAPES
+          --revision "${{ github.event.pull_request.head.sha || github.sha }}"
+          --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+      - name: Prepare isolated guest credential and run customer actions
+        shell: bash
+        run: |
+          guest_token=$(openssl rand -base64 32 | tr '+/' '-_' | tr -d '=\n')
+          echo "::add-mask::$guest_token"
+          guest_hash=$(printf '%s' "$guest_token" | sha256sum | cut -d' ' -f1)
+          container=$(docker ps -q --filter ancestor=mysql:8.0)
+          test "$(docker exec "$container" mysql -uroot -N smart_cafe_postman_test -e 'SELECT DATABASE()')" = smart_cafe_postman_test
+          sed "s/__TOKEN_HASH__/$guest_hash/g" docs/qa/postman/dt2-4-customer-actions-fixture.sql |
+            docker exec -i "$container" mysql -uroot smart_cafe_postman_test
+          npx --yes newman@6.2.1 run docs/qa/postman/dt2-4-customer-actions.postman_collection.json \
+            --env-var baseUrl=http://127.0.0.1:18084 --env-var "guestToken=$guest_token" \
+            --timeout-request 10000 --timeout 120000 -r cli,json \
+            --reporter-json-export backend/target/postman/actions-newman.json
+      - name: Build sanitized customer actions report
+        if: always()
+        run: >-
+          python scripts/render-customer-menu-postman.py
+          backend/target/postman/actions-newman.json backend/target/postman/actions-report
+          --feature actions --sql-mode NO_BACKSLASH_ESCAPES
+          --revision "${{ github.event.pull_request.head.sha || github.sha }}"
+          --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
       - name: Upload actual Postman evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -92,6 +128,8 @@ jobs:
           path: |
             backend/target/postman/newman.json
             backend/target/postman/report/
+            backend/target/postman/feedback-report/
+            backend/target/postman/actions-report/
           if-no-files-found: warn
       - name: Stop backend started by this job
         if: always()
