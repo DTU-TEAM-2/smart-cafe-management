@@ -65,5 +65,6 @@ node scripts/skills.mjs check; node --test scripts/skills.test.mjs; git diff --c
   - `mvnw test '-Dtest=StaffControllerTest,StaffHttpReportTest'`: **15/15 PASS (14 MockMvc + 1 Report Runner với 28/28 scenarios PASS 100%)**.
   - `python scripts/render-staff-api-report.py`: Đã cập nhật `docs/reports/dt2-10-api/report.html` và `results.json`.
   - `node scripts/skills.mjs check; node --test scripts/skills.test.mjs; git diff --check`: **9/9 PASS**, 0 lỗi whitespace.
-- [ ] PR/MR replies: draft prepared (sẵn sàng đăng sau khi Dev xác nhận)
-- [ ] Dev final confirmation (Điểm kiểm soát 2)
+- [x] PR/MR replies: Đã đăng thành công lên Thread #11 (comment `PRRC_kwDOVkpoZs8AAAABD8RYsg`) và Thread #1 (comment `PRRC_kwDOVkpoZs8AAAABD8RZhA`).
+- [x] Dev final confirmation (Điểm kiểm soát 2)
+- [x] Đã push commit `df6fe96` lên GitHub `origin/feature/dt2-10-staff-management`.
