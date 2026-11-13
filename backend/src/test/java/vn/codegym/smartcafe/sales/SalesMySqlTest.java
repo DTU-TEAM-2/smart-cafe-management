@@ -39,6 +39,7 @@ class SalesMySqlTest {
     @Autowired SalesService sales;
     @Autowired BillReader reader;
     @Autowired CheckoutService checkout;
+    @Autowired Clock clock;
     @Autowired org.springframework.transaction.PlatformTransactionManager transactionManager;
 
     @TestConfiguration
@@ -130,10 +131,11 @@ class SalesMySqlTest {
 
     @Test void billResolvesOnlyItsSessionBillRequest() {
         jdbc.update("INSERT INTO session_clients(id,session_id,access_token_hash,expires_at) VALUES(1,1,REPEAT('f',64),DATE_ADD(CURRENT_TIMESTAMP,INTERVAL 1 DAY))");
+        var requestedAt = java.sql.Timestamp.from(clock.instant().minusSeconds(60));
         jdbc.update("""
-                INSERT INTO service_requests(session_id,requested_by_client_id,request_type,idempotency_key)
-                VALUES(1,1,'BILL','bill-request'),(1,1,'WAITER','waiter-request')
-                """);
+                INSERT INTO service_requests(session_id,requested_by_client_id,request_type,idempotency_key,created_at)
+                VALUES(1,1,'BILL','bill-request',?),(1,1,'WAITER','waiter-request',?)
+                """, requestedAt, requestedAt);
         sales.createBill(1,new SalesService.BillCommand("SESSION-OLD","key"),"staff");
         assertThat(jdbc.queryForObject("SELECT status FROM service_requests WHERE request_type='BILL'",String.class)).isEqualTo("RESOLVED");
         assertThat(jdbc.queryForObject("SELECT status FROM service_requests WHERE request_type='WAITER'",String.class)).isEqualTo("PENDING");
@@ -223,7 +225,8 @@ class SalesMySqlTest {
 
     @Test void acknowledgeCannotTargetAnotherOrClosedSessionAndRetryIsSafe() {
         jdbc.update("INSERT INTO session_clients(id,session_id,access_token_hash,expires_at) VALUES(1,1,REPEAT('f',64),DATE_ADD(CURRENT_TIMESTAMP,INTERVAL 1 DAY))");
-        jdbc.update("INSERT INTO service_requests(id,session_id,requested_by_client_id,request_type,idempotency_key) VALUES(1,1,1,'WAITER','request')");
+        jdbc.update("INSERT INTO service_requests(id,session_id,requested_by_client_id,request_type,idempotency_key,created_at) VALUES(1,1,1,'WAITER','request',?)",
+                java.sql.Timestamp.from(clock.instant().minusSeconds(60)));
         assertThatThrownBy(()->sales.acknowledge(2,1,"SESSION-OLD","staff")).hasMessageContaining("409");
         assertThatThrownBy(()->sales.acknowledge(1,1,null,"staff")).hasMessageContaining("400");
         sales.acknowledge(1,1,"SESSION-OLD","staff");
