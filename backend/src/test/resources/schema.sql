@@ -1,4 +1,4 @@
--- Test-only structural snapshot of the running smart_cafe database, captured 2026-11-06.
+﻿-- Test-only structural snapshot of the running smart_cafe database, captured 2026-11-06.
 -- No rows, credentials or DDL changes to the system database.
 -- Run this fixture only in an empty isolated *_test database.
 SET NAMES utf8mb4;
