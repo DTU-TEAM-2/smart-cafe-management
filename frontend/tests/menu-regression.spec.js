@@ -1,6 +1,9 @@
 import { test, expect } from '@playwright/test';
 
-test.beforeEach(async ({ page }) => { await page.goto('/'); });
+test.beforeEach(async ({ page }) => {
+  await page.goto('/preview/menu');
+  await expect(page.getByRole('heading', { name: 'Quản lý món', exact: true })).toBeVisible();
+});
 
 async function newItem(page, code = 'CF104', name = 'Mocha Latte', price = '48000') {
   await page.getByRole('button', { name: 'THÊM MÓN MỚI', exact: true }).click();
@@ -62,10 +65,11 @@ test('selection actions notify when empty and cannot act on a row hidden by filt
   await expect(page.getByRole('status')).toContainText('Vui lòng chọn món');
 });
 
-test('populated category deletion cancels without changes then hides all children and reserves code', async ({ page }) => {
+test('populated category deletion cancels without changes then hides all children and reserves code', async ({ page }, testInfo) => {
   await page.getByRole('button', { name: 'Nhóm món', exact: true }).click();
   await page.getByRole('button', { name: 'Xóa Cà phê', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('2 món đang hoạt động');
+  await page.screenshot({ path: testInfo.outputPath('menu-category-delete.png'), fullPage: true, scale: 'css' });
   await page.getByRole('button', { name: 'HỦY', exact: true }).click();
   await page.getByRole('button', { name: 'Món', exact: true }).click();
   await expect(page.locator('tbody tr')).toHaveCount(4);

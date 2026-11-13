@@ -3,7 +3,23 @@
 *.json text eol=lf
 *.mjs text eol=lf
 *.yml text eol=lf
+*.yaml text eol=lf
+*.java text eol=lf
+*.xml text eol=lf
+*.properties text eol=lf
+*.sql text eol=lf
 *.ps1 text eol=crlf
 *.bat text eol=crlf
+*.cmd text eol=crlf
+*.jsx text eol=lf
+*.js text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+backend/mvnw text eol=lf
 # Preserve the inherited skill snapshot and upstream manifests verbatim.
 .agents/skills/** -text
+# Keep the quoted legacy SRS excerpt byte-for-byte, including inherited whitespace.
+docs/handover/dt2-9-legacy-menu-source.txt -text -whitespace
+backend/mvnw.cmd text eol=crlf
+backend/.env.example text eol=lf
+backend/MAVEN-WRAPPER-LICENSE.txt text eol=lf

@@ -29,18 +29,20 @@ git switch -c feature/cf-07-submit-order
 3. Tự kiểm tra diff, chạy checks phù hợp và rà dữ liệu nhạy cảm.
 4. Đặt title như `feat(orders): CF-07 submit an order batch`.
 5. Mô tả vấn đề, kết quả, cách kiểm thử, ảnh nếu thay UI, ảnh hưởng dữ liệu/cấu hình và skill đã áp dụng. Link issue/Jira/Trello thực tế; không bịa URL.
+6. Nếu liên quan dữ liệu, tuân thủ [rule database nguồn chuẩn](.agents/rules/database-source-of-truth.md): nêu bảng/cột, DDL đã đối chiếu và chênh lệch; không tự bổ sung schema. Thay đổi schema chỉ thực hiện sau quyết định chấp thuận được ghi nhận.
+7. Tuân thủ [rule công nghệ](.agents/rules/technology-constraints.md): BE Spring Boot, FE ReactJS, DB MySQL bắt buộc. Công cụ còn lại tùy chọn theo task; thay dependency/công cụ cần ghi lý do và tác động, không tự thay stack chính.
 
 PR tập trung một mục tiêu, ưu tiên review được trong một lượt. Không đặt giới hạn số dòng cứng với lockfile/tài liệu sinh tự động. Nếu cần PR lớn, tách commit/phần mô tả để reviewer hiểu được.
 
 ## Review và merge
 
-- Tối thiểu một reviewer khác tác giả; không self-approve. AI/bot review hỗ trợ, không thay thế teammate approval.
+- Mọi thành viên có thể review và góp ý. Mời thêm một người xem khi cần góc nhìn độc lập.
 - Ưu tiên lỗi đúng/sai, quyền, dữ liệu, hồi quy trước stylistic nits. Nêu file/line, tình huống và tác động.
 - Tác giả sửa hoặc trả lời từng finding. Người đặt discussion xác nhận/resolve; người khác không tự đóng thay khi chưa thống nhất.
-- Chỉ merge khi checks bắt buộc xanh, đủ approval, hết blocker và đạt DoD. Nếu cần đổi scope, cập nhật PR title/body theo kết quả cuối.
+- `NV-DuyManh` hoặc `haitan2408` kiểm tra kết quả và quyết định merge qua PR khi CI xanh, thảo luận đã xử lý, hết blocker và đạt DoD. Nếu phạm vi thay đổi, cập nhật tiêu đề và mô tả PR theo kết quả cuối.
 - Giữ attribution khi cherry-pick/merge; dùng `cherry-pick -x` khi lấy commit chọn lọc. Không bịa `Co-authored-by`.
 
-CI thực thi build/lint/test, kiểm tra registry skill và định dạng PR title. [Thiết lập GitHub](docs/engineering/github-settings.md) ghi rõ phần cần cấu hình trên server: branch protection, reviewer và required checks. File quy tắc trong repo tự nó không bật những thiết lập đó.
+CI chạy **Governance** (registry, SHA-256, định tuyến, whitespace), **PR title**, **Backend MySQL** (Maven verify trên schema test riêng) và **Frontend UI** (lint, build, Playwright desktop/mobile). Hai job ứng dụng được bổ sung trong DT2-1; các required check trên GitHub hiện vẫn theo [thiết lập GitHub](docs/engineering/github-settings.md). CI xanh không thay thế nghiệm thu và review chéo.
 
 ## Dọn nhánh sau khi merge
 

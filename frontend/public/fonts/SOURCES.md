@@ -1,10 +1,9 @@
-# Fonts
+# Noto Serif
 
-Inter (400, 700), Playfair Display (700) downloaded 2026-11-10 using Google Fonts CSS API. Used for the typography specified in Figma nodes 8:292 and 8:319.
+Self-hosted Vietnamese, Latin Extended and Latin subsets, weights 400/700, normal/italic. Source: @fontsource/noto-serif 5.3.0 from the npm registry. Original SIL Open Font License retained in LICENSE. No Google Fonts runtime request.
 
-- https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Playfair+Display:wght@700&display=swap
-- `inter-400.ttf`: https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfMZg.ttf
-- `inter-700.ttf`: https://fonts.gstatic.com/s/inter/v20/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuFuYMZg.ttf
-- `playfair-display-700.ttf`: https://fonts.gstatic.com/s/playfairdisplay/v40/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKeiukDQ.ttf
+Reused from the previous project's local font bundle on 06/11/2026 by explicit user request. The matching unicode-range declarations in src/fonts.css preserve Vietnamese glyphs in one font family. No Alex Brush font is bundled in this implementation.
 
-SIL Open Font License 1.1 retained in `INTER-LICENSE.txt` and `PLAYFAIR-DISPLAY-LICENSE.txt`, retrieved from google/fonts ofl/inter and ofl/playfairdisplay. Font copyright/authorship belongs to the upstream authors listed in those licenses. No runtime external font request.
+# Menu preview fonts
+
+The menu preview also uses locally hosted Inter and Playfair Display snapshots from the original DT2-9 frontend branch. Exact upstream URLs and provenance are retained in `MENU-SOURCES.md`; licenses remain in `INTER-LICENSE.txt` and `PLAYFAIR-DISPLAY-LICENSE.txt`. The font faces in `fonts.css` load only with the preview stylesheet.

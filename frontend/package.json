@@ -1,14 +1,12 @@
 {
-  "name": "smart-cafe-menu-frontend",
+  "name": "smart-cafe-frontend",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=22.19.0 <23 || >=24" },
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
+    "dev": "vite",
+    "lint": "oxlint --deny-warnings",
     "build": "vite build",
-    "preview": "vite preview --host 127.0.0.1",
-    "lint": "oxlint --deny-warnings src tests",
     "test:ui": "playwright test"
   },
   "dependencies": {
@@ -21,5 +19,6 @@
     "@vitejs/plugin-react": "6.1.2",
     "oxlint": "1.89.0",
     "vite": "8.3.5"
-  }
+  },
+  "engines": { "node": ">=22.19.0 <23 || >=24" }
 }

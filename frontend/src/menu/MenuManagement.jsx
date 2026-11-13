@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { demoCategories, demoItems } from './demoMenu.js';
 import MenuEditor from './MenuEditor.jsx';
 import DeleteDialog from './DeleteDialog.jsx';
+import './menu.css';
 
 const money = new Intl.NumberFormat('vi-VN');
 const normalize = value => String(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
@@ -65,7 +66,7 @@ export default function MenuManagement() {
   }
   const title = editor ? `${editor.value ? 'Chỉnh sửa' : 'Thêm'} ${noun}` : `Quản lý ${noun}`;
 
-  return <div className="admin-shell">
+  return <div className="menu-preview admin-shell">
     <a className="skip-link" href="#main-content">Đến nội dung chính</a>
     <aside className="sidebar">
       <div className="brand">LECKER<small>COFFEE CAFE</small></div>

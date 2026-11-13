@@ -1,7 +1,10 @@
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
-test.beforeEach(async ({ page }) => { await page.goto('/'); });
+test.beforeEach(async ({ page }) => {
+  await page.goto('/preview/menu');
+  await expect(page.getByRole('heading', { name: 'Quản lý món', exact: true })).toBeVisible();
+});
 
 test('search, filter and empty states use local fixtures without API calls', async ({ page }) => {
   const apiCalls = [];
@@ -44,13 +47,14 @@ test('create, reject duplicate, edit, cancel and confirm deletion, then reset on
   await expect(page.getByRole('row')).toHaveCount(5);
 });
 
-test('category creation, rename propagation and cancel deletion of a populated category', async ({ page }) => {
+test('category creation, rename propagation and cancel deletion of a populated category', async ({ page }, testInfo) => {
   await page.getByRole('button', { name: 'Nhóm món', exact: true }).click();
   await page.getByRole('button', { name: 'Xóa Cà phê', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('2 món đang hoạt động thuộc nhóm cũng sẽ bị ẩn');
   await page.getByRole('button', { name: 'HỦY', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Xóa Cà phê', exact: true })).toBeFocused();
   await page.getByRole('button', { name: 'Sửa Cà phê', exact: true }).click();
+  await page.screenshot({ path: testInfo.outputPath('menu-category-editor.png'), fullPage: true, scale: 'css' });
   await page.getByLabel('Tên nhóm món *').fill('Coffee');
   await page.getByRole('button', { name: 'LƯU NHÓM MÓN' }).click();
   await page.getByRole('button', { name: 'Món', exact: true }).click();
@@ -105,6 +109,9 @@ test('keyboard, accessibility and responsive containment', async ({ page }, test
   await expect(page.getByLabel('Mã món *')).toBeFocused();
   await page.screenshot({ path: testInfo.outputPath('menu-editor.png'), fullPage: true, scale: 'css' });
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await page.getByRole('button', { name: 'HỦY', exact: true }).click();
+  await page.getByRole('button', { name: 'Sửa Caramel Latte', exact: true }).click();
+  await page.screenshot({ path: testInfo.outputPath('menu-edit.png'), fullPage: true, scale: 'css' });
   await page.getByRole('button', { name: 'HỦY', exact: true }).click();
   await page.getByRole('button', { name: 'Xóa Caramel Latte', exact: true }).click();
   await expect(page.getByRole('button', { name: 'HỦY', exact: true })).toBeFocused();
