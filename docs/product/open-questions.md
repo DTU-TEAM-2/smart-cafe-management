@@ -36,3 +36,4 @@ Frame Figma 8:319 có Mô tả và nhãn WebP, nhưng API/ERD menu chưa có des
 - **Blocker tích hợp:** Hạ tầng SMTP / JavaMailSender chưa tích hợp trong backend Spring Boot ở sprint này.
 - **Tiêu chí E2E Acceptance:** Khi module Auth hoàn thiện: Admin tạo nhân viên (`POST /api/v1/staff`) -> Backend lưu `must_change_password=1` và mật khẩu ngẫu nhiên an toàn -> Auth Module phát hành email kèm activation/reset token một lần -> Nhân viên truy cập link xác thực, tự đặt mật khẩu mới -> Đăng nhập thành công lần đầu.
 - **Trạng thái:** Backend User & Security State của Staff hoàn tất; đang chờ module Auth (DT2-2) kết nối luồng gửi email và trang đặt mật khẩu.
+- **Lưu ý SecurityConfig khi Merge với PR #7:** Cần bảo đảm giữ nguyên quy tắc phân quyền `/api/v1/staff/**` chỉ cho phép `ROLE_ADMIN` (như cấu hình trong PR #11); không nhận cấu hình `hasAnyRole("ADMIN", "STAFF")` từ PR #7.

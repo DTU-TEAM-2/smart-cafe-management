@@ -384,4 +384,38 @@ class StaffControllerTest {
         String status = jdbc.queryForObject("SELECT status FROM users WHERE id = ?", String.class, adminCId);
         org.assertj.core.api.Assertions.assertThat(status).isEqualTo("ACTIVE");
     }
+
+    @Test
+    void searchTreatsPercentUnderscoreAndExclamationAsLiterals() throws Exception {
+        // Insert a staff member with special characters in username, fullName and phone
+        jdbc.update("""
+                INSERT INTO users(username, password_hash, full_name, email, phone, role, status)
+                VALUES ('staff_percent_%', 'hash', 'Special ! Staff', 'percent@test.vn', '0903333333', 'STAFF', 'ACTIVE')
+                """);
+        Long specialId = jdbc.queryForObject("SELECT id FROM users WHERE username = 'staff_percent_%'", Long.class);
+        jdbc.update("INSERT INTO staff_profiles(user_id, address, gender, salary) VALUES (?, 'Can Tho', 'MALE', 7000000)", specialId);
+
+        // 1. Search literal '%' - must match only 'staff_percent_%', NOT all staff
+        mvc.perform(get("/api/v1/staff?keyword=%").with(user("test_admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements", is(1)))
+                .andExpect(jsonPath("$.content[0].username", is("staff_percent_%")));
+
+        // 2. Search literal '!' - must match only 'Special ! Staff'
+        mvc.perform(get("/api/v1/staff?keyword=!").with(user("test_admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements", is(1)))
+                .andExpect(jsonPath("$.content[0].fullName", is("Special ! Staff")));
+
+        // 3. Search literal '_' - matches usernames containing literal '_'
+        // ('test_admin', 'test_staff', 'staff_percent_%' -> 3 records)
+        mvc.perform(get("/api/v1/staff?keyword=_").with(user("test_admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements", is(3)));
+
+        // 4. Search combined pattern '%_'
+        mvc.perform(get("/api/v1/staff?keyword=%_").with(user("test_admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements", is(0)));
+    }
 }

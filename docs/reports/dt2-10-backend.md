@@ -19,10 +19,10 @@
   - Package: `vn.codegym.smartcafe.staff`.
   - **Phân quyền & Bảo mật (AC-1):** Cấu hình `SecurityConfig.java` bảo vệ endpoint `/api/v1/staff/**` bắt buộc có quyền `ROLE_ADMIN`. Role `STAFF` hoặc Anonymous đều bị từ chối với mã `403 Forbidden`. Tích hợp xác thực HMAC Bearer Token qua `HeaderTokenFilter.java` và cấp `CSRF Token` qua `GET /api/v1/staff/csrf`.
   - **Danh sách & Phân trang (AC-2):** Lấy danh sách nhân viên mặc định 10 bản ghi/trang (`size=10`), sắp xếp tăng dần theo `username`.
-  - **Tìm kiếm đa tiêu chí OR (AC-3):** Tìm kiếm kết hợp `username OR full_name OR phone`. Xử lý chuyển đổi charset `CONVERT(u.username USING utf8mb4)` chống lỗi collation MySQL khi tìm kiếm từ khóa tiếng Việt UTF-8 có dấu.
+  - **Tìm kiếm đa tiêu chí OR (AC-3):** Tìm kiếm kết hợp `username OR full_name OR phone`. Xử lý chuyển đổi charset `CONVERT(u.username USING utf8mb4)` chống lỗi collation MySQL khi tìm kiếm từ khóa tiếng Việt UTF-8 có dấu. Tích hợp cơ chế escape ký tự đặc biệt (`!`, `%`, `_`) với mệnh đề `LIKE ? ESCAPE '!'` chống hiểu nhầm ký tự literal thành SQL wildcard.
   - **Thêm nhân viên (AC-4):**
-    - Kiểm tra tính hợp lệ: Username > 6 ký tự, không bắt đầu bằng chữ số, không trùng lặp, cấm từ khóa `admin`/`root`. Lương > 0 và bội số 100k VNĐ.
-    - Mã hóa mật khẩu ban đầu an toàn bằng BCrypt.
+    - Kiểm tra tính hợp lệ: Username > 6 ký tự, không bắt đầu bằng chữ số, không trùng lặp, cấm từ khóa `admin`/`root`. Lương > 0 và bội số 100k VNĐ, giới hạn tối đa 18 chữ số theo `DECIMAL(18,0)`.
+    - Sinh mật khẩu ngẫu nhiên bảo đảm 100% tuân thủ chính sách mật khẩu (bắt buộc gồm chữ hoa, chữ thường, chữ số, ký tự đặc biệt, xáo trộn bằng Fisher–Yates shuffle qua `SecureRandom`), gán cờ `must_change_password=1` và mã hóa BCrypt.
   - **Sửa thông tin (AC-5):** Khóa `username` (read-only, bất biến); cập nhật an toàn các thông tin họ tên, số điện thoại, địa chỉ, giới tính, ngày sinh, lương, trạng thái.
   - **Xóa an toàn & Bảo toàn dữ liệu (AC-6):** Chặn Admin tự xóa tài khoản của chính mình (`409 Conflict`); áp dụng cơ chế soft delete (`status = 'INACTIVE'`) để bảo toàn tính toàn vẹn và khóa ngoại với các bảng lịch sử (như hóa đơn thanh toán `bills`).
   - **Upload ảnh đại diện (AC-7):** Tích hợp dịch vụ `StaffImageService` xử lý upload ảnh Cloudinary, kiểm tra định dạng và lưu vào `media_assets`. Tách biệt gọi HTTP external khỏi transaction DB và xử lý dọn dẹp asset orphan khi DB insert thất bại.
@@ -44,24 +44,30 @@
      - Chặn xóa tài khoản Quản trị viên (ADMIN) qua Staff API (`400 Bad Request`) và kiểm tra Concurrency: Hai request xóa chéo Admin A↔B đồng thời đều bị từ chối, bảo đảm bất biến hệ thống luôn duy trì ít nhất 1 ADMIN ACTIVE.
    - Báo cáo HTML trực quan xuất ra tại: [`docs/reports/dt2-10-api/report.html`](dt2-10-api/report.html).
 2. **Bộ kiểm thử MockMvc ([`StaffControllerTest.java`](../../backend/src/test/java/vn/codegym/smartcafe/staff/StaffControllerTest.java)):**
-   - Kết quả: **`14 / 14 PASS`**.
-3. **Bộ kiểm thử Upload Avatar ([`StaffImageServiceTest.java`](../../backend/src/test/java/vn/codegym/smartcafe/staff/StaffImageServiceTest.java)):**
+   - Kết quả: **`15 / 15 PASS`** (bổ sung kịch bản kiểm thử tìm kiếm chuỗi con chứa ký tự literal `%`, `_`, `!`).
+3. **Bộ kiểm thử Policy Mật khẩu & Wildcard ([`StaffPasswordPolicyTest.java`](../../backend/src/test/java/vn/codegym/smartcafe/staff/StaffPasswordPolicyTest.java)):**
+   - Kết quả: **`2 / 2 PASS`** (kiểm chứng 1.000 lần sinh mật khẩu ngẫu nhiên đều thỏa mãn đầy đủ hoa/thường/số/ký tự đặc biệt và hàm escape LIKE).
+4. **Bộ kiểm thử Upload Avatar ([`StaffImageServiceTest.java`](../../backend/src/test/java/vn/codegym/smartcafe/staff/StaffImageServiceTest.java)):**
    - Kết quả: **`7 / 7 PASS`** (kiểm tra đầy đủ upload hợp lệ, từ chối file rỗng/giả ảnh, oversize > 5MB, pixel bomb > 20Mpx, 503 khi thiếu cấu hình, 502 khi Cloudinary lỗi và tự động dọn asset orphan khi DB insert lỗi).
-4. **Bộ kiểm thử hồi quy xác thực ([`HeaderMySqlTest.java`](../../backend/src/test/java/vn/codegym/smartcafe/home/HeaderMySqlTest.java)):**
+5. **Bộ kiểm thử hồi quy xác thực ([`HeaderMySqlTest.java`](../../backend/src/test/java/vn/codegym/smartcafe/home/HeaderMySqlTest.java)):**
    - Kết quả: **`5 / 5 PASS`**.
-5. **Kiểm tra quy tắc Governance & Whitespace:**
+6. **Kiểm tra quy tắc Governance & Whitespace:**
    - Lệnh: `node scripts/skills.mjs check; node --test scripts/skills.test.mjs; git diff --check`.
    - Kết quả: **`9 / 9 PASS`**, diff hoàn toàn sạch lỗi whitespace.
-6. **Kiểm tra Frontend:**
+7. **Kiểm tra Frontend:**
    - Thư mục `frontend/` hoàn toàn nguyên vẹn so với `main` (`git diff main -- frontend` rỗng).
    - `npm run lint` (0 lỗi, 0 cảnh báo), `npm run build` thành công 100%.
-7. **Bộ kịch bản kiểm thử Postman:**
+8. **Bộ kịch bản kiểm thử Postman:**
    - Đã đóng gói tại: [`docs/api/dt2-10-staff-management.postman_collection.json`](../api/dt2-10-staff-management.postman_collection.json).
 
 ---
 
 ## 3. Ranh giới kiến trúc, Handoff & Rollback
 
+- **Điều phối phân quyền liên PR (Cross-PR Integration với PR #7 / Auth DT2-2):**
+  - **Quy tắc bảo mật hiện tại của PR #11:** Cấu hình chuẩn trong `SecurityConfig.java`: `/api/v1/staff/**` và `/api/v1/staff` chỉ cho phép `ROLE_ADMIN` (`hasRole("ADMIN")`). Mọi yêu cầu từ `STAFF` hoặc Anonymous đều bị từ chối `403 Forbidden`.
+  - **Cảnh báo xung đột tích hợp với PR #7:** Nhánh PR #7 (`feat(auth): CF-03 implement DT2-2 login and email recovery`) đang khai báo `requestMatchers("/api/v1/staff/**").hasAnyRole("ADMIN", "STAFF")`. Khi thực hiện merge vào nhánh `develop`, người phụ trách merge tuyệt đối **phải giữ quy tắc `hasRole("ADMIN")` của PR #11** để tránh lọt quyền xem/sửa/xóa hồ sơ nhân sự cho nhân viên thường.
+  - **Tiêu chí nghiệm thu Cross-PR sau merge:** Chạy kiểm thử hồi quy trên commit tích hợp thật với Bearer token do `/api/v1/auth/login` cấp; xác nhận tài khoản `ROLE_STAFF` bị từ chối 403 Forbidden trên toàn bộ endpoint danh sách, chi tiết, thêm, sửa, xóa và upload avatar; chỉ tài khoản `ROLE_ADMIN` mới được phép truy cập.
 - **Blocker tích hợp & Tiêu chí E2E Onboarding (Dependency: DT2-2):**
   - **Mã issue / Dependency:** `DT2-2` (Module Authentication & Account Onboarding / Email Service).
   - **Owner phụ trách:** Nhóm phụ trách module Auth (`DT2-2`).

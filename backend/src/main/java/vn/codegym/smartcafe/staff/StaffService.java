@@ -20,7 +20,11 @@ import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class StaffService {
-    private static final String PWD_CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%^&*";
+    private static final String UPPER = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+    private static final String LOWER = "abcdefghijkmnopqrstuvwxyz";
+    private static final String DIGITS = "23456789";
+    private static final String SPECIAL = "!@#$%^&*";
+    private static final String ALL_CHARS = UPPER + LOWER + DIGITS + SPECIAL;
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final JdbcTemplate jdbc;
@@ -31,12 +35,29 @@ public class StaffService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    private String generateRandomPassword() {
-        StringBuilder sb = new StringBuilder(12);
-        for (int i = 0; i < 12; i++) {
-            sb.append(PWD_CHARS.charAt(SECURE_RANDOM.nextInt(PWD_CHARS.length())));
+    static String generateRandomPassword() {
+        char[] password = new char[12];
+        password[0] = UPPER.charAt(SECURE_RANDOM.nextInt(UPPER.length()));
+        password[1] = LOWER.charAt(SECURE_RANDOM.nextInt(LOWER.length()));
+        password[2] = DIGITS.charAt(SECURE_RANDOM.nextInt(DIGITS.length()));
+        password[3] = SPECIAL.charAt(SECURE_RANDOM.nextInt(SPECIAL.length()));
+        for (int i = 4; i < 12; i++) {
+            password[i] = ALL_CHARS.charAt(SECURE_RANDOM.nextInt(ALL_CHARS.length()));
         }
-        return sb.toString();
+        for (int i = password.length - 1; i > 0; i--) {
+            int j = SECURE_RANDOM.nextInt(i + 1);
+            char temp = password[i];
+            password[i] = password[j];
+            password[j] = temp;
+        }
+        return new String(password);
+    }
+
+    static String escapeLike(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("!", "!!").replace("%", "!%").replace("_", "!_");
     }
 
     @Transactional(readOnly = true)
@@ -46,7 +67,7 @@ public class StaffService {
         long offset = pageNumber * (long) pageSize;
 
         boolean hasKeyword = keyword != null && !keyword.trim().isEmpty();
-        String searchPattern = hasKeyword ? "%" + keyword.trim().toLowerCase(Locale.ROOT) + "%" : "";
+        String searchPattern = hasKeyword ? "%" + escapeLike(keyword.trim().toLowerCase(Locale.ROOT)) + "%" : "";
 
         String countSql;
         String selectSql;
@@ -57,7 +78,7 @@ public class StaffService {
                     FROM users u
                     LEFT JOIN staff_profiles p ON p.user_id = u.id
                     WHERE u.status = 'ACTIVE' AND u.role IN ('ADMIN', 'STAFF')
-                          AND (LOWER(CONVERT(u.username USING utf8mb4)) LIKE ? OR LOWER(u.full_name) LIKE ? OR u.phone LIKE ?)
+                          AND (LOWER(CONVERT(u.username USING utf8mb4)) LIKE ? ESCAPE '!' OR LOWER(u.full_name) LIKE ? ESCAPE '!' OR u.phone LIKE ? ESCAPE '!')
                     """;
             selectSql = """
                     SELECT u.id, u.username, u.full_name, u.email, u.phone,
@@ -67,7 +88,7 @@ public class StaffService {
                     LEFT JOIN staff_profiles p ON p.user_id = u.id
                     LEFT JOIN media_assets m ON m.id = u.avatar_media_id AND m.deleted_at IS NULL
                     WHERE u.status = 'ACTIVE' AND u.role IN ('ADMIN', 'STAFF')
-                          AND (LOWER(CONVERT(u.username USING utf8mb4)) LIKE ? OR LOWER(u.full_name) LIKE ? OR u.phone LIKE ?)
+                          AND (LOWER(CONVERT(u.username USING utf8mb4)) LIKE ? ESCAPE '!' OR LOWER(u.full_name) LIKE ? ESCAPE '!' OR u.phone LIKE ? ESCAPE '!')
                     ORDER BY u.username ASC
                     LIMIT ? OFFSET ?
                     """;
