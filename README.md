@@ -2,6 +2,8 @@
 
 Nhánh `main` chứa bộ quy tắc và skill phát triển Smart Cafe. Nền tảng được tích hợp qua [PR #1](https://github.com/DTU-TEAM-2/smart-cafe-management/pull/1).
 
+**Quy trình từ 12/11/2026: [Git Flow](git-flow.md).** `develop` tích hợp task; feature/bugfix tách từ develop và PR vào develop. `main` dành cho release/hotfix đã kiểm chứng, sau đó đồng bộ lại develop qua PR. Mọi nhánh chung cần CI và 2 approval độc lập; không commit trực tiếp, không tự merge hoặc tạo tag/deploy khi chưa được giao quyền.
+
 ## Phạm vi PR nền tảng
 
 - Giữ 17 skill, registry, bộ định tuyến và luồng chuyển phase.
@@ -15,7 +17,7 @@ Nhánh `main` chứa bộ quy tắc và skill phát triển Smart Cafe. Nền t�
 2. Thu thập SRS/project plan hiện hành vào `docs/handover/`; xác nhận phạm vi và các câu hỏi nghiệp vụ.
 3. Tạo backlog với owner, tiêu chí nghiệm thu, phụ thuộc và reviewer; không chuyển task cũ sang Done tự động.
 4. Chốt mô hình dữ liệu, quyền, hợp đồng API và quyết định kiến trúc trước khi triển khai phần phụ thuộc.
-5. Làm từng task trên nhánh ngắn hạn từ `main`, kiểm chứng theo rủi ro, review rồi merge qua PR.
+5. Làm từng task trên nhánh feature/bugfix ngắn hạn từ `develop`, kiểm chứng theo rủi ro, review rồi PR vào develop; chỉ promotion release/hotfix vào main theo git-flow.md.
 
 Kiểm tra nền tảng:
 

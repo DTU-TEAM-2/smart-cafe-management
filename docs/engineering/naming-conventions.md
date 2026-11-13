@@ -5,7 +5,7 @@ Tên mã nguồn dùng tiếng Anh rõ nghĩa; nội dung hướng đến ngư�
 | Đối tượng | Quy tắc | Ví dụ |
 | --- | --- | --- |
 | Repository / thư mục tính năng FE | kebab-case | `smart-cafe-management`, `table-sessions` |
-| Nhánh | loại / mã task chữ thường / mô tả kebab-case | `feature/cf-07-submit-order`, `bugfix/cf-11-duplicate-bill` |
+| Nhánh | loại / mã task chữ thường _ mô tả kebab-case theo Git Flow | `feature/cf-07_submit-order`, `bugfix/cf-11_duplicate-bill`, `release/1.4.0`, `hotfix/1.4.1_fix-bill` |
 | Commit | Conventional Commit + scope khi hữu ích | `feat(orders): CF-07 submit an order batch` |
 | PR title | Conventional Commit + mã CF/QA | `feat(orders): CF-07 submit an order batch` |
 | Java package | chữ thường, theo tính năng | `vn.codegym.smartcafe.orders` |
@@ -26,6 +26,8 @@ Tên mã nguồn dùng tiếng Anh rõ nghĩa; nội dung hướng đến ngư�
 | Tài liệu / bằng chứng mới | kebab-case, ngày ISO nếu cần | `cf-07-order-contract.md`, `2026-11-04-kickoff.md` |
 
 Nguồn bàn giao giữ tên gốc để truy xuất; không đổi tên hàng loạt code đang có chỉ vì stylistic preference. Không dùng ID cá nhân, số điện thoại hoặc secret trong tên file/branch.
+
+Đích/tách nhánh theo [git-flow.md](../../git-flow.md): feature/bugfix từ develop vào develop; main chỉ nhận release/hotfix rồi đồng bộ lại develop. Nhánh cũ kiểu `feature/dt2-...` vẫn hợp lệ, không ép rename hay rewrite lịch sử. Mẫu GitHub issue số `feature/#123_add-search-filter` từ tài liệu nguồn được phép, nhớ quote trong shell/encode trong URL.
 
 Java thụt 4 spaces; JS/JSX/CSS/JSON/YAML thụt 2 spaces. UTF-8, newline cuối file, bỏ trailing whitespace. Tệp văn bản LF; script Windows `.cmd` CRLF. Dùng native HTML semantic và nhãn có nghĩa. Comment giải thích lý do hoặc bất biến, không nhắc lại code.
 
