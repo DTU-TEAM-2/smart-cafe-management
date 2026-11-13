@@ -27,7 +27,7 @@ jobs:
           MYSQL_DATABASE: smart_cafe_postman_test
         ports: ['3306:3306']
         options: >-
-          --health-cmd="mysqladmin ping --silent"
+          --health-cmd="mysqladmin ping --host=127.0.0.1 --protocol=TCP --silent"
           --health-interval=5s --health-timeout=5s --health-retries=30
     steps:
       - uses: actions/checkout@v4
