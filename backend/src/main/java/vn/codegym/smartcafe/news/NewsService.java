@@ -17,6 +17,12 @@ import java.util.regex.Pattern;
 
 @Service
 public class NewsService {
+    // Only the News uploader's namespace may cross the News read/write boundary.
+    static final String NEWS_MEDIA_PREDICATE = """
+            m.deleted_at IS NULL AND m.provider='FIREBASE'
+            AND m.provider_asset_id REGEXP '^news/[a-f0-9-]{36}[.](png|jpg)$'
+            AND m.mime_type IN ('image/png','image/jpeg')
+            """;
     private static final Set<String> ALLOWED_STATUSES = Set.of("DRAFT", "PUBLISHED", "ARCHIVED");
     private static final Pattern SLUG_PATTERN = Pattern.compile("^[a-z0-9]+(?:-[a-z0-9]+)*$");
 
@@ -87,14 +93,14 @@ public class NewsService {
                 SELECT p.id, p.slug, p.title, p.summary, p.status, p.published_at, p.created_at, p.updated_at,
                        p.audience_staff, p.audience_customer,
                        u.full_name AS author_name,
-                       (SELECT CASE WHEN m.provider='FIREBASE' AND m.provider_asset_id LIKE 'news/%'
-                            THEN CONCAT('/api/v1/news/images/',m.id) ELSE m.secure_url END FROM news_images ni
-                        JOIN media_assets m ON m.id = ni.media_id AND m.deleted_at IS NULL
+                       (SELECT CONCAT('/api/v1/news/images/',m.id) FROM news_images ni
+                        JOIN media_assets m ON m.id = ni.media_id AND %s
                         WHERE ni.news_id = p.id
                         ORDER BY ni.sort_order ASC LIMIT 1) AS thumbnail_url
                 FROM news_posts p
                 JOIN users u ON u.id = p.author_user_id
                 """
+                .formatted(NEWS_MEDIA_PREDICATE)
                 + conditions + "\n"
                 + "ORDER BY " + sortClause + "\n"
                 + "LIMIT ? OFFSET ?";
@@ -159,14 +165,12 @@ public class NewsService {
                         new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy bài viết tin tức với ID: " + id));
 
         List<NewsImageResponse> images = jdbc.sql("""
-                SELECT ni.media_id, ni.sort_order,
-                    CASE WHEN m.provider='FIREBASE' AND m.provider_asset_id LIKE 'news/%'
-                        THEN CONCAT('/api/v1/news/images/',m.id) ELSE m.secure_url END AS secure_url
+                SELECT ni.media_id, ni.sort_order, CONCAT('/api/v1/news/images/',m.id) AS secure_url
                 FROM news_images ni
-                JOIN media_assets m ON m.id = ni.media_id AND m.deleted_at IS NULL
+                JOIN media_assets m ON m.id = ni.media_id AND %s
                 WHERE ni.news_id = ?
                 ORDER BY ni.sort_order ASC
-                """)
+                """.formatted(NEWS_MEDIA_PREDICATE))
                 .param(id)
                 .query((row, index) -> new NewsImageResponse(
                         row.getString("media_id"),
@@ -391,14 +395,13 @@ public class NewsService {
                 throw new IllegalArgumentException("Danh sách ảnh không được chứa mediaId trùng lặp: " + mediaId);
             }
             boolean exists = jdbc.sql("""
-                    SELECT id FROM media_assets WHERE id = ? AND deleted_at IS NULL
-                        AND mime_type IN ('image/png','image/jpeg') FOR SHARE
-                    """)
+                    SELECT m.id FROM media_assets m WHERE m.id = ? AND %s FOR SHARE
+                    """.formatted(NEWS_MEDIA_PREDICATE))
                     .param(mediaId)
                     .query(Long.class).optional().isPresent();
             if (!exists) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Ảnh media không tồn tại hoặc đã bị xóa hoặc không phải PNG/JPEG: ID " + mediaId);
+                        "Chỉ được gắn ảnh PNG/JPEG còn hiệu lực do News tải lên: ID " + mediaId);
             }
         }
     }

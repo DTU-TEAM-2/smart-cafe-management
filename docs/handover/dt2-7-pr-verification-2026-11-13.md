@@ -29,3 +29,11 @@ UI suite dùng response/WebSocket kiểm soát cho hồi quy; không trình bày
 - PR ở trạng thái mở để nhóm review, cần CI và đủ approval theo Git Flow trước khi merge. Không coi việc mở PR là nghiệm thu/deploy.
 
 Skills áp dụng: `cafe-workflow`, `cafe-quality`, `cafe-review`, `cafe-spring-api`, `vercel-react-best-practices` tại `.agents/skills/`; giữ ranh giới auth, dữ liệu và các thành phần đã tích hợp.
+
+## Sửa hai góp ý review PR #15 — 13/11/2026
+
+- **Media boundary:** POST/PUT chỉ nhận PNG/JPEG còn hiệu lực từ `FIREBASE` trong namespace uploader News. List/detail/private-image cùng kiểm nguồn; không trả URL ảnh avatar/menu/feedback đã bị liên kết từ trước. Không xóa hoặc chuyển quyền dữ liệu cũ. Fixture ảnh hợp lệ được đổi sang namespace News, giữ schema nguyên trạng.
+- **Socket budget:** giữ chỗ nguyên tử trước upgrade, mặc định tối đa 256 tổng / 64 pending / 16 IP peer / 4 tài khoản STAFF mỗi instance; từ chối HTTP 429 trước upgrade hoặc close 1013 ở bước xác thực. Pending hết hạn 10 giây, thu hồi khi handshake/transport lỗi, đóng hoặc shutdown. Micrometer ghi số kết nối/pending/từ chối, không gắn thông tin cá nhân. Hợp đồng BE ghi đầy đủ cấu hình, giới hạn proxy/NAT và rate-limit cần triển khai trước production.
+- Đã tái hiện trước sửa: 5 regression media thất bại (ảnh ngoài News vẫn được nhận và URL cũ vẫn trả về). Sau sửa, Maven verify trên MySQL 8.0 `_test` riêng **146/146 đạt**, 0 lỗi, 0 bỏ qua. Trong đó có 7 test socket budget, hai đợt 1.000 admission đồng thời, auth đồng thời, timeout, cleanup và kiểm số lượt revalidation DB trong budget.
+- Test mạng WebSocket/Tomcat thật xác nhận kết nối thứ 17 cùng IP bị chặn **429 + Retry-After**, đóng một socket rồi nhận kết nối mới và xác thực `READY`. Stress admission là test Java đồng thời trên handler (session/auth test doubles), không phải benchmark 2.000 socket TCP hoặc chứng nhận chống DDoS production. Test socket hai client/after-commit/quyền vẫn đạt trong full verify.
+- Không đổi frontend trong bản sửa; kết quả UI 96/96 ở revision trước là bằng chứng hồi quy trước đó. CI của commit sửa phải chạy lại trước merge. Không chạy cloud/billing hoặc thay schema/migration.

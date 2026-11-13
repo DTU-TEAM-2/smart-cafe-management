@@ -68,7 +68,7 @@ class NewsReviewMySqlTest {
                 """);
         jdbc.update("""
                 INSERT INTO media_assets(id,provider,provider_asset_id,secure_url,mime_type,size_bytes)
-                VALUES (901,'FIREBASE','review-image','https://example.invalid/review.jpg','image/jpeg',12)
+                VALUES (901,'FIREBASE','news/00000000-0000-0000-0000-000000000901.jpg','https://example.invalid/review.jpg','image/jpeg',12)
                 """);
     }
 
@@ -222,6 +222,35 @@ class NewsReviewMySqlTest {
                 assertThat(first.messages.poll()).isNull();
                 mvc.perform(get("/api/v1/news").header("Authorization", token)).andExpect(status().isForbidden());
             } finally { ws1.abort(); ws2.abort(); }
+        }
+    }
+
+    @Test
+    void realUpgradeRejectsSourceOverflowWith429AndAcceptsAfterDisconnect() throws Exception {
+        var sockets = new java.util.ArrayList<WebSocket>();
+        var listeners = new java.util.ArrayList<SocketClient>();
+        try (var http = HttpClient.newHttpClient()) {
+            try {
+                for (int i = 0; i < 16; i++) {
+                    var listener = new SocketClient(); listeners.add(listener); sockets.add(connect(http, listener));
+                }
+                try {
+                    connect(http, new SocketClient());
+                    throw new AssertionError("A seventeenth source connection must be refused before upgrade");
+                } catch (java.util.concurrent.ExecutionException failure) {
+                    assertThat(failure.getCause()).isInstanceOf(java.net.http.WebSocketHandshakeException.class);
+                    var rejected = (java.net.http.WebSocketHandshakeException) failure.getCause();
+                    assertThat(rejected.getResponse().statusCode()).isEqualTo(429);
+                    assertThat(rejected.getResponse().headers().firstValue("Retry-After")).contains("10");
+                }
+                sockets.getFirst().sendClose(WebSocket.NORMAL_CLOSURE, "release one slot").get(5, TimeUnit.SECONDS);
+                listeners.getFirst().closed.get(5, TimeUnit.SECONDS);
+                var replacementListener = new SocketClient();
+                var replacement = connect(http, replacementListener); sockets.add(replacement);
+                // The budget is per source before auth; an accepted replacement can authenticate normally.
+                replacement.sendText(bearer(902, "review-staff"), true).get(5, TimeUnit.SECONDS);
+                assertThat(replacementListener.messages.poll(5, TimeUnit.SECONDS)).contains("READY");
+            } finally { sockets.forEach(WebSocket::abort); }
         }
     }
 

@@ -60,8 +60,87 @@ class NewsImageMySqlTest {
         assertThat(jdbc.queryForObject("SELECT DATABASE()", String.class)).endsWith("_test");
         jdbc.update("DELETE FROM news_images");
         jdbc.update("DELETE FROM news_posts");
-        jdbc.update("DELETE FROM users WHERE id=951");
+        jdbc.update("DELETE FROM users WHERE id IN (951,952,953)");
+        jdbc.update("DELETE FROM media_assets WHERE id BETWEEN 9501 AND 9503");
         jdbc.update("DELETE FROM media_assets WHERE provider_asset_id=?", ASSET);
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {"menu", "avatars", "feedback", "wrong-provider", "malformed-news"})
+    void rejectsCrossModuleMediaOnCreateAndUpdateWithoutChangingExistingPost(String namespace) throws Exception {
+        String asset = namespace.equals("wrong-provider") ? ASSET
+                : namespace.equals("malformed-news") ? "news/avatar.png" : namespace + "/foreign.png";
+        jdbc.update("""
+                INSERT INTO media_assets(id,provider,provider_asset_id,secure_url,mime_type,size_bytes)
+                VALUES (9501,?,?, 'https://example.invalid/private-other-module.png','image/png',1)
+                """, namespace.equals("wrong-provider") ? "CLOUDINARY" : "FIREBASE", asset);
+        mvc.perform(post("/api/v1/news").with(user("image-admin").roles("ADMIN"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"audiences\":[\"STAFF\"],\"title\":\"Foreign\",\"body\":\"Body\",\"imageMediaIds\":[9501]}"))
+                .andExpect(status().isBadRequest());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM news_posts", Integer.class)).isZero();
+
+        mvc.perform(post("/api/v1/news").with(user("image-admin").roles("ADMIN"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"audiences\":[\"STAFF\"],\"title\":\"Original\",\"body\":\"Body\"}"))
+                .andExpect(status().isCreated());
+        long postId = jdbc.queryForObject("SELECT id FROM news_posts", Long.class);
+        mvc.perform(put("/api/v1/news/" + postId).with(user("image-admin").roles("ADMIN"))
+                        .header("If-Match", "\"0\"").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"Must not save\",\"body\":\"Body\",\"imageMediaIds\":[9501]}"))
+                .andExpect(status().isBadRequest());
+        assertThat(jdbc.queryForObject("SELECT title FROM news_posts WHERE id=?", String.class, postId)).isEqualTo("Original");
+        assertThat(jdbc.queryForObject("SELECT version FROM news_posts WHERE id=?", Long.class, postId)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM news_images", Integer.class)).isZero();
+    }
+
+    @Test
+    void existingCrossModuleLinksNeverExposeUrlsInListDetailOrPrivateImageEndpoint() throws Exception {
+        jdbc.update("""
+                INSERT INTO users(id,username,password_hash,full_name,email,role,status)
+                VALUES (952,'image-staff','not-a-login-hash','Staff','image-staff@example.invalid','STAFF','ACTIVE'),
+                       (953,'image-customer','not-a-login-hash','Customer','image-customer@example.invalid','CUSTOMER','ACTIVE')
+                """);
+        jdbc.update("""
+                INSERT INTO media_assets(id,provider,provider_asset_id,secure_url,mime_type,size_bytes)
+                VALUES (9501,'FIREBASE','avatars/foreign.png','https://example.invalid/private-avatar.png','image/png',1),
+                       (9502,'CLOUDINARY','menu/foreign.jpg','https://example.invalid/private-menu.jpg','image/jpeg',1),
+                       (9503,'FIREBASE','feedback/foreign.png','https://example.invalid/private-feedback.png','image/png',1)
+                """);
+        mvc.perform(post("/api/v1/news").with(user("image-admin").roles("ADMIN"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"audiences\":[\"STAFF\",\"CUSTOMER\"],\"title\":\"Legacy links\",\"body\":\"Body\",\"status\":\"PUBLISHED\"}"))
+                .andExpect(status().isCreated());
+        long postId = jdbc.queryForObject("SELECT id FROM news_posts", Long.class);
+        for (int id = 9501; id <= 9503; id++) {
+            jdbc.update("INSERT INTO news_images(news_id,media_id,sort_order) VALUES (?,?,?)", postId, id, id - 9501);
+        }
+        for (String role : new String[]{"ADMIN", "STAFF", "CUSTOMER"}) {
+            String username = "image-" + role.toLowerCase(java.util.Locale.ROOT);
+            mvc.perform(get("/api/v1/news").with(user(username).roles(role)))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.content[0].thumbnailUrl").doesNotExist());
+            mvc.perform(get("/api/v1/news/" + postId).with(user(username).roles(role)))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.images").isEmpty());
+            for (int id = 9501; id <= 9503; id++) {
+                mvc.perform(get("/api/v1/news/images/" + id).with(user(username).roles(role)))
+                        .andExpect(status().isNotFound());
+            }
+        }
+        verify(storage, never()).read(anyString());
+        // Existing foreign links and media remain intact; a read must not silently migrate/delete them.
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM news_images", Integer.class)).isEqualTo(3);
+        mvc.perform(multipart("/api/v1/news/images").file(png()).with(user("image-admin").roles("ADMIN")))
+                .andExpect(status().isCreated());
+        long nativeId = jdbc.queryForObject("SELECT id FROM media_assets WHERE provider_asset_id=?", Long.class, ASSET);
+        jdbc.update("INSERT INTO news_images(news_id,media_id,sort_order) VALUES (?,?,3)", postId, nativeId);
+        for (String role : new String[]{"ADMIN", "STAFF", "CUSTOMER"}) {
+            String username = "image-" + role.toLowerCase(java.util.Locale.ROOT);
+            mvc.perform(get("/api/v1/news").with(user(username).roles(role)))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.content[0].thumbnailUrl").value("/api/v1/news/images/" + nativeId));
+            mvc.perform(get("/api/v1/news/" + postId).with(user(username).roles(role)))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.images.length()").value(1))
+                    .andExpect(jsonPath("$.images[0].secureUrl").value("/api/v1/news/images/" + nativeId));
+        }
     }
 
     @Test

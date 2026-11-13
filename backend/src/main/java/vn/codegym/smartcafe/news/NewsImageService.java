@@ -67,9 +67,8 @@ class NewsImageService {
         String access = readers.predicate(username);
         var image = jdbc.sql("""
                 SELECT m.provider_asset_id,m.mime_type FROM media_assets m
-                WHERE m.id=? AND m.provider='FIREBASE' AND m.deleted_at IS NULL
-                    AND m.provider_asset_id LIKE 'news/%'
-                """ + (access.isEmpty() ? "" : """
+                WHERE m.id=? AND %s
+                """.formatted(NewsService.NEWS_MEDIA_PREDICATE) + (access.isEmpty() ? "" : """
                     AND EXISTS (SELECT 1 FROM news_images ni JOIN news_posts p ON p.id=ni.news_id
                         WHERE ni.media_id=m.id
                     """ + access + ")"))

@@ -58,8 +58,8 @@ class NewsMySqlTest {
         jdbc.update("DELETE FROM media_assets WHERE id IN (201, 202, 203)");
         jdbc.update("""
                 INSERT INTO media_assets(id, provider, provider_asset_id, secure_url, mime_type, size_bytes, created_at, deleted_at)
-                VALUES (201, 'CLOUDINARY', 'asset-201', 'https://example.invalid/banner1.jpg', 'image/jpeg', 1024, CURRENT_TIMESTAMP(6), NULL),
-                       (202, 'FIREBASE', 'asset-202', 'https://example.invalid/banner2.png', 'image/png', 2048, CURRENT_TIMESTAMP(6), NULL),
+                VALUES (201, 'FIREBASE', 'news/00000000-0000-0000-0000-000000000201.jpg', 'https://example.invalid/banner1.jpg', 'image/jpeg', 1024, CURRENT_TIMESTAMP(6), NULL),
+                       (202, 'FIREBASE', 'news/00000000-0000-0000-0000-000000000202.png', 'https://example.invalid/banner2.png', 'image/png', 2048, CURRENT_TIMESTAMP(6), NULL),
                        (203, 'CLOUDINARY', 'asset-203', 'https://example.invalid/deleted.jpg', 'image/jpeg', 512, CURRENT_TIMESTAMP(6), CURRENT_TIMESTAMP(6))
                 """);
     }
@@ -123,7 +123,7 @@ class NewsMySqlTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.content.length()").value(1))
                 .andExpect(jsonPath("$.content[0].id").value("1"))
-                .andExpect(jsonPath("$.content[0].thumbnailUrl").value("https://example.invalid/banner1.jpg"))
+                .andExpect(jsonPath("$.content[0].thumbnailUrl").value("/api/v1/news/images/201"))
                 .andExpect(jsonPath("$.last").value(true));
 
         // Ascending sort
@@ -207,7 +207,7 @@ class NewsMySqlTest {
                 .andExpect(jsonPath("$.images.length()").value(2))
                 .andExpect(jsonPath("$.images[0].mediaId").value("201"))
                 .andExpect(jsonPath("$.images[0].sortOrder").value(0))
-                .andExpect(jsonPath("$.images[0].secureUrl").value("https://example.invalid/banner1.jpg"))
+                .andExpect(jsonPath("$.images[0].secureUrl").value("/api/v1/news/images/201"))
                 .andExpect(jsonPath("$.images[1].mediaId").value("202"))
                 .andExpect(jsonPath("$.images[1].sortOrder").value(1))
                 .andReturn();
@@ -359,7 +359,7 @@ class NewsMySqlTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.detail").value(containsString("Ảnh media không tồn tại hoặc đã bị xóa")));
+                .andExpect(jsonPath("$.detail").value(containsString("do News tải lên")));
 
         // Pre-validation check, not evidence of rollback after an INSERT
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM news_posts", Integer.class)).isZero();

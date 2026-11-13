@@ -69,7 +69,7 @@ Kiểm thử ảnh miễn phí dùng Firebase Storage Emulator chính thức, pr
 
 Upload trả mediaId, url, mimeType, sizeBytes, width, height. Trước tiên upload, sau đó lưu metadata vào media_assets hiện có với provider FIREBASE. Nếu transaction metadata rollback, dọn object đã upload; khi kết quả transaction không xác định thì giữ object và ghi nhận cần đối soát. Dọn object thất bại là giới hạn cần vận hành xử lý, không giả vờ có distributed transaction với Firebase.
 
-DB lưu canonical HTTPS object URL không chứa token. Với ảnh do module này upload, detail/thumbnail trả đường dẫn backend /api/v1/news/images/{id}. Client phải tải ảnh bằng Authorization rồi tạo blob URL; thẻ img đơn thuần không tự gửi bearer. Backend kiểm quyền bài trước khi dùng SDK đọc bucket riêng; không lưu URL ký có hạn hoặc Firebase download token trong DB. Media cũ ngoài namespace news giữ URL hiện có, không tự đổi quyền dịch vụ khác.
+DB lưu canonical HTTPS object URL không chứa token. Với ảnh do module này upload, detail/thumbnail trả đường dẫn backend /api/v1/news/images/{id}. Client phải tải ảnh bằng Authorization rồi tạo blob URL; thẻ img đơn thuần không tự gửi bearer. Backend kiểm quyền bài trước khi dùng SDK đọc bucket riêng; không lưu URL ký có hạn hoặc Firebase download token trong DB. News chỉ nhận media còn hiệu lực với provider FIREBASE, MIME PNG/JPEG và asset ID dạng news/<UUID>.png hoặc .jpg do uploader của News tạo. ID avatar/menu/feedback hoặc provider/namespace khác bị từ chối khi POST/PUT; không có quyền tái sử dụng media chéo module. Với liên kết cũ ngoài biên này, danh sách/chi tiết không trả URL hoặc ID ảnh đó, kể cả ADMIN; không tự xóa liên kết/media hoặc đổi ACL của module khác.
 
 Upload tạo media độc lập để form dùng khi lưu bài. Hủy form có thể để lại ảnh chưa liên kết; không có job tự xóa khi chưa có chính sách retention/ownership của module media. Không tự xóa media dùng chung khi gỡ ảnh/lưu trữ bài.
 
@@ -103,3 +103,22 @@ Maven verify trên MySQL riêng đạt 126/126, UI desktop/mobile 68/68; tích h
 ## Bàn giao PR ngày 13/11/2026
 
 Chủ repo yêu cầu “fix rồi đẩy lên, open luôn”: cho phép commit/push nhánh `feature/dt2-7-news-backend` và mở PR vào `develop`, thay giới hạn chỉ làm local trước đó. Đã ghép baseline `develop@79896a9`, giữ QR khách hàng, menu preview và workflow Postman mới. Không nhập source issuer DT2-2 chưa merge; đăng nhập cần module đó hoặc proxy tới instance thật, cùng DB và secret. Firebase chỉ dùng emulator miễn phí trên MySQL `_test`; không bật cloud/billing. PR chờ review, chưa merge hoặc deploy.
+
+## Gia cố theo review PR #15 — 13/11/2026
+
+Chủ repo yêu cầu sửa hai góp ý P2. Giới hạn nguồn ảnh ở trên được áp dụng cho cả ghi và đọc, dùng `provider`, `provider_asset_id`, `mime_type`, `deleted_at` hiện có; không thêm cột hoặc sửa migration.
+
+WebSocket giữ chỗ nguyên tử **trước HTTP upgrade**, tính cả upgrade đang chờ và socket đã mở. Hạn mức theo mỗi instance:
+
+| Spring property | Mặc định | Ý nghĩa |
+| --- | --- | --- |
+| smartcafe.news.socket.max-connections | 256 | Tổng chỗ giữ lại; hợp lệ 1–4096 |
+| smartcafe.news.socket.max-pending | 64 | Upgrade/socket chưa xác thực, không vượt tổng |
+| smartcafe.news.socket.max-per-source | 16 | Theo IP peer thực tế, gồm cả chưa xác thực, không vượt tổng |
+| smartcafe.news.socket.max-per-account | 4 | STAFF cùng username chuẩn từ DB; không vượt tổng |
+
+Đây là cấu hình vận hành, không phải enum/schema hoặc yêu cầu nghiệp vụ mới. Cấp qua cấu hình Spring ngoài repo/JVM system properties theo môi trường, không đặt secret vào Git. Cấu hình không hợp lệ làm startup thất bại thay vì tắt bảo vệ. Chạm quota trước upgrade trả HTTP 429 + Retry-After: 10; chạm quota tài khoản sau bearer đóng 1013. Pending có deadline 10 giây và được quét mỗi giây; bearer đến muộn bị từ chối trước truy vấn DB. HTTP lỗi/transport lỗi/đóng socket/shutdown giải phóng chỗ; chưa hoàn tất upgrade cũng hết hạn. Tái kiểm quyền STAFF vẫn mỗi 5 giây, chỉ áp dụng các kết nối đã được nhận trong budget.
+
+Không đọc X-Forwarded-For tùy ý làm khóa quota. Sau reverse proxy, peer có thể là IP proxy dùng chung: người triển khai phải cấu hình trusted proxy/NAT và quota tương ứng, không mở tin cậy header do client tự gửi. Hạn mức này không thay rate-limit HTTP/upgrade tại reverse proxy, giới hạn file descriptor/thread hoặc kiểm thử tải trên hạ tầng thật. Proxy chưa được triển khai trong PR; phải có rate-limit phù hợp trước production.
+
+Micrometer đăng ký gauge news.websocket.connections/pending và counter news.websocket.rejected theo lý do hữu hạn; không tag IP/user/token. Chỉ đăng ký meter, không tự mở endpoint metrics công khai hoặc giả có dashboard/alert đã triển khai. Kênh vẫn một instance; quota không phải hạn mức cluster.
