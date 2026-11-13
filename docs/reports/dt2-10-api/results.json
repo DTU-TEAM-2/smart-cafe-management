@@ -1,0 +1,428 @@
+{
+  "generatedAt": "2026-11-13T06:12:46.229431500Z",
+  "transport": "HTTP thật · Spring Boot / Tomcat · MySQL 9.6.0 · BCrypt",
+  "authentication": "Bearer HMAC test-only theo contract auth chung; role/status/auth_version đọc từ users của schema test.",
+  "cases": [
+    {
+      "id": "TC-01",
+      "title": "Admin truy cập danh sách nhân viên",
+      "observations": [
+        {
+          "request": "GET /api/v1/staff",
+          "actual": "200",
+          "expected": "200"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 390
+    },
+    {
+      "id": "TC-02",
+      "title": "Nhân viên (Role STAFF) bị từ chối truy cập danh sách",
+      "observations": [
+        {
+          "request": "GET /api/v1/staff",
+          "actual": "403",
+          "expected": "403"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 77
+    },
+    {
+      "id": "TC-03",
+      "title": "Khách chưa đăng nhập (Anonymous) bị từ chối truy cập",
+      "observations": [
+        {
+          "request": "GET /api/v1/staff",
+          "actual": "403",
+          "expected": "403"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 10
+    },
+    {
+      "id": "TC-04",
+      "title": "Phân trang danh sách nhân viên mặc định 10 bản ghi",
+      "observations": [
+        {
+          "request": "GET /api/v1/staff?page=0&size=10",
+          "actual": "200",
+          "expected": "200"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 46
+    },
+    {
+      "id": "TC-05",
+      "title": "Tìm kiếm nhân viên theo Username (Điều kiện OR)",
+      "observations": [
+        {
+          "request": "GET /api/v1/staff?keyword=stf_mwekyb4f",
+          "actual": "200",
+          "expected": "200"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 25
+    },
+    {
+      "id": "TC-06",
+      "title": "Tìm kiếm nhân viên theo Họ tên (Điều kiện OR)",
+      "observations": [
+        {
+          "request": "GET /api/v1/staff?keyword=Ph%E1%BB%A5c%20v%E1%BB%A5",
+          "actual": "200",
+          "expected": "200"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 24
+    },
+    {
+      "id": "TC-07",
+      "title": "Tìm kiếm nhân viên theo Số điện thoại (Điều kiện OR)",
+      "observations": [
+        {
+          "request": "GET /api/v1/staff?keyword=0908888888",
+          "actual": "200",
+          "expected": "200"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 20
+    },
+    {
+      "id": "TC-08",
+      "title": "Tìm kiếm với từ khóa không tồn tại trả về danh sách rỗng",
+      "observations": [
+        {
+          "request": "GET /api/v1/staff?keyword=non_existing_random_xyz",
+          "actual": "200",
+          "expected": "200"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 18
+    },
+    {
+      "id": "TC-09",
+      "title": "Admin lấy CSRF Token để bảo mật thao tác thay đổi dữ liệu",
+      "observations": [
+        {
+          "request": "GET /api/v1/staff/csrf",
+          "actual": "200",
+          "expected": "200"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 52
+    },
+    {
+      "id": "TC-10",
+      "title": "Admin thêm nhân viên mới hợp lệ",
+      "observations": [
+        {
+          "request": "POST /api/v1/staff",
+          "actual": "201",
+          "expected": "201"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 230
+    },
+    {
+      "id": "TC-11",
+      "title": "Thêm nhân viên với Username ngắn hơn 6 ký tự bị từ chối",
+      "observations": [
+        {
+          "request": "POST /api/v1/staff",
+          "actual": "400",
+          "expected": "400"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 29
+    },
+    {
+      "id": "TC-12",
+      "title": "Thêm nhân viên với Username bắt đầu bằng chữ số bị từ chối",
+      "observations": [
+        {
+          "request": "POST /api/v1/staff",
+          "actual": "400",
+          "expected": "400"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 19
+    },
+    {
+      "id": "TC-13",
+      "title": "Thêm nhân viên với Username trùng tên cấm (admin/root) bị từ chối",
+      "observations": [
+        {
+          "request": "POST /api/v1/staff",
+          "actual": "400",
+          "expected": "400"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 23
+    },
+    {
+      "id": "TC-14",
+      "title": "Thêm nhân viên với Lương không phải bội số 100,000 VND bị từ chối",
+      "observations": [
+        {
+          "request": "POST /api/v1/staff",
+          "actual": "400",
+          "expected": "400"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 19
+    },
+    {
+      "id": "TC-15",
+      "title": "Thêm nhân viên với Username đã tồn tại bị báo lỗi xung đột (Conflict)",
+      "observations": [
+        {
+          "request": "POST /api/v1/staff",
+          "actual": "409",
+          "expected": "409"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 19
+    },
+    {
+      "id": "TC-16",
+      "title": "Admin xem chi tiết thông tin nhân viên theo ID",
+      "observations": [
+        {
+          "request": "GET /api/v1/staff/535",
+          "actual": "200",
+          "expected": "200"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 15
+    },
+    {
+      "id": "TC-17",
+      "title": "Admin cập nhật thông tin nhân viên thành công",
+      "observations": [
+        {
+          "request": "PUT /api/v1/staff/535",
+          "actual": "200",
+          "expected": "200"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 44
+    },
+    {
+      "id": "TC-18",
+      "title": "Admin tự xóa tài khoản của chính mình bị hệ thống từ chối",
+      "observations": [
+        {
+          "request": "DELETE /api/v1/staff/520",
+          "actual": "409",
+          "expected": "409"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 18
+    },
+    {
+      "id": "TC-19",
+      "title": "Admin xóa nhân viên thành công (Xóa mềm INACTIVE, bảo toàn toàn vẹn dữ liệu)",
+      "observations": [
+        {
+          "request": "DELETE /api/v1/staff/535",
+          "actual": "204",
+          "expected": "204"
+        },
+        {
+          "request": "GET /api/v1/staff/535",
+          "actual": "404",
+          "expected": "404"
+        },
+        {
+          "request": "GET /api/v1/staff?keyword=nv_moi_mwekyb4f",
+          "actual": "200",
+          "expected": "200"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 80
+    },
+    {
+      "id": "TC-20",
+      "title": "Tài khoản khách hàng (CUSTOMER) bị cô lập khỏi API nhân sự (404 Not Found)",
+      "observations": [
+        {
+          "request": "GET /api/v1/staff/522",
+          "actual": "404",
+          "expected": "404"
+        },
+        {
+          "request": "GET /api/v1/staff?keyword=cust_mwekyb4f",
+          "actual": "200",
+          "expected": "200"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 38
+    },
+    {
+      "id": "TC-21",
+      "title": "Phân trang với chỉ số page lớn không gây lỗi tràn số 503 (trả về danh sách rỗng 200 OK)",
+      "observations": [
+        {
+          "request": "GET /api/v1/staff?page=21474837&size=100",
+          "actual": "200",
+          "expected": "200"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 18
+    },
+    {
+      "id": "TC-22",
+      "title": "Quản trị viên tự hạ quyền thành STAFF bị hệ thống từ chối (400 Bad Request)",
+      "observations": [
+        {
+          "request": "PUT /api/v1/staff/520",
+          "actual": "400",
+          "expected": "400"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 25
+    },
+    {
+      "id": "TC-23",
+      "title": "Giới hạn tối đa 2 Quản trị viên: từ chối tạo thêm Quản trị viên thứ 3",
+      "observations": [
+        {
+          "request": "POST /api/v1/staff",
+          "actual": "201",
+          "expected": "201"
+        },
+        {
+          "request": "POST /api/v1/staff",
+          "actual": "400",
+          "expected": "400"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 159
+    },
+    {
+      "id": "TC-24",
+      "title": "Lương vượt quá 18 chữ số (DECIMAL(18,0)) bị từ chối (400 Bad Request)",
+      "observations": [
+        {
+          "request": "POST /api/v1/staff",
+          "actual": "400",
+          "expected": "400"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 18
+    },
+    {
+      "id": "TC-25",
+      "title": "Quản trị viên không được phép hạ quyền Quản trị viên khác thành STAFF (400 Bad Request)",
+      "observations": [
+        {
+          "request": "PUT /api/v1/staff/536",
+          "actual": "400",
+          "expected": "400"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 25
+    },
+    {
+      "id": "TC-26",
+      "title": "Tài khoản nhân viên tạo mới được kích hoạt must_change_password=1 bảo mật onboarding",
+      "observations": [],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 2
+    },
+    {
+      "id": "TC-27",
+      "title": "Kiểm tra Concurrency: Hai request tạo Admin đồng thời vẫn bảo đảm không vượt quá 2 Admin",
+      "observations": [
+        {
+          "request": "POST /api/v1/staff",
+          "actual": "201",
+          "expected": "-1"
+        },
+        {
+          "request": "POST /api/v1/staff",
+          "actual": "400",
+          "expected": "-1"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 169
+    },
+    {
+      "id": "TC-28",
+      "title": "Không được phép xóa tài khoản Quản trị viên (ADMIN) qua API Staff (400 Bad Request, bảo đảm tối thiểu 1 Admin)",
+      "observations": [
+        {
+          "request": "DELETE /api/v1/staff/537",
+          "actual": "400",
+          "expected": "400"
+        },
+        {
+          "request": "DELETE /api/v1/staff/520",
+          "actual": "400",
+          "expected": "-1"
+        },
+        {
+          "request": "DELETE /api/v1/staff/537",
+          "actual": "400",
+          "expected": "-1"
+        }
+      ],
+      "result": "PASS",
+      "note": "Mã HTTP và phản hồi JSON đạt kỳ vọng.",
+      "durationMs": 47
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 const currency = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" });
 const specials = [

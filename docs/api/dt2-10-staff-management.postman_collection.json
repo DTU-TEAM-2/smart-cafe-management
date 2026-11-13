@@ -1,0 +1,223 @@
+{
+	"info": {
+		"_postman_id": "dt2-10-staff-management-collection",
+		"name": "SMART CAFE - DT2-10 Quản lý nhân viên (Staff Management)",
+		"description": "Bộ API kiểm thử đầy đủ cho chức năng DT2-10 Quản lý nhân viên: CRUD, Phân quyền ADMIN, Phân trang 10/trang, Tìm kiếm OR, CSRF, và Soft delete.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "baseUrl",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "csrfToken",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "createdStaffId",
+			"value": "1",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "01. Lấy CSRF Token (Admin)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"var jsonData = pm.response.json();",
+							"pm.collectionVariables.set('csrfToken', jsonData.token);",
+							"pm.test('Status code is 200', function () { pm.response.to.have.status(200); });"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/staff/csrf",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "v1", "staff", "csrf"]
+				}
+			}
+		},
+		{
+			"name": "02. Lấy danh sách nhân viên (Phân trang mặc định)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/staff?page=0&size=10",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "v1", "staff"],
+					"query": [
+						{ "key": "page", "value": "0" },
+						{ "key": "size", "value": "10" }
+					]
+				}
+			}
+		},
+		{
+			"name": "03. Tìm kiếm nhân viên (OR: Username / Tên / SĐT)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/staff?keyword=admin123",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "v1", "staff"],
+					"query": [
+						{ "key": "keyword", "value": "admin123" }
+					]
+				}
+			}
+		},
+		{
+			"name": "04. Thêm nhân viên mới (POST)",
+			"event": [
+				{
+					"listen": "test",
+					"script": {
+						"exec": [
+							"if (pm.response.code === 201) {",
+							"    var data = pm.response.json();",
+							"    pm.collectionVariables.set('createdStaffId', data.id);",
+							"}"
+						],
+						"type": "text/javascript"
+					}
+				}
+			],
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					},
+					{
+						"key": "X-CSRF-TOKEN",
+						"value": "{{csrfToken}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"username\": \"nhanvien_moi\",\n  \"fullName\": \"Trần Thị Thu Hà\",\n  \"email\": \"thuha@smartcafe.vn\",\n  \"phone\": \"0988776655\",\n  \"address\": \"123 Hải Phòng, Đà Nẵng\",\n  \"gender\": \"FEMALE\",\n  \"birthday\": \"2000-05-15\",\n  \"role\": \"STAFF\",\n  \"salary\": 6500000\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/staff",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "v1", "staff"]
+				}
+			}
+		},
+		{
+			"name": "05. Xem chi tiết nhân viên (GET by ID)",
+			"request": {
+				"method": "GET",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/staff/{{createdStaffId}}",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "v1", "staff", "{{createdStaffId}}"]
+				}
+			}
+		},
+		{
+			"name": "06. Cập nhật thông tin nhân viên (PUT by ID)",
+			"request": {
+				"method": "PUT",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					},
+					{
+						"key": "X-CSRF-TOKEN",
+						"value": "{{csrfToken}}",
+						"type": "text"
+					},
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"fullName\": \"Trần Thị Thu Hà (Đã cập nhật)\",\n  \"email\": \"thuha_upd@smartcafe.vn\",\n  \"phone\": \"0988776655\",\n  \"address\": \"456 Lê Duẩn, Đà Nẵng\",\n  \"gender\": \"FEMALE\",\n  \"birthday\": \"2000-05-15\",\n  \"role\": \"STAFF\",\n  \"salary\": 7000000,\n  \"status\": \"ACTIVE\"\n}"
+				},
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/staff/{{createdStaffId}}",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "v1", "staff", "{{createdStaffId}}"]
+				}
+			}
+		},
+		{
+			"name": "07. Xóa nhân viên - Soft Delete (DELETE by ID)",
+			"request": {
+				"method": "DELETE",
+				"header": [
+					{
+						"key": "Authorization",
+						"value": "Bearer {{token}}",
+						"type": "text"
+					},
+					{
+						"key": "X-CSRF-TOKEN",
+						"value": "{{csrfToken}}",
+						"type": "text"
+					}
+				],
+				"url": {
+					"raw": "{{baseUrl}}/api/v1/staff/{{createdStaffId}}",
+					"host": ["{{baseUrl}}"],
+					"path": ["api", "v1", "staff", "{{createdStaffId}}"]
+				}
+			}
+		}
+	]
+}
