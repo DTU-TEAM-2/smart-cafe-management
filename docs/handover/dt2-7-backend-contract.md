@@ -3,7 +3,7 @@
 ## Nguồn và phạm vi
 
 - [DT2-7](https://duymanhdnvn20092005.atlassian.net/browse/DT2-7), đọc ngày 11/11/2026: danh sách, đăng, cập nhật, xóa tin; upload ảnh qua Firebase; socket thông báo thay đổi cho client khác. Ticket xác nhận SRS text chưa mô tả chi tiết quyền/trường của màn hình tin tức.
-- Ban đầu người dùng yêu cầu chỉ làm BE, review và sửa local, chưa commit/push. Ngày 11/11 người dùng giao lựa chọn cách triển khai hợp lý và yêu cầu đưa phần chưa rõ vào Q&A để hỏi khách hàng. Chỉ thị tiếp theo mở rộng sang toàn bộ Task 7 gồm [React UI](dt2-7-frontend-contract.md); lệnh chưa commit/push vẫn giữ nguyên.
+- Ban đầu người dùng yêu cầu chỉ làm BE, review và sửa local, chưa commit/push. Ngày 11/11 người dùng giao lựa chọn cách triển khai hợp lý và yêu cầu đưa phần chưa rõ vào Q&A để hỏi khách hàng. Chỉ thị tiếp theo mở rộng sang toàn bộ Task 7 gồm [React UI](dt2-7-frontend-contract.md). Ngày 13/11 chủ repo cho phép sửa tích hợp, commit/push và mở PR vào develop; xem mục bàn giao cuối tài liệu.
 - BE Spring Boot, MySQL; schema gốc theo ảnh 11/11 và DDL thực tế, cộng phần mở rộng hai cột được chủ repo duyệt tại ADR-005. Ban đầu SQL chỉ áp dụng trên _test; sau chỉ thị riêng của chủ repo tại ADR-006, đã áp dụng cùng SQL trên smart_cafe local. Không seed hoặc ghi row nghiệp vụ.
 
 ## Q&A đã trả lời và quyết định triển khai

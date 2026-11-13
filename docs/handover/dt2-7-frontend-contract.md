@@ -2,7 +2,7 @@
 
 ## Phạm vi và nguồn
 
-Chủ repo mở rộng từ BE sang “làm ui luôn… full task 7” ngày 11/11/2026, tiếp tục yêu cầu review local và chưa commit/push. React dùng lại Header/Footer, bảng màu nâu/vàng, font và bố cục responsive của LECKER. Đây là cách nhóm hiện thực prototype theo Q&A 10, chưa phải xác nhận pixel-perfect từ một bản Figma tin tức được duyệt.
+Chủ repo mở rộng từ BE sang “làm ui luôn… full task 7” ngày 11/11/2026, tại thời điểm đó yêu cầu review local và chưa commit/push. Quyền mở PR đã được chủ repo cấp ngày 13/11, xem mục bàn giao cuối tài liệu. React dùng lại Header/Footer, bảng màu nâu/vàng, font và bố cục responsive của LECKER. Đây là cách nhóm hiện thực prototype theo Q&A 10, chưa phải xác nhận pixel-perfect từ một bản Figma tin tức được duyệt.
 
 [Q&A 4, 5, 19, 20](dt2-7-qa-replies-2026-11-11.md) và [backend contract](dt2-7-backend-contract.md) xác định quyền, xóa mềm, nhóm nhận và socket. Không mở quyền quản trị STAFF hoặc quyền đọc ẩn danh. Không thay đổi schema trong phần UI.
 

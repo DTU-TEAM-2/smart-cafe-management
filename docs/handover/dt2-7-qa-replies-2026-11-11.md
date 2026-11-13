@@ -1,6 +1,6 @@
 # DT2-7 — phản hồi Q&A 19–20
 
-Nguồn: [ảnh phản hồi do chủ repo gửi ngày 11/11/2026](evidence/dt2-7-qa-replies-2026-11-11.png). Chủ repo yêu cầu triển khai sau khi gửi phản hồi. Ban đầu phạm vi chỉ backend local; sau đó chủ repo yêu cầu “làm ui luôn… full task 7”. Phạm vi hiện tại gồm BE và React UI, vẫn chưa commit/push. Hành vi UI tại [handoff frontend](dt2-7-frontend-contract.md).
+Nguồn: [ảnh phản hồi do chủ repo gửi ngày 11/11/2026](evidence/dt2-7-qa-replies-2026-11-11.png). Chủ repo yêu cầu triển khai sau khi gửi phản hồi. Ban đầu phạm vi chỉ backend local; sau đó chủ repo yêu cầu “làm ui luôn… full task 7”. Phạm vi gồm BE và React UI. Ban đầu chỉ làm local; ngày 13/11 chủ repo cho phép commit/push và mở PR vào develop. Hành vi UI tại [handoff frontend](dt2-7-frontend-contract.md).
 
 ## Phản hồi gốc
 
