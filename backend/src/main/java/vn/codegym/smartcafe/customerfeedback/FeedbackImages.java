@@ -9,6 +9,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 @Component
 public class FeedbackImages {
+    private static final long MAX_PIXELS = 4_000_000;
     public record Image(byte[] bytes, String contentType, String extension, int width, int height) { }
     public List<Image> validate(List<MultipartFile> files) {
         if (files == null || files.isEmpty() || files.size() > 3) throw new IllegalArgumentException("Vui lòng chọn từ 1 đến 3 ảnh.");
@@ -28,6 +29,9 @@ public class FeedbackImages {
                     if (!List.of("jpeg", "png").contains(format)) throw new IllegalArgumentException("Chỉ hỗ trợ ảnh JPEG và PNG.");
                     int width = reader.getWidth(0), height = reader.getHeight(0);
                     if (width < 1 || height < 1 || width > 4096 || height > 4096) throw new IllegalArgumentException("Kích thước ảnh tối đa 4096 × 4096 pixel.");
+                    if ((long) width * height > MAX_PIXELS) {
+                        throw new IllegalArgumentException("Mỗi ảnh không được vượt quá 4 triệu điểm ảnh.");
+                    }
                     if (reader.read(0) == null) throw new IllegalArgumentException("Ảnh không đọc được.");
                     return new Image(bytes, "image/" + format, format.equals("jpeg") ? "jpg" : "png", width, height);
                 } finally { reader.dispose(); }

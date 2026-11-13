@@ -10,6 +10,14 @@ import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class FeedbackImagesTest {
+    @Test void rejectsPixelBudgetEvenWhenCompressedFileAndDimensionsFit() throws Exception {
+        var bytes = new ByteArrayOutputStream();
+        ImageIO.write(new BufferedImage(2001, 2000, BufferedImage.TYPE_BYTE_GRAY), "png", bytes);
+        assertThat(bytes.size()).isLessThan(5 * 1024 * 1024);
+        var file = new MockMultipartFile("images", "large.png", "image/png", bytes.toByteArray());
+        assertThatThrownBy(() -> new FeedbackImages().validate(List.of(file)))
+                .isInstanceOf(IllegalArgumentException.class).hasMessageContaining("4 triệu điểm ảnh");
+    }
     static byte[] png() throws Exception {
         var bytes=new ByteArrayOutputStream(); ImageIO.write(new BufferedImage(2,2,BufferedImage.TYPE_INT_RGB),"png",bytes);return bytes.toByteArray();
     }

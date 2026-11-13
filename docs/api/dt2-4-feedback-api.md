@@ -17,16 +17,23 @@ Nguồn: prompt chủ repo, Jira DT2-4/DT2-33 và [ảnh phản hồi](../handov
 
 ## Multipart với ảnh
 
-Cùng POST, `multipart/form-data`, part `feedback` có Content-Type application/json như trên, một đến ba part `images`. Chỉ JPEG/PNG đọc được từ bytes thật (không tin filename/MIME), mỗi ảnh ≤5 MiB, chiều rộng/cao 1–4096 pixel. Request tối đa 16 MiB; giới hạn file chung vẫn 5 MiB. Không có endpoint attach vào feedbackId tùy ý để tránh gắn ảnh trái quyền sau submit.
+Cùng POST, `multipart/form-data`, part `feedback` có Content-Type application/json như trên, một đến ba part `images`. Chỉ JPEG/PNG đọc được từ bytes thật, mỗi ảnh ≤5 MiB, mỗi cạnh 1–4096 pixel và tối đa 4.000.000 điểm ảnh. Backend kiểm tra kích thước trước khi giải mã raster. Request tối đa 16 MiB. Ảnh được gửi cùng phản hồi mới.
 
 Kiểm tra tất cả file trước upload. Cloud calls ngoài DB transaction; transaction lưu feedback + media_assets(provider FIREBASE) + feedback_images/sort_order. Không lưu binary ở MySQL. Nếu upload/persistence thất bại, rollback DB và cố gắng xóa object đã upload; lỗi cleanup ghi thông báo không chứa tên/email/credential. Process crash hoặc provider không phản hồi có thể để object mồ côi: cần cơ chế đối soát/lifecycle của thành viên vận hành trước production, không tuyên bố có distributed transaction.
 
 ## Biến môi trường và phần đang chờ
 
+Mặc định mỗi tiến trình nhận tối đa 20 lượt POST Feedback/phút cho mỗi địa chỉ nguồn và 120 lượt/phút tổng cộng, tính theo phút UTC. Bộ đếm chạy trước khi đọc body và tính cả lượt sai CSRF hoặc validation. Quá ngưỡng trả `429` kèm `Retry-After` theo giây. Giới hạn dùng địa chỉ do servlet container cung cấp. Khi triển khai sau reverse proxy, chỉ cấu hình nhận địa chỉ chuyển tiếp từ proxy tin cậy. Nhiều replica cần quota chung ở tầng proxy/gateway.
+
+Mỗi tiến trình mặc định nhận tối đa 2 request multipart đồng thời, tính từ trước khi parse đến khi xử lý xong upload và ghi DB. Request vượt giới hạn trả `503` kèm `Retry-After: 1`. Với mặc định này, tối đa 2 raster đang giải mã (mỗi raster ≤4 triệu điểm ảnh) và 30 MiB dữ liệu ảnh nén giữ trong các lượt upload, chưa tính chi phí bộ nhớ của decoder, SDK và servlet. Đo heap/CPU ở môi trường triển khai trước khi nâng giới hạn hoặc bật Firebase.
+
 ```dotenv
 FEEDBACK_FIREBASE_ENABLED=false
 FIREBASE_STORAGE_BUCKET=
 GOOGLE_APPLICATION_CREDENTIALS=
+FEEDBACK_PER_SOURCE_PER_MINUTE=20
+FEEDBACK_TOTAL_PER_MINUTE=120
+FEEDBACK_CONCURRENT_MULTIPART=2
 ```
 
 Admin SDK 9.11.0 dùng Application Default Credentials; GOOGLE_APPLICATION_CREDENTIALS là đường dẫn file ngoài Git, không phải JSON/key dán vào .env.example. Không hardcode project/bucket/credential, không tự tạo project/billing/IAM. Chỉ bật enabled khi thành viên phụ trách cung cấp bucket và quyền cần thiết. Chưa cấu hình thì multipart ảnh hợp lệ trả 503, không ghi feedback/media; Feedback JSON vẫn hoạt động.
