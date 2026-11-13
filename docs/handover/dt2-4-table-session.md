@@ -13,6 +13,8 @@
 
 ## Phần độc lập đã triển khai
 
+PR #9 đã merge vào main tại `8476ee3`. Nhánh PR #10 đã đồng bộ main qua merge `9790cbb`, không xung đột và tree mã nguồn trùng revision đã kiểm thử `a342090`. PR #10 nhắm main và review độc lập phần tra QR; không chờ hoàn tất nghiệp vụ phiên để review endpoint chỉ đọc này. Quyết định merge vẫn thuộc maintainer, sau khi CI của revision đồng bộ đạt và review được chấp thuận.
+
 `GET /api/v1/customer/tables/qr/{qrPublicId}` cho khách chưa đăng nhập tra bàn từ QR. Kết quả chỉ có `tableId`, `tableCode`, `tableName`, dùng làm ngữ cảnh cho Menu. QR phải là mã UUID đủ 36 ký tự theo cột `cafe_tables.qr_public_id`; đối chiếu mã chính xác theo collation ASCII binary của fixture.
 
 - Bàn ACTIVE: 200 với đúng bàn.
