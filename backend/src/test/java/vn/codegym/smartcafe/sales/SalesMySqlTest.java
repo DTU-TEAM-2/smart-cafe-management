@@ -130,6 +130,7 @@ class SalesMySqlTest {
 
     @Test void billResolvesOnlyItsSessionBillRequest() {
         jdbc.update("INSERT INTO session_clients(id,session_id,access_token_hash,expires_at) VALUES(1,1,REPEAT('f',64),DATE_ADD(CURRENT_TIMESTAMP,INTERVAL 1 DAY))");
+        // Row timestamps must precede FixedClock; wall-clock defaults break temporal constraints after 11/11.
         jdbc.update("""
                 INSERT INTO service_requests(session_id,requested_by_client_id,request_type,idempotency_key,created_at)
                 VALUES(1,1,'BILL','bill-request','2026-11-11 11:59:00'),(1,1,'WAITER','waiter-request','2026-11-11 11:59:00')

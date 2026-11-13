@@ -99,3 +99,7 @@ Theo yêu cầu chủ repo, đã lấy main revision 8476ee30536fdd01b521cb53e5b
 Kiểm thử sau tích hợp phát hiện MenuErrors global bắt nhầm lỗi News; đã giới hạn advice vào MenuController, giữ mapping lỗi riêng của từng module. Hai fixture service_requests trong SalesMySqlTest được đặt created_at theo cùng Clock cố định để không vi phạm CHECK khi chạy ngày khác. Không sửa đồng hồ nghiệp vụ hoặc constraint/schema.
 
 Maven verify trên MySQL riêng đạt 126/126, UI desktop/mobile 68/68; tích hợp HTTP/WebSocket/browser/ảnh với auth PR #7 revision fbaa952 đạt 113/113. Auth vẫn chạy riêng để kiểm thử, chưa nhập PR chưa được duyệt vào source. Log, bản sao trước tích hợp và diff ở F:/CODEGYM/_local-reviews/dt2-7-main-sync-2026-11-12, ngoài Git. Chưa stage/commit/push hoặc merge PR trên GitHub.
+
+## Bàn giao PR ngày 13/11/2026
+
+Chủ repo yêu cầu “fix rồi đẩy lên, open luôn”: cho phép commit/push nhánh `feature/dt2-7-news-backend` và mở PR vào `develop`, thay giới hạn chỉ làm local trước đó. Đã ghép baseline `develop@79896a9`, giữ QR khách hàng, menu preview và workflow Postman mới. Không nhập source issuer DT2-2 chưa merge; đăng nhập cần module đó hoặc proxy tới instance thật, cùng DB và secret. Firebase chỉ dùng emulator miễn phí trên MySQL `_test`; không bật cloud/billing. PR chờ review, chưa merge hoặc deploy.

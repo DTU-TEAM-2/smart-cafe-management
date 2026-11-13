@@ -1,8 +1,8 @@
 # Smart Cafe — LECKER
 
-Quy trình bắt buộc từ 12/11/2026: [Git Flow](git-flow.md). Feature/bugfix vào develop; main dành release/hotfix. Nhánh chung yêu cầu CI và hai approval độc lập.
-
 Nhánh `main` chứa bộ quy tắc và skill phát triển Smart Cafe. Nền tảng được tích hợp qua [PR #1](https://github.com/DTU-TEAM-2/smart-cafe-management/pull/1).
+
+**Quy trình từ 12/11/2026: [Git Flow](git-flow.md).** `develop` tích hợp task; feature/bugfix tách từ develop và PR vào develop. `main` dành cho release/hotfix đã kiểm chứng, sau đó đồng bộ lại develop qua PR. Mọi nhánh chung cần CI và 2 approval độc lập; không commit trực tiếp, không tự merge hoặc tạo tag/deploy khi chưa được giao quyền.
 
 ## Phạm vi PR nền tảng
 
@@ -17,7 +17,7 @@ Nhánh `main` chứa bộ quy tắc và skill phát triển Smart Cafe. Nền t�
 2. Thu thập SRS/project plan hiện hành vào `docs/handover/`; xác nhận phạm vi và các câu hỏi nghiệp vụ.
 3. Tạo backlog với owner, tiêu chí nghiệm thu, phụ thuộc và reviewer; không chuyển task cũ sang Done tự động.
 4. Chốt mô hình dữ liệu, quyền, hợp đồng API và quyết định kiến trúc trước khi triển khai phần phụ thuộc.
-5. Theo [Git Flow](git-flow.md), task tách từ develop và PR vào develop; release/hotfix vào main rồi PR đồng bộ main → develop.
+5. Làm từng task trên nhánh feature/bugfix ngắn hạn từ `develop`, kiểm chứng theo rủi ro, review rồi PR vào develop; chỉ promotion release/hotfix vào main theo git-flow.md.
 
 Kiểm tra nền tảng:
 
@@ -74,7 +74,7 @@ Navicat kết nối bằng host/port/tài khoản tương ứng. Máy khác dùn
 
 Mọi thành viên có thể chạy upload/đọc ảnh local miễn phí bằng Storage Emulator, không cần Firebase login hoặc key của tác giả. Xem [cấu hình Firebase cho nhóm](docs/handover/dt2-7-firebase-setup.md) và [quickstart local](backend/firebase-emulator/README.md): `npm ci`/`npm start` trong thư mục emulator, copy cấu hình mẫu, rồi chạy `start-be.ps1 -EnvFile backend/.env.emulator`. Cần MySQL `_test` riêng đúng schema và module auth DT2-2 thật. Ảnh local được lưu/khôi phục qua export, không nằm trong Git.
 
-Nếu nhóm có backend dev chung, FE chỉ cấu hình base URL API; không chia service-account key cho frontend. Chủ repo cấm tuyệt đối billing/thẻ/Blaze hoặc trial yêu cầu thanh toán. Live Storage được tắt mặc định, kể cả có tên bucket trong env; phần ảnh hiện dùng emulator miễn phí. Các thay đổi Task 7 hiện còn local, chưa commit/push nên clone remote chỉ nhận được sau review/tích hợp.
+Nếu nhóm có backend dev chung, FE chỉ cấu hình base URL API; không chia service-account key cho frontend. Chủ repo cấm tuyệt đối billing/thẻ/Blaze hoặc trial yêu cầu thanh toán. Live Storage được tắt mặc định, kể cả có tên bucket trong env; phần ảnh hiện dùng emulator miễn phí. Task 7 được chủ repo cho phép đẩy nhánh và mở PR ngày 13/11/2026; chỉ có trong develop sau khi PR được review và merge.
 
 ## Kiểm chứng ứng dụng
 
@@ -104,3 +104,6 @@ Database hệ thống hiện chưa có món/tài khoản/order/service thì UI h
 ## Backend DT2-9: món và nhóm món
 
 API ADMIN cho CRUD, tìm kiếm, xóa logic, optimistic locking và upload ảnh tham chiếu media_assets. Dùng auth chung và mô hình DB mới; không tự DDL/seed. Xem [hướng dẫn backend](backend/README.md), [OpenAPI](docs/api/dt2-9-menu.yaml), [testcase Postman](docs/qa/dt2-9-postman-test-cases.md) và [báo cáo HTTP](docs/reports/dt2-9-api/index.html). DDL local legacy chưa khớp sơ đồ; không trỏ module này vào DB cũ để chạy thử.
+## Xem thử FE quản lý món/nhóm món DT2-9
+
+Sau khi chạy Vite, mở `/preview/menu` (ví dụ `http://127.0.0.1:5173/preview/menu`). Dữ liệu minh họa chỉ ở bộ nhớ; tải lại khôi phục mẫu. Các màn trang chủ/bán hàng tại đường dẫn gốc giữ nguyên. Xem [hướng dẫn FE](frontend/README.md) và [báo cáo tích hợp develop](docs/reports/dt2-9-frontend/develop-integration-2026-11-13.md). Menu preview chưa nối API hoặc Cloudinary thật.

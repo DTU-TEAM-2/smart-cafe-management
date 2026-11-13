@@ -29,6 +29,7 @@ class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/home/highlights").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/customer/tables/qr/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/customer/menu/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/home/account").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/home/notifications").hasAnyRole("STAFF", "ADMIN")
