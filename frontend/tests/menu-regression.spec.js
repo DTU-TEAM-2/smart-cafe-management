@@ -33,6 +33,12 @@ test('search covers four criteria, empty keyword, invalid price and show all res
   await expect(page.getByRole('heading', { name: 'Không tìm thấy món' })).toBeVisible();
   await field.selectOption('name'); await keyword.fill('bac xiu');
   await expect(page.getByRole('cell', { name: 'Bạc xỉu', exact: true })).toBeVisible();
+  await keyword.fill('BẠC XỈU');
+  await expect(page.getByRole('cell', { name: 'Bạc xỉu', exact: true })).toBeVisible();
+  for (const literal of ['%', '_', '!']) {
+    await keyword.fill(literal);
+    await expect(page.locator('tbody tr')).toHaveCount(0);
+  }
   await field.selectOption('price'); await keyword.fill('45000');
   await expect(page.locator('tbody tr')).toHaveCount(1);
   await expect(page.getByRole('cell', { name: 'Caramel Latte', exact: true })).toBeVisible();

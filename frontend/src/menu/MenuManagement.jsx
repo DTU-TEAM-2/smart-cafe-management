@@ -5,6 +5,8 @@ import DeleteDialog from './DeleteDialog.jsx';
 import './menu.css';
 
 const money = new Intl.NumberFormat('vi-VN');
+// Preview approximation of the API's case/accent-insensitive MySQL name collation;
+// substring matching still treats %, _ and ! literally, without SQL wildcards.
 const normalize = value => String(value).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd');
 const otherModules = ['▦  Danh sách nhân viên', '◈  Quản lý bàn', '✦  Phản hồi', '▥  Thống kê doanh thu', '▣  Quản lý tin tức'];
 

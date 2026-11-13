@@ -1,5 +1,7 @@
 # DT2-9 — tích hợp frontend vào develop
 
+> Cập nhật sau review: [báo cáo xử lý findings](review-fixes-2026-11-13.md). Menu hiện chỉ bật trên dev, production không chứa preview; giới hạn kích thước ảnh được kiểm từ header trước decode. Kết quả 50 ca bên dưới là mốc tích hợp đầu, không thay bằng chứng mới và không bao gồm Git Flow đang chờ PR #12.
+
 Ngày 13/11/2026. Chủ repo yêu cầu xử lý conflict, tạo PR vào **develop**, đính kèm ảnh giao diện ngay trong mô tả PR. Chỉ tạo PR để review, không merge hoặc deploy. Báo cáo ngày 11/11 là lịch sử bản FE độc lập; bản này cập nhật đường dẫn và bằng chứng sau tích hợp.
 
 ## Phạm vi tích hợp

@@ -6,7 +6,7 @@ npm ci
 npm run dev
 ```
 
-Mở `/preview/menu` trên địa chỉ Vite hiển thị (ví dụ http://127.0.0.1:5173/preview/menu) để xem module thực đơn minh họa, không yêu cầu backend hoặc đăng nhập. Trang gốc giữ nguyên trang chủ và các chức năng từ develop. `npm run build`, `npm run lint`, `npm run test:ui` kiểm tra toàn bộ FE.
+Mở `/preview/menu` trên Vite dev server (ví dụ http://127.0.0.1:5173/preview/menu) để xem module thực đơn minh họa, không yêu cầu backend hoặc đăng nhập. Route và code fixture chỉ bật trong dev; production build không chứa module preview, đường dẫn này không mở giao diện demo. Trang gốc giữ nguyên trang chủ và các chức năng từ develop. `npm run build`, `npm run lint`, `npm run test:ui` kiểm tra toàn bộ FE; Playwright tự khởi động cả dev server và production preview server để kiểm tra guard này.
 
 Dữ liệu trong `src/menu/demoMenu.js` là mẫu theo Figma. Thêm/sửa/xóa chỉ thay đổi React state, tải lại trang khôi phục mẫu; ảnh chọn được đọc cục bộ, không upload ra dịch vụ. Không có tài khoản giả, API hoặc localStorage.
 

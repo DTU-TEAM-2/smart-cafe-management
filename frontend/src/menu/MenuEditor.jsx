@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { imageDimensions } from './imageDimensions.js';
 
 export default function MenuEditor({ kind, value, categories, onSave, onCancel }) {
   const isItem = kind === 'items';
@@ -37,14 +38,13 @@ export default function MenuEditor({ kind, value, categories, onSave, onCancel }
     }
     setReading(true);
     try {
-      const header = new Uint8Array(await file.slice(0, 8).arrayBuffer());
-      const png = [137, 80, 78, 71, 13, 10, 26, 10];
-      const signatureMatches = file.type === 'image/png' ? png.every((byte, index) => header[index] === byte) : header[0] === 255 && header[1] === 216 && header[2] === 255;
-      if (!signatureMatches) throw new Error('Invalid image signature');
+      const buffer = await file.arrayBuffer();
+      if (request !== imageRequest.current) return;
+      const header = imageDimensions(buffer, file.type);
       const image = await createImageBitmap(file);
       const pixels = image.width * image.height;
       image.close();
-      if (pixels < 1 || pixels > 20_000_000) throw new Error('Invalid image dimensions');
+      if (pixels !== header.width * header.height || pixels > 20_000_000) throw new Error('Invalid image dimensions');
     } catch {
       if (request === imageRequest.current) { setImageError('Không đọc được ảnh JPG/PNG hợp lệ hoặc ảnh vượt 20 triệu pixel.'); setReading(false); }
       return;
