@@ -441,6 +441,98 @@ class StaffHttpReportTest {
                 send("POST", "/api/v1/staff", thirdAdminPayload, adminToken, true, 400);
             });
 
+            // TC-24: Salary exceeding 18 digits (DECIMAL(18,0)) rejected
+            run(24, "Lương vượt quá 18 chữ số (DECIMAL(18,0)) bị từ chối (400 Bad Request)", () -> {
+                String bigSalaryPayload = """
+                        {
+                            "username": "sal19_%s",
+                            "fullName": "Luong 19 Chu So",
+                            "email": "sal19_%s@cafe.vn",
+                            "phone": "0909999993",
+                            "address": "Đà Nẵng",
+                            "salary": 1000000000000000000
+                        }
+                        """.formatted(suffix, suffix);
+                send("POST", "/api/v1/staff", bigSalaryPayload, adminToken, true, 400);
+            });
+
+            // TC-25: Admin A cannot demote Admin B to STAFF
+            run(25, "Quản trị viên không được phép hạ quyền Quản trị viên khác thành STAFF (400 Bad Request)", () -> {
+                Long adm2Id = jdbc.queryForObject("SELECT id FROM users WHERE username=?", Long.class, "adm2_" + suffix);
+                String demoteBPayload = """
+                        {
+                            "fullName": "Quản trị viên thứ hai",
+                            "email": "adm2_%s@cafe.vn",
+                            "phone": "0909999991",
+                            "address": "Đà Nẵng",
+                            "role": "STAFF",
+                            "salary": 22000000
+                        }
+                        """.formatted(suffix);
+                send("PUT", "/api/v1/staff/" + adm2Id, demoteBPayload, adminToken, true, 400);
+            });
+
+            // TC-26: Created staff has must_change_password enabled
+            run(26, "Tài khoản nhân viên tạo mới được kích hoạt must_change_password=1 bảo mật onboarding", () -> {
+                Integer mustChange = jdbc.queryForObject(
+                        "SELECT must_change_password FROM users WHERE username=?",
+                        Integer.class,
+                        "adm2_" + suffix);
+                assertThat(mustChange).isEqualTo(1);
+            });
+
+            // TC-27: Concurrency test on Admin creation
+            run(27, "Kiểm tra Concurrency: Hai request tạo Admin đồng thời vẫn bảo đảm không vượt quá 2 Admin", () -> {
+                Long adm2Id = jdbc.queryForObject("SELECT id FROM users WHERE username=?", Long.class, "adm2_" + suffix);
+                jdbc.update("UPDATE users SET status='INACTIVE' WHERE id=?", adm2Id);
+
+                int threads = 2;
+                var executor = java.util.concurrent.Executors.newFixedThreadPool(threads);
+                var latch = new java.util.concurrent.CountDownLatch(1);
+                var statuses = new java.util.concurrent.atomic.AtomicIntegerArray(threads);
+
+                for (int i = 0; i < threads; i++) {
+                    final int index = i;
+                    executor.submit(() -> {
+                        try {
+                            latch.await();
+                            String payload = """
+                                    {
+                                        "username": "cadm%d_%s",
+                                        "fullName": "Concurrent Admin %d",
+                                        "email": "cadm%d_%s@cafe.vn",
+                                        "phone": "090888880%d",
+                                        "address": "Đà Nẵng",
+                                        "role": "ADMIN",
+                                        "salary": 20000000
+                                    }
+                                    """.formatted(index, suffix, index, index, suffix, index);
+                            var resp = send("POST", "/api/v1/staff", payload, adminToken, true, -1);
+                            statuses.set(index, resp.status());
+                        } catch (Exception e) {
+                            statuses.set(index, 500);
+                        }
+                    });
+                }
+
+                latch.countDown();
+                executor.shutdown();
+                executor.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS);
+
+                int count201 = 0;
+                int count400 = 0;
+                for (int i = 0; i < threads; i++) {
+                    if (statuses.get(i) == 201) count201++;
+                    if (statuses.get(i) == 400) count400++;
+                }
+
+                assertThat(count201).isEqualTo(1);
+                assertThat(count400).isEqualTo(1);
+
+                Integer totalAdmins = jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE role = 'ADMIN' AND status = 'ACTIVE'", Integer.class);
+                assertThat(totalAdmins).isEqualTo(2);
+            });
+
         } finally {
             // Write results to JSON
             Path output = Path.of("target/api-report/dt2-10-api-results.json");

@@ -203,7 +203,10 @@ public class StaffService {
                 : "STAFF";
 
         if ("ADMIN".equalsIgnoreCase(role)) {
-            Integer adminCount = jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE role = 'ADMIN' AND status = 'ACTIVE'", Integer.class);
+            // Khóa Next-Key / Gap trên index (role, status) bằng FOR UPDATE để serialize transaction và đọc dữ liệu mới nhất
+            Integer adminCount = jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM users WHERE role = 'ADMIN' AND status = 'ACTIVE' FOR UPDATE",
+                    Integer.class);
             if (adminCount != null && adminCount >= 2) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hệ thống chỉ cho phép tối đa 2 tài khoản Quản trị viên (ADMIN).");
             }
@@ -216,8 +219,8 @@ public class StaffService {
         try {
             jdbc.update(connection -> {
                 var ps = connection.prepareStatement("""
-                        INSERT INTO users(username, password_hash, full_name, email, phone, role, status, avatar_media_id)
-                        VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE', ?)
+                        INSERT INTO users(username, password_hash, full_name, email, phone, role, status, must_change_password, avatar_media_id)
+                        VALUES (?, ?, ?, ?, ?, ?, 'ACTIVE', 1, ?)
                         """, Statement.RETURN_GENERATED_KEYS);
                 ps.setString(1, username);
                 ps.setString(2, passwordHash);
@@ -266,14 +269,17 @@ public class StaffService {
 
         StaffModels.StaffDetail existing = getStaffById(id);
 
-        if (currentUsername != null && currentUsername.equalsIgnoreCase(existing.username())
-                && "ADMIN".equalsIgnoreCase(existing.role())
-                && request.role() != null && "STAFF".equalsIgnoreCase(request.role().trim())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không được tự hạ quyền tài khoản Quản trị viên đang đăng nhập.");
+        if ("ADMIN".equalsIgnoreCase(existing.role())
+                && request.role() != null
+                && !"ADMIN".equalsIgnoreCase(request.role().trim())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Không được phép hạ quyền tài khoản Quản trị viên (ADMIN) theo quy định hệ thống.");
         }
 
         if ("STAFF".equalsIgnoreCase(existing.role()) && request.role() != null && "ADMIN".equalsIgnoreCase(request.role().trim())) {
-            Integer adminCount = jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE role = 'ADMIN' AND status = 'ACTIVE'", Integer.class);
+            // Khóa Next-Key / Gap trên index (role, status) bằng FOR UPDATE để serialize transaction và đọc dữ liệu mới nhất
+            Integer adminCount = jdbc.queryForObject(
+                    "SELECT COUNT(*) FROM users WHERE role = 'ADMIN' AND status = 'ACTIVE' FOR UPDATE",
+                    Integer.class);
             if (adminCount != null && adminCount >= 2) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hệ thống chỉ cho phép tối đa 2 tài khoản Quản trị viên (ADMIN).");
             }

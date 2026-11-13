@@ -8,6 +8,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 public final class StaffValidation {
     private static final BigDecimal MULTIPLE_OF = new BigDecimal("100000");
+    private static final BigDecimal MAX_SALARY = new BigDecimal("999999999999999999"); // DECIMAL(18,0) max value
     private static final Pattern USERNAME_PATTERN = Pattern.compile("^[a-zA-Z][a-zA-Z0-9_]{6,63}$");
     private static final Pattern EMAIL_PATTERN = Pattern.compile("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$");
 
@@ -106,6 +107,9 @@ public final class StaffValidation {
         }
         if (salary.compareTo(BigDecimal.ZERO) <= 0) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Lương phải lớn hơn 0.");
+        }
+        if (salary.compareTo(MAX_SALARY) > 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Mức lương không được vượt quá 18 chữ số (tối đa 999.999.999.999.999.999 VNĐ).");
         }
         try {
             BigDecimal remainder = salary.remainder(MULTIPLE_OF);

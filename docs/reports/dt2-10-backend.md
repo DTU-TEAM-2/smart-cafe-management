@@ -33,10 +33,17 @@
 
 1. **Bộ kiểm thử tích hợp HTTP thật tự động ([`StaffHttpReportTest.java`](../../backend/src/test/java/vn/codegym/smartcafe/staff/StaffHttpReportTest.java)):**
    - Chạy trên Tomcat nhúng ngẫu nhiên cổng + MySQL instance test cách ly (`cafe_dt2_test`).
-   - Kết quả: **`19 / 19 PASS` (100% ĐẠT)**.
+   - Kết quả: **`27 / 27 PASS` (100% ĐẠT)**, bao gồm 19 ca cơ bản và 8 ca kiểm thử nâng cao/hồi quy:
+     - Cô lập tài khoản khách hàng `CUSTOMER` khỏi staff API (`404 Not Found`).
+     - Phân trang chỉ số trang rất lớn không tràn số integer (`200 OK` danh sách rỗng).
+     - Chặn Quản trị viên tự hạ quyền và hạ quyền Quản trị viên khác (`400 Bad Request`).
+     - Ràng buộc tối đa 2 Quản trị viên và chống race condition bằng `SELECT COUNT(*) ... FOR UPDATE`.
+     - Kiểm tra Concurrency: Hai request tạo Admin đồng thời vẫn bảo đảm không vượt quá 2 Admin.
+     - Kiểm tra lương vượt quá 18 chữ số (`DECIMAL(18,0)`) bị từ chối `400 Bad Request`.
+     - Kích hoạt cờ `must_change_password = 1` bảo mật onboarding cho nhân viên mới.
    - Báo cáo HTML trực quan xuất ra tại: [`docs/reports/dt2-10-api/report.html`](dt2-10-api/report.html).
 2. **Bộ kiểm thử MockMvc ([`StaffControllerTest.java`](../../backend/src/test/java/vn/codegym/smartcafe/staff/StaffControllerTest.java)):**
-   - Kết quả: **`6 / 6 PASS`**.
+   - Kết quả: **`13 / 13 PASS`**.
 3. **Bộ kiểm thử hồi quy xác thực ([`HeaderMySqlTest.java`](../../backend/src/test/java/vn/codegym/smartcafe/home/HeaderMySqlTest.java)):**
    - Kết quả: **`5 / 5 PASS`**.
 4. **Kiểm tra quy tắc Governance & Whitespace:**

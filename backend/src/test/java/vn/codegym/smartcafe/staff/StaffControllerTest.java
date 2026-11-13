@@ -297,4 +297,72 @@ class StaffControllerTest {
                         .content(admin3Json))
                 .andExpect(status().isBadRequest());
     }
+
+    @Test
+    void createdStaffHasMustChangePasswordEnabled() throws Exception {
+        String json = """
+                {
+                    "username": "staff_must_change",
+                    "fullName": "Nguyen Van Change",
+                    "email": "change@smartcafe.vn",
+                    "phone": "0912999888",
+                    "address": "Da Nang",
+                    "role": "STAFF",
+                    "salary": 7000000
+                }
+                """;
+        mvc.perform(post("/api/v1/staff").with(user("test_admin").roles("ADMIN")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .andExpect(status().isCreated());
+
+        Integer mustChange = jdbc.queryForObject("SELECT must_change_password FROM users WHERE username = 'staff_must_change'", Integer.class);
+        org.assertj.core.api.Assertions.assertThat(mustChange).isEqualTo(1);
+    }
+
+    @Test
+    void salaryExceeding18DigitsIsRejected() throws Exception {
+        String json = """
+                {
+                    "username": "staff_big_salary",
+                    "fullName": "Nguyen Big Sal",
+                    "email": "bigsal@smartcafe.vn",
+                    "phone": "0912999889",
+                    "address": "Da Nang",
+                    "role": "STAFF",
+                    "salary": 1000000000000000000
+                }
+                """;
+        mvc.perform(post("/api/v1/staff").with(user("test_admin").roles("ADMIN")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void adminCannotDemoteAnotherAdmin() throws Exception {
+        // Create 2nd admin
+        jdbc.update("""
+                INSERT INTO users(username, password_hash, full_name, email, phone, role, status)
+                VALUES ('admin_b', 'hash', 'Admin B', 'admin_b@test.vn', '0901111112', 'ADMIN', 'ACTIVE')
+                """);
+        Long adminBId = jdbc.queryForObject("SELECT id FROM users WHERE username = 'admin_b'", Long.class);
+        jdbc.update("INSERT INTO staff_profiles(user_id, address, gender, salary) VALUES (?, 'Da Nang', 'MALE', 15000000)", adminBId);
+
+        // Admin A tries to demote Admin B to STAFF
+        String demoteJson = """
+                {
+                    "fullName": "Admin B",
+                    "email": "admin_b@test.vn",
+                    "phone": "0901111112",
+                    "address": "Da Nang",
+                    "role": "STAFF",
+                    "salary": 15000000
+                }
+                """;
+        mvc.perform(put("/api/v1/staff/" + adminBId).with(user("test_admin").roles("ADMIN")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(demoteJson))
+                .andExpect(status().isBadRequest());
+    }
 }
