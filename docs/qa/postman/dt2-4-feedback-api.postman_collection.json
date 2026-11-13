@@ -1,0 +1,501 @@
+{
+  "info": {
+    "name": "DT2-4 — Feedback văn bản",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Chỉ chạy trên backend/DB test biệt lập. Không kiểm chứng Firebase hoặc quyền phiên."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:18084"
+    }
+  ],
+  "item": [
+    {
+      "name": "Lấy CSRF cho phản hồi",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/v1/customer/feedback/csrf"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const c=pm.response.json(); pm.collectionVariables.set(\"feedbackCsrf\",c.token); pm.test(\"CSRF không cache\",()=>pm.expect(pm.response.headers.get(\"Cache-Control\")).to.include(\"no-store\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gửi phản hồi hợp lệ",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{feedbackCsrf}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/feedback",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\":\"Khách kiểm thử\",\"email\":\"customer@example.invalid\",\"content\":\"Đồ uống ngon!\",\"rating\":5}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 201\", () => pm.response.to.have.status(201));",
+              "pm.test(\"Lời cảm ơn và ID, không lộ email\",()=>{const r=pm.response.json(); pm.expect(r.message).to.eql(\"Cảm ơn bạn đã gửi phản hồi!\"); pm.expect(r.id).to.match(/^\\d+$/); pm.expect(r).not.to.have.property(\"email\");});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Thiếu các trường bắt buộc",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{feedbackCsrf}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/feedback",
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"Problem Details tiếng Việt\", () => {const r=pm.response.json(); pm.expect(r.status).to.eql(400); pm.expect(r.title).to.eql(\"Thông tin phản hồi không hợp lệ\");});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Email không hợp lệ",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{feedbackCsrf}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/feedback",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\":\"Khách kiểm thử\",\"email\":\"bad-email\",\"content\":\"Đồ uống ngon!\",\"rating\":5}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"Problem Details tiếng Việt\", () => {const r=pm.response.json(); pm.expect(r.status).to.eql(400); pm.expect(r.title).to.eql(\"Thông tin phản hồi không hợp lệ\");});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Rating nhỏ hơn 1",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{feedbackCsrf}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/feedback",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\":\"Khách kiểm thử\",\"email\":\"customer@example.invalid\",\"content\":\"Đồ uống ngon!\",\"rating\":0}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"Problem Details tiếng Việt\", () => {const r=pm.response.json(); pm.expect(r.status).to.eql(400); pm.expect(r.title).to.eql(\"Thông tin phản hồi không hợp lệ\");});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Rating lớn hơn 5",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{feedbackCsrf}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/feedback",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\":\"Khách kiểm thử\",\"email\":\"customer@example.invalid\",\"content\":\"Đồ uống ngon!\",\"rating\":6}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"Problem Details tiếng Việt\", () => {const r=pm.response.json(); pm.expect(r.status).to.eql(400); pm.expect(r.title).to.eql(\"Thông tin phản hồi không hợp lệ\");});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Nội dung trống",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{feedbackCsrf}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/feedback",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\":\"Khách kiểm thử\",\"email\":\"customer@example.invalid\",\"content\":\"   \",\"rating\":5}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"Problem Details tiếng Việt\", () => {const r=pm.response.json(); pm.expect(r.status).to.eql(400); pm.expect(r.title).to.eql(\"Thông tin phản hồi không hợp lệ\");});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Tên vượt độ dài schema",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{feedbackCsrf}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/feedback",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\"email\":\"customer@example.invalid\",\"content\":\"Đồ uống ngon!\",\"rating\":5}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"Problem Details tiếng Việt\", () => {const r=pm.response.json(); pm.expect(r.status).to.eql(400); pm.expect(r.title).to.eql(\"Thông tin phản hồi không hợp lệ\");});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "JSON không hợp lệ",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{feedbackCsrf}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/feedback",
+        "body": {
+          "mode": "raw",
+          "raw": "{"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));",
+              "pm.test(\"Problem Details tiếng Việt\", () => {const r=pm.response.json(); pm.expect(r.status).to.eql(400); pm.expect(r.title).to.eql(\"Thông tin phản hồi không hợp lệ\");});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Không có CSRF bị từ chối",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/feedback",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\":\"Khách kiểm thử\",\"email\":\"customer@example.invalid\",\"content\":\"Đồ uống ngon!\",\"rating\":5}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Không mở danh sách phản hồi công khai",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/v1/customer/feedback"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Không mở chi tiết phản hồi công khai",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/v1/customer/feedback/1"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Không mở xóa phản hồi",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{feedbackCsrf}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/feedback/1"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Chưa mở upload ảnh",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{feedbackCsrf}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/feedback/1/images",
+        "body": {
+          "mode": "raw",
+          "raw": "{}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\", () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Từ chối tệp không phải ảnh",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{feedbackCsrf}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/feedback",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "feedback",
+              "value": "{\"name\":\"Khách kiểm thử\",\"email\":\"customer@example.invalid\",\"content\":\"Ảnh kiểm thử\",\"rating\":5}",
+              "type": "text",
+              "contentType": "application/json"
+            },
+            {
+              "key": "images",
+              "type": "file",
+              "src": "docs/qa/postman/fixtures/not-an-image.txt"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\", () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Ảnh hợp lệ khi Firebase chưa cấu hình",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{feedbackCsrf}}"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/feedback",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "feedback",
+              "value": "{\"name\":\"Khách kiểm thử\",\"email\":\"customer@example.invalid\",\"content\":\"Ảnh kiểm thử\",\"rating\":5}",
+              "type": "text",
+              "contentType": "application/json"
+            },
+            {
+              "key": "images",
+              "type": "file",
+              "src": "docs/qa/postman/fixtures/feedback-test.png"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 503\", () => pm.response.to.have.status(503));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

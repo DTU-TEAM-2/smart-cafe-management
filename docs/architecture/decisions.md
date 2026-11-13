@@ -2,6 +2,10 @@
 
 Ngày mở vòng mới: 06/11/2026.
 
+## DT2-4 — quyết định của chủ yêu cầu ngày 13/11/2026
+
+Giữ QR dừng tại `77ddb61`; các chức năng còn lại dùng chung nhánh hiện tại, không tự merge. Cho xây dựng xác thực nghiệp vụ trên session_clients sẵn có, không thay bảng hoặc tạo actor giả. Xác nhận sửa/hủy trong 180 giây từ khi server nhận Order, chỉ trước chuẩn bị (SUBMITTED/BEFORE_PREPARATION), kiểm bằng server. Cho chuẩn bị Firebase qua env nhưng project/bucket/credential do thành viên khác cung cấp; không tạo project hay tuyên bố cloud PASS. DT2-5 tạm dừng theo yêu cầu mới nhất. Nguồn: các trả lời trực tiếp trong chat ngày 13/11; chi tiết/AC tại [bàn giao](../handover/dt2-4-remaining-backend.md). Các lựa chọn token format/upload limit trong API là thiết kế triển khai theo ủy quyền, không đổi schema hoặc thay quyền của chủ DB.
+
 | ID | Trạng thái | Nội dung |
 | --- | --- | --- |
 | ADR-001 | Theo yêu cầu chủ repo | Khởi tạo repo mới với main rỗng; rule/skill được review qua PR trước khi vào main. Không mang code/migration/lịch sử PR cũ sang. |
