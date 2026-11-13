@@ -19,15 +19,6 @@ Chủ repo cung cấp lại sơ đồ DB mới khi đối chiếu cho PR #8; mô
 
 Lựa chọn triển khai để review: tái sử dụng HeaderTokenFilter của main và AUTH_TOKEN_SECRET, kiểm tra quyền từ users; bỏ cơ chế JWT riêng của nhánh menu. Giữ CSRF cho mutation. Không phát hành token, seed tài khoản hoặc triển khai auth mới. Không thay quyền merge tại ADR-003.
 
-## ADR-006 — vòng đời OTP resend trong DT2-2 (12/11/2026)
-
-Nguồn: yêu cầu trực tiếp của chủ repo ngày 12/11/2026 để sửa [P1 PR #7](https://github.com/DTU-TEAM-2/smart-cafe-management/pull/7#discussion_r4545684172); chính sách ưu tiên và phạm vi được ghi tại [bàn giao](../handover/dt2-2-otp-retry-lifecycle.md). Không có yêu cầu gia hạn TTL sau resend trong handoff DT2-2 đang có; lựa chọn sau thực hiện phương án chủ repo yêu cầu ưu tiên.
-
-- `sends` đếm lượt yêu cầu được tiếp nhận: 1 lúc tạo, tối đa 2 resend, bất kể kết quả SMTP. Readiness/configuration failure bị từ chối trước khi tiêu thụ budget cho cả real/dummy.
-- `expires_at` cố định từ lúc tạo challenge; resend thành công/thất bại/dummy đều không gia hạn. `expiresInSeconds` của resend là số giây còn lại tại lúc tiếp nhận (làm tròn lên); `now >= expires_at` từ chối resend/verify.
-- Giữ transaction và row lock trước SMTP. Mỗi resend hợp lệ reserve budget/cooldown một lần. SMTP thành công mới thay hash/ghi `SENT` và `sent_at`; SMTP lỗi ghi `FAILED`, giữ hash/attempts/used_at/sent_at/hạn cũ. Dummy không gửi email và không giả lập `SENT`.
-- Không thêm bảng/cột, migration, outbox hoặc background retry. Lỗi DB/row count bất thường rollback, trả lỗi máy chủ; không bắt như lỗi SMTP. SMTP và DB commit chưa atomic: thư có thể đã được nhận trước khi transaction thất bại.
-
 ## ADR-012 — Git Flow bắt buộc (12/11/2026)
 
 Chủ repo yêu cầu áp dụng file git-flow.md vào dự án và luôn tuân thủ từ nay, thay quyết định GitHub Flow main-only trước đây. Nguồn nguyên bản được giữ tại docs/reference/git-flow-original-2026-11-12.md; quy tắc vận hành đã chỉnh cho dự án web tại git-flow.md.
