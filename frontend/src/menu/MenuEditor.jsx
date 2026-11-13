@@ -7,6 +7,8 @@ export default function MenuEditor({ kind, value, categories, onSave, onCancel }
   const [errors, setErrors] = useState({});
   const [imageError, setImageError] = useState('');
   const [reading, setReading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const firstField = useRef(null);
   const reader = useRef(null);
   const imageRequest = useRef(0);
@@ -23,7 +25,8 @@ export default function MenuEditor({ kind, value, categories, onSave, onCancel }
   function clearImage() {
     imageRequest.current += 1;
     reader.current?.abort();
-    setReading(false); setImageError(''); update('imageUrl', '');
+    setReading(false); setImageError('');
+    setForm(current => ({ ...current, imageUrl: '', imageFile: null, imageMediaId: null }));
   }
 
   async function readImage(file) {
@@ -52,14 +55,20 @@ export default function MenuEditor({ kind, value, categories, onSave, onCancel }
     if (request !== imageRequest.current) return;
     const nextReader = new FileReader();
     reader.current = nextReader;
-    nextReader.onload = () => { if (request === imageRequest.current) { update('imageUrl', nextReader.result); setReading(false); } };
+    nextReader.onload = () => {
+      if (request === imageRequest.current) {
+        setForm(current => ({ ...current, imageUrl: nextReader.result, imageFile: file }));
+        setReading(false);
+      }
+    };
     nextReader.onerror = () => { if (request === imageRequest.current) { setImageError('Không đọc được ảnh. Vui lòng chọn lại.'); setReading(false); } };
     nextReader.readAsDataURL(file);
   }
 
-  function submit(event) {
+  async function submit(event) {
     event.preventDefault();
-    if (reading || imageError) return;
+    if (reading || imageError || saving) return;
+    const fields = event.currentTarget.elements;
     const next = { ...form, code: form.code.trim().toUpperCase(), name: form.name.trim(), price: String(form.price ?? '').trim() };
     const failures = {};
     if (!(isItem ? /^[A-Z0-9_-]{4,40}$/ : /^[A-Z0-9_-]{1,32}$/).test(next.code)) failures.code = `Mã gồm ${isItem ? '4–40' : '1–32'} ký tự Latin, số, gạch ngang hoặc gạch dưới.`;
@@ -69,17 +78,29 @@ export default function MenuEditor({ kind, value, categories, onSave, onCancel }
       if (!/^\d{1,18}$/.test(next.price) || BigInt(next.price) <= 5000n) failures.price = 'Giá VND phải là số nguyên lớn hơn 5.000, tối đa 18 chữ số.';
       else next.price = BigInt(next.price).toString();
     }
-    const result = Object.keys(failures).length ? failures : onSave(isItem ? next : { code: next.code, name: next.name });
+    let result = failures;
+    setSaveError('');
+    if (!Object.keys(failures).length) {
+      setSaving(true);
+      try {
+        result = await onSave(isItem ? next : { code: next.code, name: next.name, version: next.version });
+      } catch (error) {
+        if (error.name !== 'AbortError') setSaveError(error.message);
+        result = error.fields;
+      } finally {
+        setSaving(false);
+      }
+    }
     if (result) {
       setErrors(result);
-      event.currentTarget.elements.namedItem(Object.keys(result)[0])?.focus();
+      fields.namedItem(Object.keys(result)[0])?.focus();
     }
   }
 
   return <form className="panel editor" noValidate onSubmit={submit}>
     <h2>{value ? 'Chỉnh sửa' : 'Thêm'} {isItem ? 'món' : 'nhóm món'}</h2>
     <p className="panel-description">{isItem ? 'Ảnh sản phẩm / Xem trước ảnh' : 'Thông tin nhóm món trong thực đơn'}</p>
-    <div className="form-grid">
+    <fieldset className="form-grid" disabled={saving}>
       <label>Mã {isItem ? 'món' : 'nhóm món'} *
         <input ref={firstField} name="code" required minLength={isItem ? 4 : 1} maxLength={isItem ? 40 : 32} pattern="[A-Za-z0-9_-]+" title="Chữ Latin, số, dấu gạch ngang hoặc gạch dưới" readOnly={Boolean(value)} {...errorProps('code')} value={form.code} onChange={e => update('code', e.target.value)} placeholder={isItem ? 'VD: CF104' : 'VD: CF'} />
         {fieldError('code')}
@@ -112,7 +133,9 @@ export default function MenuEditor({ kind, value, categories, onSave, onCancel }
         </div>
         <label className="availability"><input type="checkbox" checked={form.available} onChange={e => update('available', e.target.checked)} />Có sẵn</label>
       </> : null}
-    </div>
-    <div className="form-actions"><button type="button" onClick={onCancel}>HỦY</button><button className="primary" disabled={reading || Boolean(imageError)}>{isItem ? 'LƯU MÓN' : 'LƯU NHÓM MÓN'}</button></div>
+    </fieldset>
+    {saveError ? <p className="error" role="alert">{saveError}</p> : null}
+    {saving ? <p role="status">Đang lưu thực đơn…</p> : null}
+    <div className="form-actions"><button type="button" disabled={saving} onClick={onCancel}>HỦY</button><button className="primary" disabled={saving || reading || Boolean(imageError)}>{isItem ? 'LƯU MÓN' : 'LƯU NHÓM MÓN'}</button></div>
   </form>;
 }
