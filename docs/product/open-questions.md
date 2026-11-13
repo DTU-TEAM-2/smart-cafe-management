@@ -18,6 +18,8 @@ Mỗi câu trả lời cần người chốt, ngày, nguồn bằng chứng và 
 
 Chủ yêu cầu giữ QR tạm dừng, cho xây dựng nghiệp vụ dùng session_clients hiện có để kiểm tra token khách; không làm lại bảng hoặc tự mở phiên. TTL/issuer của luồng QR vẫn chưa chốt; API chỉ dùng expires_at/revoked_at đã lưu. Chấp thuận quy tắc QA-03 nêu ở bảng trên. Firebase project/bucket/credential thuộc thành viên khác: chỉ chuẩn bị env/adapter, chưa chạy cloud thật. DT2-5 đã được yêu cầu tạm dừng, dù đã ghi nhận dự kiến quyền ADMIN và ngày tìm kiếm theo Asia/Ho_Chi_Minh để dùng khi được cho tiếp tục. Xem [bàn giao phần còn lại](../handover/dt2-4-remaining-backend.md).
 
+Khách cũng đã yêu cầu QR tự mở phiên và vào Menu. QA-02, cách lưu người mở khi `opened_by_user_id` là NOT NULL, thời hạn token và nhiều thiết bị chưa được chốt với PO/chủ DB. PR #10 chỉ tra QR để xác định bàn, không mở phiên hoặc cấp token. Xem [bàn giao QR và phiên](../handover/dt2-4-table-session.md).
+
 
 ### DT2-9: DDL triển khai theo sơ đồ mới
 

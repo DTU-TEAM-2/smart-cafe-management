@@ -5,7 +5,7 @@ Cập nhật ngày 13/11/2026 theo trạng thái repository và PR đã kiểm t
 | Chức năng | Ảnh đã đối chiếu trong ZIP | Tiến độ hiện tại | PR / phạm vi |
 | --- | --- | --- | --- |
 | 1. Xem Menu | Menu/danh mục, chi tiết món, đang tải thực đơn | Đã merge vào main qua `8476ee3`; đã sửa P2 tìm kiếm theo SQL mode và hồi quy CSRF TC-34. Không đồng nghĩa hoàn thành toàn bộ DT2-4. | [#9](https://github.com/DTU-TEAM-2/smart-cafe-management/pull/9) — API danh mục, danh sách/lọc/tìm kiếm/phân trang và chi tiết món |
-| 2. Bàn và phiên khách hàng | ZIP không có ảnh QR/tham gia phiên riêng | **Đã có phần tra QR → đúng bàn, đang review độc lập. Chưa hoàn tất phần tự mở/xác thực phiên**, đang vướng người mở phiên trong schema và QA-02. | [#10](https://github.com/DTU-TEAM-2/smart-cafe-management/pull/10) — nhắm develop, PR riêng cho API tra QR |
+| 2. Bàn và phiên khách hàng | ZIP không có ảnh QR/tham gia phiên riêng | Đã merge phần API tra QR vào develop; chỉ nhận diện bàn, chưa mở phiên hoặc cấp token. | [#10](https://github.com/DTU-TEAM-2/smart-cafe-management/pull/10) — API tra QR |
 | 3. Gọi món | [Giỏ hàng, trạng thái tải, gửi thành công/thất bại](evidence/dt2-4/reference/03-cart.png) | API lấy giá từ MySQL, lưu snapshot và chống gửi trùng. Cần token phiên đã cấp. | `feature/dt2-4_customer-workflows` |
 | 4. Sửa/Remove món | [Giỏ hàng và chi tiết món, ZIP không có ảnh sửa sau đặt riêng](evidence/dt2-4/reference/02-item-detail.png) | Backend kiểm 3 phút, trạng thái SUBMITTED, người gửi và phiên bản. | `feature/dt2-4_customer-workflows` |
 | 5. Gọi nhân viên | [Yêu cầu phục vụ, gửi thành công/thất bại](evidence/dt2-4/reference/12-waiter-success.png) | Ghi WAITER và dùng Header/Sales hiện có. | `feature/dt2-4_customer-workflows` |
@@ -14,6 +14,8 @@ Cập nhật ngày 13/11/2026 theo trạng thái repository và PR đã kiểm t
 | 8. Upload ảnh Feedback | [Vùng đính kèm ảnh tùy chọn](evidence/dt2-4/reference/05-feedback.png) | Đã chuẩn bị adapter và metadata. Chờ bucket và quyền để chạy Firebase thật. | `feature/dt2-4_customer-workflows` |
 
 ## Bằng chứng đã có
+
+Nhánh chức năng còn lại đang đồng bộ với develop sau khi PR #10 đưa QR vào develop. PR này không gộp vào develop hay main.
 
 - [Bàn giao các chức năng 3–8 và ảnh kiểm thử](dt2-4-remaining-backend.md). MySQL **89/89**, Newman **17/17** request nghiệp vụ khách và **16/16** request Feedback. Upload Firebase thật đang chờ cấu hình.
 

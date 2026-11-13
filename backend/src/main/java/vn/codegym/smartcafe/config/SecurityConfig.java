@@ -31,6 +31,9 @@ class SecurityConfig {
         var tokenFilter = new HeaderTokenFilter(jdbc, secret);
         var feedbackPost = PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/v1/customer/feedback");
         var feedbackCsrf = PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, "/api/v1/customer/feedback/csrf");
+        var customerCsrf = PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, "/api/v1/customer/csrf");
+        org.springframework.security.web.util.matcher.RequestMatcher guestCsrf =
+                request -> feedbackCsrf.matches(request) || customerCsrf.matches(request);
         return http
                 // Bearer authentication is per request. A polling GET must not run a login
                 // session strategy that rotates the token issued for the next CSRF-protected POST.
@@ -42,8 +45,9 @@ class SecurityConfig {
                 .authorizeHttpRequests(authorize -> authorize
                         .dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/home/highlights").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/customer/tables/qr/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/customer/menu/**").permitAll()
-                        .requestMatchers(feedbackCsrf, feedbackPost).permitAll()
+                        .requestMatchers(guestCsrf, feedbackPost).permitAll()
                         // The controller/service verifies an existing guest token against session_clients.
                         .requestMatchers(HttpMethod.POST, "/api/v1/customer/sessions/*/orders").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/customer/csrf").permitAll()
@@ -58,7 +62,7 @@ class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/bills/*/payments", "/api/v1/sales/tables/*/reset").hasRole("ADMIN")
                         .anyRequest().denyAll())
                 .addFilterBefore(new FeedbackAdmissionFilter(
-                        feedbackPost, feedbackCsrf, clock, perSource, total, multipart, csrfPerSource, csrfTotal), CsrfFilter.class)
+                        feedbackPost, guestCsrf, clock, perSource, total, multipart, csrfPerSource, csrfTotal), CsrfFilter.class)
                 .addFilterBefore(tokenFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }

@@ -58,7 +58,8 @@ def render(report, cases, title):
     passed = sum(c['passed'] for c in report['cases'])
     total = len(report['cases'])
     assertions = sum(len(c['assertions']) for c in report['cases'])
-    scope_note = ('Chỉ kiểm thử Feedback; Firebase thật chưa được cấu hình, test upload thiếu cấu hình không chứng minh cloud upload thành công.' if report.get('feature') == 'feedback'
+    scope_note = ('Chỉ kiểm thử tra QR/bàn, không cấp token hoặc tự mở phiên.' if report.get('feature') == 'qr'
+                  else 'Chỉ kiểm thử Feedback; Firebase thật chưa được cấu hình, test upload thiếu cấu hình không chứng minh cloud upload thành công.' if report.get('feature') == 'feedback'
                   else 'Kiểm thử nghiệp vụ khách với token fixture; không kiểm chứng mở phiên QR hoặc cấp token production.' if report.get('feature') == 'actions'
                   else 'Chỉ kiểm thử chức năng Menu; không kết luận 7 chức năng DT2-4 còn lại.')
     return f'''<!doctype html><html lang="vi"><meta charset="utf-8"><title>{escape(title)}</title>
@@ -90,7 +91,7 @@ def main():
     parser.add_argument('--revision', default='')
     parser.add_argument('--run-url', default='')
     parser.add_argument('--sql-mode', default='')
-    parser.add_argument('--feature', choices=['menu', 'feedback', 'actions'], default='menu')
+    parser.add_argument('--feature', choices=['menu', 'feedback', 'actions', 'qr'], default='menu')
     parser.add_argument('--environment', default='')
     parser.add_argument('--emit-log', action='store_true')
     args = parser.parse_args()
@@ -119,6 +120,10 @@ def main():
                   ('02-order-edit', 'DT2-4 · Sửa và hủy món', [c for c in report['cases'] if '/order-items/' in c['url']]),
                   ('03-waiter', 'DT2-4 · Gọi nhân viên', [c for c in report['cases'] if '/waiter-requests' in c['url']]),
                   ('04-bill', 'DT2-4 · Yêu cầu thanh toán', [c for c in report['cases'] if '/bill-requests' in c['url']])]
+    if args.feature == 'qr':
+        groups = [('index', 'DT2-4 · QR nhận diện bàn / chưa cấp phiên', report['cases']),
+                  ('01-qr-tables', 'DT2-4 · QR trả đúng bàn và gọi lặp', [c for c in report['cases'] if c['status'] == 200]),
+                  ('02-qr-errors', 'DT2-4 · QR sai, bàn không phục vụ và từ chối quyền ghi', [c for c in report['cases'] if c['status'] is None or c['status'] >= 400])]
     for name, title, cases in groups:
         (args.output / f'{name}.html').write_text(render(report, cases, title), encoding='utf-8')
     if args.emit_log:

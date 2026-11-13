@@ -53,7 +53,7 @@ class CustomerFeedbackUnavailableTest {
     @Test
     void boundsCookielessCsrfRequestsBeforeCreatingSessionsAndKeepsPostQuotaSeparate() throws Exception {
         for (int i = 0; i < 2; i++) {
-            var accepted = mvc.perform(get("/api/v1/customer/feedback/csrf")
+            var accepted = mvc.perform(get("/api/v1/customer/csrf")
                             .with(request -> { request.setRemoteAddr("192.0.2.51"); return request; }))
                     .andExpect(status().isOk())
                     .andExpect(header().string("Cache-Control", "no-store"))
