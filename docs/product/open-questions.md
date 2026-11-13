@@ -1,5 +1,9 @@
 # Các quyết định cần chốt lại
 
+## DT2-2 — phản hồi Database về baseline, 13/11/2026
+
+Phản hồi mới báo cáo một DB local20 bảng/4 view, News audience và chưa có history. Workspace đang kết nối môi trường13 bảng có history riêng. Cần xác nhận môi trường đích, quyết định xử lý legacy, DDL-only được duyệt cùng Git ref/checksum, migration location và marker/version/script/checksum. Cần bổ sung inventory các instance đã dùng Auth V001/V002 và legacy V001–V010. Chi tiết nguồn, quy trình đề xuất và kết quả186 Backend tests cùng rehearsal được ghi ở [bàn giao follow-up](../handover/dt2-2-flyway-baseline-followup.md). Runtime chấp nhận baseline và provision đầy đủ còn **BLOCKED** theo các đầu vào đó.
+
 ## DT2-2 database reconciliation — owner inputs required, 13/11/2026
 
 Owner confirmed no approved full target DDL/ref or identified DBA is currently available. The 11/11 ERD remains the designated model; neither the current 13-table database nor historical `schema.sql` is an approved deployment target. Independent code/preflight/test work is completed as recorded in the [handoff](../handover/dt2-2-database-integration.md). No shared mutation or new business policy is authorized.

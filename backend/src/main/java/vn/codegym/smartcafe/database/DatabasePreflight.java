@@ -19,6 +19,8 @@ public final class DatabasePreflight {
     private static final List<String> MODEL_TABLES = List.of("users", "staff_profiles", "auth_otp_challenges", "auth_otp_limits",
             "media_assets", "menu_categories", "menu_items", "cafe_tables", "table_sessions", "session_clients",
             "order_batches", "order_items", "service_requests", "bills", "bill_items", "payments", "feedback", "feedback_images", "news_posts", "news_images");
+    private static final List<String> MODEL_VIEWS = List.of("v_menu_item_order_totals", "v_paid_item_sales",
+            "v_daily_revenue", "v_cafe_table_occupancy");
 
     private static final Map<String, String> REQUIRED = Map.of(
             "users", "id username password_hash full_name email phone role status avatar_media_id password_changed_at must_change_password auth_version updated_at",
@@ -45,6 +47,11 @@ public final class DatabasePreflight {
         try (var tables = metadata.getTables(schema, null, "%", new String[]{"TABLE"})) {
             while (tables.next()) if (schema.equals(tables.getString("TABLE_CAT"))) present.add(tables.getString("TABLE_NAME"));
         }
+        var views = new java.util.HashSet<String>();
+        try (var rows = metadata.getTables(schema, null, "%", new String[]{"VIEW"})) {
+            while (rows.next()) if (schema.equals(rows.getString("TABLE_CAT"))) views.add(rows.getString("TABLE_NAME"));
+        }
+        for (String view : MODEL_VIEWS) if (!views.contains(view)) blockers.add(new Issue("MISSING_MODEL_VIEW", view));
         for (String table : MODEL_TABLES) if (!present.contains(table) && !REQUIRED.containsKey(table)) blockers.add(new Issue("MISSING_MODEL_TABLE", table));
         for (var table : REQUIRED.entrySet()) {
             Map<String, String> columns = new LinkedHashMap<>();
@@ -101,7 +108,11 @@ public final class DatabasePreflight {
         }
         try (var statement = connection.createStatement(); var rows = statement.executeQuery(
                 "SELECT version,type,script,checksum,success FROM flyway_schema_history ORDER BY installed_rank")) {
-            while (rows.next()) {
+            if (!rows.next()) {
+                blockers.add(new Issue("EMPTY_MIGRATION_HISTORY", "Migration history has no applied entries"));
+                return;
+            }
+            do {
                 String script = rows.getString("script");
                 if (!rows.getBoolean("success")) blockers.add(new Issue("FAILED_MIGRATION", rows.getString("version")));
                 Integer checksum = expected.get(script);
@@ -110,7 +121,7 @@ public final class DatabasePreflight {
                         !expectedVersion.equals(rows.getString("version")) || rows.getObject("checksum") == null || checksum != rows.getInt("checksum")) {
                     blockers.add(new Issue("MIGRATION_LINEAGE_MISMATCH", "version=" + rows.getString("version") + ", script=" + script));
                 }
-            }
+            } while (rows.next());
         }
     }
 
