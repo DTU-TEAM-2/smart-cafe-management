@@ -5,8 +5,8 @@ export const demoCategories = [
   { code: 'TE', name: 'Trà' },
 ];
 export const demoItems = [
-  { code: 'CF101', name: 'Caramel Latte', categoryCode: 'CF', price: 45000, available: true, description: '', imageUrl: '' },
-  { code: 'CF102', name: 'Bạc xỉu', categoryCode: 'CF', price: 40000, available: true, description: '', imageUrl: '' },
-  { code: 'CK201', name: 'Tiramisu', categoryCode: 'CK', price: 52000, available: true, description: '', imageUrl: '' },
-  { code: 'TE301', name: 'Trà đào', categoryCode: 'TE', price: 43000, available: false, description: '', imageUrl: '' },
+  { code: 'CF101', name: 'Caramel Latte', categoryCode: 'CF', price: '45000', available: true, imageUrl: '' },
+  { code: 'CF102', name: 'Bạc xỉu', categoryCode: 'CF', price: '40000', available: true, imageUrl: '' },
+  { code: 'CK201', name: 'Tiramisu', categoryCode: 'CK', price: '52000', available: true, imageUrl: '' },
+  { code: 'TE301', name: 'Trà đào', categoryCode: 'TE', price: '43000', available: false, imageUrl: '' },
 ];

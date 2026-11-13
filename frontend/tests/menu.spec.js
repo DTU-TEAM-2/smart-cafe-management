@@ -44,11 +44,12 @@ test('create, reject duplicate, edit, cancel and confirm deletion, then reset on
   await expect(page.getByRole('row')).toHaveCount(5);
 });
 
-test('category creation, rename propagation and populated category protection', async ({ page }) => {
+test('category creation, rename propagation and cancel deletion of a populated category', async ({ page }) => {
   await page.getByRole('button', { name: 'Nhóm món', exact: true }).click();
   await page.getByRole('button', { name: 'Xóa Cà phê', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'XÁC NHẬN XÓA' })).toBeDisabled();
+  await expect(page.getByRole('dialog')).toContainText('2 món đang hoạt động thuộc nhóm cũng sẽ bị ẩn');
   await page.getByRole('button', { name: 'HỦY', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Xóa Cà phê', exact: true })).toBeFocused();
   await page.getByRole('button', { name: 'Sửa Cà phê', exact: true }).click();
   await page.getByLabel('Tên nhóm món *').fill('Coffee');
   await page.getByRole('button', { name: 'LƯU NHÓM MÓN' }).click();
@@ -68,7 +69,8 @@ test('image validation and local preview', async ({ page }) => {
   await page.getByRole('button', { name: 'THÊM MÓN MỚI', exact: true }).click();
   await page.getByLabel('Ảnh sản phẩm', { exact: true }).setInputFiles({ name: 'bad.txt', mimeType: 'text/plain', buffer: Buffer.from('bad') });
   await expect(page.getByRole('alert')).toContainText('Chọn ảnh JPG');
-  await page.getByLabel('Ảnh sản phẩm', { exact: true }).setInputFiles({ name: 'pixel.png', mimeType: 'image/png', buffer: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64') });
+  const png = await page.evaluate(() => { const canvas = document.createElement('canvas'); canvas.width = 2; canvas.height = 2; return canvas.toDataURL('image/png').split(',')[1]; });
+  await page.getByLabel('Ảnh sản phẩm', { exact: true }).setInputFiles({ name: 'pixel.png', mimeType: 'image/png', buffer: Buffer.from(png, 'base64') });
   await expect(page.getByAltText('Xem trước ảnh món')).toBeVisible();
   await page.getByRole('button', { name: 'Bỏ ảnh' }).click();
   await expect(page.getByAltText('Xem trước ảnh món')).toHaveCount(0);

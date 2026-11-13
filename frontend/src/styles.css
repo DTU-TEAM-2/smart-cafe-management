@@ -50,6 +50,11 @@ main { padding: 42px 42px 45px 44px; }
 .view-switch button { min-height: 36px; padding: 7px 13px; background: transparent; }
 .view-switch button[aria-pressed='true'] { background: #61492d; color: #f4cf85; }
 .search { flex: 1; min-width: 160px; }
+.selection-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.row-select { width: 54px; }
+.row-select input { width: 20px; height: 20px; min-height: 20px; accent-color: var(--gold); cursor: pointer; }
+.row-select:has(input:checked) { background: #61492d; }
+.form-grid small { font-weight: 400; line-height: 1.6; }
 .list-controls input, .list-controls select { min-height: 44px; padding: 11px 12px; font-size: 12px; }
 .table-scroll { overflow-x: auto; }
 .table-hint { display: none; }

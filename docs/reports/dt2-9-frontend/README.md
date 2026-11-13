@@ -1,5 +1,7 @@
 # DT2-9 — bàn giao FE thực đơn
 
+> Bản ghi lần triển khai đầu. Sửa lỗi và kiểm thử local mới nhất ngày 11/11/2026 tại [báo cáo rà soát](local-fixes-2026-11-11.md); các giới hạn validation/xóa của bản đầu đã được thay thế trong phạm vi xem thử FE.
+
 Ngày triển khai: 2026-11-10. Đổi tên nhánh và lưu local theo yêu cầu ngày 2026-11-11: `feature/dt2-9-manage-menu-items-and-categories-frontend`. Thay đổi được lưu bằng commit local; không push/merge.
 
 ## Kết quả và nguồn
