@@ -58,17 +58,44 @@ jobs:
           DB_USERNAME: root
           DB_PASSWORD: ''
           SERVER_PORT: '18084'
+          # This job imports schema.sql directly into a disposable database without Flyway history.
+          SPRING_FLYWAY_ENABLED: 'false'
         shell: bash
         run: |
           mkdir -p backend/target/postman
           java -jar backend/target/smart-cafe-0.0.1-SNAPSHOT.jar --server.address=127.0.0.1 > backend/target/postman/server.log 2>&1 &
-          echo $! > backend/target/postman/server.pid
+          backend_pid=$!
+          echo "$backend_pid" > backend/target/postman/server.pid
+          startup_diagnostics() {
+            # Emit fixed messages only. Spring's exception text can contain private configuration.
+            local log=backend/target/postman/server.log
+            if grep -Fq 'DATABASE_PREFLIGHT_BLOCKED' "$log"; then
+              echo '::error::Database preflight blocked backend startup.'
+            elif grep -Eq 'Communications link failure|Access denied for user' "$log"; then
+              echo '::error::Backend could not connect to the test database.'
+            elif grep -Fq 'Port 18084 was already in use' "$log"; then
+              echo '::error::Backend could not bind port 18084.'
+            elif grep -Fq 'APPLICATION FAILED TO START' "$log"; then
+              echo '::error::Spring Boot reported an application startup failure.'
+            fi
+          }
           for attempt in $(seq 1 60); do
-            if curl --fail --silent http://127.0.0.1:18084/actuator/health > /dev/null; then exit 0; fi
+            if ! kill -0 "$backend_pid" 2>/dev/null; then
+              backend_exit=0
+              wait "$backend_pid" || backend_exit=$?
+              echo "::error::Backend exited before readiness (exit $backend_exit)."
+              startup_diagnostics
+              exit 1
+            fi
+            health_status=$(curl --silent --max-time 1 --output /dev/null --write-out '%{http_code}' http://127.0.0.1:18084/actuator/health) || health_status=000
+            if [ "$health_status" = 200 ] && kill -0 "$backend_pid" 2>/dev/null; then exit 0; fi
             sleep 1
           done
+          echo "::error::Backend health did not reach HTTP 200 (last HTTP status: $health_status)."
+          startup_diagnostics
           exit 1
       - name: Run Postman Collection with Newman 6.2.1
+        id: newman
         run: >-
           npx --yes newman@6.2.1 run docs/qa/postman/dt2-4-menu-api.postman_collection.json
           -e docs/qa/postman/smart-cafe-local.postman_environment.example.json
@@ -76,23 +103,36 @@ jobs:
           --timeout-request 10000 --timeout 120000
           -r cli,json --reporter-json-export backend/target/postman/newman.json
       - name: Build report from actual Newman responses
+        id: postman-report
         if: always()
-        run: >-
-          python scripts/render-customer-menu-postman.py
-          backend/target/postman/newman.json backend/target/postman/report
-          --revision "${{ github.event.pull_request.head.sha || github.sha }}"
-          --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          --sql-mode NO_BACKSLASH_ESCAPES
-          --emit-log
+        env:
+          NEWMAN_OUTCOME: ${{ steps.newman.outcome }}
+          REPORT_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+          REPORT_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        shell: bash
+        run: |
+          if [ "$NEWMAN_OUTCOME" != success ] && [ "$NEWMAN_OUTCOME" != failure ]; then
+            echo '::notice::Postman report skipped because Newman did not complete an HTTP run.'
+            exit 0
+          fi
+          if [ ! -s backend/target/postman/newman.json ]; then
+            echo '::error::Newman produced no JSON report. No HTTP evidence can be rendered.'
+            exit 1
+          fi
+          python scripts/render-customer-menu-postman.py \
+            backend/target/postman/newman.json backend/target/postman/report \
+            --require-newman --revision "$REPORT_REVISION" --run-url "$REPORT_RUN_URL" \
+            --sql-mode NO_BACKSLASH_ESCAPES --emit-log
+          echo 'rendered=true' >> "$GITHUB_OUTPUT"
       - name: Upload actual Postman evidence
-        if: always()
+        if: always() && steps.postman-report.outputs.rendered == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: dt2-4-postman
           path: |
             backend/target/postman/newman.json
             backend/target/postman/report/
-          if-no-files-found: warn
+          if-no-files-found: error
       - name: Stop backend started by this job
         if: always()
         run: |

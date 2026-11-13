@@ -83,9 +83,18 @@ def main():
     parser.add_argument('--run-url', default='')
     parser.add_argument('--sql-mode', default='')
     parser.add_argument('--emit-log', action='store_true')
+    parser.add_argument('--require-newman', action='store_true', help='Accept only raw Newman HTTP results')
     args = parser.parse_args()
-    source = json.loads(args.source.read_text(encoding='utf-8'))
-    report = summarize(source, args.revision, args.run_url) if 'run' in source else source
+    try:
+        source = json.loads(args.source.read_text(encoding='utf-8'))
+        if args.require_newman:
+            run = source['run']
+            if (not isinstance(run['executions'], list) or not run['executions']
+                    or not isinstance(run['stats'], dict) or not isinstance(run['failures'], list)):
+                raise ValueError('Incomplete Newman run')
+        report = summarize(source, args.revision, args.run_url) if 'run' in source else source
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        parser.exit(1, 'Cannot render report: missing, invalid or incomplete Newman JSON.\n')
     if args.sql_mode:
         report['sqlMode'] = args.sql_mode
     args.output.mkdir(parents=True, exist_ok=True)
