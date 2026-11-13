@@ -12,7 +12,9 @@ export function validateGitFlow({ base, head, baseRepo, headRepo }) {
   }
   if (!task.test(head)) return { ok: false, reason: "Source must be feature/*, bugfix/*, release/* or hotfix/*." };
   const type = head.split("/")[0];
-  if (base === "develop") return { ok: true, reason: "Integrate the reviewed task or synchronize a release/hotfix." };
+  if (base === "develop" && ["feature", "bugfix"].includes(type)) {
+    return { ok: true, reason: "Integrate the reviewed feature or development bugfix." };
+  }
   if (base === "main" && ["release", "hotfix"].includes(type)) {
     return { ok: true, reason: "Promote release/hotfix; merge commit and follow-up sync to develop required." };
   }

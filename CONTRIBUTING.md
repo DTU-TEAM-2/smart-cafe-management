@@ -35,6 +35,7 @@ Không tạo release cho mỗi feature. Chỉ tạo release từ develop khi nh�
 - PR có title `type(scope): CF-xx mô tả`, link task thật, mục tiêu/kết quả, tests/ảnh, tác động/rủi ro và việc nhóm cần làm sau merge; assignee đúng người làm, reviewer đúng người cần xem.
 - Nhờ người review duyệt sau khi CI/bot checks đạt. Hiện GitHub Actions có Git Flow, Governance, PR title, Backend MySQL, Frontend UI; không giả báo đã có bot AI review code riêng.
 - Mọi PR vào nhánh chung cần **2 reviewer khác tác giả approve**, không dùng nhiều tài khoản của một người để đủ số lượng. Commit mới yêu cầu review lại và hủy approval cũ.
+- Nếu đổi file CI/validator/policy được CODEOWNERS bảo vệ, một trong hai reviewer phải là NV-DuyManh hoặc haitan2408, khác tác giả. CODEOWNERS lấy từ base; PR bootstrap thêm file này cần owner review thủ công trước merge, không giả có enforcement khi file chưa vào base.
 - Hết blocker, xử lý thảo luận; ai comment xác nhận/resolve comment đó. Chỉ NV-DuyManh hoặc haitan2408 quyết định merge qua PR khi đạt điều kiện, không bypass số approval/CI.
 - Task có thể squash vào develop. Release/hotfix và đồng bộ main → develop dùng merge commit để giữ ancestry; không rebase/force-push nhánh chung hoặc rewrite lịch sử của người khác.
 - Giữ attribution; cherry-pick chọn lọc có `-x` và ghi nguồn. Không bịa Co-authored-by.

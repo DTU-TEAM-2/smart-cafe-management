@@ -8,8 +8,13 @@ import { spawnSync } from "node:child_process";
 import { validateGitFlow } from "./git-flow.mjs";
 
 test("tasks integrate into develop, including existing names and source naming examples", () => {
-  for (const head of ["feature/cf-01_git-flow", "feature/#123_add-search-filter", "feature/dt2-10-staff-management", "bugfix/dt2-1_fix-header", "release/1.4.0", "hotfix/1.4.1_fix-bill"]) {
+  for (const head of ["feature/cf-01_git-flow", "feature/#123_add-search-filter", "feature/dt2-10-staff-management", "bugfix/dt2-1_fix-header"]) {
     assert.equal(validateGitFlow({ base: "develop", head }).ok, true, head);
+  }
+});
+test("release and hotfix cannot skip main promotion and go directly into develop", () => {
+  for (const head of ["release/1.4.0", "hotfix/1.4.1_fix-bill"]) {
+    assert.equal(validateGitFlow({ base: "develop", head }).ok, false, head);
   }
 });
 test("features and development fixes cannot go directly into main", () => {
@@ -47,6 +52,12 @@ test("CI command fails without a PR, rejects a feature to main and reports a val
       } }));
       const result = spawnSync(process.execPath, [script], { env: { ...env, GITHUB_EVENT_PATH: event }, encoding: "utf8" });
       assert.equal(result.status, base === "develop" ? 0 : 1);
+    }
+    for (const head of ["release/1.4.0", "hotfix/1.4.1_fix-bill"]) {
+      writeFileSync(event, JSON.stringify({ pull_request: {
+        base: { ref: "develop", repo: { full_name: "org/cafe" } }, head: { ref: head, repo: { full_name: "org/cafe" } },
+      } }));
+      assert.equal(spawnSync(process.execPath, [script], { env: { ...env, GITHUB_EVENT_PATH: event } }).status, 1);
     }
     assert.match(readFileSync(summary, "utf8"), /FAIL/);
     assert.match(readFileSync(summary, "utf8"), /PASS/);

@@ -39,6 +39,7 @@ Commit giữ convention hiện có: `type(scope): CF-xx mô tả cụ thể`. Kh
 - Chạy CI/bot kiểm tra tự động trước vòng duyệt của người review; hiện GitHub Actions kiểm Git Flow, registry, PR title, backend/frontend. Đây không phải bot AI review từng dòng code. Nếu cần một bot code-review riêng, phải ghi rõ công cụ thực tế đã được cấu hình; không giả báo đã có.
 - Giữ yêu cầu đã được chủ repo chốt: **ít nhất 2 reviewer độc lập khác tác giả approve** vào mọi nhánh chung. Đây là mức chặt hơn tối thiểu 1 trong file nguồn, không hạ bảo vệ hiện có. Commit mới làm mất hiệu lực approval cũ; reviewer xem lại revision cuối. Không dùng nhiều tài khoản để giả đủ người review.
 - CI bắt buộc xanh, nhánh cập nhật với đích, hết blocker và thảo luận được giải quyết. Tác giả trả lời/sửa, người tạo comment xác nhận/resolve; không tự đóng thay.
+- Các file CI/validator/policy trong `.github/CODEOWNERS` cần một owner (NV-DuyManh hoặc haitan2408) khác tác giả duyệt, trong tổng hai approval. GitHub đọc CODEOWNERS từ base: PR thêm file lần đầu vẫn cần owner review thủ công trước bootstrap; không giả coi check tự chạy mã PR là ranh giới policy độc lập.
 - Chỉ `NV-DuyManh` hoặc `haitan2408` quyết định merge qua PR, vẫn phải đủ approval/checks. Không tự merge task này, không triển khai chỉ vì CI xanh.
 - Có thể squash task vào develop; **dùng merge commit cho release/hotfix và PR đồng bộ main → develop** để giữ quan hệ lịch sử. GitHub chưa khóa merge method theo loại PR, reviewer phải kiểm lựa chọn này.
 
