@@ -1,5 +1,7 @@
 # Database hệ thống — nguồn chuẩn
 
+**Cập nhật 13/11/2026:** đã nhận và kiểm chứng DDL bàn giao 20 bảng/4 view, gồm News audience. Xem [tích hợp và ma trận lineage mới](../handover/dt2-2-verified-database-integration.md). Profile opt-in `verified-db` phục vụ rehearsal/đích sau phê duyệt; mặc định giữ Auth-local. Quan sát legacy bên dưới vẫn thuộc môi trường riêng. Gói bàn giao không tự cấp quyền ghi database chung hoặc triển khai.
+
 **Bản chuẩn chủ repo cung cấp ngày 11/11/2026:** [sơ đồ database](../handover/evidence/system-database-reference-2026-11-11.jpg). Áp dụng cho toàn bộ dự án theo [rule database bắt buộc](../../.agents/rules/database-source-of-truth.md), không chỉ DT2-1. Runtime hiện được cấu hình dùng MySQL `smart_cafe`.
 
 ## Danh mục trong sơ đồ mới

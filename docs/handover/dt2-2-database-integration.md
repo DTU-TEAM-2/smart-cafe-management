@@ -1,5 +1,7 @@
 # DT2-2 — Database integration handoff, 13/11/2026
 
+> Update 2026-11-13: the new [verified DDL/Flyway handoff integration](dt2-2-verified-database-integration.md) supersedes target-artifact availability and current lineage support below. Earlier counts and failure observations remain revision-specific history; no shared rollout is approved.
+
 Scope: [PR #7](https://github.com/DTU-TEAM-2/smart-cafe-management/pull/7), branch `feature/cf-03-auth-recovery`, starting revision `94deb6d01c07d7c746c44f8fa1a3837946daa183`. Local implementation and testing only. **READY FOR REVIEW; DEPLOYMENT BLOCKED.** No shared database mutation, push, review reply, resolve, approve, merge or deploy was performed in this task.
 
 ## Develop synchronization — 13/11/2026

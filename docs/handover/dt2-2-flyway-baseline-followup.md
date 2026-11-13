@@ -1,5 +1,7 @@
 # DT2-2 — Provision và baseline sau phản hồi Database
 
+> Update 2026-11-13: the new [verified DDL/Flyway handoff integration](dt2-2-verified-database-integration.md) supersedes target-artifact availability and current lineage support below. Earlier counts and failure observations remain revision-specific history; no shared rollout is approved.
+
 PR [#7](https://github.com/DTU-TEAM-2/smart-cafe-management/pull/7), nhánh `feature/cf-03-auth-recovery` → `develop`. Điểm bắt đầu `0076bb27062b3be32f1865cd9df9f5ac42d87da2`, develop `5cc4132bdd13aff4720dd4031d5f75d69fbb0606`. Nguồn mô hình là [ERD 11/11](evidence/system-database-reference-2026-11-11.jpg). Phản hồi Database mô tả môi trường Navicat `locall`, MySQL 8.0.44. Kết nối workspace kiểm tra read-only trả MySQL 8.0.45, 13 bảng, 0 view, có history. Đây là hai quan sát từ hai môi trường.
 
 | Môi trường | Bằng chứng | Quyết định còn thiếu |

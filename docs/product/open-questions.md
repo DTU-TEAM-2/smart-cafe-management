@@ -69,3 +69,17 @@ Model đã theo sơ đồ mới do chủ repo cung cấp lại ngày 11/11. DB l
 ### DT2-9: form Figma có Mô tả / WebP ngoài contract hiện tại
 
 Frame Figma 8:319 có Mô tả và nhãn WebP, nhưng API/ERD menu chưa có description và backend chỉ nhận PNG/JPEG. Reviewer nêu P3 cần PO/UX/BE chốt. **Chủ repo chọn ngày 13/11: giữ contract hiện tại, ghi rõ chênh lệch và chờ PO chốt Figma.** Không tự thêm schema/field/format; phần cập nhật thiết kế vẫn chờ PO. Xem [đối chiếu và quyết định](../handover/dt2-9-figma-contract-alignment.md).
+
+
+### DT2-2 — received DDL handoff, remaining owner/DBA decisions (2026-11-13)
+
+The owner supplied `SmartCafe-DDL-handoff-20261113.zip`; verified SQL now supports isolated provision/baseline and opt-in `verified-db`. The earlier “no full DDL artifact” observation is historical. See [current integration and authority](../handover/dt2-2-verified-database-integration.md).
+
+| Decision | Concrete remaining action / impact | Status / responsible owner |
+| --- | --- | --- |
+| Canonical environment and DDL approval | Identify target instance privately; accept all twenty tables, four DEFINER views and the News audience extension. Do not treat legacy 13-table DB as this target. | NEEDS OWNER DECISION — repository owner + designated DBA |
+| Global migration allocation | Record `20261113.1`, source SHA and one canonical `classpath:db/smart-cafe` artifact/ref. If a separate Database PR owns it, merge that artifact first and synchronize Auth; avoid duplicate migrations. | NEEDS OWNER DECISION — DB/version owner |
+| Existing environment inventory | List instances using Auth V001/V002, legacy V001–V010 or untracked full DDL. Preserve each chain; design conversion only for an identified source. | BLOCKED pending DBA/environment owner |
+| Definers and rollout | Approve migration/application grants, definer account lifetime, secure backup/restore rehearsal, writer freeze and explicit baseline/deploy command/window. Local privileged MySQL success does not approve production grants. | DEPLOYMENT BLOCKED — DBA + release owner |
+
+No new limiter/retention/lockout/job, shared schema write, or business policy is approved here. QA-02 auto guest-session ownership and previous security proposals remain open.
