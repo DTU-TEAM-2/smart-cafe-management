@@ -63,5 +63,5 @@
 - [x] Dev duyệt kế hoạch (Điểm kiểm soát 1)
 - [x] Triển khai chỉnh sửa mã nguồn
 - [x] Chạy kiểm thử tự động đạt 100%
-- [ ] Cập nhật báo cáo & phản hồi các thread trên PR
+- [x] Cập nhật báo cáo & phản hồi các thread trên PR
 - [ ] Dev nghiệm thu kết quả (Điểm kiểm soát 2)
