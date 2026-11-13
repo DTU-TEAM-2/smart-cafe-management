@@ -14,6 +14,12 @@ Các quyết định liên quan DT2-6 được đối chiếu với [QA nhóm cu
 
 Mỗi câu trả lời cần người chốt, ngày, nguồn bằng chứng và task bị ảnh hưởng. Đề xuất kỹ thuật chưa được duyệt vẫn là đề xuất.
 
+### QA-02 — bổ sung yêu cầu DT2-4 ngày 11/11/2026
+
+Người dùng yêu cầu khách quét QR tại bàn, vào thẳng Menu không đăng nhập và hệ thống tự mở phiên. Jira DT2-33 vẫn ghi QA-02 chưa chốt; QA nhóm trước đó ghi chỉ quản lý mở/reset. Cần PO/chủ DB xác nhận thay đổi trong phạm vi thẩm quyền và cách lưu người mở khi `table_sessions.opened_by_user_id` hiện NOT NULL FK tới `users`.
+
+Các phương án cần quyết định: cho phép NULL để thể hiện khách vãng lai (cần duyệt schema), hoặc giữ schema và để người dùng nội bộ có thật mở phiên (không đáp ứng trải nghiệm tự mở hiện được yêu cầu). Không tạo tài khoản giả, gán ADMIN thay khách hoặc tắt FK. Thời hạn token, nhiều thiết bị và quét lại ở CHECKOUT chưa chốt. Xem [nguồn, phạm vi và blocker chức năng 2](../handover/dt2-4-table-session.md).
+
 
 ### DT2-9: DDL triển khai theo sơ đồ mới
 
