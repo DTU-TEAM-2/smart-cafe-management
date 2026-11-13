@@ -13,7 +13,7 @@
 
 ## Phần độc lập đã triển khai
 
-PR #9 đã merge vào main tại `8476ee3`. Nhánh PR #10 đã đồng bộ main qua merge `9790cbb`, không xung đột và tree mã nguồn trùng revision đã kiểm thử `a342090`. PR #10 nhắm main và review độc lập phần tra QR; không chờ hoàn tất nghiệp vụ phiên để review endpoint chỉ đọc này. Quyết định merge vẫn thuộc maintainer, sau khi CI của revision đồng bộ đạt và review được chấp thuận.
+PR #9 đã merge vào main tại `8476ee3`. Nhánh PR #10 đã đồng bộ commit này qua merge `9790cbb`, không xung đột và tree mã nguồn trùng revision đã kiểm thử `a342090`. Main và develop cùng ở `8476ee3` khi đối chiếu ngày 13/11/2026. Theo ảnh quy trình chủ repo cung cấp trong chat cùng ngày, PR #10 nhắm develop và review độc lập phần tra QR; cần CI xanh và hai người khác tác giả approve trước khi maintainer quyết định merge. Đây là hướng dẫn đích PR mới thay phần mô tả main trước đó của task này; chưa tự sửa quy trình chung của repository. Không chờ hoàn tất nghiệp vụ phiên để review endpoint chỉ đọc này.
 
 `GET /api/v1/customer/tables/qr/{qrPublicId}` cho khách chưa đăng nhập tra bàn từ QR. Kết quả chỉ có `tableId`, `tableCode`, `tableName`, dùng làm ngữ cảnh cho Menu. QR phải là mã UUID đủ 36 ký tự theo cột `cafe_tables.qr_public_id`; đối chiếu mã chính xác theo collation ASCII binary của fixture.
 

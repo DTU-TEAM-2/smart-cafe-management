@@ -1,7 +1,7 @@
 name: DT2-4 Postman
 on:
   pull_request:
-    branches: [main, feature/dt2-4-menu-api]
+    branches: [main, develop, feature/dt2-4-menu-api]
     types: [opened, synchronize, reopened, edited]
     paths:
       - 'backend/**'
