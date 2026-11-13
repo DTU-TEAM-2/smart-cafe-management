@@ -19,6 +19,8 @@ body { margin: 0; }
 a { color: inherit; }
 button { font: inherit; }
 :focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
+.login-error { color: #f1b49b; border: 1px solid #d392764f; background: #a94d2815; padding: 12px; border-radius: 6px; line-height: 1.7; }
+.header-logout { margin-top: 16px; padding: 8px 12px; border: 1px solid #d9b57355; border-radius: 4px; color: var(--gold); background: transparent; cursor: pointer; }
 [hidden] { display: none !important; }
 #root { min-height: 100vh; }
 section { scroll-margin-top: 24px; }

@@ -1,13 +1,11 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import HomePage from "../home/HomePage.jsx";
 import SiteLayout from "./SiteLayout.jsx";
 import LoginPage from "../auth/LoginPage.jsx";
+import useNewsSocket from "../news/useNewsSocket.js";
+import { clearLocalSession } from "../auth/loginApi.js";
+const NewsPage = lazy(() => import("../news/NewsPage.jsx"));
 import SalesWorkspace from "../sales/SalesWorkspace.jsx";
-
-function subscribeHash(callback) {
-  window.addEventListener("hashchange", callback);
-  return () => window.removeEventListener("hashchange", callback);
-}
 
 const money = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" });
 const roles = { ADMIN: "Quản lý", STAFF: "Nhân viên", CUSTOMER: "Khách hàng" };
@@ -18,12 +16,41 @@ export default function HomeShell(props) {
 }
 
 function ScopedHomeShell({ authorization = "", loginHref = "#login", credentials = "same-origin" }) {
-  const hash = useSyncExternalStore(subscribeHash, () => window.location.hash);
+  const [hash, setHash] = useState(() => window.location.hash);
+  const navigationGuard = useRef(null);
+  const approvedHash = useRef(null);
+  const setNavigationGuard = useCallback(guard => { navigationGuard.current = guard; }, []);
   const [identity, setIdentity] = useState({ status: "loading", account: null });
   const [feed, setFeed] = useState({ status: "loading", data: null });
   const [readIds, setReadIds] = useState(() => new Set());
   const [accountAttempt, setAccountAttempt] = useState(0);
   const [feedAttempt, setFeedAttempt] = useState(0);
+  const recheckIdentity = useCallback(() => setAccountAttempt(value => value + 1), []);
+  const news = useNewsSocket(authorization, identity.account, recheckIdentity);
+
+  useEffect(() => {
+    function changed() {
+      if (location.hash === hash) return;
+      const approved = approvedHash.current === location.hash;
+      approvedHash.current = null;
+      if (!approved && navigationGuard.current && !navigationGuard.current()) {
+        history.replaceState(null, "", hash || `${location.pathname}${location.search}`);
+        return;
+      }
+      setHash(location.hash);
+    }
+    function leaving(event) {
+      const link = event.target.closest?.("a[href]");
+      if (!link || event.defaultPrevented || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      if (link.hash === "#main") { event.preventDefault(); document.getElementById("main")?.focus(); return; }
+      if (link.hash === hash || !navigationGuard.current) return;
+      if (!navigationGuard.current()) event.preventDefault();
+      else approvedHash.current = link.hash || null;
+    }
+    window.addEventListener("hashchange", changed);
+    document.addEventListener("click", leaving);
+    return () => { window.removeEventListener("hashchange", changed); document.removeEventListener("click", leaving); };
+  }, [hash]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -88,30 +115,34 @@ function ScopedHomeShell({ authorization = "", loginHref = "#login", credentials
 
   const onAccountPage = hash === "#account";
   const onLoginPage = hash === "#login";
+  const onNewsPage = /^#news(?:\/|$)/.test(hash);
   const onSalesPage = hash === "#sale" || hash === "#sale-income";
   useEffect(() => {
-    if (!onAccountPage && !onLoginPage && !onSalesPage && hash) {
+    if (!onAccountPage && !onLoginPage && !onNewsPage && !onSalesPage && hash) {
       const frame = requestAnimationFrame(() => document.getElementById(hash.slice(1))?.scrollIntoView());
       return () => cancelAnimationFrame(frame);
     }
-    if (onAccountPage || onLoginPage || onSalesPage) {
+    if (onAccountPage || onLoginPage || onNewsPage || onSalesPage) {
       window.scrollTo(0, 0);
       document.getElementById(onSalesPage ? "sale-main" : "main")?.focus({ preventScroll: true });
     }
-  }, [hash, onAccountPage, onLoginPage, onSalesPage]);
+  }, [hash, onAccountPage, onLoginPage, onNewsPage, onSalesPage]);
 
   const account = identity.account ? { ...identity.account, profileHref: "#account" } : null;
   if (onSalesPage) return <SalesWorkspace account={account} identityStatus={identity.status}
     authorization={authorization} credentials={credentials} income={hash === "#sale-income"}
     retryIdentity={() => { setIdentity({ status: "loading", account: null }); setAccountAttempt(value => value + 1); }} />;
   const notifications = feed.data && { ...feed.data, items: feed.data.items.map(item => ({ ...item, read: readIds.has(item.id) })) };
-  return <SiteLayout account={account} notifications={notifications} links={{ login: loginHref }}
-    currentPage={onAccountPage ? "account" : onLoginPage ? "login" : "home"} notificationState={feed.status}
+  return <SiteLayout account={account} notifications={notifications} links={{ login: loginHref, news: "#news" }}
+    currentPage={onAccountPage ? "account" : onLoginPage ? "login" : onNewsPage ? "news" : "home"} notificationState={feed.status}
     onRetryNotifications={() => { setFeed({ status: "loading", data: null }); setFeedAttempt(value => value + 1); }}
+    onLogout={() => { if (navigationGuard.current && !navigationGuard.current()) return; clearLocalSession(); }}
     onNotificationsOpen={() => setReadIds(previous => new Set([...previous, ...(feed.data?.items.map(item => item.id) ?? [])]))}>
     {identity.status === "error" && <div className="identity-error" role="alert">Chưa tải được thông tin tài khoản.
       <button type="button" onClick={() => setAccountAttempt(value => value + 1)}>Thử lại</button></div>}
-    {onLoginPage ? account ? <section className="account-page"><h1>Bạn đã đăng nhập</h1><a href="#account">Xem thông tin tài khoản</a></section>
+    {onNewsPage ? <Suspense fallback={<section className="account-page"><p role="status">Đang mở tin tức…</p></section>}><NewsPage authorization={authorization} account={identity.account} identityStatus={identity.status}
+      route={hash} revision={news.revision} connection={news.connection} setNavigationGuard={setNavigationGuard} /></Suspense>
+      : onLoginPage ? account ? <section className="account-page"><h1>Bạn đã đăng nhập</h1><a href="#account">Xem thông tin tài khoản</a></section>
       : <LoginPage />
       : onAccountPage ? <AccountPage status={identity.status} account={identity.account} /> : <HomePage />}
   </SiteLayout>;

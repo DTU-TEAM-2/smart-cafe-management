@@ -24,7 +24,7 @@ Ghi trigger, tác động, file/line và cách xác minh; tránh tranh luận ch
 
 ## Bảo mật trong phát triển
 
-API kiểm tra quyền và resource ownership ở backend; UI ẩn nút chỉ là trải nghiệm. GET `/api/v1/home/highlights` public; GET `/api/v1/home/account` yêu cầu token hợp lệ; GET `/api/v1/home/notifications` chỉ cho STAFF/ADMIN còn ACTIVE trong DB. Các endpoint khác bị từ chối. Header đọc contract bearer của module auth, không phát hành token hoặc tự tạo tài khoản. Theo phạm vi mới nhất, chỉ chuẩn bị [UI đăng nhập](../handover/dt2-1-login-ui.md), không có tài khoản mẫu hay xác thực giả. Chưa có health endpoint.
+API kiểm tra quyền và resource ownership ở backend; UI ẩn nút chỉ là trải nghiệm. GET `/api/v1/home/highlights` public; GET `/api/v1/home/account` yêu cầu token hợp lệ; GET `/api/v1/home/notifications` chỉ cho STAFF/ADMIN còn ACTIVE trong DB. API tin tức theo [contract Task 7](../handover/dt2-7-backend-contract.md); endpoint chưa được cho phép vẫn bị từ chối. Header đọc contract bearer của module auth, không phát hành token hoặc tự tạo tài khoản. Theo phạm vi full Task 7 ngày 11/11/2026, [UI đăng nhập](../handover/dt2-1-login-ui.md) gọi issuer DT2-2 thật rồi xác minh qua consumer; không có tài khoản mẫu hay xác thực giả. Chưa có health endpoint.
 
 Khi auth được triển khai, hash mật khẩu bằng thuật toán phù hợp qua Spring Security, không plaintext; chọn session/token, CSRF/CORS và logout/expiry theo thiết kế có ghi nhận. Không tự tắt CSRF/CORS để chữa lỗi frontend. Kiểm soát reset token một lần/có hạn, brute-force và thay đổi quyền theo phạm vi thực tế.
 
