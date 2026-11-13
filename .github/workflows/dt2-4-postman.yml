@@ -1,7 +1,7 @@
 name: DT2-4 Postman
 on:
   pull_request:
-    branches: [main]
+    branches: [main, develop, 'release/**']
     paths:
       - 'backend/**'
       - 'docs/qa/postman/**'
