@@ -410,7 +410,7 @@ class NewsReviewMySqlTest {
 
     private String bearer(int id, String username) throws Exception {
         String payload = Base64.getUrlEncoder().withoutPadding().encodeToString(
-                (id + ":" + username + ":IGNORED:" + Instant.now().plusSeconds(120).toEpochMilli()).getBytes(StandardCharsets.UTF_8));
+                (id + ":" + username + ":CUSTOMER:" + Instant.now().plusSeconds(120).toEpochMilli()).getBytes(StandardCharsets.UTF_8));
         var mac = Mac.getInstance("HmacSHA256");
         mac.init(new SecretKeySpec("review-news-secret-only-at-least-32-characters".getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
         return "Bearer " + payload + "." + HexFormat.of().formatHex(mac.doFinal(payload.getBytes(StandardCharsets.UTF_8)));

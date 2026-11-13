@@ -3,7 +3,6 @@ package vn.codegym.smartcafe.config;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -22,7 +21,7 @@ class HeaderTokenFilterCompatibilityTest {
         when(authenticator.authenticate("Bearer isolated-unit-fixture")).thenReturn(expected);
         var filter = new HeaderTokenFilter(authenticator);
         for (String path : List.of("/api/v1/menu/categories", "/api/v1/menu", "/api/v1/sales/tables",
-                "/api/v1/income", "/api/v1/bills/42")) {
+                "/api/v1/income", "/api/v1/bills/42", "/api/v1/auth/me", "/api/v1/admin/test", "/api/v1/staff/test")) {
             SecurityContextHolder.clearContext();
             try {
                 var request = new MockHttpServletRequest("GET", "/cafe" + path);
@@ -36,14 +35,14 @@ class HeaderTokenFilterCompatibilityTest {
     }
 
     @Test
-    void legacyConstructorRemainsUsableWithoutIssuingSessionsOrRequiringCredentials() throws Exception {
-        var jdbc = mock(JdbcClient.class);
-        var filter = new HeaderTokenFilter(jdbc, "unit-fixture-secret-at-least-32-characters");
+    void filterDoesNotCreateSessionWithoutCredentials() throws Exception {
+        var authenticator = mock(BearerTokenAuthenticator.class);
+        var filter = new HeaderTokenFilter(authenticator);
         SecurityContextHolder.clearContext();
         try {
             filter.doFilter(new MockHttpServletRequest("GET", "/api/v1/menu/categories"),
                     new MockHttpServletResponse(), (req, res) -> assertThat(SecurityContextHolder.getContext().getAuthentication()).isNull());
-            verifyNoInteractions(jdbc);
+            verify(authenticator).authenticate(null);
         } finally { SecurityContextHolder.clearContext(); }
     }
 }

@@ -6,7 +6,7 @@ Cách miễn phí mặc định để một máy mới clone về phát triển 
 
 Cần Java 21+, Node 22.19+ (22.x) hoặc Node 24+, MySQL 8.0.16+. Lần đầu `npm ci` và Firebase tải runtime cần internet. Không cần cài Firebase CLI global: package-lock ở thư mục này cố định Firebase CLI 15.35.0 và các dependency.
 
-Dùng **database riêng tên kết thúc `_test`** (ví dụ `smart_cafe_local_test`), nhận schema từ người phụ trách DB. Với một DB `_test` mới và rỗng, fixture cấu trúc `backend/src/test/resources/schema.sql` đã được đối chiếu và chứa hai cột audience được duyệt; không nhập file này vào database hệ thống, không chạy lại ALTER audience sau fixture. Không dùng `smart_cafe` trong chế độ emulator. Ứng dụng không tự tạo schema hoặc account.
+Dùng **database riêng tên kết thúc `_test`** (ví dụ `smart_cafe_local_test`), nhận schema từ người phụ trách DB. Với một DB `_test` mới và rỗng, fixture cấu trúc `backend/src/test/resources/schema.sql` đã được đối chiếu và chứa hai cột audience được duyệt; không nhập file này vào database hệ thống, không chạy lại ALTER audience sau fixture. Không dùng `smart_cafe` trong chế độ emulator. Với fixture đã nhập thủ công vào DB thử riêng, đặt `$env:SPRING_FLYWAY_ENABLED = "false"` trong terminal chạy backend để dùng fixture không có Flyway history. Các môi trường có Flyway dùng quy trình DB tương ứng trong [bàn giao DT2-2](../../docs/handover/dt2-2-verified-database-integration.md).
 
 ## 2. Cài và chạy Storage
 
@@ -42,7 +42,7 @@ macOS/Linux hoặc chạy Java trực tiếp: export các biến trong `env.exam
 
 ## 4. Auth và frontend
 
-Task 7 tiêu thụ issuer **DT2-2 thật**. Nhánh này chưa tự chứa endpoint login: chạy bản auth được nhóm duyệt với cùng DB `_test` và signing secret, hoặc dùng nhánh tích hợp đã có DT2-2. Cấp account phát triển theo quy trình của module auth trong DB riêng; không copy account/password hệ thống hoặc tự ký token để thay login.
+Task 7 tiêu thụ issuer **DT2-2 thật**. Auth DT2-2 đã có trong bản tích hợp với develop. Nếu dùng Auth riêng, hai backend cần cùng DB `_test` và signing secret. Cấp account phát triển theo quy trình của module auth trong DB riêng; không copy account/password hệ thống hoặc tự ký token để thay login.
 
 Terminal C, từ repo:
 

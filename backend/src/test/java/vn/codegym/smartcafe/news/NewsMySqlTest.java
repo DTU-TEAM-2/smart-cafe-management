@@ -556,7 +556,7 @@ class NewsMySqlTest {
         // Matches the existing authentication module's four-field bearer contract:
         // base64url(id:username:role:expiryEpochMillis).hex(hmac-sha256)
         String payload = Base64.getUrlEncoder().withoutPadding().encodeToString(
-                (id + ":" + username + ":DUMMY_ROLE:" + expiry).getBytes(StandardCharsets.UTF_8));
+                (id + ":" + username + ":CUSTOMER:" + expiry).getBytes(StandardCharsets.UTF_8));
         var mac = Mac.getInstance("HmacSHA256");
         mac.init(new SecretKeySpec(SECRET.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
         return "Bearer " + payload + "." + HexFormat.of().formatHex(mac.doFinal(payload.getBytes(StandardCharsets.UTF_8)));

@@ -6,7 +6,6 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.dao.DataAccessException;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -18,11 +17,6 @@ final class HeaderTokenFilter extends OncePerRequestFilter {
         this.authenticator = authenticator;
     }
 
-    // Keep the constructor used by the approved MenuSecurity chain on main.
-    HeaderTokenFilter(JdbcClient jdbc, String secret) {
-        this(new BearerTokenAuthenticator(jdbc, secret));
-    }
-
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI().substring(request.getContextPath().length());
@@ -30,7 +24,8 @@ final class HeaderTokenFilter extends OncePerRequestFilter {
                 && !path.equals("/api/v1/home/notifications") && !path.equals("/api/v1/news")
                 && !path.startsWith("/api/v1/news/") && !path.equals("/api/v1/menu")
                 && !path.startsWith("/api/v1/menu/") && !path.startsWith("/api/v1/sales/")
-                && !path.equals("/api/v1/income") && !path.startsWith("/api/v1/bills/"));
+                && !path.equals("/api/v1/income") && !path.startsWith("/api/v1/bills/") && !path.startsWith("/api/v1/admin/")
+                && !path.startsWith("/api/v1/staff/") && !path.equals("/api/v1/auth/me"));
     }
 
     @Override

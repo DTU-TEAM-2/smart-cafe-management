@@ -37,3 +37,9 @@ Skills áp dụng: `cafe-workflow`, `cafe-quality`, `cafe-review`, `cafe-spring-
 - Đã tái hiện trước sửa: 5 regression media thất bại (ảnh ngoài News vẫn được nhận và URL cũ vẫn trả về). Sau sửa, Maven verify trên MySQL 8.0 `_test` riêng **146/146 đạt**, 0 lỗi, 0 bỏ qua. Trong đó có 7 test socket budget, hai đợt 1.000 admission đồng thời, auth đồng thời, timeout, cleanup và kiểm số lượt revalidation DB trong budget.
 - Test mạng WebSocket/Tomcat thật xác nhận kết nối thứ 17 cùng IP bị chặn **429 + Retry-After**, đóng một socket rồi nhận kết nối mới và xác thực `READY`. Stress admission là test Java đồng thời trên handler (session/auth test doubles), không phải benchmark 2.000 socket TCP hoặc chứng nhận chống DDoS production. Test socket hai client/after-commit/quyền vẫn đạt trong full verify.
 - Không đổi frontend trong bản sửa; kết quả UI 96/96 ở revision trước là bằng chứng hồi quy trước đó. CI của commit sửa phải chạy lại trước merge. Không chạy cloud/billing hoặc thay schema/migration.
+
+## Đồng bộ Auth đã merge vào develop — 13/11/2026
+
+- Đã giải quyết xung đột ở 12 file với `develop@ffa4d95`. REST và WebSocket dùng cùng bộ xác minh token DT2-2. Frontend dùng luồng đăng nhập và khôi phục mật khẩu của DT2-2, xác minh phiên qua `/api/v1/auth/me` trước khi lưu, rồi chuyển trang theo vai trò.
+- Maven verify trên MySQL 8.0 Docker riêng đạt **295/295**, 0 bỏ qua. Test tích hợp kiểm tra token do luồng login phát hành đọc được News. Frontend lint/build và Playwright desktop/mobile đạt **112/112**. Registry/checksum, Git Flow, định tuyến, launcher và kiểm tra whitespace đều đạt.
+- Test dùng database riêng và không chạy Firebase cloud. Các quyết định schema và quy trình chạy migration hiện hành được giữ nguyên.

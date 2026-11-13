@@ -207,7 +207,7 @@ class NewsAudienceMySqlTest {
 
     private String bearer(int id, String username) throws Exception {
         String payload = Base64.getUrlEncoder().withoutPadding().encodeToString(
-                (id + ":" + username + ":UNTRUSTED:" + Instant.now().plusSeconds(120).toEpochMilli())
+                (id + ":" + username + ":ADMIN:" + Instant.now().plusSeconds(120).toEpochMilli())
                         .getBytes(StandardCharsets.UTF_8));
         var mac = Mac.getInstance("HmacSHA256");
         mac.init(new SecretKeySpec("audience-test-secret-only-at-least-32-characters".getBytes(StandardCharsets.UTF_8), "HmacSHA256"));

@@ -17,6 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "spring.datasource.url=jdbc:mysql://127.0.0.1:1/unavailable_test",
         "spring.datasource.username=unused",
         "spring.datasource.password=",
+        "spring.flyway.enabled=false",
         "smartcafe.auth.token-secret=unavailable-test-secret-only-at-least-32-characters"
 })
 @AutoConfigureMockMvc

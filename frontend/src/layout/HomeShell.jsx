@@ -3,19 +3,26 @@ import HomePage from "../home/HomePage.jsx";
 import SiteLayout from "./SiteLayout.jsx";
 import LoginPage from "../auth/LoginPage.jsx";
 import useNewsSocket from "../news/useNewsSocket.js";
-import { clearLocalSession } from "../auth/loginApi.js";
-const NewsPage = lazy(() => import("../news/NewsPage.jsx"));
+import { useAuth } from "../auth/useAuth.js";
+import ForgotPasswordPage from "../auth/ForgotPasswordPage.jsx";
+import OtpPage from "../auth/OtpPage.jsx";
+import ResetPasswordPage from "../auth/ResetPasswordPage.jsx";
+import AdminDashboard from "../dashboard/AdminDashboard.jsx";
+import StaffDashboard from "../dashboard/StaffDashboard.jsx";
 import SalesWorkspace from "../sales/SalesWorkspace.jsx";
+
+const NewsPage = lazy(() => import("../news/NewsPage.jsx"));
 
 const money = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" });
 const roles = { ADMIN: "Quản lý", STAFF: "Nhân viên", CUSTOMER: "Khách hàng" };
 
 export default function HomeShell(props) {
   // Remount account-scoped state on credential changes, including logout and account switching.
-  return <ScopedHomeShell key={props.authorization ?? ""} {...props} />;
+  return <ScopedHomeShell key={`${props.authorization ?? ""}:${props.credentials ?? ""}`} {...props} />;
 }
 
 function ScopedHomeShell({ authorization = "", loginHref = "#login", credentials = "same-origin" }) {
+  const { logout } = useAuth();
   const [hash, setHash] = useState(() => window.location.hash);
   const navigationGuard = useRef(null);
   const approvedHash = useRef(null);
@@ -113,20 +120,30 @@ function ScopedHomeShell({ authorization = "", loginHref = "#login", credentials
     return () => { controller.abort(); window.clearTimeout(timer); };
   }, [authorization, credentials, identity.account, feedAttempt]);
 
-  const onAccountPage = hash === "#account";
-  const onLoginPage = hash === "#login";
+  const onAccountPage = hash.startsWith("#account");
+  const onLoginPage = hash.startsWith("#login");
+  const onForgotPasswordPage = hash.startsWith("#forgot-password");
+  const onOtpPage = hash.startsWith("#verify-otp");
+  const onResetPasswordPage = hash.startsWith("#reset-password");
+  const onAdminPage = hash.startsWith("#admin");
+  const onStaffPage = hash.startsWith("#staff");
   const onNewsPage = /^#news(?:\/|$)/.test(hash);
   const onSalesPage = hash === "#sale" || hash === "#sale-income";
+
+  const isSpecialPage = onAccountPage || onLoginPage || onForgotPasswordPage || onOtpPage || onResetPasswordPage || onAdminPage || onStaffPage || onSalesPage || onNewsPage;
+
   useEffect(() => {
-    if (!onAccountPage && !onLoginPage && !onNewsPage && !onSalesPage && hash) {
+    if (!isSpecialPage && hash) {
       const frame = requestAnimationFrame(() => document.getElementById(hash.slice(1))?.scrollIntoView());
       return () => cancelAnimationFrame(frame);
     }
-    if (onAccountPage || onLoginPage || onNewsPage || onSalesPage) {
+    if (isSpecialPage) {
       window.scrollTo(0, 0);
       document.getElementById(onSalesPage ? "sale-main" : "main")?.focus({ preventScroll: true });
     }
-  }, [hash, onAccountPage, onLoginPage, onNewsPage, onSalesPage]);
+  }, [hash, isSpecialPage, onSalesPage]);
+
+  const handleNavigate = useCallback(newHash => { window.location.hash = newHash; }, []);
 
   const account = identity.account ? { ...identity.account, profileHref: "#account" } : null;
   if (onSalesPage) return <SalesWorkspace account={account} identityStatus={identity.status}
@@ -136,15 +153,36 @@ function ScopedHomeShell({ authorization = "", loginHref = "#login", credentials
   return <SiteLayout account={account} notifications={notifications} links={{ login: loginHref, news: "#news" }}
     currentPage={onAccountPage ? "account" : onLoginPage ? "login" : onNewsPage ? "news" : "home"} notificationState={feed.status}
     onRetryNotifications={() => { setFeed({ status: "loading", data: null }); setFeedAttempt(value => value + 1); }}
-    onLogout={() => { if (navigationGuard.current && !navigationGuard.current()) return; clearLocalSession(); }}
+    onLogout={() => { if (navigationGuard.current && !navigationGuard.current()) return; void logout(); }}
     onNotificationsOpen={() => setReadIds(previous => new Set([...previous, ...(feed.data?.items.map(item => item.id) ?? [])]))}>
     {identity.status === "error" && <div className="identity-error" role="alert">Chưa tải được thông tin tài khoản.
       <button type="button" onClick={() => setAccountAttempt(value => value + 1)}>Thử lại</button></div>}
-    {onNewsPage ? <Suspense fallback={<section className="account-page"><p role="status">Đang mở tin tức…</p></section>}><NewsPage authorization={authorization} account={identity.account} identityStatus={identity.status}
-      route={hash} revision={news.revision} connection={news.connection} setNavigationGuard={setNavigationGuard} /></Suspense>
-      : onLoginPage ? account ? <section className="account-page"><h1>Bạn đã đăng nhập</h1><a href="#account">Xem thông tin tài khoản</a></section>
-      : <LoginPage />
-      : onAccountPage ? <AccountPage status={identity.status} account={identity.account} /> : <HomePage />}
+    {onNewsPage ? (
+      <Suspense fallback={<section className="account-page"><p role="status">Đang mở tin tức…</p></section>}>
+        <NewsPage authorization={authorization} account={identity.account} identityStatus={identity.status}
+          route={hash} revision={news.revision} connection={news.connection} setNavigationGuard={setNavigationGuard} />
+      </Suspense>
+    ) : onLoginPage ? (
+      account ? (
+        <section className="account-page"><h1>Bạn đã đăng nhập</h1><a href="#account">Xem thông tin tài khoản</a></section>
+      ) : (
+        <LoginPage onNavigate={handleNavigate} />
+      )
+    ) : onForgotPasswordPage ? (
+      <ForgotPasswordPage onNavigate={handleNavigate} />
+    ) : onOtpPage ? (
+      <OtpPage onNavigate={handleNavigate} />
+    ) : onResetPasswordPage ? (
+      <ResetPasswordPage onNavigate={handleNavigate} />
+    ) : onAdminPage ? (
+      <AdminDashboard onNavigate={handleNavigate} />
+    ) : onStaffPage ? (
+      <StaffDashboard onNavigate={handleNavigate} />
+    ) : onAccountPage ? (
+      <AccountPage status={identity.status} account={identity.account} />
+    ) : (
+      <HomePage />
+    )}
   </SiteLayout>;
 }
 

@@ -7,6 +7,7 @@ const fixture = { id: "9007199254740993", title: "Những ngày thơm hương c�
 
 async function setup(page, role = "ADMIN", { error = false, empty = false } = {}) {
   await page.addInitScript(() => sessionStorage.setItem("smart_cafe_token", "isolated-ui-fixture-token"));
+  await page.route("**/api/v1/auth/me", route => route.fulfill({ json: { id: 1, username: "ui-fixture", role } }));
   await page.route("**/api/v1/home/account", route => route.fulfill({ json: { id: "1", name: "Tài khoản kiểm thử", username: "ui-fixture", role } }));
   await page.route("**/api/v1/home/highlights", route => route.fulfill({ json: { newest: [], mostOrdered: [] } }));
   await page.route("**/api/v1/home/notifications", route => route.fulfill({ json: { recipientId: "1", items: [] } }));
