@@ -16,8 +16,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(properties = {
         "spring.datasource.url=jdbc:mysql://127.0.0.1:1/unavailable_test",
         "spring.datasource.username=unused",
-        "spring.datasource.password=",
-        "spring.flyway.enabled=false"
+        "spring.datasource.password="
 })
 @AutoConfigureMockMvc
 class HomeUnavailableTest {

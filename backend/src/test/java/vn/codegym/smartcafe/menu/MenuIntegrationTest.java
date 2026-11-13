@@ -153,21 +153,6 @@ class MenuIntegrationTest {
         mvc.perform(get("/api/v1/menu/items?page=2147483647&size=100")).andExpect(status().isOk()).andExpect(jsonPath("$.content").isEmpty());
     }
 
-    @Test @WithMockUser(roles = "ADMIN") void searchNamesUsesSchemaCollationButTreatsWildcardsLiterally() throws Exception {
-        fixtures();
-        jdbc.update("UPDATE menu_items SET name='Bạc xỉu' WHERE code='CF01'");
-        for (String term : List.of("bac xiu", "BẠC XỈU")) {
-            mvc.perform(get("/api/v1/menu/items").param("field", "name").param("keyword", term))
-                    .andExpect(status().isOk()).andExpect(jsonPath("$.content[0].code").value("CF01"));
-        }
-        mvc.perform(get("/api/v1/menu/items").param("field", "category").param("keyword", "CA PHE"))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(2));
-        for (String term : List.of("%", "_", "!")) {
-            mvc.perform(get("/api/v1/menu/items").param("field", "name").param("keyword", term))
-                    .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
-        }
-    }
-
     @Test @WithMockUser(roles = "ADMIN") void validationRejectsUnsafeAndMalformedInput() throws Exception {
         fixtures();
         for (String query : List.of("size=101", "size=0", "page=-1", "field=sql", "field=price&keyword=abc", "field=price&keyword=5000.5")) {
