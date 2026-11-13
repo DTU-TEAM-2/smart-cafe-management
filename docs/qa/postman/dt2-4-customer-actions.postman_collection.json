@@ -1,0 +1,676 @@
+{
+  "info": {
+    "name": "DT2-4 — Order, Sửa/Remove, Gọi phục vụ và Bill",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Token khách cấp qua environment ở runtime, chỉ fixture *_test. Không tạo hoặc mở phiên QR."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:18086"
+    }
+  ],
+  "item": [
+    {
+      "name": "Lấy CSRF cho thao tác khách",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{baseUrl}}/api/v1/customer/csrf"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"guestCsrf\",pm.response.json().token);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Từ chối đơn rỗng",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{guestToken}}"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{guestCsrf}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "empty"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/sessions/95001/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"items\":[]}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Order lấy giá từ server",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{guestToken}}"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{guestCsrf}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "order-newman"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/sessions/95001/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"items\":[{\"menuItemId\":95001,\"quantity\":2}],\"totalAmount\":1}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "const r=pm.response.json(); pm.collectionVariables.set(\"batchId\",r.id); pm.collectionVariables.set(\"itemId\",r.items[0].id); pm.test(\"Giá và tổng từ MySQL\",()=>{pm.expect(r.totalAmount).to.eql(\"50000\");pm.expect(r.items[0].unitPrice).to.eql(\"25000\");});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gửi lại cùng mã không tạo đơn mới",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{guestToken}}"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{guestCsrf}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "order-newman"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/sessions/95001/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"items\":[{\"menuItemId\":95001,\"quantity\":2}]}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.test(\"Cùng batch\",()=>pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get(\"batchId\")));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Cùng mã nhưng đổi nội dung bị từ chối",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{guestToken}}"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{guestCsrf}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "order-newman"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/sessions/95001/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"items\":[{\"menuItemId\":95001,\"quantity\":3}]}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\",()=>pm.response.to.have.status(409));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Số lượng thập phân bị từ chối",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{guestToken}}"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{guestCsrf}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "fraction"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/sessions/95001/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"items\":[{\"menuItemId\":95001,\"quantity\":1.5}]}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 400\",()=>pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Món ngừng phục vụ không được Order",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{guestToken}}"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{guestCsrf}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "off"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/sessions/95001/orders",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"items\":[{\"menuItemId\":95002,\"quantity\":1}]}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\",()=>pm.response.to.have.status(409));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Không cho token truy cập phiên khác",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{guestToken}}"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{guestCsrf}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "cross"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/sessions/95002/waiter-requests"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\",()=>pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Không có token không được gọi phục vụ",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{guestCsrf}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "missing"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/sessions/95001/waiter-requests"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 401\",()=>pm.response.to.have.status(401));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gọi phục vụ đúng phiên",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{guestToken}}"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{guestCsrf}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "waiter"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/sessions/95001/waiter-requests"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.collectionVariables.set(\"waiterId\",pm.response.json().id);pm.test(\"Đúng loại phục vụ\",()=>pm.expect(pm.response.json().type).to.eql(\"WAITER\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gửi lại không tạo yêu cầu phục vụ trùng",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{guestToken}}"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{guestCsrf}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "waiter"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/sessions/95001/waiter-requests"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.test(\"Cùng yêu cầu\",()=>pm.expect(pm.response.json().id).to.eql(pm.collectionVariables.get(\"waiterId\")));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Khóa mới bị từ chối khi đã có yêu cầu phục vụ",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{guestToken}}"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{guestCsrf}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "waiter-other"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/sessions/95001/waiter-requests"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\",()=>pm.response.to.have.status(409));",
+              "pm.test(\"Lý do từ chối\",()=>pm.expect(pm.response.json().detail).to.eql(\"Đã có yêu cầu cùng loại đang mở. Mã gửi lần này chưa được chấp nhận hoặc lưu.\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Khóa đã lưu cho phục vụ bị từ chối khi dùng để yêu cầu thanh toán",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{guestToken}}"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{guestCsrf}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "waiter"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/sessions/95001/bill-requests"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\",()=>pm.response.to.have.status(409));",
+              "pm.test(\"Lý do từ chối\",()=>pm.expect(pm.response.json().detail).to.eql(\"Mã gửi lại đã được dùng cho loại yêu cầu khác.\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Sửa số lượng trong thời hạn",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{guestToken}}"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{guestCsrf}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/sessions/95001/order-items/{{itemId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"quantity\":3,\"expectedVersion\":0}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.test(\"Giữ giá snapshot\",()=>pm.expect(pm.response.json().totalAmount).to.eql(\"75000\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Từ chối phiên bản món cũ",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{guestToken}}"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{guestCsrf}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/sessions/95001/order-items/{{itemId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"quantity\":4,\"expectedVersion\":0}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 409\",()=>pm.response.to.have.status(409));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Gửi yêu cầu thanh toán không tạo hóa đơn",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{guestToken}}"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{guestCsrf}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "bill"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/sessions/95001/bill-requests"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.test(\"Đúng loại BILL\",()=>pm.expect(pm.response.json().type).to.eql(\"BILL\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Hủy món giữ lịch sử",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{guestToken}}"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{guestCsrf}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/sessions/95001/order-items/{{itemId}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"expectedVersion\":1}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\",()=>pm.response.to.have.status(200));",
+              "pm.test(\"Đã hủy và tổng bằng 0\",()=>{const r=pm.response.json();pm.expect(r.totalAmount).to.eql(\"0\");pm.expect(r.items[0].status).to.eql(\"CANCELLED\");});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Thiếu CSRF bị từ chối",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{guestToken}}"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "no-csrf"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/sessions/95001/waiter-requests"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\",()=>pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Không mở quyền tạo phiên từ số bàn",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{guestToken}}"
+          },
+          {
+            "key": "X-CSRF-TOKEN",
+            "value": "{{guestCsrf}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/sessions",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"tableId\":95001}"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 403\",()=>pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

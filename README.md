@@ -98,6 +98,3 @@ Database hệ thống hiện chưa có món/tài khoản/order/service thì UI h
 ## Backend DT2-9: món và nhóm món
 
 API ADMIN cho CRUD, tìm kiếm, xóa logic, optimistic locking và upload ảnh tham chiếu media_assets. Dùng auth chung và mô hình DB mới; không tự DDL/seed. Xem [hướng dẫn backend](backend/README.md), [OpenAPI](docs/api/dt2-9-menu.yaml), [testcase Postman](docs/qa/dt2-9-postman-test-cases.md) và [báo cáo HTTP](docs/reports/dt2-9-api/index.html). DDL local legacy chưa khớp sơ đồ; không trỏ module này vào DB cũ để chạy thử.
-## Xem thử FE quản lý món/nhóm món DT2-9
-
-Sau khi chạy Vite, mở `/preview/menu` (ví dụ `http://127.0.0.1:5173/preview/menu`). Dữ liệu minh họa chỉ ở bộ nhớ; tải lại khôi phục mẫu. Các màn trang chủ/bán hàng tại đường dẫn gốc giữ nguyên. Xem [hướng dẫn FE](frontend/README.md) và [báo cáo tích hợp develop](docs/reports/dt2-9-frontend/develop-integration-2026-11-13.md). Menu preview chưa nối API hoặc Cloudinary thật.
