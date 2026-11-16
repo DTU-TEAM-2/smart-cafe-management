@@ -2,6 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import HomePage from "../home/HomePage.jsx";
 import SiteLayout from "./SiteLayout.jsx";
 import LoginPage from "../auth/LoginPage.jsx";
+import RegisterPage from "../auth/RegisterPage.jsx";
 import ForgotPasswordPage from "../auth/ForgotPasswordPage.jsx";
 import OtpPage from "../auth/OtpPage.jsx";
 import ResetPasswordPage from "../auth/ResetPasswordPage.jsx";
@@ -86,6 +87,7 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
 
   const onAccountPage = hash.startsWith("#account");
   const onLoginPage = hash.startsWith("#login");
+  const onRegisterPage = hash.startsWith("#register");
   const onForgotPasswordPage = hash.startsWith("#forgot-password");
   const onOtpPage = hash.startsWith("#verify-otp");
   const onResetPasswordPage = hash.startsWith("#reset-password");
@@ -93,7 +95,8 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
   const onStaffPage = hash.startsWith("#staff");
   const onSalesPage = hash === "#sale" || hash === "#sale-income";
 
-  const isSpecialPage = onAccountPage || onLoginPage || onForgotPasswordPage || onOtpPage || onResetPasswordPage || onAdminPage || onStaffPage || onSalesPage;
+  const isAuthPage = onLoginPage || onRegisterPage || onForgotPasswordPage || onOtpPage || onResetPasswordPage;
+  const isSpecialPage = onAccountPage || isAuthPage || onAdminPage || onStaffPage || onSalesPage;
 
   useEffect(() => {
     if (!isSpecialPage && hash) {
@@ -116,7 +119,7 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
     retryIdentity={() => { setIdentity({ status: "loading", account: null }); setAccountAttempt(value => value + 1); }} />;
   const notifications = feed.data && { ...feed.data, items: feed.data.items.map(item => ({ ...item, read: readIds.has(item.id) })) };
   return <SiteLayout account={account} notifications={notifications} links={{ login: loginHref }}
-    currentPage={onAccountPage ? "account" : onLoginPage ? "login" : "home"} notificationState={feed.status}
+    currentPage={onAccountPage ? "account" : onLoginPage ? "login" : "home"} isAuthPage={isAuthPage} notificationState={feed.status}
     onRetryNotifications={() => { setFeed({ status: "loading", data: null }); setFeedAttempt(value => value + 1); }}
     onNotificationsOpen={() => setReadIds(previous => new Set([...previous, ...(feed.data?.items.map(item => item.id) ?? [])]))}>
     {identity.status === "error" && <div className="identity-error" role="alert">Chưa tải được thông tin tài khoản.
@@ -127,6 +130,8 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
       ) : (
         <LoginPage onNavigate={handleNavigate} />
       )
+    ) : onRegisterPage ? (
+      <RegisterPage onNavigate={handleNavigate} />
     ) : onForgotPasswordPage ? (
       <ForgotPasswordPage onNavigate={handleNavigate} />
     ) : onOtpPage ? (
