@@ -1,0 +1,20 @@
+{
+  "artifact": "SmartCafe-DDL-handoff-20261113",
+  "prepared_by": "Codex for owner NV-DuyManh",
+  "migration_version": "20261113.1",
+  "baseline_description": "Smart Cafe verified schema 2026-11-13",
+  "runtime_location": "classpath:db/smart-cafe",
+  "source": "read-only SHOW CREATE from Navicat locall / smart_cafe",
+  "schema_shape": {
+    "business_tables": 20,
+    "views": 4,
+    "includes_news_audience_extension": true
+  },
+  "auth_revision_reviewed": "0076bb27062b3be32f1865cd9df9f5ac42d87da2",
+  "develop_observed": "79896a993e9a0f620734201efa2f05ed60090b95",
+  "status": "implementation handoff, target database has not been baselined",
+  "migration": {
+    "path": "db/smart-cafe/V20261113_01__smart_cafe_schema.sql",
+    "sha256": "84cb9f2e99073ea73b117e828dc7f144928052a8f8345cde6f903b82280e4b5e"
+  }
+}

@@ -8,6 +8,10 @@
 *.xml text eol=lf
 *.properties text eol=lf
 *.sql text eol=lf
+# Preserve the externally pinned DDL artifact byte-for-byte (its SHA-256 includes CRLF).
+backend/src/main/resources/db/smart-cafe/V20261113_01__smart_cafe_schema.sql -text whitespace=trailing-space,space-before-tab,cr-at-eol
+# The test inventory pins this script's bytes as well; keep it stable across checkouts.
+backend/src/test/resources/db/test-future/V20261113_02__test_future.sql -text whitespace=trailing-space,space-before-tab,cr-at-eol
 *.ps1 text eol=crlf
 *.bat text eol=crlf
 *.cmd text eol=crlf
