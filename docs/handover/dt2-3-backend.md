@@ -45,3 +45,7 @@ Tổ hợp PR #11/#14/#15 chưa đạt integration full-suite; patch nằm [riê
 BCrypt verification/reuse-check/hash chạy ngoài transaction và row lock. Khi bắt đầu write transaction, service khóa users, kiểm tra lại DB authority cùng password hash/auth_version đã xác minh rồi mới ghi; không cấp token khi snapshot stale hoặc commit lỗi. API payload/status và UTC expiry không thay đổi.
 
 Frontend AuthContext hiện chưa tích hợp top-level expiry status và replacement token; AccountPage còn read-only. Đây là phần DT2-28 phải hoàn tất theo các bước trên. Backend HTTP/Newman PASS không chứng minh browser đổi password rồi quay lại Profile đã E2E PASS. Không sửa Auth UI của module khác trong follow-up Backend này.
+
+## Current official-source integration gate, 18/11/2026
+
+Official Staff57ea6f1 implements required version/CAS/auth_version/callers; current official-source13case concurrency and real bearer role/deactivation tests pass in proposed composition B. Historical b74 Staff patches must not be reapplied. Literal official CandidateA is merge-blocked, while B requires explicit shared-chain reconciliation plus News consumer/Bills fixture fixes still awaiting owners. [Finding/security matrix and DT2-28 real-browser plan](dt2-3-review-matrix.md) and [current evidence](../reports/dt2-3-review-follow-up.md) distinguish these states. No editable AccountPage/DT2-28 PR was found; API contract unchanged and browser Profile E2E NOT RUN, despite100existing UI tests passing.

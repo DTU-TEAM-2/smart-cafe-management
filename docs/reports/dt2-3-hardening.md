@@ -1,5 +1,8 @@
 # DT2-3 / DT2-27 — final integration, security & quality hardening
 
+> Current correction: official Staff57ea6f1 has fixed version/CAS/auth_version/callers. Do not apply historical Staffb74 proposals or treat its5/9 failures as current. Current official/proposed candidates, Draft verification timestamp and remaining News/Bills blockers are recorded in [review follow-up](dt2-3-review-follow-up.md). The dated results below remain historical.
+
+
 > Snapshot kiểm thử15/11/2026; **396test/2failure** vẫn được lưu làm lịch sử, không chuyển thành PASS. CF-04/publication đã được user cho phép18/11; develop và PR heads đã đổi nên có lượt kiểm thử mới tại [publication report](dt2-3-publication.md).
 
 Ngày15/11/2026 (Asia/Saigon). Branch `feature/dt2-3_personal-account-backend`; HEAD/base/develop sau fetch `ffa4d9527e7924dd0bc9815fefb3034463d03156`. **Implementation còn uncommitted; chưa commit/push/tạo PR, merge hoặc Jira Done.** Không sửa CI, validator, Git Flow, quality gates, schema hay code Staff/News/Customer trên nhánh chính.

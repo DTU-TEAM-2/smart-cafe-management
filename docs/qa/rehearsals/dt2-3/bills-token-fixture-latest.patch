@@ -25,7 +25,7 @@
 
      @Autowired JdbcTemplate jdbc;
      @Autowired MockMvc mvc;
-@@ -53,12 +49,9 @@
+@@ -53,12 +49,10 @@
      }
 
      private String bearer(int id, String username) throws Exception {
@@ -35,7 +35,8 @@
 -        Mac mac = Mac.getInstance("HmacSHA256");
 -        mac.init(new SecretKeySpec(SECRET.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
 -        return "Bearer " + payload + "." + HexFormat.of().formatHex(mac.doFinal(payload.getBytes(StandardCharsets.UTF_8)));
-+        var user = jdbc.queryForMap("SELECT role, auth_version FROM users WHERE id=? AND username=?", id, username);
++        var user = jdbc.queryForMap("SELECT role, status, auth_version FROM users WHERE id=? AND username=?", id, username);
++        assertThat(user.get("status")).isEqualTo("ACTIVE");
 +        return "Bearer " + tokens.generateToken((long) id, username, (String) user.get("role"),
 +                ((Number) user.get("auth_version")).longValue());
      }

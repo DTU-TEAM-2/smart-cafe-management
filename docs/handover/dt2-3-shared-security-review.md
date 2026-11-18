@@ -1,5 +1,8 @@
 # DT2-3 → Auth / Staff / News: shared-security review proposal
 
+> Current correction: official Staff57ea6f1 has fixed version/CAS/auth_version/callers. Do not apply historical Staffb74 proposals or treat its5/9 failures as current. Current official/proposed candidates, Draft verification timestamp and remaining News/Bills blockers are recorded in [review follow-up](../reports/dt2-3-review-follow-up.md). The dated results below remain historical.
+
+
 > Follow-up PR #19 ngày18/11/2026: source refs và proposal dành cho HEAD mới được ghi ở [review follow-up](../reports/dt2-3-review-follow-up.md) và [artifact README](../qa/rehearsals/dt2-3/README.md). Các findings/version/line bên dưới là snapshot có ngày; không coi historical revert/bean collision là lỗi của HEAD Staff hiện hành.
 
 

@@ -1,5 +1,8 @@
 # DT2-3 — integration rehearsal artifacts
 
+> Current Staff is **official57ea6f1**, already implementing version/CAS/auth_version and caller migration. `staff-version-locking.patch`, `staff-version-locking-latest.patch` and `staff-caller-migration-latest.patch` are frozen historical b74 proposals: **DO NOT APPLY to57ea6f1**. Current13-case [official Staff/Profile harness](OfficialStaffProfileConcurrencyTest.java) uses the official DTO explicitly. [Native HTTP regression patch](official-shared-http-regressions.patch) and [path boundary tests](ProfileConsumerPathTest.java) are candidate-only test additions; they do not replace official Staff production/caller source. See [current report](../../../reports/dt2-3-review-follow-up.md) for separate A/B evidence.
+
+
 Đây là proposal/documentation, không phải production Staff/News code hoặc PR đã merge. [inputs.json](inputs.json) pin source revisions và SHA của các patch/test; [candidate evidence](../../../reports/dt2-3-integration-results.json) giữ kết quả thực tế. [Staff owner handoff](../../../handover/dt2-3-pr11-review.md) có file/line, expected/actual và DTO/caller migration; [shared security handoff](../../../handover/dt2-3-shared-security-review.md) phân biệt standalone/composed failures.
 
 ## Files và provenance
@@ -36,7 +39,7 @@ publicationRefs trong inputs pin develop331c1e3, Staffb74a365, Newsc2343ed, Cust
 
 Các patch lịch sử được bỏ space-only context markers để staged whitespace/CI đạt; git apply vẫn kiểm thành công trên đúng historical source/candidate, code additions/deletions không đổi. asRehearsedProposalFiles giữ digest gốc; proposalFiles/gitLfProposalFiles mô tả artifacts publish hiện tại. Không dùng historical patch9/9PASS để gọi HEAD Staff mới đã nhận version contract.
 
-## Review follow-up 18/11/2026
+## Historical review follow-up at b74 — superseded for current Staff
 
 Các artifact trên giữ nguyên provenance lịch sử. Proposal dành cho HEAD mới:
 
@@ -47,3 +50,16 @@ Các artifact trên giữ nguyên provenance lịch sử. Proposal dành cho HEA
 - [news-profile-consumer-latest.patch](news-profile-consumer-latest.patch): vẫn dành cho News `c2343ed`, cần owner nhận vào source. Không đủ để tự thay toàn bộ SecurityConfig: giữ guest CSRF/feedback, exact Profile rules, Staff management ADMIN-only và dashboard exception.
 
 Đây là patch để owner review/adopt, không phải code production đã vào các PR phụ thuộc. Kết quả mới và giới hạn nằm ở [review follow-up report](../../../reports/dt2-3-review-follow-up.md). Không thay các lượt FAIL lịch sử bằng kết quả proposal.
+
+## Current official-source rehearsal, 18/11/2026
+
+Use official Staff `57ea6f1`, Customer `50745ba`, News `c2343ed`, Bills `86b70e2`, Profile `e7848df` and develop `331c1e3`. Staff version/CAS/auth_version and caller migration are already fixed. Never apply the b74 Staff patches to this source. Literal Candidate A fails composition (exit 2); proposed B passes 468/468 with MySQL. Full hashes and results are in [current machine evidence](../../../reports/dt2-3-review-follow-up-results.json).
+
+- Copy [OfficialStaffProfileConcurrencyTest.java](OfficialStaffProfileConcurrencyTest.java) to backend test package `vn/codegym/smartcafe/database`; it replaces the historical nine-case harness and uses official DTO/version. Thirteen cases use actual MySQL lock queues/latches, not sequential-request simulation. Existing official Staff caller/validation/avatar tests are retained.
+- Copy [ProfileConsumerPathTest.java](ProfileConsumerPathTest.java) to backend test package `vn/codegym/smartcafe/config`. Six cases protect exact root/subpath recognition and reject lookalikes.
+- Apply [official-shared-http-regressions.patch](official-shared-http-regressions.patch) to Profile e7848df tests in the composed candidate. Tests use real Login/Tomcat/CSRF/MySQL for other-personnel denial, official role/deactivate revocation and unsupported paths/methods.
+- [news-profile-consumer-latest.patch](news-profile-consumer-latest.patch) remains the minimal News c2343ed fix. [official-shared-security-composition.patch](official-shared-security-composition.patch) is the separate proposed union against that News source, requiring all modules; it preserves Customer 507 feedback JSON-cap constructor/property, guest CSRF/ownership, Staff ADMIN management, Profile exact exceptions and News/Bills rules. It is not a standalone module replacement. Preserve primary Auth/verified-db resources and official Staff dashboard rename when composing.
+- [bills-token-fixture-latest.patch](bills-token-fixture-latest.patch) now reads and asserts ACTIVE status as well as role/auth_version before issuing through TokenService. All fourteen original Bills business tests remain. Historical artifact hashes refer to e7848df; current published hashes are separate in machine evidence.
+- [official-cross-module.postman_collection.json](official-cross-module.postman_collection.json) uses real Login and all seven official Staff collection requests, plus News/Bills/authorization and Customer small/max-TEXT/oversize JSON regressions. [candidate-live-http-extra.patch](candidate-live-http-extra.patch) adds the collection and SQL checks to the live candidate launcher. Final totals: 230 requests/623 assertions, 14 SQL checks; Auth/Home separately 39/57. Expected negative controls are not acceptance successes.
+
+Five patches were checked against their pinned source and applied output matched executed candidate source after LF normalization. These files remain test/proposal documentation; no other module's production code is changed in PR19. Owner adoption and a conflict-resolved official combined regression are still required.

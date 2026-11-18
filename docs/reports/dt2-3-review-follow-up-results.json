@@ -984,5 +984,2385 @@
     "routes": 16,
     "inheritedFiles": 169
   },
-  "primaryJarAndSourceVerified": "133 raw primary source digests match fresh HTTP manifest; runtime JAR 9e17cca matches both live launchers"
+  "primaryJarAndSourceVerified": "133 raw primary source digests match fresh HTTP manifest; runtime JAR 9e17cca matches both live launchers",
+  "currentIntegration": {
+    "draftVerification": {
+      "head": "e7848df38d6cfb8e6077fb3036edf2fee8fa541e",
+      "draft": true,
+      "updatedAt": "2026-11-18T06:39:58Z",
+      "verifiedAt": "2026-11-18T07:28:13.884179+00:00"
+    },
+    "staffStatus": "FIXED IN OFFICIAL STAFF HEAD; official source passes 13/13 in proposed B; literal A blocked",
+    "staffProposalApplied": false,
+    "candidateA": {
+      "kind": "A: official literal Git composition; no proposal patches",
+      "base": "331c1e329dac40780c56b75aaf32403c4acddadf",
+      "attemptedMergeParents": [
+        "e7848df38d6cfb8e6077fb3036edf2fee8fa541e",
+        "57ea6f172c8c06e27f016734efa0deee6aa965d4",
+        "ebe0a97b20ecd6af5069b2607d3b65cdc0ccc881",
+        "c2343edecd3b71e57ee3ce6605db4dc5a03bc6cc",
+        "86b70e2d5540f96b3e32d1e92afcff611ec5ccf8"
+      ],
+      "command": [
+        "git",
+        "merge",
+        "--no-commit",
+        "--no-ff",
+        "e7848df38d6cfb8e6077fb3036edf2fee8fa541e",
+        "57ea6f172c8c06e27f016734efa0deee6aa965d4",
+        "ebe0a97b20ecd6af5069b2607d3b65cdc0ccc881",
+        "c2343edecd3b71e57ee3ce6605db4dc5a03bc6cc",
+        "86b70e2d5540f96b3e32d1e92afcff611ec5ccf8"
+      ],
+      "exitCode": 2,
+      "capturedAt": "2026-11-18T06:42:56.671932+00:00",
+      "status": "COMPOSITION_BLOCKED",
+      "worktreeStatus": ""
+    },
+    "candidateB0": {
+      "mode": "baseline",
+      "exitCode": 1,
+      "command": "./mvnw.cmd -B -ntp \"-Dspring.test.context.cache.maxSize=4\" \"-Dtest=OfficialStaffProfileConcurrencyTest,ProfileMySqlTest#adminAndStaffReadOnlyTheirOwnPreciseProfileAndHeaderUsesSameProjection,BillMySqlIntegrationTest\" test",
+      "startedAt": "2026-11-18T06:48:15.298991+00:00",
+      "finishedAt": "2026-11-18T06:50:20.422545+00:00",
+      "classes": [
+        {
+          "name": "vn.codegym.smartcafe.billing.BillMySqlIntegrationTest",
+          "tests": "14",
+          "failures": "12",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.database.OfficialStaffProfileConcurrencyTest",
+          "tests": "13",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.database.ProfileMySqlTest",
+          "tests": "1",
+          "failures": "1",
+          "errors": "0",
+          "skipped": "0"
+        }
+      ],
+      "totals": {
+        "tests": 28,
+        "failures": 13,
+        "errors": 0,
+        "skipped": 0
+      },
+      "pomSha256": "af0daeee37595828ee399d32ee4717df115668703d5bd35889e2f21931bcf75a"
+    },
+    "note": "Existing top-level results are historical e784/b74 selective evidence; currentIntegration is current status.",
+    "historicalTopLevelArtifactRevision": "e7848df38d6cfb8e6077fb3036edf2fee8fa541e",
+    "round2Refs": {
+      "verifiedAt": "2026-11-18T07:14:20.479087+00:00",
+      "refs": {
+        "11": "57ea6f172c8c06e27f016734efa0deee6aa965d4",
+        "14": "50745bafb80b2c28229f98636877d61f2b5148bd",
+        "15": "c2343edecd3b71e57ee3ce6605db4dc5a03bc6cc",
+        "18": "86b70e2d5540f96b3e32d1e92afcff611ec5ccf8",
+        "19": "e7848df38d6cfb8e6077fb3036edf2fee8fa541e"
+      }
+    },
+    "candidateA_latest": {
+      "refs": {
+        "11": "57ea6f172c8c06e27f016734efa0deee6aa965d4",
+        "14": "50745bafb80b2c28229f98636877d61f2b5148bd",
+        "15": "c2343edecd3b71e57ee3ce6605db4dc5a03bc6cc",
+        "18": "86b70e2d5540f96b3e32d1e92afcff611ec5ccf8",
+        "19": "e7848df38d6cfb8e6077fb3036edf2fee8fa541e"
+      },
+      "exitCode": 2,
+      "command": [
+        "git",
+        "merge",
+        "--no-commit",
+        "--no-ff",
+        "e7848df38d6cfb8e6077fb3036edf2fee8fa541e",
+        "57ea6f172c8c06e27f016734efa0deee6aa965d4",
+        "50745bafb80b2c28229f98636877d61f2b5148bd",
+        "c2343edecd3b71e57ee3ce6605db4dc5a03bc6cc",
+        "86b70e2d5540f96b3e32d1e92afcff611ec5ccf8"
+      ],
+      "finishedAt": "2026-11-18T07:15:03.775161+00:00",
+      "result": "COMPOSITION_BLOCKED",
+      "notRun": [
+        "Maven",
+        "MySQL",
+        "Newman"
+      ],
+      "tests": null,
+      "jarSha256": null,
+      "sourceManifestScope": "Actual checkout after failed literal merge; not a runnable combined tree",
+      "checkoutHead": "331c1e329dac40780c56b75aaf32403c4acddadf",
+      "actualCheckoutSourceSha256": {
+        "backend/src/main/resources/application-dev.properties": "b4e41f959fb0e5fd4024b5c10d5f448cc0dcdab001441b8fcf252efa3012e1bf",
+        "backend/src/main/resources/application-prod.properties": "cbc345a6c38a13c5c3f6e14f7303c2525718cf9414ac8f946a94e43fa2b8412e",
+        "backend/src/main/resources/application-verified-db.properties": "e0e495bafb60a114a8f834657d1d593f16d4cd3ce9fdf6b93d11be8932081e5c",
+        "backend/src/main/resources/application.properties": "715c7eba443211999b2ed16378f4d9048595a29f16ea75bab53d05ee78aa7e55",
+        "backend/src/main/java/vn/codegym/smartcafe/SmartCafeApplication.java": "16ec2bf236f4d97e58f91330e10714ca77e19192199bae978842731917943834",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/AdminController.java": "0723f35f0de415001363f3d74d23b4ec519bdc0f4238842a43b1efa4fa76f5f8",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/AuthController.java": "8918e19b18a25325ff6029cdab58f7194871c04865f6ea36fb4fab5ffe33649e",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/AuthErrorHandler.java": "8d24e9e199cbcc66203b87ad2f88aaa90789ca8af6b9abae6a5893f364281f7c",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/AuthRepository.java": "a9620adf4d79fe202dd71189858bd5ace97c00f42d2ac3f9700f44a57b6f3f29",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/AuthService.java": "11d5afde144f0f73987b78cb17eafb3463a47b18d587a8cf0ee244e000465ffe",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/EmailService.java": "57e4bd9efb1765213ef0027481a7e7cdd83a920b0ed143c747687cb0e1e63ce4",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/InvalidCredentialsException.java": "20a7f014583c133c6f72490eb3fb435e57d884005537bf77c703d77dab09f878",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/InvalidPasswordException.java": "2fba67badeb4d722880223e12e2b5f8e22e901d28ac9931d5869522f06d06703",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/InvalidTokenException.java": "34e4e13cc9f54492d926fb94f2dcfd708d39f5c7b5293f9f9888df818ed6b3dc",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/OtpChallengeRecord.java": "abff3128f63c063a96740de5df40916e975feb8794ab4070758a471420bcb50a",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/OtpException.java": "bffbbba0f9ae8d1dfd04b1b928ba5acfbfb1c16f759c5cf83948690dd2ba026d",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/OtpService.java": "1f9e5e25db1230c16b446e49feffd45ee0e469fdde3823cb12bdae0da2430fbe",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/PasswordMismatchException.java": "33adaf91de9052c00bf78d92b79f15f38a282d7cbdb74a2ece01db3a74be32b2",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/PasswordPolicy.java": "6ba5bfea03fd97c8bbe251a1ed9e67e27161ffbc5fc001eac535498feb163e6e",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/SmtpEmailService.java": "9bfb9a9be32a591fb72202a369f2fc54533217b0a2b2ee7e346198ac97150361",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/StaffController.java": "4d3c95bb4a7192a904a5283aa9df4baf551f4317d01e0ec36a61fc4e302cd72d",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/TokenService.java": "d595b74cf19da056f14d32d78de18dbfd5f1c989f5e1a267ba6ea2ec8cd39263",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/UserRecord.java": "2278546b4ef37591394e7e8a54872c81e7dad56f6c1cc21c7e1852fdcfb9aa8e",
+        "backend/src/main/java/vn/codegym/smartcafe/billing/BillController.java": "0cc234a121f97c844b6cfef8a727d0ce799566059e9fd0000426bd0cfb1de5f4",
+        "backend/src/main/java/vn/codegym/smartcafe/billing/BillReader.java": "037340e9dd5de8c8cdf00768d872c72bb8f4cc5d1a3321de6a2a3322471449d8",
+        "backend/src/main/java/vn/codegym/smartcafe/billing/BillSnapshot.java": "b741020d92f0a9dea42ffb8c206f3ae32444f138d45175b25ea8648d1789acd1",
+        "backend/src/main/java/vn/codegym/smartcafe/config/BusinessClock.java": "385d3ba65982480c3fa288ee83ef19a92e484ba55cf8c3bdb0d4e4b421f85fa6",
+        "backend/src/main/java/vn/codegym/smartcafe/config/HeaderTokenFilter.java": "d30726ba9404c3db835a4c9782d44f50f932d1926480462475ca58735ee534ca",
+        "backend/src/main/java/vn/codegym/smartcafe/config/MenuSecurity.java": "cc99c72eee0ecc48ee5dd8995122e99e35cfb0eb5c6cd48df5ad6ba51cdb008a",
+        "backend/src/main/java/vn/codegym/smartcafe/config/SecurityConfig.java": "cff31b4757eb81651b3149def664010938d21ea4caf46e3e34615ac1b43bb540",
+        "backend/src/main/java/vn/codegym/smartcafe/customermenu/CustomerMenuController.java": "578d4069486310543319539959af8db88f77d9a5f7c7201c86d4ff4b98080c26",
+        "backend/src/main/java/vn/codegym/smartcafe/customermenu/CustomerMenuErrors.java": "b63ee4dd9337a775cc7611ecdd95ca768072aa3a80fb8e9e643b024c003c2fcb",
+        "backend/src/main/java/vn/codegym/smartcafe/customermenu/CustomerMenuException.java": "f38b652485c18210cf2f66ab9ab0524a8c9b533f50dfb95e321afed72ce3f42a",
+        "backend/src/main/java/vn/codegym/smartcafe/customermenu/CustomerMenuModels.java": "a6dc4bfc3535ce4991e8736b5738113cf0e8a9738bbf4b7706e5b6862e80b4b0",
+        "backend/src/main/java/vn/codegym/smartcafe/customermenu/CustomerMenuService.java": "71ec8ec39963716c95b57625a45dc9921b8db1cb83d271660152127de6bb4a4b",
+        "backend/src/main/java/vn/codegym/smartcafe/customersession/CustomerTableController.java": "42ff4e63da2c2f5b736041c8c9d543c2a8e8c419346e488a1fd1a33acd329f83",
+        "backend/src/main/java/vn/codegym/smartcafe/customersession/CustomerTableErrors.java": "0caf9c88fe67f6c9101ee9577c0b9365a65200bd438d124eac6a6bde390269dc",
+        "backend/src/main/java/vn/codegym/smartcafe/customersession/CustomerTableException.java": "d11075981b24b22a6ede76b7ac04528626e17c67459e5f570e73d3b6f33d3b00",
+        "backend/src/main/java/vn/codegym/smartcafe/customersession/CustomerTableService.java": "80ddce4db89e4282fe3b119c6a0b9afb08e800812f9c2990246796bbf4a0d74a",
+        "backend/src/main/java/vn/codegym/smartcafe/database/DatabaseMigrationConfiguration.java": "d39a5c883d7f93710c18252e121a5d7f071a3ee03307d0809d3dd61264d1c450",
+        "backend/src/main/java/vn/codegym/smartcafe/database/DatabasePreflight.java": "1c9dbbab3d616df4a7ffa99ce9ab04d71242d3e9be5b159e932a1a93b7065393",
+        "backend/src/main/java/vn/codegym/smartcafe/database/DatabaseRehearsal.java": "52f73164b5c2f5449e6bef5f718d55d32a003b50066e58a9330c961ebe673ef8",
+        "backend/src/main/java/vn/codegym/smartcafe/database/VerifiedSchemaContract.java": "8b3300df50105af5516a9d339bea418943d9748d564ae476b4db32ff821fae8c",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HeaderController.java": "bcc68d2474b87e065761a8030e0178b141cdcbb14732c242098ff25c9506fdde",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HeaderService.java": "93b093f4c170bcab5e108fe323a944e80c460bd7d1a1425482861ff19f259ba6",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HomeAccount.java": "74d2c4f2315f6a643298ed7f1d7894f899e6bbf99516c570f7b0659065d9ebee",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HomeHighlights.java": "ff2f1c087adf4e0cbcbffdc893522e78610ed21388a1eb65a28d5f97761a0dc4",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HomeHighlightsController.java": "747cbbdac9e729f973e8a536fab4b82fac9ccc798a7fdcebee66bbd9f263b16a",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HomeHighlightsService.java": "34ea9a565a9aa07dad36d9f266f4845c7e2fd035d1a4d89a58c5edb7830f77bd",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HomeNotificationFeed.java": "35369c6d151bf351830030492bd0dd7f8f3c06f4d19897a3af4a370cfed181c0",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HomeReadErrors.java": "c2f3234e22744cb9b7c65cd14a6959f2bf364822e1a3576503ab26c1d1ff15b7",
+        "backend/src/main/java/vn/codegym/smartcafe/income/IncomeController.java": "13d0ad5188e8ada87b3401d7b51f2f2849494fd4dc506027636237daaa84f1fd",
+        "backend/src/main/java/vn/codegym/smartcafe/income/IncomeService.java": "bfc6da87d39f89659a780ed0ccb9c881af0576e76fa2df37f269569cbba55239",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuCatalog.java": "be529bc9e84a507b0a2a7b8fa11080c885c6ca3283428b3ba87711fb34a3b41c",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuController.java": "0e90fb5df7eb3eb5771a5b8c25606e83562b3b6b17c82452b19269cb7d9da263",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuErrors.java": "c024587ecc800ff49728bc91ae1bb866025c51d70a568b587e6a6d213e31df9a",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuException.java": "d8b15d6fa355361150309e5212caf79814bd17e717c3f16ae86a4718c87f0096",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuImageConfiguration.java": "89605ab010231365f752358796789fed55052494c8403f5dae5e1cb3f1e8cc5a",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuImages.java": "77f354f27733502dffaf70d4f065455a4ceb6f8942fc0530f27836048e31dfbb",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuMedia.java": "b66e733dc56275ab697aa119e3e180b4280387ee45f9e3766d8b973e3c489381",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuModels.java": "d8122909f66fe74811df24733236a1fc8dba3968a185daa2cc79ead79875bd4d",
+        "backend/src/main/java/vn/codegym/smartcafe/sales/CheckoutController.java": "939b51eb254ef36dc3d3b1ac279fe043460e045fec28c31693476f6b782265e0",
+        "backend/src/main/java/vn/codegym/smartcafe/sales/CheckoutService.java": "2d252ff7d5dc430de005fe5a141ae36eb4d2e08d3ae217a914091f080573896d",
+        "backend/src/main/java/vn/codegym/smartcafe/sales/SalesController.java": "714da7ee4474e5b4593faa93a35f33c05223747ca339a8d9c82c99a92660d50f",
+        "backend/src/main/java/vn/codegym/smartcafe/sales/SalesErrors.java": "d316ecd24348e2645320be3f1ea168f98173f6b55ae5a63ee23df9d16225c342",
+        "backend/src/main/java/vn/codegym/smartcafe/sales/SalesService.java": "278b419e2c778bb689953f00f7659e43d7d8b01424069e54516f8eb39782677a",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/ForgotPasswordRequest.java": "3290a36952909d70b492e850281211c2cd2840117a2a69e1c7d24db98bbf37cf",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/ForgotPasswordResponse.java": "a55b76064e88a052f4b434607f9c87b3322d0e6bca7f91ae0f81a96485a976ef",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/LoginRequest.java": "3681a6cd2c3cd932e9ee3b091547b8114300315f63ddbe9598d259610a008187",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/LoginResponse.java": "4a2bcbafa1065aaebe718e47ab82c786bd9f14c95cd7360481ec82355aeef775",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/MessageResponse.java": "ed572e7495dfeaa3fb2a21fbfe76d1e06b061c31a63b18c1c9194c5e6263b50a",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/ResendOtpRequest.java": "1007855a39969d03ee9e76d2b4ea0a0075875f82fc623efcc70328136d9a87e3",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/ResetPasswordRequest.java": "a18f5ec77f1ce526b5e3ffa7d3c6a5f3d4b8279dd5c3532f5e97662d257c8f6f",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/UserDto.java": "7fc9ac157a0a5219cd3b6d2659a45d06e5c0b29e39d913614fc0a89ed517460c",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/VerifyOtpRequest.java": "96880c63da97d7594e3c5380dc215b080fcb2863b063b73681999387ff6a7168",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/VerifyOtpResponse.java": "54587f66ca40d2a51893676530b1577579260d963454193a91c02680b4702f94",
+        "backend/src/main/resources/db/contracts/20261113.1.properties": "643b5c269c7006dd52ee325370ab11ff909b5fd2ab24d201354337faba929c0d",
+        "backend/src/main/resources/db/contracts/smart-cafe.properties": "8ced744615c7c2a55ebb0368dca7738db90fa8ba3fd0208dbe2ff0392ec9d101",
+        "backend/src/main/resources/db/migration/V001__create_users_and_auth_tables.sql": "78d1a6a79afcf419c6ddde881bfa6fda94057cb36fabf3b94d53800fb289a9a8",
+        "backend/src/main/resources/db/migration/V002__create_users_and_auth_tables.sql": "6b09373e2498a7b029af69931f89835754ab8247d2625f092261d65b7c7c91e0",
+        "backend/src/main/resources/db/smart-cafe/V20261113_01__smart_cafe_schema.sql": "84cb9f2e99073ea73b117e828dc7f144928052a8f8345cde6f903b82280e4b5e",
+        "backend/src/test/resources/application.properties": "6515e642fabf1075a0e65378c9b8e98ef74b5474834f23e001a9b3584cee12a7",
+        "backend/src/test/resources/schema.sql": "4ca5dc9b383c06e32f8cdb4c0c84898a2a995082c638328382f8ac5289dd77b9",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/AuthConfigurationTest.java": "e23ad4663062d5dd6b78827fb4246a96e57ae67e5849fc56289a638c50f3b28f",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/AuthIntegrationTest.java": "d0394b9f79d85e1ae65f0962feee4106b6a7d6fc183929e99811e1fc7a46422c",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/FlywayUpgradeRegressionTest.java": "be62c78a4e3a34006713b69c998b5b333bcf8834a385c3a4515711c77877dd15",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/OtpIntegrationTest.java": "95db708449461349b992f8dd2cd3a26eac8a30a59527957cfafeffa259cf633e",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/OtpPoolIntegrationTest.java": "f7ec5bea447fc4c3915673fc05c7a459bbea03158fc4f752eef1005f4c235ffe",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/OtpRetryLifecycleIntegrationTest.java": "990bcfec1adaf8b128390570b1c509e9da69508f6b7d63ad205416692152abfa",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/OtpServiceTest.java": "468d57f5da6d112ef4b4c4a577836295d03b4901a373f451815b22dbc0823b84",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/OtpVerifyResendRaceIntegrationTest.java": "73a13e8bafc2f52c0d44730c3d7db25dc85ebde971d9c401727a6a204b40b5d3",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/PasswordPolicyTest.java": "810505a303dde8fe2009f6fcf854d69b8f6b8ced4588c9ccee591b0c735445e0",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/SmtpEmailServiceTest.java": "9a932896c65189d54364d17a68d8b7918e58acd7d6e6f9461eaa0ece78ef1bb1",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/TestDatabase.java": "47357269804d0300da5ea3c2bdc4b3208e9cb9914d5ba0085bf266c59425ffe6",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/TokenServiceTest.java": "c0e7215228a46d5d0e4e0cd9e5ec45ff2a828cc680202c078c7b4c062d0f09a2",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/UnconfiguredSmtpIntegrationTest.java": "de69529a7e83f648907ca91395c113d8bf1d2dcab68a61090537229dabab958b",
+        "backend/src/test/java/vn/codegym/smartcafe/customermenu/CustomerMenuControllerTest.java": "12af14478a989870b500e14be0ca8e36b1de11f18b87785d6d9ccaa13146c2f8",
+        "backend/src/test/java/vn/codegym/smartcafe/customermenu/CustomerMenuMySqlTest.java": "b38cd0f86687d80e819a36eaa96003548ee06197368235f58807546c95974f43",
+        "backend/src/test/java/vn/codegym/smartcafe/customersession/CustomerTableControllerTest.java": "ef91429ddf6a781f112ae2d165284ed298b6de92e0147b73a8bf3bd73df50660",
+        "backend/src/test/java/vn/codegym/smartcafe/customersession/CustomerTableMySqlTest.java": "0428012a6f01273bd07f07f73c6bbd3131d8c442d9df36400b044a83e27170c4",
+        "backend/src/test/java/vn/codegym/smartcafe/database/CurrentSharedDdlHttpTest.java": "24dc2bcbd101a0d26d0c9e60c0d46e9b21232691f7dceec0e4ed08250de31158",
+        "backend/src/test/java/vn/codegym/smartcafe/database/DatabaseMigrationRehearsal.java": "0e647d6d626be0a135f67863871fba5031093ad84b145f09d593bf9c138a3711",
+        "backend/src/test/java/vn/codegym/smartcafe/database/DatabaseMigrationSafetyTest.java": "8b49576e7d14d1db1cb77f2dbb311e486445565f29738f36b7bc660fceb64504",
+        "backend/src/test/java/vn/codegym/smartcafe/database/DatabaseTemporalCompatibilityTest.java": "53d1656b3c754295d08eca11b2d9ae5c0efd0d47603289dded591c70f2b9bb99",
+        "backend/src/test/java/vn/codegym/smartcafe/database/ForbiddenProblemHttpTest.java": "69c136fb2a42d9add3d4bcbf821c655623214ee69a174d74170c9a99072a0f2e",
+        "backend/src/test/java/vn/codegym/smartcafe/database/TestSchema.java": "fb0a4de323e62e16cf007ca9268863fe4a2ad48cbce58570e7da06cf083e1477",
+        "backend/src/test/java/vn/codegym/smartcafe/database/VerifiedDatabaseMigrationTest.java": "106df53dcf8506058f5c650cfa4b5ad9388403d3fc1bade081530fea4a04b697",
+        "backend/src/test/java/vn/codegym/smartcafe/home/HeaderMySqlTest.java": "b2fd497ff8bb7e3dcadb65d240ca648575c16e2e6def49e2cd14deaa332a8362",
+        "backend/src/test/java/vn/codegym/smartcafe/home/HomeHighlightsMySqlTest.java": "8d6457c8484a983426e89c04bf7a8e43227c4ece4c8e024828bc08037bc1f717",
+        "backend/src/test/java/vn/codegym/smartcafe/home/HomeUnavailableTest.java": "fc93056d07e7b175ff1e7c70d1e45008e715ea70e5684bf431e64b94f7223ef1",
+        "backend/src/test/java/vn/codegym/smartcafe/income/IncomeWindowTest.java": "24501073a6c2ffd2fffb2e4b325292c98d469b3510d12ae5b51dc4a7d24204d7",
+        "backend/src/test/java/vn/codegym/smartcafe/menu/MenuHttpReportTest.java": "4ac65ec2d302bf854ff12f7a3f01af56420f6360dec42fb982c43a4a99289be1",
+        "backend/src/test/java/vn/codegym/smartcafe/menu/MenuImagesTest.java": "df1d0464350dbc9e82d8796fcd4319d30e207a8a452440dec32bb29ebf604079",
+        "backend/src/test/java/vn/codegym/smartcafe/menu/MenuIntegrationTest.java": "a0bd19adb05140c7e2b506f71710c57e7e8a50e74ed031b921513ebd5fbca1bf",
+        "backend/src/test/java/vn/codegym/smartcafe/menu/MenuProviderStub.java": "38ff4467e9f4f3c43c7b8731f8442b63cb81f2153f232d35abe2679dde478c59",
+        "backend/src/test/java/vn/codegym/smartcafe/sales/SalesMySqlTest.java": "0e0c131dd544e94bd4c2185e280ed1973c9064720149115a31b35585f2c8079e",
+        "backend/src/test/resources/db/current-shared-2026-11-13.sql": "d197ce467d24353e5e7bcf5b7abdb0713911658eeeeca0d4f3c95c12c5340e74",
+        "backend/src/test/resources/db/current-shared-history.json": "2e0eac7978449d97010db50071ee37461354bbb55fbf95802c6991e4823e3ee8",
+        "backend/src/test/resources/db/contracts/test-future-schema.properties": "30a947b80f0cf39fc0707bbe5d4aa35019081bd62f1c9d5231431937b8a6a177",
+        "backend/src/test/resources/db/contracts/test-future.properties": "d2c9c26e20b2022cd959017ca71aa858cb83619aec07bc92703d4e0a742a09bd",
+        "backend/src/test/resources/db/test-future/V20261113_02__test_future.sql": "61ca7e570837e33eb9187aebe8c1a7904d26c937e4b85e1d983a9e4aadbf39a9"
+      },
+      "pomSha256": "6059d73b60aec1f009135774eebb32ca1cbf71464697bde181b8deb89bc3ef46",
+      "fixtureSha256": "4ca5dc9b383c06e32f8cdb4c0c84898a2a995082c638328382f8ac5289dd77b9",
+      "ddlSha256": "84cb9f2e99073ea73b117e828dc7f144928052a8f8345cde6f903b82280e4b5e",
+      "proposalPatchSha256": {},
+      "conflicts": [
+        "backend/src/main/java/vn/codegym/smartcafe/config/SecurityConfig.java",
+        "docs/architecture/decisions.md",
+        "docs/product/open-questions.md",
+        "frontend/src/layout/HomeShell.jsx",
+        "frontend/src/layout/SiteLayout.jsx"
+      ]
+    },
+    "candidateB_round1": {
+      "mode": "full",
+      "exitCode": 0,
+      "command": "./mvnw.cmd -B -ntp \"-Dspring.test.context.cache.maxSize=4\" verify",
+      "startedAt": "2026-11-18T06:53:25.070098+00:00",
+      "finishedAt": "2026-11-18T07:01:44.049020+00:00",
+      "classes": [
+        {
+          "name": "vn.codegym.smartcafe.auth.AuthConfigurationTest",
+          "tests": "5",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.AuthIntegrationTest",
+          "tests": "12",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.FlywayUpgradeRegressionTest",
+          "tests": "1",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.OtpIntegrationTest",
+          "tests": "19",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.OtpPoolIntegrationTest",
+          "tests": "7",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.OtpRetryLifecycleIntegrationTest",
+          "tests": "18",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.OtpServiceTest",
+          "tests": "12",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.OtpVerifyResendRaceIntegrationTest",
+          "tests": "18",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.PasswordExpirationTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.PasswordPolicyTest",
+          "tests": "8",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.SmtpEmailServiceTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.TokenServiceTest",
+          "tests": "8",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.UnconfiguredSmtpIntegrationTest",
+          "tests": "1",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.billing.BillMySqlIntegrationTest",
+          "tests": "14",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.config.HeaderTokenFilterCompatibilityTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.config.HeaderTokenFilterMySqlTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.config.ProfileConsumerPathTest",
+          "tests": "6",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.customeractions.CustomerAccessTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.customeractions.CustomerActionsMySqlTest",
+          "tests": "14",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.customerfeedback.CustomerFeedbackMySqlTest",
+          "tests": "5",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.customerfeedback.CustomerFeedbackUnavailableTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.customerfeedback.FeedbackAdmissionTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.customerfeedback.FeedbackImageMySqlTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.customerfeedback.FeedbackImagesTest",
+          "tests": "13",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.customermenu.CustomerMenuControllerTest",
+          "tests": "6",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.customermenu.CustomerMenuMySqlTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.customersession.CustomerTableControllerTest",
+          "tests": "4",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.customersession.CustomerTableMySqlTest",
+          "tests": "1",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.database.CurrentSharedDdlHttpTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.database.DatabaseMigrationSafetyTest",
+          "tests": "8",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.database.DatabaseTemporalCompatibilityTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.database.ForbiddenProblemHttpTest",
+          "tests": "1",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.database.OfficialStaffProfileConcurrencyTest",
+          "tests": "13",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.database.ProfileMySqlTest",
+          "tests": "31",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.database.VerifiedDatabaseMigrationTest",
+          "tests": "24",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.home.HeaderMySqlTest",
+          "tests": "5",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.home.HomeHighlightsMySqlTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.home.HomeUnavailableTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.income.IncomeWindowTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.menu.MenuHttpReportTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.menu.MenuImagesTest",
+          "tests": "8",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.menu.MenuIntegrationTest",
+          "tests": "13",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.news.FirebaseEmulatorNewsImageStorageTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.news.FirebaseNewsImageStorageTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.news.NewsAudienceMySqlTest",
+          "tests": "6",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.news.NewsImageMySqlTest",
+          "tests": "22",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.news.NewsImageTransactionTest",
+          "tests": "5",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.news.NewsMySqlTest",
+          "tests": "15",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.news.NewsReviewMySqlTest",
+          "tests": "19",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.news.NewsSocketBudgetTest",
+          "tests": "11",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.profile.ProfileFailureTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.profile.ProfileValidationTest",
+          "tests": "19",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.sales.SalesMySqlTest",
+          "tests": "18",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.staff.StaffControllerTest",
+          "tests": "18",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.staff.StaffHttpReportTest",
+          "tests": "1",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.staff.StaffImageServiceTest",
+          "tests": "7",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.staff.StaffPasswordPolicyTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        }
+      ],
+      "totals": {
+        "tests": 461,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "pomSha256": "af0daeee37595828ee399d32ee4717df115668703d5bd35889e2f21931bcf75a",
+      "jarSha256": "e827e5e0f3c6ca99297b06d15d569d7b3346a22e88b30fc9e236524902667c72",
+      "ddlSha256": "84cb9f2e99073ea73b117e828dc7f144928052a8f8345cde6f903b82280e4b5e",
+      "sourceSha256": {
+        "backend/src/main/resources/application-dev.properties": "b4e41f959fb0e5fd4024b5c10d5f448cc0dcdab001441b8fcf252efa3012e1bf",
+        "backend/src/main/resources/application-prod.properties": "cbc345a6c38a13c5c3f6e14f7303c2525718cf9414ac8f946a94e43fa2b8412e",
+        "backend/src/main/resources/application-verified-db.properties": "e0e495bafb60a114a8f834657d1d593f16d4cd3ce9fdf6b93d11be8932081e5c",
+        "backend/src/main/resources/application.properties": "7f8f9a2985d9fbae992c7daf738bac2a2f19e1d4f6d5b82b6f24285793ce8c6e",
+        "backend/src/main/java/vn/codegym/smartcafe/SmartCafeApplication.java": "16ec2bf236f4d97e58f91330e10714ca77e19192199bae978842731917943834",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/AdminController.java": "0723f35f0de415001363f3d74d23b4ec519bdc0f4238842a43b1efa4fa76f5f8",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/AuthController.java": "0463afe1a1ecd968260c4fd3f5951baf094038f0b2544f36e28d3feb94a261e6",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/AuthErrorHandler.java": "8d24e9e199cbcc66203b87ad2f88aaa90789ca8af6b9abae6a5893f364281f7c",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/AuthRepository.java": "4f0a4466c15e256ab41fa7a61b7c8fa423be0090f1ab2ed1228f12463dd9166d",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/AuthService.java": "f01517b484b5ec7e54d477bf61eca063ab6cd26917dbc558ae0fa5bd8a1cd273",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/EmailService.java": "57e4bd9efb1765213ef0027481a7e7cdd83a920b0ed143c747687cb0e1e63ce4",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/InvalidCredentialsException.java": "20a7f014583c133c6f72490eb3fb435e57d884005537bf77c703d77dab09f878",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/InvalidPasswordException.java": "2fba67badeb4d722880223e12e2b5f8e22e901d28ac9931d5869522f06d06703",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/InvalidTokenException.java": "34e4e13cc9f54492d926fb94f2dcfd708d39f5c7b5293f9f9888df818ed6b3dc",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/OtpChallengeRecord.java": "abff3128f63c063a96740de5df40916e975feb8794ab4070758a471420bcb50a",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/OtpException.java": "bffbbba0f9ae8d1dfd04b1b928ba5acfbfb1c16f759c5cf83948690dd2ba026d",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/OtpService.java": "1f9e5e25db1230c16b446e49feffd45ee0e469fdde3823cb12bdae0da2430fbe",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/PasswordExpiration.java": "527d1be6c7ed3f43b23f4e70701278751eef512e77d720b4b9f487faaf9ef694",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/PasswordMismatchException.java": "33adaf91de9052c00bf78d92b79f15f38a282d7cbdb74a2ece01db3a74be32b2",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/PasswordPolicy.java": "6ba5bfea03fd97c8bbe251a1ed9e67e27161ffbc5fc001eac535498feb163e6e",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/SmtpEmailService.java": "9bfb9a9be32a591fb72202a369f2fc54533217b0a2b2ee7e346198ac97150361",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/StaffDashboardController.java": "72d9b6c4518e08b627260e00b0b4267a45e4baa6df4cd43cbcd751bd179fc6ed",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/TokenService.java": "d595b74cf19da056f14d32d78de18dbfd5f1c989f5e1a267ba6ea2ec8cd39263",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/UserRecord.java": "e1793cd92893cb2938ffbb0de868bb49141d1233fc2955cfeb59ccf0e7f8879b",
+        "backend/src/main/java/vn/codegym/smartcafe/billing/BillController.java": "d9ac6359aca8da7cf0f48d2f8b80b77a7503e10798786be45ccf7c98ae06188f",
+        "backend/src/main/java/vn/codegym/smartcafe/billing/BillQueryService.java": "e471af33c2de36892ea09ce0419ee8f14692570a668e0b9369b40eea534f9af8",
+        "backend/src/main/java/vn/codegym/smartcafe/billing/BillReader.java": "72086193f920ba4c20e65bf0ccc768dcb63bfd7973cb7f54a1cdecc5ad18a9ce",
+        "backend/src/main/java/vn/codegym/smartcafe/billing/BillSnapshot.java": "b741020d92f0a9dea42ffb8c206f3ae32444f138d45175b25ea8648d1789acd1",
+        "backend/src/main/java/vn/codegym/smartcafe/config/BearerTokenAuthenticator.java": "bee9abd6b688fe2aaaf6267218b05ca8b0a556e25007ee32ab8cbd0a9a1ba42f",
+        "backend/src/main/java/vn/codegym/smartcafe/config/BusinessClock.java": "385d3ba65982480c3fa288ee83ef19a92e484ba55cf8c3bdb0d4e4b421f85fa6",
+        "backend/src/main/java/vn/codegym/smartcafe/config/HeaderTokenFilter.java": "dec00180255cd67a00e01d08e23d6463aac8ceecc2a412d3f64cc9edee09f139",
+        "backend/src/main/java/vn/codegym/smartcafe/config/MenuSecurity.java": "5968aabf752a8c6756ddf0fcd301aa9ab0524d4725d389c438daec7fcf4133f6",
+        "backend/src/main/java/vn/codegym/smartcafe/config/SecurityConfig.java": "db0e91090ca66a8a29dd1a125424200f90f8889750af5606e6b44842f6d22eca",
+        "backend/src/main/java/vn/codegym/smartcafe/customeractions/CustomerAccess.java": "1928464d9fe267818840dfefb2f059caf72d3181e42e91a4925fe46a6263a897",
+        "backend/src/main/java/vn/codegym/smartcafe/customeractions/CustomerActionErrors.java": "a6cad3fb12cdeceb054ef3b605466a695be1f63dd80206a03b7c372f6adf8289",
+        "backend/src/main/java/vn/codegym/smartcafe/customeractions/CustomerOrderController.java": "0d7bef2e89c3b72323ec7d190f9e3c03ba6a8e731348624b2bd4ebbe843e3cc6",
+        "backend/src/main/java/vn/codegym/smartcafe/customeractions/CustomerOrderEditController.java": "2ca9717548803ff901f7b41bb98f7b5a4aee8e11fd166c458d52e07389cb0e7a",
+        "backend/src/main/java/vn/codegym/smartcafe/customeractions/CustomerOrderEditService.java": "93a87527e44d069791db7eaabb277ced63c29134a8cfcc1934723ff7502de658",
+        "backend/src/main/java/vn/codegym/smartcafe/customeractions/CustomerOrderService.java": "2b7f26bf41908fb16ac310776c6020a0b76e79e56cc5b4bedd5354e78378a39e",
+        "backend/src/main/java/vn/codegym/smartcafe/customeractions/CustomerRequestController.java": "9ddd848807a44fdcf885e13b6ca72a5f68c8cf6b261718b5f60f3d13732b9dad",
+        "backend/src/main/java/vn/codegym/smartcafe/customeractions/CustomerRequestService.java": "15bafb53185fd632c26905609e946e968bdcbabb1c1aac0ecf5f9dcf3bbf0ebe",
+        "backend/src/main/java/vn/codegym/smartcafe/customerfeedback/CustomerFeedbackController.java": "3bbcb3c447ac34fce235384b91802c33335d236204b6c98e10ae231a7767fd58",
+        "backend/src/main/java/vn/codegym/smartcafe/customerfeedback/CustomerFeedbackErrors.java": "5a24bb6cbeeb94ff5927a2101c66fe62a202a61d268306ed1708601372e24b25",
+        "backend/src/main/java/vn/codegym/smartcafe/customerfeedback/CustomerFeedbackService.java": "8d4e5e1ac8d3f30c59d8fc00d8a8eed8d8c521bc722c80ecac1b967ea873b058",
+        "backend/src/main/java/vn/codegym/smartcafe/customerfeedback/FeedbackAdmissionFilter.java": "2d70497d52ed4cd5cdf2b1e399283f2d716155681bae38a27c52a9bb61fc826c",
+        "backend/src/main/java/vn/codegym/smartcafe/customerfeedback/FeedbackImages.java": "6c8681d172b10b246d84d5d67d577c3b17fe6c8d9b1b13a03e4d17cd05fafc12",
+        "backend/src/main/java/vn/codegym/smartcafe/customerfeedback/FeedbackSubmission.java": "2a0134d86531bf694d6cd46ce82644e9dc490987724fce9d3483422f91aff3e9",
+        "backend/src/main/java/vn/codegym/smartcafe/customerfeedback/FirebaseFeedbackStorage.java": "eeff8e4b72a0d0c78a9f1ed5576703b27e8b44c8607524093d3c65c25c84a075",
+        "backend/src/main/java/vn/codegym/smartcafe/customermenu/CustomerMenuController.java": "578d4069486310543319539959af8db88f77d9a5f7c7201c86d4ff4b98080c26",
+        "backend/src/main/java/vn/codegym/smartcafe/customermenu/CustomerMenuErrors.java": "b63ee4dd9337a775cc7611ecdd95ca768072aa3a80fb8e9e643b024c003c2fcb",
+        "backend/src/main/java/vn/codegym/smartcafe/customermenu/CustomerMenuException.java": "f38b652485c18210cf2f66ab9ab0524a8c9b533f50dfb95e321afed72ce3f42a",
+        "backend/src/main/java/vn/codegym/smartcafe/customermenu/CustomerMenuModels.java": "a6dc4bfc3535ce4991e8736b5738113cf0e8a9738bbf4b7706e5b6862e80b4b0",
+        "backend/src/main/java/vn/codegym/smartcafe/customermenu/CustomerMenuService.java": "71ec8ec39963716c95b57625a45dc9921b8db1cb83d271660152127de6bb4a4b",
+        "backend/src/main/java/vn/codegym/smartcafe/customersession/CustomerTableController.java": "42ff4e63da2c2f5b736041c8c9d543c2a8e8c419346e488a1fd1a33acd329f83",
+        "backend/src/main/java/vn/codegym/smartcafe/customersession/CustomerTableErrors.java": "0caf9c88fe67f6c9101ee9577c0b9365a65200bd438d124eac6a6bde390269dc",
+        "backend/src/main/java/vn/codegym/smartcafe/customersession/CustomerTableException.java": "d11075981b24b22a6ede76b7ac04528626e17c67459e5f570e73d3b6f33d3b00",
+        "backend/src/main/java/vn/codegym/smartcafe/customersession/CustomerTableService.java": "80ddce4db89e4282fe3b119c6a0b9afb08e800812f9c2990246796bbf4a0d74a",
+        "backend/src/main/java/vn/codegym/smartcafe/database/DatabaseMigrationConfiguration.java": "e475f7903f363f1e63cf91caf38225448df2df62325c2fae4f7dec9dd1eb01a5",
+        "backend/src/main/java/vn/codegym/smartcafe/database/DatabasePreflight.java": "1c9dbbab3d616df4a7ffa99ce9ab04d71242d3e9be5b159e932a1a93b7065393",
+        "backend/src/main/java/vn/codegym/smartcafe/database/DatabaseRehearsal.java": "52f73164b5c2f5449e6bef5f718d55d32a003b50066e58a9330c961ebe673ef8",
+        "backend/src/main/java/vn/codegym/smartcafe/database/VerifiedSchemaContract.java": "8b3300df50105af5516a9d339bea418943d9748d564ae476b4db32ff821fae8c",
+        "backend/src/main/java/vn/codegym/smartcafe/home/AccountReader.java": "91a40ed85228e311cd3ff28204bf0d32190b13fc91b5366c5b6d1a907365fbe6",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HeaderController.java": "bcc68d2474b87e065761a8030e0178b141cdcbb14732c242098ff25c9506fdde",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HeaderService.java": "06b0eaf50cd8bee8fba2d956e0bb0e28227b7946a6257c93582d329198ec0939",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HomeAccount.java": "1eb4ed2c61fefb6cdd0b6666b0a477007dbee330a5768b30d0b47d86d4b4a7e6",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HomeHighlights.java": "ff2f1c087adf4e0cbcbffdc893522e78610ed21388a1eb65a28d5f97761a0dc4",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HomeHighlightsController.java": "747cbbdac9e729f973e8a536fab4b82fac9ccc798a7fdcebee66bbd9f263b16a",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HomeHighlightsService.java": "34ea9a565a9aa07dad36d9f266f4845c7e2fd035d1a4d89a58c5edb7830f77bd",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HomeNotificationFeed.java": "35369c6d151bf351830030492bd0dd7f8f3c06f4d19897a3af4a370cfed181c0",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HomeReadErrors.java": "c2f3234e22744cb9b7c65cd14a6959f2bf364822e1a3576503ab26c1d1ff15b7",
+        "backend/src/main/java/vn/codegym/smartcafe/income/IncomeController.java": "13d0ad5188e8ada87b3401d7b51f2f2849494fd4dc506027636237daaa84f1fd",
+        "backend/src/main/java/vn/codegym/smartcafe/income/IncomeService.java": "bfc6da87d39f89659a780ed0ccb9c881af0576e76fa2df37f269569cbba55239",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuCatalog.java": "be529bc9e84a507b0a2a7b8fa11080c885c6ca3283428b3ba87711fb34a3b41c",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuController.java": "0e90fb5df7eb3eb5771a5b8c25606e83562b3b6b17c82452b19269cb7d9da263",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuErrors.java": "017c6e86bdd68df59fe79468a4e53ede704bf5dfb5b197929229994a2cdc1766",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuException.java": "d8b15d6fa355361150309e5212caf79814bd17e717c3f16ae86a4718c87f0096",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuImageConfiguration.java": "89605ab010231365f752358796789fed55052494c8403f5dae5e1cb3f1e8cc5a",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuImages.java": "77f354f27733502dffaf70d4f065455a4ceb6f8942fc0530f27836048e31dfbb",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuMedia.java": "b66e733dc56275ab697aa119e3e180b4280387ee45f9e3766d8b973e3c489381",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuModels.java": "d8122909f66fe74811df24733236a1fc8dba3968a185daa2cc79ead79875bd4d",
+        "backend/src/main/java/vn/codegym/smartcafe/news/CreateNewsRequest.java": "97d8fa0fcc3588b1189e3a6a169ff6ad64eafd1fdcdc0462ae8b36b542651503",
+        "backend/src/main/java/vn/codegym/smartcafe/news/FirebaseEmulatorNewsImageStorage.java": "4f6efd4a422c2427e4262a58fa7017314c9cbc7e78c4dce083cd65ba22c92443",
+        "backend/src/main/java/vn/codegym/smartcafe/news/FirebaseNewsImageStorage.java": "95240212c3cd61fa48a93e4fd84ea220f2b00c4c17e27b38c7e3f96f0b4a4ef4",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsChanged.java": "5b5a6b7051d85f0b04ad4abe8bc737aedf701d47f5d4cc4e3ab46854beedfe6b",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsController.java": "d2adc5dfa888924c25a281869f28fa7e4166faa94edad0c83846118505be8e22",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsDetailResponse.java": "27802f0be55f06303b06d8176bb9fef10e3467b05111b21949587782428649a0",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsExceptionHandler.java": "2a6204a85a58f587c0f6f6999220ad1ad46f723b8a43148cbfdd672c79eeedc8",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsImageController.java": "0f6e71bb3dee68201c987183d5c8b3791660600a344aefaad35bda2977e0593f",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsImageResponse.java": "95b1accae27395dae0ec4a5649b597bee18a8c8c939a55ff70fdf0edcb0d2868",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsImageService.java": "2d86e290eb4bd1f5863c09e73bd8beb891e03f3085424328f2161db94fee7cfe",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsImageStorage.java": "9bc4c27c2a75185cd84bce73136c8ded82f4685364973aed34c95a4b4514538d",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsJpegOrientation.java": "655754a49ae075e703e700f8f62d463886c6f425095ea89ced857eaad3f09375",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsPageResponse.java": "868bab8f89e4902314a90de57182b0390924242f2ffe503c89c58b344b501df0",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsReaderAccess.java": "a13243457e64385f06cb715baae6647d38abfa159ab6c463c8efe67d51dfed76",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsService.java": "1e2e6a26c181524df037fda1eaa22de62e68574c7dfbdc85d219aae37563e175",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsSocket.java": "823c2ea504fc21bce5081813dc2f1bf583b20c85db5cd607f7bd53f5d6e3b851",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsSummaryResponse.java": "c238b26ca684c2a660cfb415e7f89d337d92e32b9ee00b15546ffc1a0e954387",
+        "backend/src/main/java/vn/codegym/smartcafe/news/UpdateNewsRequest.java": "d3b8d0574f473bad3ecf0143ffed61e8ee744a5ad717faac4048ec6bb8ad3e52",
+        "backend/src/main/java/vn/codegym/smartcafe/profile/ProfileController.java": "3b99396623b9db0a08590c54b505f1d036fdd0867a7445bcabb66cdadf3cb84d",
+        "backend/src/main/java/vn/codegym/smartcafe/profile/ProfileErrors.java": "985d3a0b24e02000324bc90b7618673b2c21b6ee05f80b72b3768c86f54e73de",
+        "backend/src/main/java/vn/codegym/smartcafe/profile/ProfileException.java": "5692ec2fee8651f71c55e81a6cd3b9850193107cddc2e799f59723862cf23734",
+        "backend/src/main/java/vn/codegym/smartcafe/profile/ProfileModels.java": "56d3f2e3c827ddf3508fdc5fbe0befe794c2da857c3d69f83d2abf84409bf050",
+        "backend/src/main/java/vn/codegym/smartcafe/profile/ProfileRepository.java": "cdfecbce5b7ddddb262dd06aef70213e242884a89583c3d92954f84a4522e971",
+        "backend/src/main/java/vn/codegym/smartcafe/profile/ProfileService.java": "be27fb60ba8885cf56a0997b7405e1a4f73e73f84cce790a7815fcde234074dd",
+        "backend/src/main/java/vn/codegym/smartcafe/sales/CheckoutController.java": "939b51eb254ef36dc3d3b1ac279fe043460e045fec28c31693476f6b782265e0",
+        "backend/src/main/java/vn/codegym/smartcafe/sales/CheckoutService.java": "2d252ff7d5dc430de005fe5a141ae36eb4d2e08d3ae217a914091f080573896d",
+        "backend/src/main/java/vn/codegym/smartcafe/sales/SalesController.java": "714da7ee4474e5b4593faa93a35f33c05223747ca339a8d9c82c99a92660d50f",
+        "backend/src/main/java/vn/codegym/smartcafe/sales/SalesErrors.java": "d316ecd24348e2645320be3f1ea168f98173f6b55ae5a63ee23df9d16225c342",
+        "backend/src/main/java/vn/codegym/smartcafe/sales/SalesService.java": "278b419e2c778bb689953f00f7659e43d7d8b01424069e54516f8eb39782677a",
+        "backend/src/main/java/vn/codegym/smartcafe/staff/StaffController.java": "0a1da8b24f01002047e4b07db071e2766c5f1ee82f5c922aa88cc9d4499bf36a",
+        "backend/src/main/java/vn/codegym/smartcafe/staff/StaffImageService.java": "6bd4b00e13ed98f3881a7d12abb03119a1a80f86c1a847bbac78fc24f5ba1293",
+        "backend/src/main/java/vn/codegym/smartcafe/staff/StaffModels.java": "2a26f5df4c5c7381fda60f8454f453b000be57935a69a2e50650d11cc1f96c5b",
+        "backend/src/main/java/vn/codegym/smartcafe/staff/StaffService.java": "2766b1710ee0e9f58c8471b022dc2179ae8e1e3d555596ec912a49ee338ed11b",
+        "backend/src/main/java/vn/codegym/smartcafe/staff/StaffValidation.java": "a9e36506af65967357a0f407d1b7941f5fc0682df1154ef6b494f6e7602677f2",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/ForgotPasswordRequest.java": "3290a36952909d70b492e850281211c2cd2840117a2a69e1c7d24db98bbf37cf",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/ForgotPasswordResponse.java": "a55b76064e88a052f4b434607f9c87b3322d0e6bca7f91ae0f81a96485a976ef",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/LoginRequest.java": "3681a6cd2c3cd932e9ee3b091547b8114300315f63ddbe9598d259610a008187",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/LoginResponse.java": "991737b5bdd08398364f9050801e70495707403ab7365e4289ce55e2db8493cf",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/MessageResponse.java": "ed572e7495dfeaa3fb2a21fbfe76d1e06b061c31a63b18c1c9194c5e6263b50a",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/ResendOtpRequest.java": "1007855a39969d03ee9e76d2b4ea0a0075875f82fc623efcc70328136d9a87e3",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/ResetPasswordRequest.java": "a18f5ec77f1ce526b5e3ffa7d3c6a5f3d4b8279dd5c3532f5e97662d257c8f6f",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/UserDto.java": "7fc9ac157a0a5219cd3b6d2659a45d06e5c0b29e39d913614fc0a89ed517460c",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/VerifyOtpRequest.java": "96880c63da97d7594e3c5380dc215b080fcb2863b063b73681999387ff6a7168",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/VerifyOtpResponse.java": "54587f66ca40d2a51893676530b1577579260d963454193a91c02680b4702f94",
+        "backend/src/main/resources/db/contracts/20261113.1.properties": "4d61676ce6c3cd35a796f7fab5724a45644029afbe8161f95db8835019330a76",
+        "backend/src/main/resources/db/contracts/smart-cafe.properties": "9b1475a985c61e45fa16a90d9e0f9a89e6f18edeb86da070a870c1731e851abc",
+        "backend/src/main/resources/db/migration/V001__create_users_and_auth_tables.sql": "78d1a6a79afcf419c6ddde881bfa6fda94057cb36fabf3b94d53800fb289a9a8",
+        "backend/src/main/resources/db/migration/V002__create_users_and_auth_tables.sql": "6b09373e2498a7b029af69931f89835754ab8247d2625f092261d65b7c7c91e0",
+        "backend/src/main/resources/db/smart-cafe/V20261113_01__smart_cafe_schema.sql": "84cb9f2e99073ea73b117e828dc7f144928052a8f8345cde6f903b82280e4b5e",
+        "backend/src/test/resources/application.properties": "7ef82c72516e1a55f528958cc82a9ccb91449bc37b105d7c9997dc4690778a28",
+        "backend/src/test/resources/schema.sql": "9331e7de94d857688f1427fdfce4ec4a2f1afc451124491dd3b80495363a1d31",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/AuthConfigurationTest.java": "e23ad4663062d5dd6b78827fb4246a96e57ae67e5849fc56289a638c50f3b28f",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/AuthIntegrationTest.java": "d0394b9f79d85e1ae65f0962feee4106b6a7d6fc183929e99811e1fc7a46422c",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/FlywayUpgradeRegressionTest.java": "be62c78a4e3a34006713b69c998b5b333bcf8834a385c3a4515711c77877dd15",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/OtpIntegrationTest.java": "95db708449461349b992f8dd2cd3a26eac8a30a59527957cfafeffa259cf633e",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/OtpPoolIntegrationTest.java": "f7ec5bea447fc4c3915673fc05c7a459bbea03158fc4f752eef1005f4c235ffe",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/OtpRetryLifecycleIntegrationTest.java": "4e8b7995da7a760c1fb03cd3e638d990b5f713bbbd861b9277de6a397487f9c6",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/OtpServiceTest.java": "468d57f5da6d112ef4b4c4a577836295d03b4901a373f451815b22dbc0823b84",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/OtpVerifyResendRaceIntegrationTest.java": "73a13e8bafc2f52c0d44730c3d7db25dc85ebde971d9c401727a6a204b40b5d3",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/PasswordExpirationTest.java": "f2f6d846322c318737902f93b11caed0d5f3267c50bbd3a6e746983fd93a153d",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/PasswordPolicyTest.java": "810505a303dde8fe2009f6fcf854d69b8f6b8ced4588c9ccee591b0c735445e0",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/SmtpEmailServiceTest.java": "9a932896c65189d54364d17a68d8b7918e58acd7d6e6f9461eaa0ece78ef1bb1",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/TestDatabase.java": "47357269804d0300da5ea3c2bdc4b3208e9cb9914d5ba0085bf266c59425ffe6",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/TokenServiceTest.java": "c0e7215228a46d5d0e4e0cd9e5ec45ff2a828cc680202c078c7b4c062d0f09a2",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/UnconfiguredSmtpIntegrationTest.java": "09202fdde3f8657b34c98e0d1f08c77b4b8ecdc1bfe5d0bb093586d9303585bb",
+        "backend/src/test/java/vn/codegym/smartcafe/billing/BillMySqlIntegrationTest.java": "ef8ee1217757b3a10a824f87d9c8237626c2dbc27c72361e0c98254057b97060",
+        "backend/src/test/java/vn/codegym/smartcafe/config/HeaderTokenFilterCompatibilityTest.java": "22d4cfdb150c1b85ded3df2c6307d8b00dfdac2c5b87e0a7f63dc4c9205e2a5f",
+        "backend/src/test/java/vn/codegym/smartcafe/config/HeaderTokenFilterMySqlTest.java": "9c229c7480f2c2db82fdd1915ccc97b417541eedb3ef9e675407f652b5851cb7",
+        "backend/src/test/java/vn/codegym/smartcafe/config/ProfileConsumerPathTest.java": "05f6e9263a5ad881d53394f51b4e21a83aca77008895d192fab7da8e23480aeb",
+        "backend/src/test/java/vn/codegym/smartcafe/customeractions/CustomerAccessTest.java": "6f175ab9d5cedba11b1c14fb434f1dd04be130dab0d91a315d37cdd52402b829",
+        "backend/src/test/java/vn/codegym/smartcafe/customeractions/CustomerActionsMySqlTest.java": "9459387f8c20aea4919f8610bd60d69f5aaebeeee9735011eebbc8aa66224fc1",
+        "backend/src/test/java/vn/codegym/smartcafe/customerfeedback/CustomerFeedbackMySqlTest.java": "a96d32740029022bdc1089bffa1f08e720182c62e854adf10858afa809629eb5",
+        "backend/src/test/java/vn/codegym/smartcafe/customerfeedback/CustomerFeedbackUnavailableTest.java": "f5effac50092027c6bdb61ae2477f4ea259036ca2004b9890408a7c3db5158e6",
+        "backend/src/test/java/vn/codegym/smartcafe/customerfeedback/FeedbackAdmissionTest.java": "c4455225462976ead40c90a8172ecd4e1e880823dcaac816123801e1166f73d7",
+        "backend/src/test/java/vn/codegym/smartcafe/customerfeedback/FeedbackImageMySqlTest.java": "24a2040df4aa58f976cc61918fae97502b0a1139f1706f2176256e63091a34db",
+        "backend/src/test/java/vn/codegym/smartcafe/customerfeedback/FeedbackImagesTest.java": "71b2885b648196471e48d1c7dc0d8a74ae497ab0837fa2c1fd0d03668abda943",
+        "backend/src/test/java/vn/codegym/smartcafe/customermenu/CustomerMenuControllerTest.java": "12af14478a989870b500e14be0ca8e36b1de11f18b87785d6d9ccaa13146c2f8",
+        "backend/src/test/java/vn/codegym/smartcafe/customermenu/CustomerMenuMySqlTest.java": "b38cd0f86687d80e819a36eaa96003548ee06197368235f58807546c95974f43",
+        "backend/src/test/java/vn/codegym/smartcafe/customersession/CustomerTableControllerTest.java": "ef91429ddf6a781f112ae2d165284ed298b6de92e0147b73a8bf3bd73df50660",
+        "backend/src/test/java/vn/codegym/smartcafe/customersession/CustomerTableMySqlTest.java": "0428012a6f01273bd07f07f73c6bbd3131d8c442d9df36400b044a83e27170c4",
+        "backend/src/test/java/vn/codegym/smartcafe/database/CurrentSharedDdlHttpTest.java": "24dc2bcbd101a0d26d0c9e60c0d46e9b21232691f7dceec0e4ed08250de31158",
+        "backend/src/test/java/vn/codegym/smartcafe/database/DatabaseMigrationRehearsal.java": "0e647d6d626be0a135f67863871fba5031093ad84b145f09d593bf9c138a3711",
+        "backend/src/test/java/vn/codegym/smartcafe/database/DatabaseMigrationSafetyTest.java": "8b49576e7d14d1db1cb77f2dbb311e486445565f29738f36b7bc660fceb64504",
+        "backend/src/test/java/vn/codegym/smartcafe/database/DatabaseTemporalCompatibilityTest.java": "53d1656b3c754295d08eca11b2d9ae5c0efd0d47603289dded591c70f2b9bb99",
+        "backend/src/test/java/vn/codegym/smartcafe/database/ForbiddenProblemHttpTest.java": "69c136fb2a42d9add3d4bcbf821c655623214ee69a174d74170c9a99072a0f2e",
+        "backend/src/test/java/vn/codegym/smartcafe/database/OfficialStaffProfileConcurrencyTest.java": "da20375f0df07458ce27407aab040794cd67eb9a6cfc950c79882d80ebb8b756",
+        "backend/src/test/java/vn/codegym/smartcafe/database/ProfileMySqlTest.java": "01db70ffabbe31bd7a2eff49148f481727cd1f83d338962a9c0ce2b4082e915b",
+        "backend/src/test/java/vn/codegym/smartcafe/database/TestSchema.java": "fb0a4de323e62e16cf007ca9268863fe4a2ad48cbce58570e7da06cf083e1477",
+        "backend/src/test/java/vn/codegym/smartcafe/database/VerifiedDatabaseMigrationTest.java": "106df53dcf8506058f5c650cfa4b5ad9388403d3fc1bade081530fea4a04b697",
+        "backend/src/test/java/vn/codegym/smartcafe/home/HeaderMySqlTest.java": "b2fd497ff8bb7e3dcadb65d240ca648575c16e2e6def49e2cd14deaa332a8362",
+        "backend/src/test/java/vn/codegym/smartcafe/home/HomeHighlightsMySqlTest.java": "8d6457c8484a983426e89c04bf7a8e43227c4ece4c8e024828bc08037bc1f717",
+        "backend/src/test/java/vn/codegym/smartcafe/home/HomeUnavailableTest.java": "fc93056d07e7b175ff1e7c70d1e45008e715ea70e5684bf431e64b94f7223ef1",
+        "backend/src/test/java/vn/codegym/smartcafe/income/IncomeWindowTest.java": "24501073a6c2ffd2fffb2e4b325292c98d469b3510d12ae5b51dc4a7d24204d7",
+        "backend/src/test/java/vn/codegym/smartcafe/menu/MenuHttpReportTest.java": "4ac65ec2d302bf854ff12f7a3f01af56420f6360dec42fb982c43a4a99289be1",
+        "backend/src/test/java/vn/codegym/smartcafe/menu/MenuImagesTest.java": "df1d0464350dbc9e82d8796fcd4319d30e207a8a452440dec32bb29ebf604079",
+        "backend/src/test/java/vn/codegym/smartcafe/menu/MenuIntegrationTest.java": "a0bd19adb05140c7e2b506f71710c57e7e8a50e74ed031b921513ebd5fbca1bf",
+        "backend/src/test/java/vn/codegym/smartcafe/menu/MenuProviderStub.java": "38ff4467e9f4f3c43c7b8731f8442b63cb81f2153f232d35abe2679dde478c59",
+        "backend/src/test/java/vn/codegym/smartcafe/news/FirebaseEmulatorNewsImageStorageTest.java": "d1da8cea476cc5af9b2daf2535c9812c06e50a4193117d77a82e6969fab28ecd",
+        "backend/src/test/java/vn/codegym/smartcafe/news/FirebaseNewsImageStorageTest.java": "1773b5dfac45c32149b8b4fbd4838ba1ed7fca30b02aa09365ccba810f316f7d",
+        "backend/src/test/java/vn/codegym/smartcafe/news/NewsAudienceMySqlTest.java": "9ca963a9c471e51f7e84e7c524be6889c70e21678ea5212c9c4f1840ab8d33f3",
+        "backend/src/test/java/vn/codegym/smartcafe/news/NewsImageMySqlTest.java": "12fdfe34c449432de733f9a95a11541ebc65541f328917e7d731e4b0da7f63be",
+        "backend/src/test/java/vn/codegym/smartcafe/news/NewsImageTransactionTest.java": "53103eec92f50924d9cd00105adb547549af88c5b8f35cd1e4e6b1042f75e7da",
+        "backend/src/test/java/vn/codegym/smartcafe/news/NewsMySqlTest.java": "772d0cc756680f4b1b83cf6c2f1be38485ea0bcd9fc61e9f6d3dd3e2d1402c7a",
+        "backend/src/test/java/vn/codegym/smartcafe/news/NewsReviewMySqlTest.java": "7ec710b42a2b0568a4f30e6c56277a88d1e463b6c0f25bd145a24e9aa4dcd23f",
+        "backend/src/test/java/vn/codegym/smartcafe/news/NewsSocketBudgetTest.java": "3b9fec371756cc929d93d1ed50ed992f4f8cab683b42687e8d7b5026534e7bbe",
+        "backend/src/test/java/vn/codegym/smartcafe/profile/ProfileFailureTest.java": "039bf1fd04632ae9a3a543be61e2f53b5d0c519340f216cb63e33d76a85f8f72",
+        "backend/src/test/java/vn/codegym/smartcafe/profile/ProfileValidationTest.java": "7970ed0afb189ee059a280ab3e86300dc8ecfee36480f9a23be322f661197ac4",
+        "backend/src/test/java/vn/codegym/smartcafe/sales/SalesMySqlTest.java": "2294b1cdf77392f84289911385962595a56dd86a4f3d899744b885e921b9519d",
+        "backend/src/test/java/vn/codegym/smartcafe/staff/StaffControllerTest.java": "1fd9f6d104ff4f5d4b146dee8bea7c2332beafefbbfe3ec7c07831f5b5598f73",
+        "backend/src/test/java/vn/codegym/smartcafe/staff/StaffHttpReportTest.java": "9d80977c63e2ecc05ad29b96313e6b64c0e24356eb1696322a8922e2c0a7525d",
+        "backend/src/test/java/vn/codegym/smartcafe/staff/StaffImageServiceTest.java": "45154a5ad730f360a77d0eebe938c9b4fe8890de84cb0c9e9bc2fe2620309af1",
+        "backend/src/test/java/vn/codegym/smartcafe/staff/StaffPasswordPolicyTest.java": "fd136630616de49979ed65d1f2a574ea0f7c3eb30562fe1545ef7bfa5b795ba7",
+        "backend/src/test/resources/db/current-shared-2026-11-13.sql": "a8c1155cc13adcc50638c88affe4dddd1cf840fe9db807f7ea07f5b04a6a57d2",
+        "backend/src/test/resources/db/current-shared-history.json": "2e0eac7978449d97010db50071ee37461354bbb55fbf95802c6991e4823e3ee8",
+        "backend/src/test/resources/db/contracts/test-future-schema.properties": "5fb3070a4b87becbf545b238a8e5b4f8b86b216913217aca39e748bae81674ed",
+        "backend/src/test/resources/db/contracts/test-future.properties": "601dcbfe58d9adad628e88b4eba188968e13b69283489ed6177bde98485b6985",
+        "backend/src/test/resources/db/test-future/V20261113_02__test_future.sql": "61ca7e570837e33eb9187aebe8c1a7904d26c937e4b85e1d983a9e4aadbf39a9"
+      },
+      "configurationSha256": {
+        "backend/pom.xml": "af0daeee37595828ee399d32ee4717df115668703d5bd35889e2f21931bcf75a",
+        "backend/src/main/resources/application.properties": "7f8f9a2985d9fbae992c7daf738bac2a2f19e1d4f6d5b82b6f24285793ce8c6e",
+        "backend/src/test/resources/schema.sql": "9331e7de94d857688f1427fdfce4ec4a2f1afc451124491dd3b80495363a1d31",
+        "backend/src/test/resources/application.properties": "7ef82c72516e1a55f528958cc82a9ccb91449bc37b105d7c9997dc4690778a28"
+      },
+      "patchSha256": {
+        "official-shared-security-composition.patch": "e2093ff058102ee24de2f4456c6a577d55fa28f806abaa46d0827acdd0cc0285",
+        "news-profile-consumer-latest.patch": "4d2ce3f106bf9fc9d46c7317036239288313f9217c0d35ad569a8727cb326577",
+        "bills-token-fixture-latest.patch": "25dcc6ad72278fe902fd36123335f4e915bd0c6bb3d6fc6cc3897cc52317f65b",
+        "official-shared-http-regressions.patch": "c462673a4ba9da61611eabac7025f5e5334442c9ce362517f627f377bbd4f1f9"
+      },
+      "officialStaffSourceProof": {
+        "ref": "57ea6f172c8c06e27f016734efa0deee6aa965d4",
+        "exactFiles": [
+          "backend/src/main/java/vn/codegym/smartcafe/staff/StaffController.java",
+          "backend/src/main/java/vn/codegym/smartcafe/staff/StaffImageService.java",
+          "backend/src/main/java/vn/codegym/smartcafe/staff/StaffModels.java",
+          "backend/src/main/java/vn/codegym/smartcafe/staff/StaffService.java",
+          "backend/src/main/java/vn/codegym/smartcafe/staff/StaffValidation.java",
+          "backend/src/test/java/vn/codegym/smartcafe/staff/StaffControllerTest.java",
+          "backend/src/test/java/vn/codegym/smartcafe/staff/StaffHttpReportTest.java",
+          "backend/src/test/java/vn/codegym/smartcafe/staff/StaffImageServiceTest.java",
+          "backend/src/test/java/vn/codegym/smartcafe/staff/StaffPasswordPolicyTest.java",
+          "backend/src/main/java/vn/codegym/smartcafe/auth/StaffDashboardController.java"
+        ],
+        "staffProposalApplied": false
+      },
+      "kind": "B proposed shared reconciliation + minimal News consumer/Bills fixture fixes, exact official Staff57/Customerebe. Not literal official integration A."
+    },
+    "billingStatusFixtureDelta": {
+      "mode": "billing-final",
+      "exitCode": 0,
+      "command": "./mvnw.cmd -B -ntp \"-Dspring.test.context.cache.maxSize=4\" \"-Dtest=BillMySqlIntegrationTest\" test",
+      "startedAt": "2026-11-18T07:10:39.265847+00:00",
+      "finishedAt": "2026-11-18T07:11:52.878664+00:00",
+      "classes": [
+        {
+          "name": "vn.codegym.smartcafe.billing.BillMySqlIntegrationTest",
+          "tests": "14",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        }
+      ],
+      "totals": {
+        "tests": 14,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "pomSha256": "af0daeee37595828ee399d32ee4717df115668703d5bd35889e2f21931bcf75a"
+    },
+    "candidateB_round2": {
+      "mode": "full",
+      "exitCode": 0,
+      "command": "./mvnw.cmd -B -ntp \"-Dspring.test.context.cache.maxSize=4\" verify",
+      "startedAt": "2026-11-18T07:17:11.592103+00:00",
+      "finishedAt": "2026-11-18T07:24:59.360066+00:00",
+      "classes": [
+        {
+          "name": "vn.codegym.smartcafe.auth.AuthConfigurationTest",
+          "tests": "5",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.AuthIntegrationTest",
+          "tests": "12",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.FlywayUpgradeRegressionTest",
+          "tests": "1",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.OtpIntegrationTest",
+          "tests": "19",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.OtpPoolIntegrationTest",
+          "tests": "7",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.OtpRetryLifecycleIntegrationTest",
+          "tests": "18",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.OtpServiceTest",
+          "tests": "12",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.OtpVerifyResendRaceIntegrationTest",
+          "tests": "18",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.PasswordExpirationTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.PasswordPolicyTest",
+          "tests": "8",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.SmtpEmailServiceTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.TokenServiceTest",
+          "tests": "8",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.UnconfiguredSmtpIntegrationTest",
+          "tests": "1",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.billing.BillMySqlIntegrationTest",
+          "tests": "14",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.config.HeaderTokenFilterCompatibilityTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.config.HeaderTokenFilterMySqlTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.config.ProfileConsumerPathTest",
+          "tests": "6",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.customeractions.CustomerAccessTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.customeractions.CustomerActionsMySqlTest",
+          "tests": "14",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.customerfeedback.CustomerFeedbackMySqlTest",
+          "tests": "5",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.customerfeedback.CustomerFeedbackUnavailableTest",
+          "tests": "5",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.customerfeedback.FeedbackAdmissionTest",
+          "tests": "7",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.customerfeedback.FeedbackImageMySqlTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.customerfeedback.FeedbackImagesTest",
+          "tests": "13",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.customermenu.CustomerMenuControllerTest",
+          "tests": "6",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.customermenu.CustomerMenuMySqlTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.customersession.CustomerTableControllerTest",
+          "tests": "4",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.customersession.CustomerTableMySqlTest",
+          "tests": "1",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.database.CurrentSharedDdlHttpTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.database.DatabaseMigrationSafetyTest",
+          "tests": "8",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.database.DatabaseTemporalCompatibilityTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.database.ForbiddenProblemHttpTest",
+          "tests": "1",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.database.OfficialStaffProfileConcurrencyTest",
+          "tests": "13",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.database.ProfileMySqlTest",
+          "tests": "31",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.database.VerifiedDatabaseMigrationTest",
+          "tests": "24",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.home.HeaderMySqlTest",
+          "tests": "5",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.home.HomeHighlightsMySqlTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.home.HomeUnavailableTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.income.IncomeWindowTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.menu.MenuHttpReportTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.menu.MenuImagesTest",
+          "tests": "8",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.menu.MenuIntegrationTest",
+          "tests": "13",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.news.FirebaseEmulatorNewsImageStorageTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.news.FirebaseNewsImageStorageTest",
+          "tests": "3",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.news.NewsAudienceMySqlTest",
+          "tests": "6",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.news.NewsImageMySqlTest",
+          "tests": "22",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.news.NewsImageTransactionTest",
+          "tests": "5",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.news.NewsMySqlTest",
+          "tests": "15",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.news.NewsReviewMySqlTest",
+          "tests": "19",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.news.NewsSocketBudgetTest",
+          "tests": "11",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.profile.ProfileFailureTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.profile.ProfileValidationTest",
+          "tests": "19",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.sales.SalesMySqlTest",
+          "tests": "18",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.staff.StaffControllerTest",
+          "tests": "18",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.staff.StaffHttpReportTest",
+          "tests": "1",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.staff.StaffImageServiceTest",
+          "tests": "7",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        },
+        {
+          "name": "vn.codegym.smartcafe.staff.StaffPasswordPolicyTest",
+          "tests": "2",
+          "failures": "0",
+          "errors": "0",
+          "skipped": "0"
+        }
+      ],
+      "totals": {
+        "tests": 468,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0
+      },
+      "pomSha256": "af0daeee37595828ee399d32ee4717df115668703d5bd35889e2f21931bcf75a",
+      "kind": "B: proposed selective composition, not official adoption",
+      "jarSha256": "152dc0ae6cb052345cb3c6b985d2b7b95cd6165733ca490d435a4d9de2c0511b",
+      "sourceSha256": {
+        "backend/src/main/resources/application-dev.properties": "b4e41f959fb0e5fd4024b5c10d5f448cc0dcdab001441b8fcf252efa3012e1bf",
+        "backend/src/main/resources/application-prod.properties": "cbc345a6c38a13c5c3f6e14f7303c2525718cf9414ac8f946a94e43fa2b8412e",
+        "backend/src/main/resources/application-verified-db.properties": "e0e495bafb60a114a8f834657d1d593f16d4cd3ce9fdf6b93d11be8932081e5c",
+        "backend/src/main/resources/application.properties": "0d74da219de4100e3270f3a84cabfcb65019f36848da7b68884c1a5ea25672b6",
+        "backend/src/main/java/vn/codegym/smartcafe/SmartCafeApplication.java": "16ec2bf236f4d97e58f91330e10714ca77e19192199bae978842731917943834",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/AdminController.java": "0723f35f0de415001363f3d74d23b4ec519bdc0f4238842a43b1efa4fa76f5f8",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/AuthController.java": "0463afe1a1ecd968260c4fd3f5951baf094038f0b2544f36e28d3feb94a261e6",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/AuthErrorHandler.java": "8d24e9e199cbcc66203b87ad2f88aaa90789ca8af6b9abae6a5893f364281f7c",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/AuthRepository.java": "4f0a4466c15e256ab41fa7a61b7c8fa423be0090f1ab2ed1228f12463dd9166d",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/AuthService.java": "f01517b484b5ec7e54d477bf61eca063ab6cd26917dbc558ae0fa5bd8a1cd273",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/EmailService.java": "57e4bd9efb1765213ef0027481a7e7cdd83a920b0ed143c747687cb0e1e63ce4",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/InvalidCredentialsException.java": "20a7f014583c133c6f72490eb3fb435e57d884005537bf77c703d77dab09f878",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/InvalidPasswordException.java": "2fba67badeb4d722880223e12e2b5f8e22e901d28ac9931d5869522f06d06703",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/InvalidTokenException.java": "34e4e13cc9f54492d926fb94f2dcfd708d39f5c7b5293f9f9888df818ed6b3dc",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/OtpChallengeRecord.java": "abff3128f63c063a96740de5df40916e975feb8794ab4070758a471420bcb50a",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/OtpException.java": "bffbbba0f9ae8d1dfd04b1b928ba5acfbfb1c16f759c5cf83948690dd2ba026d",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/OtpService.java": "1f9e5e25db1230c16b446e49feffd45ee0e469fdde3823cb12bdae0da2430fbe",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/PasswordExpiration.java": "527d1be6c7ed3f43b23f4e70701278751eef512e77d720b4b9f487faaf9ef694",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/PasswordMismatchException.java": "33adaf91de9052c00bf78d92b79f15f38a282d7cbdb74a2ece01db3a74be32b2",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/PasswordPolicy.java": "6ba5bfea03fd97c8bbe251a1ed9e67e27161ffbc5fc001eac535498feb163e6e",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/SmtpEmailService.java": "9bfb9a9be32a591fb72202a369f2fc54533217b0a2b2ee7e346198ac97150361",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/StaffDashboardController.java": "72d9b6c4518e08b627260e00b0b4267a45e4baa6df4cd43cbcd751bd179fc6ed",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/TokenService.java": "d595b74cf19da056f14d32d78de18dbfd5f1c989f5e1a267ba6ea2ec8cd39263",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/UserRecord.java": "e1793cd92893cb2938ffbb0de868bb49141d1233fc2955cfeb59ccf0e7f8879b",
+        "backend/src/main/java/vn/codegym/smartcafe/billing/BillController.java": "d9ac6359aca8da7cf0f48d2f8b80b77a7503e10798786be45ccf7c98ae06188f",
+        "backend/src/main/java/vn/codegym/smartcafe/billing/BillQueryService.java": "e471af33c2de36892ea09ce0419ee8f14692570a668e0b9369b40eea534f9af8",
+        "backend/src/main/java/vn/codegym/smartcafe/billing/BillReader.java": "72086193f920ba4c20e65bf0ccc768dcb63bfd7973cb7f54a1cdecc5ad18a9ce",
+        "backend/src/main/java/vn/codegym/smartcafe/billing/BillSnapshot.java": "b741020d92f0a9dea42ffb8c206f3ae32444f138d45175b25ea8648d1789acd1",
+        "backend/src/main/java/vn/codegym/smartcafe/config/BearerTokenAuthenticator.java": "bee9abd6b688fe2aaaf6267218b05ca8b0a556e25007ee32ab8cbd0a9a1ba42f",
+        "backend/src/main/java/vn/codegym/smartcafe/config/BusinessClock.java": "385d3ba65982480c3fa288ee83ef19a92e484ba55cf8c3bdb0d4e4b421f85fa6",
+        "backend/src/main/java/vn/codegym/smartcafe/config/HeaderTokenFilter.java": "dec00180255cd67a00e01d08e23d6463aac8ceecc2a412d3f64cc9edee09f139",
+        "backend/src/main/java/vn/codegym/smartcafe/config/MenuSecurity.java": "5968aabf752a8c6756ddf0fcd301aa9ab0524d4725d389c438daec7fcf4133f6",
+        "backend/src/main/java/vn/codegym/smartcafe/config/SecurityConfig.java": "636fb10025916f81b01faa4fda77db18232d4a023bfa934adda2c785e54f476d",
+        "backend/src/main/java/vn/codegym/smartcafe/customeractions/CustomerAccess.java": "1928464d9fe267818840dfefb2f059caf72d3181e42e91a4925fe46a6263a897",
+        "backend/src/main/java/vn/codegym/smartcafe/customeractions/CustomerActionErrors.java": "a6cad3fb12cdeceb054ef3b605466a695be1f63dd80206a03b7c372f6adf8289",
+        "backend/src/main/java/vn/codegym/smartcafe/customeractions/CustomerOrderController.java": "0d7bef2e89c3b72323ec7d190f9e3c03ba6a8e731348624b2bd4ebbe843e3cc6",
+        "backend/src/main/java/vn/codegym/smartcafe/customeractions/CustomerOrderEditController.java": "2ca9717548803ff901f7b41bb98f7b5a4aee8e11fd166c458d52e07389cb0e7a",
+        "backend/src/main/java/vn/codegym/smartcafe/customeractions/CustomerOrderEditService.java": "93a87527e44d069791db7eaabb277ced63c29134a8cfcc1934723ff7502de658",
+        "backend/src/main/java/vn/codegym/smartcafe/customeractions/CustomerOrderService.java": "2b7f26bf41908fb16ac310776c6020a0b76e79e56cc5b4bedd5354e78378a39e",
+        "backend/src/main/java/vn/codegym/smartcafe/customeractions/CustomerRequestController.java": "9ddd848807a44fdcf885e13b6ca72a5f68c8cf6b261718b5f60f3d13732b9dad",
+        "backend/src/main/java/vn/codegym/smartcafe/customeractions/CustomerRequestService.java": "15bafb53185fd632c26905609e946e968bdcbabb1c1aac0ecf5f9dcf3bbf0ebe",
+        "backend/src/main/java/vn/codegym/smartcafe/customerfeedback/CustomerFeedbackController.java": "3bbcb3c447ac34fce235384b91802c33335d236204b6c98e10ae231a7767fd58",
+        "backend/src/main/java/vn/codegym/smartcafe/customerfeedback/CustomerFeedbackErrors.java": "5a24bb6cbeeb94ff5927a2101c66fe62a202a61d268306ed1708601372e24b25",
+        "backend/src/main/java/vn/codegym/smartcafe/customerfeedback/CustomerFeedbackService.java": "8d4e5e1ac8d3f30c59d8fc00d8a8eed8d8c521bc722c80ecac1b967ea873b058",
+        "backend/src/main/java/vn/codegym/smartcafe/customerfeedback/FeedbackAdmissionFilter.java": "97c66f7375ee7d8db28ec108234bc461c0d8cd4ed029c4ada8852d96b30a817a",
+        "backend/src/main/java/vn/codegym/smartcafe/customerfeedback/FeedbackImages.java": "6c8681d172b10b246d84d5d67d577c3b17fe6c8d9b1b13a03e4d17cd05fafc12",
+        "backend/src/main/java/vn/codegym/smartcafe/customerfeedback/FeedbackSubmission.java": "2a0134d86531bf694d6cd46ce82644e9dc490987724fce9d3483422f91aff3e9",
+        "backend/src/main/java/vn/codegym/smartcafe/customerfeedback/FirebaseFeedbackStorage.java": "eeff8e4b72a0d0c78a9f1ed5576703b27e8b44c8607524093d3c65c25c84a075",
+        "backend/src/main/java/vn/codegym/smartcafe/customermenu/CustomerMenuController.java": "578d4069486310543319539959af8db88f77d9a5f7c7201c86d4ff4b98080c26",
+        "backend/src/main/java/vn/codegym/smartcafe/customermenu/CustomerMenuErrors.java": "b63ee4dd9337a775cc7611ecdd95ca768072aa3a80fb8e9e643b024c003c2fcb",
+        "backend/src/main/java/vn/codegym/smartcafe/customermenu/CustomerMenuException.java": "f38b652485c18210cf2f66ab9ab0524a8c9b533f50dfb95e321afed72ce3f42a",
+        "backend/src/main/java/vn/codegym/smartcafe/customermenu/CustomerMenuModels.java": "a6dc4bfc3535ce4991e8736b5738113cf0e8a9738bbf4b7706e5b6862e80b4b0",
+        "backend/src/main/java/vn/codegym/smartcafe/customermenu/CustomerMenuService.java": "71ec8ec39963716c95b57625a45dc9921b8db1cb83d271660152127de6bb4a4b",
+        "backend/src/main/java/vn/codegym/smartcafe/customersession/CustomerTableController.java": "42ff4e63da2c2f5b736041c8c9d543c2a8e8c419346e488a1fd1a33acd329f83",
+        "backend/src/main/java/vn/codegym/smartcafe/customersession/CustomerTableErrors.java": "0caf9c88fe67f6c9101ee9577c0b9365a65200bd438d124eac6a6bde390269dc",
+        "backend/src/main/java/vn/codegym/smartcafe/customersession/CustomerTableException.java": "d11075981b24b22a6ede76b7ac04528626e17c67459e5f570e73d3b6f33d3b00",
+        "backend/src/main/java/vn/codegym/smartcafe/customersession/CustomerTableService.java": "80ddce4db89e4282fe3b119c6a0b9afb08e800812f9c2990246796bbf4a0d74a",
+        "backend/src/main/java/vn/codegym/smartcafe/database/DatabaseMigrationConfiguration.java": "e475f7903f363f1e63cf91caf38225448df2df62325c2fae4f7dec9dd1eb01a5",
+        "backend/src/main/java/vn/codegym/smartcafe/database/DatabasePreflight.java": "1c9dbbab3d616df4a7ffa99ce9ab04d71242d3e9be5b159e932a1a93b7065393",
+        "backend/src/main/java/vn/codegym/smartcafe/database/DatabaseRehearsal.java": "52f73164b5c2f5449e6bef5f718d55d32a003b50066e58a9330c961ebe673ef8",
+        "backend/src/main/java/vn/codegym/smartcafe/database/VerifiedSchemaContract.java": "8b3300df50105af5516a9d339bea418943d9748d564ae476b4db32ff821fae8c",
+        "backend/src/main/java/vn/codegym/smartcafe/home/AccountReader.java": "91a40ed85228e311cd3ff28204bf0d32190b13fc91b5366c5b6d1a907365fbe6",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HeaderController.java": "bcc68d2474b87e065761a8030e0178b141cdcbb14732c242098ff25c9506fdde",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HeaderService.java": "06b0eaf50cd8bee8fba2d956e0bb0e28227b7946a6257c93582d329198ec0939",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HomeAccount.java": "1eb4ed2c61fefb6cdd0b6666b0a477007dbee330a5768b30d0b47d86d4b4a7e6",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HomeHighlights.java": "ff2f1c087adf4e0cbcbffdc893522e78610ed21388a1eb65a28d5f97761a0dc4",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HomeHighlightsController.java": "747cbbdac9e729f973e8a536fab4b82fac9ccc798a7fdcebee66bbd9f263b16a",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HomeHighlightsService.java": "34ea9a565a9aa07dad36d9f266f4845c7e2fd035d1a4d89a58c5edb7830f77bd",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HomeNotificationFeed.java": "35369c6d151bf351830030492bd0dd7f8f3c06f4d19897a3af4a370cfed181c0",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HomeReadErrors.java": "c2f3234e22744cb9b7c65cd14a6959f2bf364822e1a3576503ab26c1d1ff15b7",
+        "backend/src/main/java/vn/codegym/smartcafe/income/IncomeController.java": "13d0ad5188e8ada87b3401d7b51f2f2849494fd4dc506027636237daaa84f1fd",
+        "backend/src/main/java/vn/codegym/smartcafe/income/IncomeService.java": "bfc6da87d39f89659a780ed0ccb9c881af0576e76fa2df37f269569cbba55239",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuCatalog.java": "be529bc9e84a507b0a2a7b8fa11080c885c6ca3283428b3ba87711fb34a3b41c",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuController.java": "0e90fb5df7eb3eb5771a5b8c25606e83562b3b6b17c82452b19269cb7d9da263",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuErrors.java": "017c6e86bdd68df59fe79468a4e53ede704bf5dfb5b197929229994a2cdc1766",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuException.java": "d8b15d6fa355361150309e5212caf79814bd17e717c3f16ae86a4718c87f0096",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuImageConfiguration.java": "89605ab010231365f752358796789fed55052494c8403f5dae5e1cb3f1e8cc5a",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuImages.java": "77f354f27733502dffaf70d4f065455a4ceb6f8942fc0530f27836048e31dfbb",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuMedia.java": "b66e733dc56275ab697aa119e3e180b4280387ee45f9e3766d8b973e3c489381",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuModels.java": "d8122909f66fe74811df24733236a1fc8dba3968a185daa2cc79ead79875bd4d",
+        "backend/src/main/java/vn/codegym/smartcafe/news/CreateNewsRequest.java": "97d8fa0fcc3588b1189e3a6a169ff6ad64eafd1fdcdc0462ae8b36b542651503",
+        "backend/src/main/java/vn/codegym/smartcafe/news/FirebaseEmulatorNewsImageStorage.java": "4f6efd4a422c2427e4262a58fa7017314c9cbc7e78c4dce083cd65ba22c92443",
+        "backend/src/main/java/vn/codegym/smartcafe/news/FirebaseNewsImageStorage.java": "95240212c3cd61fa48a93e4fd84ea220f2b00c4c17e27b38c7e3f96f0b4a4ef4",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsChanged.java": "5b5a6b7051d85f0b04ad4abe8bc737aedf701d47f5d4cc4e3ab46854beedfe6b",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsController.java": "d2adc5dfa888924c25a281869f28fa7e4166faa94edad0c83846118505be8e22",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsDetailResponse.java": "27802f0be55f06303b06d8176bb9fef10e3467b05111b21949587782428649a0",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsExceptionHandler.java": "2a6204a85a58f587c0f6f6999220ad1ad46f723b8a43148cbfdd672c79eeedc8",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsImageController.java": "0f6e71bb3dee68201c987183d5c8b3791660600a344aefaad35bda2977e0593f",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsImageResponse.java": "95b1accae27395dae0ec4a5649b597bee18a8c8c939a55ff70fdf0edcb0d2868",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsImageService.java": "2d86e290eb4bd1f5863c09e73bd8beb891e03f3085424328f2161db94fee7cfe",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsImageStorage.java": "9bc4c27c2a75185cd84bce73136c8ded82f4685364973aed34c95a4b4514538d",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsJpegOrientation.java": "655754a49ae075e703e700f8f62d463886c6f425095ea89ced857eaad3f09375",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsPageResponse.java": "868bab8f89e4902314a90de57182b0390924242f2ffe503c89c58b344b501df0",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsReaderAccess.java": "a13243457e64385f06cb715baae6647d38abfa159ab6c463c8efe67d51dfed76",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsService.java": "1e2e6a26c181524df037fda1eaa22de62e68574c7dfbdc85d219aae37563e175",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsSocket.java": "823c2ea504fc21bce5081813dc2f1bf583b20c85db5cd607f7bd53f5d6e3b851",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsSummaryResponse.java": "c238b26ca684c2a660cfb415e7f89d337d92e32b9ee00b15546ffc1a0e954387",
+        "backend/src/main/java/vn/codegym/smartcafe/news/UpdateNewsRequest.java": "d3b8d0574f473bad3ecf0143ffed61e8ee744a5ad717faac4048ec6bb8ad3e52",
+        "backend/src/main/java/vn/codegym/smartcafe/profile/ProfileController.java": "3b99396623b9db0a08590c54b505f1d036fdd0867a7445bcabb66cdadf3cb84d",
+        "backend/src/main/java/vn/codegym/smartcafe/profile/ProfileErrors.java": "985d3a0b24e02000324bc90b7618673b2c21b6ee05f80b72b3768c86f54e73de",
+        "backend/src/main/java/vn/codegym/smartcafe/profile/ProfileException.java": "5692ec2fee8651f71c55e81a6cd3b9850193107cddc2e799f59723862cf23734",
+        "backend/src/main/java/vn/codegym/smartcafe/profile/ProfileModels.java": "56d3f2e3c827ddf3508fdc5fbe0befe794c2da857c3d69f83d2abf84409bf050",
+        "backend/src/main/java/vn/codegym/smartcafe/profile/ProfileRepository.java": "cdfecbce5b7ddddb262dd06aef70213e242884a89583c3d92954f84a4522e971",
+        "backend/src/main/java/vn/codegym/smartcafe/profile/ProfileService.java": "be27fb60ba8885cf56a0997b7405e1a4f73e73f84cce790a7815fcde234074dd",
+        "backend/src/main/java/vn/codegym/smartcafe/sales/CheckoutController.java": "939b51eb254ef36dc3d3b1ac279fe043460e045fec28c31693476f6b782265e0",
+        "backend/src/main/java/vn/codegym/smartcafe/sales/CheckoutService.java": "2d252ff7d5dc430de005fe5a141ae36eb4d2e08d3ae217a914091f080573896d",
+        "backend/src/main/java/vn/codegym/smartcafe/sales/SalesController.java": "714da7ee4474e5b4593faa93a35f33c05223747ca339a8d9c82c99a92660d50f",
+        "backend/src/main/java/vn/codegym/smartcafe/sales/SalesErrors.java": "d316ecd24348e2645320be3f1ea168f98173f6b55ae5a63ee23df9d16225c342",
+        "backend/src/main/java/vn/codegym/smartcafe/sales/SalesService.java": "278b419e2c778bb689953f00f7659e43d7d8b01424069e54516f8eb39782677a",
+        "backend/src/main/java/vn/codegym/smartcafe/staff/StaffController.java": "0a1da8b24f01002047e4b07db071e2766c5f1ee82f5c922aa88cc9d4499bf36a",
+        "backend/src/main/java/vn/codegym/smartcafe/staff/StaffImageService.java": "6bd4b00e13ed98f3881a7d12abb03119a1a80f86c1a847bbac78fc24f5ba1293",
+        "backend/src/main/java/vn/codegym/smartcafe/staff/StaffModels.java": "2a26f5df4c5c7381fda60f8454f453b000be57935a69a2e50650d11cc1f96c5b",
+        "backend/src/main/java/vn/codegym/smartcafe/staff/StaffService.java": "2766b1710ee0e9f58c8471b022dc2179ae8e1e3d555596ec912a49ee338ed11b",
+        "backend/src/main/java/vn/codegym/smartcafe/staff/StaffValidation.java": "a9e36506af65967357a0f407d1b7941f5fc0682df1154ef6b494f6e7602677f2",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/ForgotPasswordRequest.java": "3290a36952909d70b492e850281211c2cd2840117a2a69e1c7d24db98bbf37cf",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/ForgotPasswordResponse.java": "a55b76064e88a052f4b434607f9c87b3322d0e6bca7f91ae0f81a96485a976ef",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/LoginRequest.java": "3681a6cd2c3cd932e9ee3b091547b8114300315f63ddbe9598d259610a008187",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/LoginResponse.java": "991737b5bdd08398364f9050801e70495707403ab7365e4289ce55e2db8493cf",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/MessageResponse.java": "ed572e7495dfeaa3fb2a21fbfe76d1e06b061c31a63b18c1c9194c5e6263b50a",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/ResendOtpRequest.java": "1007855a39969d03ee9e76d2b4ea0a0075875f82fc623efcc70328136d9a87e3",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/ResetPasswordRequest.java": "a18f5ec77f1ce526b5e3ffa7d3c6a5f3d4b8279dd5c3532f5e97662d257c8f6f",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/UserDto.java": "7fc9ac157a0a5219cd3b6d2659a45d06e5c0b29e39d913614fc0a89ed517460c",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/VerifyOtpRequest.java": "96880c63da97d7594e3c5380dc215b080fcb2863b063b73681999387ff6a7168",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/VerifyOtpResponse.java": "54587f66ca40d2a51893676530b1577579260d963454193a91c02680b4702f94",
+        "backend/src/main/resources/db/contracts/20261113.1.properties": "4d61676ce6c3cd35a796f7fab5724a45644029afbe8161f95db8835019330a76",
+        "backend/src/main/resources/db/contracts/smart-cafe.properties": "9b1475a985c61e45fa16a90d9e0f9a89e6f18edeb86da070a870c1731e851abc",
+        "backend/src/main/resources/db/migration/V001__create_users_and_auth_tables.sql": "78d1a6a79afcf419c6ddde881bfa6fda94057cb36fabf3b94d53800fb289a9a8",
+        "backend/src/main/resources/db/migration/V002__create_users_and_auth_tables.sql": "6b09373e2498a7b029af69931f89835754ab8247d2625f092261d65b7c7c91e0",
+        "backend/src/main/resources/db/smart-cafe/V20261113_01__smart_cafe_schema.sql": "84cb9f2e99073ea73b117e828dc7f144928052a8f8345cde6f903b82280e4b5e",
+        "backend/src/test/resources/application.properties": "7ef82c72516e1a55f528958cc82a9ccb91449bc37b105d7c9997dc4690778a28",
+        "backend/src/test/resources/schema.sql": "9331e7de94d857688f1427fdfce4ec4a2f1afc451124491dd3b80495363a1d31",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/AuthConfigurationTest.java": "e23ad4663062d5dd6b78827fb4246a96e57ae67e5849fc56289a638c50f3b28f",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/AuthIntegrationTest.java": "d0394b9f79d85e1ae65f0962feee4106b6a7d6fc183929e99811e1fc7a46422c",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/FlywayUpgradeRegressionTest.java": "be62c78a4e3a34006713b69c998b5b333bcf8834a385c3a4515711c77877dd15",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/OtpIntegrationTest.java": "95db708449461349b992f8dd2cd3a26eac8a30a59527957cfafeffa259cf633e",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/OtpPoolIntegrationTest.java": "f7ec5bea447fc4c3915673fc05c7a459bbea03158fc4f752eef1005f4c235ffe",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/OtpRetryLifecycleIntegrationTest.java": "4e8b7995da7a760c1fb03cd3e638d990b5f713bbbd861b9277de6a397487f9c6",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/OtpServiceTest.java": "468d57f5da6d112ef4b4c4a577836295d03b4901a373f451815b22dbc0823b84",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/OtpVerifyResendRaceIntegrationTest.java": "73a13e8bafc2f52c0d44730c3d7db25dc85ebde971d9c401727a6a204b40b5d3",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/PasswordExpirationTest.java": "f2f6d846322c318737902f93b11caed0d5f3267c50bbd3a6e746983fd93a153d",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/PasswordPolicyTest.java": "810505a303dde8fe2009f6fcf854d69b8f6b8ced4588c9ccee591b0c735445e0",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/SmtpEmailServiceTest.java": "9a932896c65189d54364d17a68d8b7918e58acd7d6e6f9461eaa0ece78ef1bb1",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/TestDatabase.java": "47357269804d0300da5ea3c2bdc4b3208e9cb9914d5ba0085bf266c59425ffe6",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/TokenServiceTest.java": "c0e7215228a46d5d0e4e0cd9e5ec45ff2a828cc680202c078c7b4c062d0f09a2",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/UnconfiguredSmtpIntegrationTest.java": "09202fdde3f8657b34c98e0d1f08c77b4b8ecdc1bfe5d0bb093586d9303585bb",
+        "backend/src/test/java/vn/codegym/smartcafe/billing/BillMySqlIntegrationTest.java": "cbc98b023e5ccd361fa9abd24e4053163fde2d050ce26540f44629765c8bbf69",
+        "backend/src/test/java/vn/codegym/smartcafe/config/HeaderTokenFilterCompatibilityTest.java": "22d4cfdb150c1b85ded3df2c6307d8b00dfdac2c5b87e0a7f63dc4c9205e2a5f",
+        "backend/src/test/java/vn/codegym/smartcafe/config/HeaderTokenFilterMySqlTest.java": "9c229c7480f2c2db82fdd1915ccc97b417541eedb3ef9e675407f652b5851cb7",
+        "backend/src/test/java/vn/codegym/smartcafe/config/ProfileConsumerPathTest.java": "05f6e9263a5ad881d53394f51b4e21a83aca77008895d192fab7da8e23480aeb",
+        "backend/src/test/java/vn/codegym/smartcafe/customeractions/CustomerAccessTest.java": "6f175ab9d5cedba11b1c14fb434f1dd04be130dab0d91a315d37cdd52402b829",
+        "backend/src/test/java/vn/codegym/smartcafe/customeractions/CustomerActionsMySqlTest.java": "9459387f8c20aea4919f8610bd60d69f5aaebeeee9735011eebbc8aa66224fc1",
+        "backend/src/test/java/vn/codegym/smartcafe/customerfeedback/CustomerFeedbackMySqlTest.java": "a96d32740029022bdc1089bffa1f08e720182c62e854adf10858afa809629eb5",
+        "backend/src/test/java/vn/codegym/smartcafe/customerfeedback/CustomerFeedbackUnavailableTest.java": "1d0b2439fcf169f0ee3cd1cdfdb262d50fb4cbf4ea73c39e9266999ead843206",
+        "backend/src/test/java/vn/codegym/smartcafe/customerfeedback/FeedbackAdmissionTest.java": "bc7a1111e1dc4f1c18726360fe456d802b16278f13f58af13d1f7a4fb2fb7170",
+        "backend/src/test/java/vn/codegym/smartcafe/customerfeedback/FeedbackImageMySqlTest.java": "24a2040df4aa58f976cc61918fae97502b0a1139f1706f2176256e63091a34db",
+        "backend/src/test/java/vn/codegym/smartcafe/customerfeedback/FeedbackImagesTest.java": "71b2885b648196471e48d1c7dc0d8a74ae497ab0837fa2c1fd0d03668abda943",
+        "backend/src/test/java/vn/codegym/smartcafe/customermenu/CustomerMenuControllerTest.java": "12af14478a989870b500e14be0ca8e36b1de11f18b87785d6d9ccaa13146c2f8",
+        "backend/src/test/java/vn/codegym/smartcafe/customermenu/CustomerMenuMySqlTest.java": "b38cd0f86687d80e819a36eaa96003548ee06197368235f58807546c95974f43",
+        "backend/src/test/java/vn/codegym/smartcafe/customersession/CustomerTableControllerTest.java": "ef91429ddf6a781f112ae2d165284ed298b6de92e0147b73a8bf3bd73df50660",
+        "backend/src/test/java/vn/codegym/smartcafe/customersession/CustomerTableMySqlTest.java": "0428012a6f01273bd07f07f73c6bbd3131d8c442d9df36400b044a83e27170c4",
+        "backend/src/test/java/vn/codegym/smartcafe/database/CurrentSharedDdlHttpTest.java": "24dc2bcbd101a0d26d0c9e60c0d46e9b21232691f7dceec0e4ed08250de31158",
+        "backend/src/test/java/vn/codegym/smartcafe/database/DatabaseMigrationRehearsal.java": "0e647d6d626be0a135f67863871fba5031093ad84b145f09d593bf9c138a3711",
+        "backend/src/test/java/vn/codegym/smartcafe/database/DatabaseMigrationSafetyTest.java": "8b49576e7d14d1db1cb77f2dbb311e486445565f29738f36b7bc660fceb64504",
+        "backend/src/test/java/vn/codegym/smartcafe/database/DatabaseTemporalCompatibilityTest.java": "53d1656b3c754295d08eca11b2d9ae5c0efd0d47603289dded591c70f2b9bb99",
+        "backend/src/test/java/vn/codegym/smartcafe/database/ForbiddenProblemHttpTest.java": "69c136fb2a42d9add3d4bcbf821c655623214ee69a174d74170c9a99072a0f2e",
+        "backend/src/test/java/vn/codegym/smartcafe/database/OfficialStaffProfileConcurrencyTest.java": "da20375f0df07458ce27407aab040794cd67eb9a6cfc950c79882d80ebb8b756",
+        "backend/src/test/java/vn/codegym/smartcafe/database/ProfileMySqlTest.java": "01db70ffabbe31bd7a2eff49148f481727cd1f83d338962a9c0ce2b4082e915b",
+        "backend/src/test/java/vn/codegym/smartcafe/database/TestSchema.java": "fb0a4de323e62e16cf007ca9268863fe4a2ad48cbce58570e7da06cf083e1477",
+        "backend/src/test/java/vn/codegym/smartcafe/database/VerifiedDatabaseMigrationTest.java": "106df53dcf8506058f5c650cfa4b5ad9388403d3fc1bade081530fea4a04b697",
+        "backend/src/test/java/vn/codegym/smartcafe/home/HeaderMySqlTest.java": "b2fd497ff8bb7e3dcadb65d240ca648575c16e2e6def49e2cd14deaa332a8362",
+        "backend/src/test/java/vn/codegym/smartcafe/home/HomeHighlightsMySqlTest.java": "8d6457c8484a983426e89c04bf7a8e43227c4ece4c8e024828bc08037bc1f717",
+        "backend/src/test/java/vn/codegym/smartcafe/home/HomeUnavailableTest.java": "fc93056d07e7b175ff1e7c70d1e45008e715ea70e5684bf431e64b94f7223ef1",
+        "backend/src/test/java/vn/codegym/smartcafe/income/IncomeWindowTest.java": "24501073a6c2ffd2fffb2e4b325292c98d469b3510d12ae5b51dc4a7d24204d7",
+        "backend/src/test/java/vn/codegym/smartcafe/menu/MenuHttpReportTest.java": "4ac65ec2d302bf854ff12f7a3f01af56420f6360dec42fb982c43a4a99289be1",
+        "backend/src/test/java/vn/codegym/smartcafe/menu/MenuImagesTest.java": "df1d0464350dbc9e82d8796fcd4319d30e207a8a452440dec32bb29ebf604079",
+        "backend/src/test/java/vn/codegym/smartcafe/menu/MenuIntegrationTest.java": "a0bd19adb05140c7e2b506f71710c57e7e8a50e74ed031b921513ebd5fbca1bf",
+        "backend/src/test/java/vn/codegym/smartcafe/menu/MenuProviderStub.java": "38ff4467e9f4f3c43c7b8731f8442b63cb81f2153f232d35abe2679dde478c59",
+        "backend/src/test/java/vn/codegym/smartcafe/news/FirebaseEmulatorNewsImageStorageTest.java": "d1da8cea476cc5af9b2daf2535c9812c06e50a4193117d77a82e6969fab28ecd",
+        "backend/src/test/java/vn/codegym/smartcafe/news/FirebaseNewsImageStorageTest.java": "1773b5dfac45c32149b8b4fbd4838ba1ed7fca30b02aa09365ccba810f316f7d",
+        "backend/src/test/java/vn/codegym/smartcafe/news/NewsAudienceMySqlTest.java": "9ca963a9c471e51f7e84e7c524be6889c70e21678ea5212c9c4f1840ab8d33f3",
+        "backend/src/test/java/vn/codegym/smartcafe/news/NewsImageMySqlTest.java": "12fdfe34c449432de733f9a95a11541ebc65541f328917e7d731e4b0da7f63be",
+        "backend/src/test/java/vn/codegym/smartcafe/news/NewsImageTransactionTest.java": "53103eec92f50924d9cd00105adb547549af88c5b8f35cd1e4e6b1042f75e7da",
+        "backend/src/test/java/vn/codegym/smartcafe/news/NewsMySqlTest.java": "772d0cc756680f4b1b83cf6c2f1be38485ea0bcd9fc61e9f6d3dd3e2d1402c7a",
+        "backend/src/test/java/vn/codegym/smartcafe/news/NewsReviewMySqlTest.java": "7ec710b42a2b0568a4f30e6c56277a88d1e463b6c0f25bd145a24e9aa4dcd23f",
+        "backend/src/test/java/vn/codegym/smartcafe/news/NewsSocketBudgetTest.java": "3b9fec371756cc929d93d1ed50ed992f4f8cab683b42687e8d7b5026534e7bbe",
+        "backend/src/test/java/vn/codegym/smartcafe/profile/ProfileFailureTest.java": "039bf1fd04632ae9a3a543be61e2f53b5d0c519340f216cb63e33d76a85f8f72",
+        "backend/src/test/java/vn/codegym/smartcafe/profile/ProfileValidationTest.java": "7970ed0afb189ee059a280ab3e86300dc8ecfee36480f9a23be322f661197ac4",
+        "backend/src/test/java/vn/codegym/smartcafe/sales/SalesMySqlTest.java": "2294b1cdf77392f84289911385962595a56dd86a4f3d899744b885e921b9519d",
+        "backend/src/test/java/vn/codegym/smartcafe/staff/StaffControllerTest.java": "1fd9f6d104ff4f5d4b146dee8bea7c2332beafefbbfe3ec7c07831f5b5598f73",
+        "backend/src/test/java/vn/codegym/smartcafe/staff/StaffHttpReportTest.java": "9d80977c63e2ecc05ad29b96313e6b64c0e24356eb1696322a8922e2c0a7525d",
+        "backend/src/test/java/vn/codegym/smartcafe/staff/StaffImageServiceTest.java": "45154a5ad730f360a77d0eebe938c9b4fe8890de84cb0c9e9bc2fe2620309af1",
+        "backend/src/test/java/vn/codegym/smartcafe/staff/StaffPasswordPolicyTest.java": "fd136630616de49979ed65d1f2a574ea0f7c3eb30562fe1545ef7bfa5b795ba7",
+        "backend/src/test/resources/db/current-shared-2026-11-13.sql": "a8c1155cc13adcc50638c88affe4dddd1cf840fe9db807f7ea07f5b04a6a57d2",
+        "backend/src/test/resources/db/current-shared-history.json": "2e0eac7978449d97010db50071ee37461354bbb55fbf95802c6991e4823e3ee8",
+        "backend/src/test/resources/db/contracts/test-future-schema.properties": "5fb3070a4b87becbf545b238a8e5b4f8b86b216913217aca39e748bae81674ed",
+        "backend/src/test/resources/db/contracts/test-future.properties": "601dcbfe58d9adad628e88b4eba188968e13b69283489ed6177bde98485b6985",
+        "backend/src/test/resources/db/test-future/V20261113_02__test_future.sql": "61ca7e570837e33eb9187aebe8c1a7904d26c937e4b85e1d983a9e4aadbf39a9"
+      },
+      "configurationSha256": {
+        "backend/pom.xml": "af0daeee37595828ee399d32ee4717df115668703d5bd35889e2f21931bcf75a",
+        "backend/src/test/resources/schema.sql": "9331e7de94d857688f1427fdfce4ec4a2f1afc451124491dd3b80495363a1d31",
+        "backend/src/test/resources/application.properties": "7ef82c72516e1a55f528958cc82a9ccb91449bc37b105d7c9997dc4690778a28"
+      },
+      "ddlSha256": "84cb9f2e99073ea73b117e828dc7f144928052a8f8345cde6f903b82280e4b5e",
+      "patchSha256": {
+        "bills-token-fixture-latest.patch": "ad75ac4fd3a5903955ba31db93360fae03f026a35c94916d07edd81ed288b1e0",
+        "candidate-live-http-extra.patch": "dce861c70a630ab28e0448afaf7b5e41ffddf3addb51a9507acd234f1ea52bd8",
+        "integration-security-proposal.patch": "df4609b59888e0b6e6da7d76c53e73aa4eccc386d67e68e873e032427f19cdc1",
+        "news-profile-consumer-latest.patch": "4d2ce3f106bf9fc9d46c7317036239288313f9217c0d35ad569a8727cb326577",
+        "official-shared-http-regressions.patch": "c462673a4ba9da61611eabac7025f5e5334442c9ce362517f627f377bbd4f1f9",
+        "official-shared-security-composition.patch": "0d36592d5fff293ea1da8010203892f0c799ca356e9b6d0b7414c0ff616510c1",
+        "shared-security-composition-latest.patch": "fb7fb0d44f9e322270e062b8151120b3bfa23531ab9d97e7254529c5cb17f74c",
+        "shared-security-regressions.patch": "140514c2ba5b0a4125a1180aac518c8a4f761c834eb37484317c090a75f7bb13",
+        "staff-caller-migration-latest.patch": "8a728ea9499fec9c0fcf18c83f2ccdc9125317c304868d2d3001ff1864fe0ae1",
+        "staff-version-locking-latest.patch": "3a2b4a7f215320029dd423e9f68243eab7e4bd99bb916b73dcb77bf2e586172b",
+        "staff-version-locking.patch": "24e5cb81c411c92f578cbdeca6552b0680748878e5b3934e6cc8408caed7bee2"
+      },
+      "officialStaffSourceProof": {
+        "ref": "57ea6f172c8c06e27f016734efa0deee6aa965d4",
+        "exactFiles": [
+          "backend/src/main/java/vn/codegym/smartcafe/staff/StaffController.java",
+          "backend/src/main/java/vn/codegym/smartcafe/staff/StaffImageService.java",
+          "backend/src/main/java/vn/codegym/smartcafe/staff/StaffModels.java",
+          "backend/src/main/java/vn/codegym/smartcafe/staff/StaffService.java",
+          "backend/src/main/java/vn/codegym/smartcafe/staff/StaffValidation.java",
+          "backend/src/test/java/vn/codegym/smartcafe/staff/StaffControllerTest.java",
+          "backend/src/test/java/vn/codegym/smartcafe/staff/StaffHttpReportTest.java",
+          "backend/src/test/java/vn/codegym/smartcafe/staff/StaffImageServiceTest.java",
+          "backend/src/test/java/vn/codegym/smartcafe/staff/StaffPasswordPolicyTest.java",
+          "backend/src/main/java/vn/codegym/smartcafe/auth/StaffDashboardController.java"
+        ],
+        "staffProposalApplied": false
+      },
+      "publishedPatchSha256": {
+        "bills-token-fixture-latest.patch": "ad75ac4fd3a5903955ba31db93360fae03f026a35c94916d07edd81ed288b1e0",
+        "candidate-live-http-extra.patch": "dce861c70a630ab28e0448afaf7b5e41ffddf3addb51a9507acd234f1ea52bd8",
+        "integration-security-proposal.patch": "df4609b59888e0b6e6da7d76c53e73aa4eccc386d67e68e873e032427f19cdc1",
+        "news-profile-consumer-latest.patch": "4d2ce3f106bf9fc9d46c7317036239288313f9217c0d35ad569a8727cb326577",
+        "official-shared-http-regressions.patch": "c462673a4ba9da61611eabac7025f5e5334442c9ce362517f627f377bbd4f1f9",
+        "official-shared-security-composition.patch": "ad4c210ff130d713b8375ef83f8729849603391a0629854de42f8250261471f9",
+        "shared-security-composition-latest.patch": "fb7fb0d44f9e322270e062b8151120b3bfa23531ab9d97e7254529c5cb17f74c",
+        "shared-security-regressions.patch": "140514c2ba5b0a4125a1180aac518c8a4f761c834eb37484317c090a75f7bb13",
+        "staff-caller-migration-latest.patch": "8a728ea9499fec9c0fcf18c83f2ccdc9125317c304868d2d3001ff1864fe0ae1",
+        "staff-version-locking-latest.patch": "3a2b4a7f215320029dd423e9f68243eab7e4bd99bb916b73dcb77bf2e586172b",
+        "staff-version-locking.patch": "24e5cb81c411c92f578cbdeca6552b0680748878e5b3934e6cc8408caed7bee2"
+      },
+      "patchHashScope": "patchSha256 captured before LF-only whitespace normalization; publishedPatchSha256 is current artifact. git apply output exactly matches executed candidate source"
+    },
+    "frontend": {
+      "commands": [
+        {
+          "command": [
+            "npm.cmd",
+            "ci"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "npm.cmd",
+            "run",
+            "lint"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "npm.cmd",
+            "run",
+            "build"
+          ],
+          "exitCode": 0
+        },
+        {
+          "command": [
+            "npm.cmd",
+            "run",
+            "test:ui",
+            "--",
+            "--workers=2"
+          ],
+          "exitCode": 0
+        }
+      ],
+      "playwrightPassed": 100,
+      "scope": "Existing UI regression; Profile browser E2E NOT RUN"
+    },
+    "openapi": {
+      "validator": "openapi-spec-validator 0.9.0",
+      "exitCode": 0,
+      "result": "OK"
+    },
+    "dependencyAudit": {
+      "exitCode": 1,
+      "highAffectedPackages": 5,
+      "uniqueAdvisories": [
+        "GHSA-fc5q-39xc-vjpf"
+      ],
+      "url": "https://github.com/advisories/GHSA-fc5q-39xc-vjpf",
+      "status": "RELEASE_GATE_OPEN",
+      "note": "No forced major downgrade; no patched version listed at lookup; no production exploit claim"
+    },
+    "readiness": {
+      "standalone": "PASS existing e784 executable evidence unchanged",
+      "officialIntegration": "BLOCKED literal conflicts; no runnable A",
+      "proposedIntegration": "PASS 468/468, 230 requests/623 assertions,14 SQL; Auth39/57; pinned proposed B, not official A",
+      "merge": "HOLD",
+      "release": "BLOCKED gates"
+    },
+    "httpRound2": {
+      "runtimeJarSha256": "152dc0ae6cb052345cb3c6b985d2b7b95cd6165733ca490d435a4d9de2c0511b",
+      "executedAt": "2026-11-18T07:26:39.286904+00:00",
+      "finishedAt": "2026-11-18T07:30:53.344322+00:00",
+      "ddlSha256": "84cb9f2e99073ea73b117e828dc7f144928052a8f8345cde6f903b82280e4b5e",
+      "phases": [
+        {
+          "name": "01-login",
+          "requests": 11,
+          "assertions": 33,
+          "failedAssertions": 0,
+          "failures": 0,
+          "exitCode": 0,
+          "negativeControl": false,
+          "failedItems": []
+        },
+        {
+          "name": "02-profile",
+          "requests": 6,
+          "assertions": 21,
+          "failedAssertions": 0,
+          "failures": 0,
+          "exitCode": 0,
+          "negativeControl": false,
+          "failedItems": []
+        },
+        {
+          "name": "03-update",
+          "requests": 7,
+          "assertions": 21,
+          "failedAssertions": 0,
+          "failures": 0,
+          "exitCode": 0,
+          "negativeControl": false,
+          "failedItems": []
+        },
+        {
+          "name": "04-security",
+          "requests": 40,
+          "assertions": 120,
+          "failedAssertions": 0,
+          "failures": 0,
+          "exitCode": 0,
+          "negativeControl": false,
+          "failedItems": []
+        },
+        {
+          "name": "05-password",
+          "requests": 11,
+          "assertions": 33,
+          "failedAssertions": 0,
+          "failures": 0,
+          "exitCode": 0,
+          "negativeControl": false,
+          "failedItems": []
+        },
+        {
+          "name": "06-expiration",
+          "requests": 6,
+          "assertions": 18,
+          "failedAssertions": 0,
+          "failures": 0,
+          "exitCode": 0,
+          "negativeControl": false,
+          "failedItems": []
+        },
+        {
+          "name": "07-revocation",
+          "requests": 4,
+          "assertions": 12,
+          "failedAssertions": 0,
+          "failures": 0,
+          "exitCode": 0,
+          "negativeControl": false,
+          "failedItems": []
+        },
+        {
+          "name": "08-regression",
+          "requests": 4,
+          "assertions": 12,
+          "failedAssertions": 0,
+          "failures": 0,
+          "exitCode": 0,
+          "negativeControl": false,
+          "failedItems": []
+        },
+        {
+          "name": "09-menu",
+          "requests": 16,
+          "assertions": 31,
+          "failedAssertions": 0,
+          "failures": 0,
+          "exitCode": 0,
+          "negativeControl": false,
+          "failedItems": []
+        },
+        {
+          "name": "10-qr",
+          "requests": 9,
+          "assertions": 16,
+          "failedAssertions": 0,
+          "failures": 0,
+          "exitCode": 0,
+          "negativeControl": false,
+          "failedItems": []
+        },
+        {
+          "name": "11-negative-control",
+          "requests": 1,
+          "assertions": 3,
+          "failedAssertions": 1,
+          "failures": 1,
+          "exitCode": 1,
+          "negativeControl": true,
+          "failedItems": [
+            "Health"
+          ]
+        },
+        {
+          "name": "12-restored-1",
+          "requests": 11,
+          "assertions": 33,
+          "failedAssertions": 0,
+          "failures": 0,
+          "exitCode": 0,
+          "negativeControl": false,
+          "failedItems": []
+        },
+        {
+          "name": "12-restored-2",
+          "requests": 6,
+          "assertions": 21,
+          "failedAssertions": 0,
+          "failures": 0,
+          "exitCode": 0,
+          "negativeControl": false,
+          "failedItems": []
+        },
+        {
+          "name": "12-restored-3",
+          "requests": 7,
+          "assertions": 21,
+          "failedAssertions": 0,
+          "failures": 0,
+          "exitCode": 0,
+          "negativeControl": false,
+          "failedItems": []
+        },
+        {
+          "name": "12-restored-4",
+          "requests": 40,
+          "assertions": 120,
+          "failedAssertions": 0,
+          "failures": 0,
+          "exitCode": 0,
+          "negativeControl": false,
+          "failedItems": []
+        },
+        {
+          "name": "12-restored-5",
+          "requests": 11,
+          "assertions": 33,
+          "failedAssertions": 0,
+          "failures": 0,
+          "exitCode": 0,
+          "negativeControl": false,
+          "failedItems": []
+        },
+        {
+          "name": "12-restored-6",
+          "requests": 6,
+          "assertions": 18,
+          "failedAssertions": 0,
+          "failures": 0,
+          "exitCode": 0,
+          "negativeControl": false,
+          "failedItems": []
+        },
+        {
+          "name": "12-restored-7",
+          "requests": 4,
+          "assertions": 12,
+          "failedAssertions": 0,
+          "failures": 0,
+          "exitCode": 0,
+          "negativeControl": false,
+          "failedItems": []
+        },
+        {
+          "name": "12-restored-8",
+          "requests": 4,
+          "assertions": 12,
+          "failedAssertions": 0,
+          "failures": 0,
+          "exitCode": 0,
+          "negativeControl": false,
+          "failedItems": []
+        },
+        {
+          "name": "13-cross-module",
+          "requests": 27,
+          "assertions": 36,
+          "failedAssertions": 0,
+          "failures": 0,
+          "exitCode": 0,
+          "negativeControl": false,
+          "failedItems": []
+        }
+      ],
+      "databaseChecks": [
+        {
+          "check": "name/address/phone persisted in users and staff_profiles",
+          "status": "PASS"
+        },
+        {
+          "check": "missing personnel rolls back earlier users update",
+          "status": "PASS"
+        },
+        {
+          "check": "all rejected requests leave account/personnel rows unchanged",
+          "status": "PASS"
+        },
+        {
+          "check": "new BCrypt hash differs and verifies new password",
+          "status": "PASS"
+        },
+        {
+          "check": "old password no longer verifies",
+          "status": "PASS"
+        },
+        {
+          "check": "password timestamp updated; auth version increments once; version preserves profile update",
+          "status": "PASS"
+        },
+        {
+          "check": "other ADMIN remains unchanged",
+          "status": "PASS"
+        },
+        {
+          "check": "expired and flagged accounts clear persisted flag and increment auth version",
+          "status": "PASS"
+        },
+        {
+          "check": "restored full run still persists new password",
+          "status": "PASS"
+        },
+        {
+          "check": "official Staff CRUD persisted salary/version and soft deletion",
+          "status": "PASS"
+        },
+        {
+          "check": "News authored and archived through real signed bearer",
+          "status": "PASS"
+        },
+        {
+          "check": "feedback JSON submissions persisted and oversize rejected without extra row",
+          "status": "PASS"
+        },
+        {
+          "check": "maximum MySQL TEXT accepted through bounded JSON wrapper",
+          "status": "PASS"
+        },
+        {
+          "check": "bounded brute-force and oversized-body probes leave all account rows unchanged",
+          "status": "PASS"
+        }
+      ],
+      "nativeFlyway": {
+        "exitCode": 0,
+        "provision": 1,
+        "repeat": 0,
+        "validate": "PASS"
+      },
+      "ownedSchemaCleanup": "PASS",
+      "securityAssessment": {
+        "scope": "20 bounded localhost HTTP requests; observation, not a load/DoS certification",
+        "wrongLogin": [
+          {
+            "status": 401,
+            "elapsedMs": 250.0
+          },
+          {
+            "status": 401,
+            "elapsedMs": 328.0
+          },
+          {
+            "status": 401,
+            "elapsedMs": 250.0
+          },
+          {
+            "status": 401,
+            "elapsedMs": 250.0
+          },
+          {
+            "status": 401,
+            "elapsedMs": 250.0
+          },
+          {
+            "status": 401,
+            "elapsedMs": 235.0
+          },
+          {
+            "status": 401,
+            "elapsedMs": 265.0
+          },
+          {
+            "status": 401,
+            "elapsedMs": 235.0
+          }
+        ],
+        "wrongCurrentPassword": [
+          {
+            "status": 400,
+            "elapsedMs": 282.0
+          },
+          {
+            "status": 400,
+            "elapsedMs": 266.0
+          },
+          {
+            "status": 400,
+            "elapsedMs": 282.0
+          },
+          {
+            "status": 400,
+            "elapsedMs": 282.0
+          },
+          {
+            "status": 400,
+            "elapsedMs": 297.0
+          },
+          {
+            "status": 400,
+            "elapsedMs": 281.0
+          },
+          {
+            "status": 400,
+            "elapsedMs": 281.0
+          },
+          {
+            "status": 400,
+            "elapsedMs": 265.0
+          }
+        ],
+        "passwordConcurrency": 4,
+        "oversizedPasswordCharacters": 131072,
+        "oversized": [
+          {
+            "status": 400,
+            "elapsedMs": 94.0
+          },
+          {
+            "status": 400,
+            "elapsedMs": 15.0
+          }
+        ],
+        "validAfterFailures": [
+          {
+            "status": 200,
+            "elapsedMs": 250.0
+          },
+          {
+            "status": 200,
+            "elapsedMs": 31.0
+          }
+        ],
+        "rateLimitedResponses": 0,
+        "bcryptCost": "10",
+        "conclusion": "No throttle observed at these volumes; JSON field validation is not a transport body-size limit. Gateway/shared Auth policy still needs approval."
+      },
+      "totals": {
+        "requests": 230,
+        "assertions": 623,
+        "failures": 0
+      },
+      "sourceSha256": {
+        "backend/src/main/resources/application-dev.properties": "b4e41f959fb0e5fd4024b5c10d5f448cc0dcdab001441b8fcf252efa3012e1bf",
+        "backend/src/main/resources/application-prod.properties": "cbc345a6c38a13c5c3f6e14f7303c2525718cf9414ac8f946a94e43fa2b8412e",
+        "backend/src/main/resources/application-verified-db.properties": "e0e495bafb60a114a8f834657d1d593f16d4cd3ce9fdf6b93d11be8932081e5c",
+        "backend/src/main/resources/application.properties": "0d74da219de4100e3270f3a84cabfcb65019f36848da7b68884c1a5ea25672b6",
+        "backend/src/main/java/vn/codegym/smartcafe/SmartCafeApplication.java": "16ec2bf236f4d97e58f91330e10714ca77e19192199bae978842731917943834",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/AdminController.java": "0723f35f0de415001363f3d74d23b4ec519bdc0f4238842a43b1efa4fa76f5f8",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/AuthController.java": "0463afe1a1ecd968260c4fd3f5951baf094038f0b2544f36e28d3feb94a261e6",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/AuthErrorHandler.java": "8d24e9e199cbcc66203b87ad2f88aaa90789ca8af6b9abae6a5893f364281f7c",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/AuthRepository.java": "4f0a4466c15e256ab41fa7a61b7c8fa423be0090f1ab2ed1228f12463dd9166d",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/AuthService.java": "f01517b484b5ec7e54d477bf61eca063ab6cd26917dbc558ae0fa5bd8a1cd273",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/EmailService.java": "57e4bd9efb1765213ef0027481a7e7cdd83a920b0ed143c747687cb0e1e63ce4",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/InvalidCredentialsException.java": "20a7f014583c133c6f72490eb3fb435e57d884005537bf77c703d77dab09f878",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/InvalidPasswordException.java": "2fba67badeb4d722880223e12e2b5f8e22e901d28ac9931d5869522f06d06703",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/InvalidTokenException.java": "34e4e13cc9f54492d926fb94f2dcfd708d39f5c7b5293f9f9888df818ed6b3dc",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/OtpChallengeRecord.java": "abff3128f63c063a96740de5df40916e975feb8794ab4070758a471420bcb50a",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/OtpException.java": "bffbbba0f9ae8d1dfd04b1b928ba5acfbfb1c16f759c5cf83948690dd2ba026d",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/OtpService.java": "1f9e5e25db1230c16b446e49feffd45ee0e469fdde3823cb12bdae0da2430fbe",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/PasswordExpiration.java": "527d1be6c7ed3f43b23f4e70701278751eef512e77d720b4b9f487faaf9ef694",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/PasswordMismatchException.java": "33adaf91de9052c00bf78d92b79f15f38a282d7cbdb74a2ece01db3a74be32b2",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/PasswordPolicy.java": "6ba5bfea03fd97c8bbe251a1ed9e67e27161ffbc5fc001eac535498feb163e6e",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/SmtpEmailService.java": "9bfb9a9be32a591fb72202a369f2fc54533217b0a2b2ee7e346198ac97150361",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/StaffDashboardController.java": "72d9b6c4518e08b627260e00b0b4267a45e4baa6df4cd43cbcd751bd179fc6ed",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/TokenService.java": "d595b74cf19da056f14d32d78de18dbfd5f1c989f5e1a267ba6ea2ec8cd39263",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/UserRecord.java": "e1793cd92893cb2938ffbb0de868bb49141d1233fc2955cfeb59ccf0e7f8879b",
+        "backend/src/main/java/vn/codegym/smartcafe/billing/BillController.java": "d9ac6359aca8da7cf0f48d2f8b80b77a7503e10798786be45ccf7c98ae06188f",
+        "backend/src/main/java/vn/codegym/smartcafe/billing/BillQueryService.java": "e471af33c2de36892ea09ce0419ee8f14692570a668e0b9369b40eea534f9af8",
+        "backend/src/main/java/vn/codegym/smartcafe/billing/BillReader.java": "72086193f920ba4c20e65bf0ccc768dcb63bfd7973cb7f54a1cdecc5ad18a9ce",
+        "backend/src/main/java/vn/codegym/smartcafe/billing/BillSnapshot.java": "b741020d92f0a9dea42ffb8c206f3ae32444f138d45175b25ea8648d1789acd1",
+        "backend/src/main/java/vn/codegym/smartcafe/config/BearerTokenAuthenticator.java": "bee9abd6b688fe2aaaf6267218b05ca8b0a556e25007ee32ab8cbd0a9a1ba42f",
+        "backend/src/main/java/vn/codegym/smartcafe/config/BusinessClock.java": "385d3ba65982480c3fa288ee83ef19a92e484ba55cf8c3bdb0d4e4b421f85fa6",
+        "backend/src/main/java/vn/codegym/smartcafe/config/HeaderTokenFilter.java": "dec00180255cd67a00e01d08e23d6463aac8ceecc2a412d3f64cc9edee09f139",
+        "backend/src/main/java/vn/codegym/smartcafe/config/MenuSecurity.java": "5968aabf752a8c6756ddf0fcd301aa9ab0524d4725d389c438daec7fcf4133f6",
+        "backend/src/main/java/vn/codegym/smartcafe/config/SecurityConfig.java": "636fb10025916f81b01faa4fda77db18232d4a023bfa934adda2c785e54f476d",
+        "backend/src/main/java/vn/codegym/smartcafe/customeractions/CustomerAccess.java": "1928464d9fe267818840dfefb2f059caf72d3181e42e91a4925fe46a6263a897",
+        "backend/src/main/java/vn/codegym/smartcafe/customeractions/CustomerActionErrors.java": "a6cad3fb12cdeceb054ef3b605466a695be1f63dd80206a03b7c372f6adf8289",
+        "backend/src/main/java/vn/codegym/smartcafe/customeractions/CustomerOrderController.java": "0d7bef2e89c3b72323ec7d190f9e3c03ba6a8e731348624b2bd4ebbe843e3cc6",
+        "backend/src/main/java/vn/codegym/smartcafe/customeractions/CustomerOrderEditController.java": "2ca9717548803ff901f7b41bb98f7b5a4aee8e11fd166c458d52e07389cb0e7a",
+        "backend/src/main/java/vn/codegym/smartcafe/customeractions/CustomerOrderEditService.java": "93a87527e44d069791db7eaabb277ced63c29134a8cfcc1934723ff7502de658",
+        "backend/src/main/java/vn/codegym/smartcafe/customeractions/CustomerOrderService.java": "2b7f26bf41908fb16ac310776c6020a0b76e79e56cc5b4bedd5354e78378a39e",
+        "backend/src/main/java/vn/codegym/smartcafe/customeractions/CustomerRequestController.java": "9ddd848807a44fdcf885e13b6ca72a5f68c8cf6b261718b5f60f3d13732b9dad",
+        "backend/src/main/java/vn/codegym/smartcafe/customeractions/CustomerRequestService.java": "15bafb53185fd632c26905609e946e968bdcbabb1c1aac0ecf5f9dcf3bbf0ebe",
+        "backend/src/main/java/vn/codegym/smartcafe/customerfeedback/CustomerFeedbackController.java": "3bbcb3c447ac34fce235384b91802c33335d236204b6c98e10ae231a7767fd58",
+        "backend/src/main/java/vn/codegym/smartcafe/customerfeedback/CustomerFeedbackErrors.java": "5a24bb6cbeeb94ff5927a2101c66fe62a202a61d268306ed1708601372e24b25",
+        "backend/src/main/java/vn/codegym/smartcafe/customerfeedback/CustomerFeedbackService.java": "8d4e5e1ac8d3f30c59d8fc00d8a8eed8d8c521bc722c80ecac1b967ea873b058",
+        "backend/src/main/java/vn/codegym/smartcafe/customerfeedback/FeedbackAdmissionFilter.java": "97c66f7375ee7d8db28ec108234bc461c0d8cd4ed029c4ada8852d96b30a817a",
+        "backend/src/main/java/vn/codegym/smartcafe/customerfeedback/FeedbackImages.java": "6c8681d172b10b246d84d5d67d577c3b17fe6c8d9b1b13a03e4d17cd05fafc12",
+        "backend/src/main/java/vn/codegym/smartcafe/customerfeedback/FeedbackSubmission.java": "2a0134d86531bf694d6cd46ce82644e9dc490987724fce9d3483422f91aff3e9",
+        "backend/src/main/java/vn/codegym/smartcafe/customerfeedback/FirebaseFeedbackStorage.java": "eeff8e4b72a0d0c78a9f1ed5576703b27e8b44c8607524093d3c65c25c84a075",
+        "backend/src/main/java/vn/codegym/smartcafe/customermenu/CustomerMenuController.java": "578d4069486310543319539959af8db88f77d9a5f7c7201c86d4ff4b98080c26",
+        "backend/src/main/java/vn/codegym/smartcafe/customermenu/CustomerMenuErrors.java": "b63ee4dd9337a775cc7611ecdd95ca768072aa3a80fb8e9e643b024c003c2fcb",
+        "backend/src/main/java/vn/codegym/smartcafe/customermenu/CustomerMenuException.java": "f38b652485c18210cf2f66ab9ab0524a8c9b533f50dfb95e321afed72ce3f42a",
+        "backend/src/main/java/vn/codegym/smartcafe/customermenu/CustomerMenuModels.java": "a6dc4bfc3535ce4991e8736b5738113cf0e8a9738bbf4b7706e5b6862e80b4b0",
+        "backend/src/main/java/vn/codegym/smartcafe/customermenu/CustomerMenuService.java": "71ec8ec39963716c95b57625a45dc9921b8db1cb83d271660152127de6bb4a4b",
+        "backend/src/main/java/vn/codegym/smartcafe/customersession/CustomerTableController.java": "42ff4e63da2c2f5b736041c8c9d543c2a8e8c419346e488a1fd1a33acd329f83",
+        "backend/src/main/java/vn/codegym/smartcafe/customersession/CustomerTableErrors.java": "0caf9c88fe67f6c9101ee9577c0b9365a65200bd438d124eac6a6bde390269dc",
+        "backend/src/main/java/vn/codegym/smartcafe/customersession/CustomerTableException.java": "d11075981b24b22a6ede76b7ac04528626e17c67459e5f570e73d3b6f33d3b00",
+        "backend/src/main/java/vn/codegym/smartcafe/customersession/CustomerTableService.java": "80ddce4db89e4282fe3b119c6a0b9afb08e800812f9c2990246796bbf4a0d74a",
+        "backend/src/main/java/vn/codegym/smartcafe/database/DatabaseMigrationConfiguration.java": "e475f7903f363f1e63cf91caf38225448df2df62325c2fae4f7dec9dd1eb01a5",
+        "backend/src/main/java/vn/codegym/smartcafe/database/DatabasePreflight.java": "1c9dbbab3d616df4a7ffa99ce9ab04d71242d3e9be5b159e932a1a93b7065393",
+        "backend/src/main/java/vn/codegym/smartcafe/database/DatabaseRehearsal.java": "52f73164b5c2f5449e6bef5f718d55d32a003b50066e58a9330c961ebe673ef8",
+        "backend/src/main/java/vn/codegym/smartcafe/database/VerifiedSchemaContract.java": "8b3300df50105af5516a9d339bea418943d9748d564ae476b4db32ff821fae8c",
+        "backend/src/main/java/vn/codegym/smartcafe/home/AccountReader.java": "91a40ed85228e311cd3ff28204bf0d32190b13fc91b5366c5b6d1a907365fbe6",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HeaderController.java": "bcc68d2474b87e065761a8030e0178b141cdcbb14732c242098ff25c9506fdde",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HeaderService.java": "06b0eaf50cd8bee8fba2d956e0bb0e28227b7946a6257c93582d329198ec0939",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HomeAccount.java": "1eb4ed2c61fefb6cdd0b6666b0a477007dbee330a5768b30d0b47d86d4b4a7e6",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HomeHighlights.java": "ff2f1c087adf4e0cbcbffdc893522e78610ed21388a1eb65a28d5f97761a0dc4",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HomeHighlightsController.java": "747cbbdac9e729f973e8a536fab4b82fac9ccc798a7fdcebee66bbd9f263b16a",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HomeHighlightsService.java": "34ea9a565a9aa07dad36d9f266f4845c7e2fd035d1a4d89a58c5edb7830f77bd",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HomeNotificationFeed.java": "35369c6d151bf351830030492bd0dd7f8f3c06f4d19897a3af4a370cfed181c0",
+        "backend/src/main/java/vn/codegym/smartcafe/home/HomeReadErrors.java": "c2f3234e22744cb9b7c65cd14a6959f2bf364822e1a3576503ab26c1d1ff15b7",
+        "backend/src/main/java/vn/codegym/smartcafe/income/IncomeController.java": "13d0ad5188e8ada87b3401d7b51f2f2849494fd4dc506027636237daaa84f1fd",
+        "backend/src/main/java/vn/codegym/smartcafe/income/IncomeService.java": "bfc6da87d39f89659a780ed0ccb9c881af0576e76fa2df37f269569cbba55239",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuCatalog.java": "be529bc9e84a507b0a2a7b8fa11080c885c6ca3283428b3ba87711fb34a3b41c",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuController.java": "0e90fb5df7eb3eb5771a5b8c25606e83562b3b6b17c82452b19269cb7d9da263",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuErrors.java": "017c6e86bdd68df59fe79468a4e53ede704bf5dfb5b197929229994a2cdc1766",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuException.java": "d8b15d6fa355361150309e5212caf79814bd17e717c3f16ae86a4718c87f0096",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuImageConfiguration.java": "89605ab010231365f752358796789fed55052494c8403f5dae5e1cb3f1e8cc5a",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuImages.java": "77f354f27733502dffaf70d4f065455a4ceb6f8942fc0530f27836048e31dfbb",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuMedia.java": "b66e733dc56275ab697aa119e3e180b4280387ee45f9e3766d8b973e3c489381",
+        "backend/src/main/java/vn/codegym/smartcafe/menu/MenuModels.java": "d8122909f66fe74811df24733236a1fc8dba3968a185daa2cc79ead79875bd4d",
+        "backend/src/main/java/vn/codegym/smartcafe/news/CreateNewsRequest.java": "97d8fa0fcc3588b1189e3a6a169ff6ad64eafd1fdcdc0462ae8b36b542651503",
+        "backend/src/main/java/vn/codegym/smartcafe/news/FirebaseEmulatorNewsImageStorage.java": "4f6efd4a422c2427e4262a58fa7017314c9cbc7e78c4dce083cd65ba22c92443",
+        "backend/src/main/java/vn/codegym/smartcafe/news/FirebaseNewsImageStorage.java": "95240212c3cd61fa48a93e4fd84ea220f2b00c4c17e27b38c7e3f96f0b4a4ef4",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsChanged.java": "5b5a6b7051d85f0b04ad4abe8bc737aedf701d47f5d4cc4e3ab46854beedfe6b",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsController.java": "d2adc5dfa888924c25a281869f28fa7e4166faa94edad0c83846118505be8e22",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsDetailResponse.java": "27802f0be55f06303b06d8176bb9fef10e3467b05111b21949587782428649a0",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsExceptionHandler.java": "2a6204a85a58f587c0f6f6999220ad1ad46f723b8a43148cbfdd672c79eeedc8",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsImageController.java": "0f6e71bb3dee68201c987183d5c8b3791660600a344aefaad35bda2977e0593f",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsImageResponse.java": "95b1accae27395dae0ec4a5649b597bee18a8c8c939a55ff70fdf0edcb0d2868",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsImageService.java": "2d86e290eb4bd1f5863c09e73bd8beb891e03f3085424328f2161db94fee7cfe",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsImageStorage.java": "9bc4c27c2a75185cd84bce73136c8ded82f4685364973aed34c95a4b4514538d",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsJpegOrientation.java": "655754a49ae075e703e700f8f62d463886c6f425095ea89ced857eaad3f09375",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsPageResponse.java": "868bab8f89e4902314a90de57182b0390924242f2ffe503c89c58b344b501df0",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsReaderAccess.java": "a13243457e64385f06cb715baae6647d38abfa159ab6c463c8efe67d51dfed76",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsService.java": "1e2e6a26c181524df037fda1eaa22de62e68574c7dfbdc85d219aae37563e175",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsSocket.java": "823c2ea504fc21bce5081813dc2f1bf583b20c85db5cd607f7bd53f5d6e3b851",
+        "backend/src/main/java/vn/codegym/smartcafe/news/NewsSummaryResponse.java": "c238b26ca684c2a660cfb415e7f89d337d92e32b9ee00b15546ffc1a0e954387",
+        "backend/src/main/java/vn/codegym/smartcafe/news/UpdateNewsRequest.java": "d3b8d0574f473bad3ecf0143ffed61e8ee744a5ad717faac4048ec6bb8ad3e52",
+        "backend/src/main/java/vn/codegym/smartcafe/profile/ProfileController.java": "3b99396623b9db0a08590c54b505f1d036fdd0867a7445bcabb66cdadf3cb84d",
+        "backend/src/main/java/vn/codegym/smartcafe/profile/ProfileErrors.java": "985d3a0b24e02000324bc90b7618673b2c21b6ee05f80b72b3768c86f54e73de",
+        "backend/src/main/java/vn/codegym/smartcafe/profile/ProfileException.java": "5692ec2fee8651f71c55e81a6cd3b9850193107cddc2e799f59723862cf23734",
+        "backend/src/main/java/vn/codegym/smartcafe/profile/ProfileModels.java": "56d3f2e3c827ddf3508fdc5fbe0befe794c2da857c3d69f83d2abf84409bf050",
+        "backend/src/main/java/vn/codegym/smartcafe/profile/ProfileRepository.java": "cdfecbce5b7ddddb262dd06aef70213e242884a89583c3d92954f84a4522e971",
+        "backend/src/main/java/vn/codegym/smartcafe/profile/ProfileService.java": "be27fb60ba8885cf56a0997b7405e1a4f73e73f84cce790a7815fcde234074dd",
+        "backend/src/main/java/vn/codegym/smartcafe/sales/CheckoutController.java": "939b51eb254ef36dc3d3b1ac279fe043460e045fec28c31693476f6b782265e0",
+        "backend/src/main/java/vn/codegym/smartcafe/sales/CheckoutService.java": "2d252ff7d5dc430de005fe5a141ae36eb4d2e08d3ae217a914091f080573896d",
+        "backend/src/main/java/vn/codegym/smartcafe/sales/SalesController.java": "714da7ee4474e5b4593faa93a35f33c05223747ca339a8d9c82c99a92660d50f",
+        "backend/src/main/java/vn/codegym/smartcafe/sales/SalesErrors.java": "d316ecd24348e2645320be3f1ea168f98173f6b55ae5a63ee23df9d16225c342",
+        "backend/src/main/java/vn/codegym/smartcafe/sales/SalesService.java": "278b419e2c778bb689953f00f7659e43d7d8b01424069e54516f8eb39782677a",
+        "backend/src/main/java/vn/codegym/smartcafe/staff/StaffController.java": "0a1da8b24f01002047e4b07db071e2766c5f1ee82f5c922aa88cc9d4499bf36a",
+        "backend/src/main/java/vn/codegym/smartcafe/staff/StaffImageService.java": "6bd4b00e13ed98f3881a7d12abb03119a1a80f86c1a847bbac78fc24f5ba1293",
+        "backend/src/main/java/vn/codegym/smartcafe/staff/StaffModels.java": "2a26f5df4c5c7381fda60f8454f453b000be57935a69a2e50650d11cc1f96c5b",
+        "backend/src/main/java/vn/codegym/smartcafe/staff/StaffService.java": "2766b1710ee0e9f58c8471b022dc2179ae8e1e3d555596ec912a49ee338ed11b",
+        "backend/src/main/java/vn/codegym/smartcafe/staff/StaffValidation.java": "a9e36506af65967357a0f407d1b7941f5fc0682df1154ef6b494f6e7602677f2",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/ForgotPasswordRequest.java": "3290a36952909d70b492e850281211c2cd2840117a2a69e1c7d24db98bbf37cf",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/ForgotPasswordResponse.java": "a55b76064e88a052f4b434607f9c87b3322d0e6bca7f91ae0f81a96485a976ef",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/LoginRequest.java": "3681a6cd2c3cd932e9ee3b091547b8114300315f63ddbe9598d259610a008187",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/LoginResponse.java": "991737b5bdd08398364f9050801e70495707403ab7365e4289ce55e2db8493cf",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/MessageResponse.java": "ed572e7495dfeaa3fb2a21fbfe76d1e06b061c31a63b18c1c9194c5e6263b50a",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/ResendOtpRequest.java": "1007855a39969d03ee9e76d2b4ea0a0075875f82fc623efcc70328136d9a87e3",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/ResetPasswordRequest.java": "a18f5ec77f1ce526b5e3ffa7d3c6a5f3d4b8279dd5c3532f5e97662d257c8f6f",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/UserDto.java": "7fc9ac157a0a5219cd3b6d2659a45d06e5c0b29e39d913614fc0a89ed517460c",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/VerifyOtpRequest.java": "96880c63da97d7594e3c5380dc215b080fcb2863b063b73681999387ff6a7168",
+        "backend/src/main/java/vn/codegym/smartcafe/auth/dto/VerifyOtpResponse.java": "54587f66ca40d2a51893676530b1577579260d963454193a91c02680b4702f94",
+        "backend/src/main/resources/db/contracts/20261113.1.properties": "4d61676ce6c3cd35a796f7fab5724a45644029afbe8161f95db8835019330a76",
+        "backend/src/main/resources/db/contracts/smart-cafe.properties": "9b1475a985c61e45fa16a90d9e0f9a89e6f18edeb86da070a870c1731e851abc",
+        "backend/src/main/resources/db/migration/V001__create_users_and_auth_tables.sql": "78d1a6a79afcf419c6ddde881bfa6fda94057cb36fabf3b94d53800fb289a9a8",
+        "backend/src/main/resources/db/migration/V002__create_users_and_auth_tables.sql": "6b09373e2498a7b029af69931f89835754ab8247d2625f092261d65b7c7c91e0",
+        "backend/src/main/resources/db/smart-cafe/V20261113_01__smart_cafe_schema.sql": "84cb9f2e99073ea73b117e828dc7f144928052a8f8345cde6f903b82280e4b5e",
+        "backend/src/test/resources/application.properties": "7ef82c72516e1a55f528958cc82a9ccb91449bc37b105d7c9997dc4690778a28",
+        "backend/src/test/resources/schema.sql": "9331e7de94d857688f1427fdfce4ec4a2f1afc451124491dd3b80495363a1d31",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/AuthConfigurationTest.java": "e23ad4663062d5dd6b78827fb4246a96e57ae67e5849fc56289a638c50f3b28f",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/AuthIntegrationTest.java": "d0394b9f79d85e1ae65f0962feee4106b6a7d6fc183929e99811e1fc7a46422c",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/FlywayUpgradeRegressionTest.java": "be62c78a4e3a34006713b69c998b5b333bcf8834a385c3a4515711c77877dd15",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/OtpIntegrationTest.java": "95db708449461349b992f8dd2cd3a26eac8a30a59527957cfafeffa259cf633e",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/OtpPoolIntegrationTest.java": "f7ec5bea447fc4c3915673fc05c7a459bbea03158fc4f752eef1005f4c235ffe",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/OtpRetryLifecycleIntegrationTest.java": "4e8b7995da7a760c1fb03cd3e638d990b5f713bbbd861b9277de6a397487f9c6",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/OtpServiceTest.java": "468d57f5da6d112ef4b4c4a577836295d03b4901a373f451815b22dbc0823b84",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/OtpVerifyResendRaceIntegrationTest.java": "73a13e8bafc2f52c0d44730c3d7db25dc85ebde971d9c401727a6a204b40b5d3",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/PasswordExpirationTest.java": "f2f6d846322c318737902f93b11caed0d5f3267c50bbd3a6e746983fd93a153d",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/PasswordPolicyTest.java": "810505a303dde8fe2009f6fcf854d69b8f6b8ced4588c9ccee591b0c735445e0",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/SmtpEmailServiceTest.java": "9a932896c65189d54364d17a68d8b7918e58acd7d6e6f9461eaa0ece78ef1bb1",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/TestDatabase.java": "47357269804d0300da5ea3c2bdc4b3208e9cb9914d5ba0085bf266c59425ffe6",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/TokenServiceTest.java": "c0e7215228a46d5d0e4e0cd9e5ec45ff2a828cc680202c078c7b4c062d0f09a2",
+        "backend/src/test/java/vn/codegym/smartcafe/auth/UnconfiguredSmtpIntegrationTest.java": "09202fdde3f8657b34c98e0d1f08c77b4b8ecdc1bfe5d0bb093586d9303585bb",
+        "backend/src/test/java/vn/codegym/smartcafe/billing/BillMySqlIntegrationTest.java": "cbc98b023e5ccd361fa9abd24e4053163fde2d050ce26540f44629765c8bbf69",
+        "backend/src/test/java/vn/codegym/smartcafe/config/HeaderTokenFilterCompatibilityTest.java": "22d4cfdb150c1b85ded3df2c6307d8b00dfdac2c5b87e0a7f63dc4c9205e2a5f",
+        "backend/src/test/java/vn/codegym/smartcafe/config/HeaderTokenFilterMySqlTest.java": "9c229c7480f2c2db82fdd1915ccc97b417541eedb3ef9e675407f652b5851cb7",
+        "backend/src/test/java/vn/codegym/smartcafe/config/ProfileConsumerPathTest.java": "05f6e9263a5ad881d53394f51b4e21a83aca77008895d192fab7da8e23480aeb",
+        "backend/src/test/java/vn/codegym/smartcafe/customeractions/CustomerAccessTest.java": "6f175ab9d5cedba11b1c14fb434f1dd04be130dab0d91a315d37cdd52402b829",
+        "backend/src/test/java/vn/codegym/smartcafe/customeractions/CustomerActionsMySqlTest.java": "9459387f8c20aea4919f8610bd60d69f5aaebeeee9735011eebbc8aa66224fc1",
+        "backend/src/test/java/vn/codegym/smartcafe/customerfeedback/CustomerFeedbackMySqlTest.java": "a96d32740029022bdc1089bffa1f08e720182c62e854adf10858afa809629eb5",
+        "backend/src/test/java/vn/codegym/smartcafe/customerfeedback/CustomerFeedbackUnavailableTest.java": "1d0b2439fcf169f0ee3cd1cdfdb262d50fb4cbf4ea73c39e9266999ead843206",
+        "backend/src/test/java/vn/codegym/smartcafe/customerfeedback/FeedbackAdmissionTest.java": "bc7a1111e1dc4f1c18726360fe456d802b16278f13f58af13d1f7a4fb2fb7170",
+        "backend/src/test/java/vn/codegym/smartcafe/customerfeedback/FeedbackImageMySqlTest.java": "24a2040df4aa58f976cc61918fae97502b0a1139f1706f2176256e63091a34db",
+        "backend/src/test/java/vn/codegym/smartcafe/customerfeedback/FeedbackImagesTest.java": "71b2885b648196471e48d1c7dc0d8a74ae497ab0837fa2c1fd0d03668abda943",
+        "backend/src/test/java/vn/codegym/smartcafe/customermenu/CustomerMenuControllerTest.java": "12af14478a989870b500e14be0ca8e36b1de11f18b87785d6d9ccaa13146c2f8",
+        "backend/src/test/java/vn/codegym/smartcafe/customermenu/CustomerMenuMySqlTest.java": "b38cd0f86687d80e819a36eaa96003548ee06197368235f58807546c95974f43",
+        "backend/src/test/java/vn/codegym/smartcafe/customersession/CustomerTableControllerTest.java": "ef91429ddf6a781f112ae2d165284ed298b6de92e0147b73a8bf3bd73df50660",
+        "backend/src/test/java/vn/codegym/smartcafe/customersession/CustomerTableMySqlTest.java": "0428012a6f01273bd07f07f73c6bbd3131d8c442d9df36400b044a83e27170c4",
+        "backend/src/test/java/vn/codegym/smartcafe/database/CurrentSharedDdlHttpTest.java": "24dc2bcbd101a0d26d0c9e60c0d46e9b21232691f7dceec0e4ed08250de31158",
+        "backend/src/test/java/vn/codegym/smartcafe/database/DatabaseMigrationRehearsal.java": "0e647d6d626be0a135f67863871fba5031093ad84b145f09d593bf9c138a3711",
+        "backend/src/test/java/vn/codegym/smartcafe/database/DatabaseMigrationSafetyTest.java": "8b49576e7d14d1db1cb77f2dbb311e486445565f29738f36b7bc660fceb64504",
+        "backend/src/test/java/vn/codegym/smartcafe/database/DatabaseTemporalCompatibilityTest.java": "53d1656b3c754295d08eca11b2d9ae5c0efd0d47603289dded591c70f2b9bb99",
+        "backend/src/test/java/vn/codegym/smartcafe/database/ForbiddenProblemHttpTest.java": "69c136fb2a42d9add3d4bcbf821c655623214ee69a174d74170c9a99072a0f2e",
+        "backend/src/test/java/vn/codegym/smartcafe/database/OfficialStaffProfileConcurrencyTest.java": "da20375f0df07458ce27407aab040794cd67eb9a6cfc950c79882d80ebb8b756",
+        "backend/src/test/java/vn/codegym/smartcafe/database/ProfileMySqlTest.java": "01db70ffabbe31bd7a2eff49148f481727cd1f83d338962a9c0ce2b4082e915b",
+        "backend/src/test/java/vn/codegym/smartcafe/database/TestSchema.java": "fb0a4de323e62e16cf007ca9268863fe4a2ad48cbce58570e7da06cf083e1477",
+        "backend/src/test/java/vn/codegym/smartcafe/database/VerifiedDatabaseMigrationTest.java": "106df53dcf8506058f5c650cfa4b5ad9388403d3fc1bade081530fea4a04b697",
+        "backend/src/test/java/vn/codegym/smartcafe/home/HeaderMySqlTest.java": "b2fd497ff8bb7e3dcadb65d240ca648575c16e2e6def49e2cd14deaa332a8362",
+        "backend/src/test/java/vn/codegym/smartcafe/home/HomeHighlightsMySqlTest.java": "8d6457c8484a983426e89c04bf7a8e43227c4ece4c8e024828bc08037bc1f717",
+        "backend/src/test/java/vn/codegym/smartcafe/home/HomeUnavailableTest.java": "fc93056d07e7b175ff1e7c70d1e45008e715ea70e5684bf431e64b94f7223ef1",
+        "backend/src/test/java/vn/codegym/smartcafe/income/IncomeWindowTest.java": "24501073a6c2ffd2fffb2e4b325292c98d469b3510d12ae5b51dc4a7d24204d7",
+        "backend/src/test/java/vn/codegym/smartcafe/menu/MenuHttpReportTest.java": "4ac65ec2d302bf854ff12f7a3f01af56420f6360dec42fb982c43a4a99289be1",
+        "backend/src/test/java/vn/codegym/smartcafe/menu/MenuImagesTest.java": "df1d0464350dbc9e82d8796fcd4319d30e207a8a452440dec32bb29ebf604079",
+        "backend/src/test/java/vn/codegym/smartcafe/menu/MenuIntegrationTest.java": "a0bd19adb05140c7e2b506f71710c57e7e8a50e74ed031b921513ebd5fbca1bf",
+        "backend/src/test/java/vn/codegym/smartcafe/menu/MenuProviderStub.java": "38ff4467e9f4f3c43c7b8731f8442b63cb81f2153f232d35abe2679dde478c59",
+        "backend/src/test/java/vn/codegym/smartcafe/news/FirebaseEmulatorNewsImageStorageTest.java": "d1da8cea476cc5af9b2daf2535c9812c06e50a4193117d77a82e6969fab28ecd",
+        "backend/src/test/java/vn/codegym/smartcafe/news/FirebaseNewsImageStorageTest.java": "1773b5dfac45c32149b8b4fbd4838ba1ed7fca30b02aa09365ccba810f316f7d",
+        "backend/src/test/java/vn/codegym/smartcafe/news/NewsAudienceMySqlTest.java": "9ca963a9c471e51f7e84e7c524be6889c70e21678ea5212c9c4f1840ab8d33f3",
+        "backend/src/test/java/vn/codegym/smartcafe/news/NewsImageMySqlTest.java": "12fdfe34c449432de733f9a95a11541ebc65541f328917e7d731e4b0da7f63be",
+        "backend/src/test/java/vn/codegym/smartcafe/news/NewsImageTransactionTest.java": "53103eec92f50924d9cd00105adb547549af88c5b8f35cd1e4e6b1042f75e7da",
+        "backend/src/test/java/vn/codegym/smartcafe/news/NewsMySqlTest.java": "772d0cc756680f4b1b83cf6c2f1be38485ea0bcd9fc61e9f6d3dd3e2d1402c7a",
+        "backend/src/test/java/vn/codegym/smartcafe/news/NewsReviewMySqlTest.java": "7ec710b42a2b0568a4f30e6c56277a88d1e463b6c0f25bd145a24e9aa4dcd23f",
+        "backend/src/test/java/vn/codegym/smartcafe/news/NewsSocketBudgetTest.java": "3b9fec371756cc929d93d1ed50ed992f4f8cab683b42687e8d7b5026534e7bbe",
+        "backend/src/test/java/vn/codegym/smartcafe/profile/ProfileFailureTest.java": "039bf1fd04632ae9a3a543be61e2f53b5d0c519340f216cb63e33d76a85f8f72",
+        "backend/src/test/java/vn/codegym/smartcafe/profile/ProfileValidationTest.java": "7970ed0afb189ee059a280ab3e86300dc8ecfee36480f9a23be322f661197ac4",
+        "backend/src/test/java/vn/codegym/smartcafe/sales/SalesMySqlTest.java": "2294b1cdf77392f84289911385962595a56dd86a4f3d899744b885e921b9519d",
+        "backend/src/test/java/vn/codegym/smartcafe/staff/StaffControllerTest.java": "1fd9f6d104ff4f5d4b146dee8bea7c2332beafefbbfe3ec7c07831f5b5598f73",
+        "backend/src/test/java/vn/codegym/smartcafe/staff/StaffHttpReportTest.java": "9d80977c63e2ecc05ad29b96313e6b64c0e24356eb1696322a8922e2c0a7525d",
+        "backend/src/test/java/vn/codegym/smartcafe/staff/StaffImageServiceTest.java": "45154a5ad730f360a77d0eebe938c9b4fe8890de84cb0c9e9bc2fe2620309af1",
+        "backend/src/test/java/vn/codegym/smartcafe/staff/StaffPasswordPolicyTest.java": "fd136630616de49979ed65d1f2a574ea0f7c3eb30562fe1545ef7bfa5b795ba7",
+        "backend/src/test/resources/db/current-shared-2026-11-13.sql": "a8c1155cc13adcc50638c88affe4dddd1cf840fe9db807f7ea07f5b04a6a57d2",
+        "backend/src/test/resources/db/current-shared-history.json": "2e0eac7978449d97010db50071ee37461354bbb55fbf95802c6991e4823e3ee8",
+        "backend/src/test/resources/db/contracts/test-future-schema.properties": "5fb3070a4b87becbf545b238a8e5b4f8b86b216913217aca39e748bae81674ed",
+        "backend/src/test/resources/db/contracts/test-future.properties": "601dcbfe58d9adad628e88b4eba188968e13b69283489ed6177bde98485b6985",
+        "backend/src/test/resources/db/test-future/V20261113_02__test_future.sql": "61ca7e570837e33eb9187aebe8c1a7904d26c937e4b85e1d983a9e4aadbf39a9"
+      }
+    },
+    "authRound2": {
+      "outcome": "PASS",
+      "backend": "real loopback HTTP",
+      "profile": "verified-db",
+      "database": "isolated *_test",
+      "mail": "real loopback SMTP capture",
+      "cleanup": "owned fixtures removed",
+      "results": [
+        {
+          "scenario": "original requests 1-15",
+          "requests": 15,
+          "assertions": 27,
+          "failures": 0,
+          "newmanVerdict": "PASS",
+          "expected": "PASS",
+          "failedItems": []
+        },
+        {
+          "scenario": "original requests 16-23",
+          "requests": 8,
+          "assertions": 12,
+          "failures": 0,
+          "newmanVerdict": "PASS",
+          "expected": "PASS",
+          "failedItems": []
+        },
+        {
+          "scenario": "recovery negative cases",
+          "requests": 14,
+          "assertions": 14,
+          "failures": 0,
+          "newmanVerdict": "PASS",
+          "expected": "PASS",
+          "failedItems": []
+        },
+        {
+          "scenario": "fault: wrong testOtpCode",
+          "requests": 1,
+          "assertions": 1,
+          "failures": 1,
+          "newmanVerdict": "FAIL",
+          "expected": "FAIL",
+          "failedItems": [
+            "19. Luồng hoàn chỉnh - Xác minh OTP thành công (Nhận resetToken)"
+          ]
+        },
+        {
+          "scenario": "fault: invalid reset grant verification",
+          "requests": 1,
+          "assertions": 1,
+          "failures": 1,
+          "newmanVerdict": "FAIL",
+          "expected": "FAIL",
+          "failedItems": [
+            "20. Luồng hoàn chỉnh - Xác minh Reset Token hợp lệ (valid: true)"
+          ]
+        },
+        {
+          "scenario": "fault: rejected password reset",
+          "requests": 1,
+          "assertions": 1,
+          "failures": 1,
+          "newmanVerdict": "FAIL",
+          "expected": "FAIL",
+          "failedItems": [
+            "21. Luồng hoàn chỉnh - Đặt lại mật khẩu thành công (200 OK)"
+          ]
+        },
+        {
+          "scenario": "fault: rejected new-password login",
+          "requests": 1,
+          "assertions": 1,
+          "failures": 1,
+          "newmanVerdict": "FAIL",
+          "expected": "FAIL",
+          "failedItems": [
+            "22. Luồng hoàn chỉnh - Đăng nhập lại với mật khẩu mới vừa đổi (200 OK)"
+          ]
+        },
+        {
+          "audit": "no login throttle at six failures; eight distinct dummy emails accepted from loopback",
+          "policy": "NEEDS OWNER DECISION"
+        },
+        {
+          "scenario": "Home account after recovery",
+          "requests": 2,
+          "assertions": 4,
+          "failures": 0,
+          "newmanVerdict": "PASS",
+          "expected": "PASS",
+          "failedItems": []
+        }
+      ],
+      "provenance": {
+        "runtimeJarSha256": "152dc0ae6cb052345cb3c6b985d2b7b95cd6165733ca490d435a4d9de2c0511b",
+        "refs": "currentIntegration.round2Refs",
+        "scope": "real Tomcat/MySQL and loopback SMTP; expected fault controls separate"
+      }
+    },
+    "patchApplication": [
+      {
+        "patch": "news-profile-consumer-latest.patch",
+        "ref": "c2343edecd3b71e57ee3ce6605db4dc5a03bc6cc",
+        "exitCode": 0,
+        "error": "",
+        "appliedMatchesCandidateLf": true,
+        "patchSha256": "4d2ce3f106bf9fc9d46c7317036239288313f9217c0d35ad569a8727cb326577"
+      },
+      {
+        "patch": "official-shared-security-composition.patch",
+        "ref": "c2343edecd3b71e57ee3ce6605db4dc5a03bc6cc",
+        "exitCode": 0,
+        "error": "",
+        "appliedMatchesCandidateLf": true,
+        "patchSha256": "ad4c210ff130d713b8375ef83f8729849603391a0629854de42f8250261471f9"
+      },
+      {
+        "patch": "bills-token-fixture-latest.patch",
+        "ref": "86b70e2d5540f96b3e32d1e92afcff611ec5ccf8",
+        "exitCode": 0,
+        "error": "",
+        "appliedMatchesCandidateLf": true,
+        "patchSha256": "ad75ac4fd3a5903955ba31db93360fae03f026a35c94916d07edd81ed288b1e0"
+      },
+      {
+        "patch": "official-shared-http-regressions.patch",
+        "ref": "e7848df",
+        "exitCode": 0,
+        "error": "",
+        "appliedMatchesCandidateLf": true,
+        "patchSha256": "c462673a4ba9da61611eabac7025f5e5334442c9ce362517f627f377bbd4f1f9"
+      },
+      {
+        "patch": "candidate-live-http-extra.patch",
+        "ref": "e7848df",
+        "exitCode": 0,
+        "error": "",
+        "appliedMatchesCandidateLf": true,
+        "patchSha256": "dce861c70a630ab28e0448afaf7b5e41ffddf3addb51a9507acd234f1ea52bd8"
+      }
+    ],
+    "refsRound1": {
+      "develop": "331c1e329dac40780c56b75aaf32403c4acddadf",
+      "profile": "e7848df38d6cfb8e6077fb3036edf2fee8fa541e",
+      "staff": "57ea6f172c8c06e27f016734efa0deee6aa965d4",
+      "customer": "ebe0a97b20ecd6af5069b2607d3b65cdc0ccc881",
+      "news": "c2343edecd3b71e57ee3ce6605db4dc5a03bc6cc",
+      "bills": "86b70e2d5540f96b3e32d1e92afcff611ec5ccf8"
+    },
+    "finalRefs": {
+      "11": "57ea6f172c8c06e27f016734efa0deee6aa965d4",
+      "14": "50745bafb80b2c28229f98636877d61f2b5148bd",
+      "15": "c2343edecd3b71e57ee3ce6605db4dc5a03bc6cc",
+      "18": "86b70e2d5540f96b3e32d1e92afcff611ec5ccf8",
+      "19": "e7848df38d6cfb8e6077fb3036edf2fee8fa541e"
+    },
+    "ownedSchemasCleanup": {
+      "remainingOwnedSchemas": 0,
+      "verifiedReadOnly": true
+    }
+  }
 }

@@ -1,5 +1,8 @@
 # DT2-3 / DT2-27 — final local handoff
 
+> Current correction: official Staff57ea6f1 has fixed version/CAS/auth_version/callers. Do not apply historical Staffb74 proposals or treat its5/9 failures as current. Current official/proposed candidates, Draft verification timestamp and remaining News/Bills blockers are recorded in [review follow-up](../reports/dt2-3-review-follow-up.md). The dated results below remain historical.
+
+
 > Follow-up sau review PR #19: xem [kết quả hiện hành](../reports/dt2-3-review-follow-up.md). Các số liệu/JAR và hạn chế bên dưới là snapshot của các lượt handoff/publication trước.
 
 > Cập nhật18/11/2026: CF-04 đã được xác nhận, user đã cho phép commit/push và Draft PR vào develop. Base mới331c1e3 đã tích hợp không conflict; trạng thái HOLD do thiếu CF ở phần handoff15/11 là lịch sử. Kết quả và blockers hiện hành ở [publication report](../reports/dt2-3-publication.md), không suy ra ready-to-merge.
