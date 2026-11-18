@@ -29,7 +29,7 @@ test.describe("Figma DT2-2 Authentication Pixel-Perfect Verification", () => {
     await expect(page.getByRole("button", { name: "Hủy", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "← Về trang chủ", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Quên mật khẩu?", exact: true })).toBeVisible();
-    await expect(page.getByRole("link", { name: "Chưa có tài khoản? Đăng ký", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Đăng ký (Chưa khả dụng)", exact: true })).toBeVisible();
 
     // Verify submit button is reachable and not clipped
     const submitBtn = page.getByRole("button", { name: "Đăng nhập", exact: true });
@@ -141,47 +141,53 @@ test.describe("Figma DT2-2 Authentication Pixel-Perfect Verification", () => {
     await expect(page.getByRole("button", { name: "Đăng nhập ngay" })).toBeVisible();
   });
 
-  test("Register page (Frame 5:44) has NO prototype navigation and reports backend blocked status honestly", async ({ page }) => {
-    await page.setViewportSize({ width: 1366, height: 768 });
+  test("Register shows its unavailable notice immediately without collecting personal data", async ({ page }) => {
+    const mutations = [];
+    page.on("request", request => {
+      if (!["GET", "HEAD", "OPTIONS"].includes(request.method())) mutations.push(request.url());
+    });
     await page.goto("/#register");
-
-    // Frame 5:44 elements
     await expect(page.locator(".auth-sidebar")).toBeVisible();
     await expect(page.getByRole("heading", { name: "Đăng ký tài khoản", exact: true })).toBeVisible();
-    await expect(page.getByLabel("Họ và tên", { exact: true })).toBeVisible();
-    await expect(page.getByLabel("Tên đăng nhập", { exact: true })).toBeVisible();
-    await expect(page.getByLabel("Địa chỉ Email", { exact: true })).toBeVisible();
-    await expect(page.getByLabel("Số điện thoại", { exact: true })).toBeVisible();
-    await expect(page.getByLabel("Mật khẩu", { exact: true })).toBeVisible();
-    await expect(page.getByLabel("Xác nhận mật khẩu", { exact: true })).toBeVisible();
-
-    // Ensure NO prototype debug links exist on page
-    await expect(page.getByText("Xem Frame 5:54 (Verify)")).toHaveCount(0);
-    await expect(page.getByText("Xem thử màn xác minh OTP (5:54)")).toHaveCount(0);
-    await expect(page.getByText("Verify Demo")).toHaveCount(0);
-    await expect(page.getByText("Preview OTP")).toHaveCount(0);
-
-    // Fill form and click register
-    await page.getByLabel("Họ và tên", { exact: true }).fill("Khách Hàng Mới");
-    await page.getByLabel("Tên đăng nhập", { exact: true }).fill("khachhang01");
-    await page.getByLabel("Địa chỉ Email", { exact: true }).fill("newcustomer@smartcafe.vn");
-    await page.getByLabel("Số điện thoại", { exact: true }).fill("0912345678");
-    await page.getByLabel("Mật khẩu", { exact: true }).fill("Customer@123");
-    await page.getByLabel("Xác nhận mật khẩu", { exact: true }).fill("Customer@123");
-
-    // Check submit button is reachable and visible
-    const submitBtn = page.getByRole("button", { name: /ĐĂNG KÝ & NHẬN OTP/i });
-    await expect(submitBtn).toBeVisible();
-    await submitBtn.click();
-
-    // Clean inline notification that backend registration is blocked (out of scope)
-    const alertBox = page.getByRole("alert");
-    await expect(alertBox).toBeVisible();
-    await expect(alertBox).toContainText("Đăng ký tài khoản trực tuyến hiện chưa khả dụng.");
-
-    // Ensure user remains on registration form, not jumped to fake verify step
-    await expect(page.getByRole("heading", { name: "Đăng ký tài khoản", exact: true })).toBeVisible();
+    await expect(page.getByRole("status")).toHaveText(
+      "Đăng ký tài khoản trực tuyến hiện chưa khả dụng. Vui lòng đăng nhập bằng tài khoản hiện có hoặc liên hệ nhân viên quán để được hỗ trợ."
+    );
+    await expect(page.locator("main input, main textarea, main select, main form")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /ĐĂNG KÝ & NHẬN OTP|KÍCH HOẠT TÀI KHOẢN/i })).toHaveCount(0);
+    await expect(page.getByText(/Xem Frame|Xem thử màn|Verify Demo|Preview OTP/i)).toHaveCount(0);
+    await page.getByRole("button", { name: "QUAY VỀ ĐĂNG NHẬP", exact: true }).click();
+    await expect(page).toHaveURL(/#login$/);
+    await expect(page.getByRole("heading", { name: "Đăng nhập", exact: true })).toBeVisible();
+    expect(mutations).toEqual([]);
   });
+
+  test("Login identifies registration as unavailable and keeps working navigation", async ({ page }) => {
+    await page.goto("/#login");
+    const registration = page.getByRole("link", { name: "Đăng ký (Chưa khả dụng)", exact: true });
+    await expect(registration).toContainText("Chưa khả dụng");
+    await registration.click();
+    await expect(page).toHaveURL(/#register$/);
+    await expect(page.getByRole("status")).toContainText("Đăng ký tài khoản trực tuyến hiện chưa khả dụng.");
+    await page.getByRole("link", { name: "← Về trang chủ", exact: true }).click();
+    await expect(page).toHaveURL(/#top$/);
+  });
+
+  for (const legacyRoute of ["#register/verify", "#register-verify", "#register?step=verify&challengeId=legacy"]) {
+    test(`legacy registration route ${legacyRoute} cannot activate an account`, async ({ page }) => {
+      const mutations = [];
+      page.on("request", request => {
+        if (!["GET", "HEAD", "OPTIONS"].includes(request.method())) mutations.push(request.url());
+      });
+      await page.goto(`/${legacyRoute}`);
+      await expect(page.getByRole("status")).toContainText("Đăng ký tài khoản trực tuyến hiện chưa khả dụng.");
+      await expect(page.locator("main input, main form")).toHaveCount(0);
+      await expect(page.getByRole("heading", { name: "Xác minh tài khoản", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "KÍCH HOẠT TÀI KHOẢN", exact: true })).toHaveCount(0);
+      await page.getByRole("button", { name: "QUAY VỀ ĐĂNG NHẬP", exact: true }).click();
+      await expect(page).toHaveURL(/#login$/);
+      expect(mutations).toEqual([]);
+    });
+  }
 
   test("Direct access to verify without valid challenge shows clean invalid session notice", async ({ page }) => {
     await page.goto("/#verify-otp");
@@ -218,7 +224,8 @@ test.describe("Figma DT2-2 Authentication Pixel-Perfect Verification", () => {
         await expect(page.locator(".auth-card")).toBeVisible();
 
         if (r.label === "register") {
-          const submitBtn = page.getByRole("button", { name: /ĐĂNG KÝ & NHẬN OTP/i });
+          const submitBtn = page.getByRole("button", { name: "QUAY VỀ ĐĂNG NHẬP", exact: true });
+          await expect(page.getByRole("status")).toContainText("Đăng ký tài khoản trực tuyến hiện chưa khả dụng.");
           await submitBtn.scrollIntoViewIfNeeded();
           await expect(submitBtn).toBeVisible();
         }
@@ -304,9 +311,11 @@ test.describe("Figma DT2-2 Authentication Pixel-Perfect Verification", () => {
 
           const loginBtn = page.getByRole("button", { name: /ĐĂNG NHẬP/i });
           await expect(loginBtn).toBeVisible();
+          await expect(loginBtn).toBeInViewport();
 
           const registerLink = page.getByRole("link", { name: /Đăng ký/i });
           await expect(registerLink).toBeVisible();
+          await expect(registerLink).toBeInViewport();
 
           // On mobile 390x844, ensure entire login card is visible without vertical scroll
           if (vp.name === "mobile-390x844") {
@@ -317,7 +326,8 @@ test.describe("Figma DT2-2 Authentication Pixel-Perfect Verification", () => {
         }
 
         if (r.label === "register") {
-          const submitBtn = page.getByRole("button", { name: /ĐĂNG KÝ & NHẬN OTP/i });
+          const submitBtn = page.getByRole("button", { name: "QUAY VỀ ĐĂNG NHẬP", exact: true });
+          await expect(page.getByRole("status")).toContainText("Đăng ký tài khoản trực tuyến hiện chưa khả dụng.");
           await submitBtn.scrollIntoViewIfNeeded();
           await expect(submitBtn).toBeVisible();
         }

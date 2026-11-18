@@ -45,10 +45,15 @@ test("auth screens remain accessible and usable at every required viewport", asy
         await page.getByRole("button", { name: "Gửi mã OTP", exact: true }).click();
         await expect(page).toHaveURL(/#verify-otp$/);
       } else await page.goto(`/#${route}`);
-      await expect(page.locator(".auth-form")).toBeVisible();
+      if (route === "register") {
+        await expect(page.getByRole("status")).toContainText("Đăng ký tài khoản trực tuyến hiện chưa khả dụng.");
+        await expect(page.locator("main input, main form")).toHaveCount(0);
+      } else await expect(page.locator(".auth-form")).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      const submit = page.locator(".auth-form button[type=submit]");
+      const submit = route === "register"
+        ? page.getByRole("button", { name: "QUAY VỀ ĐĂNG NHẬP", exact: true })
+        : page.locator(".auth-form button[type=submit]");
       await submit.scrollIntoViewIfNeeded();
       await expect(submit).toBeInViewport();
       const scan = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();

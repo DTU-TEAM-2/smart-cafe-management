@@ -200,14 +200,6 @@
   opacity: 0.9;
 }
 
-/* Header Row for pills & actions */
-.auth-header-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-}
-
 /* Step Pill / Badge */
 .auth-step-pill {
   display: inline-block;
@@ -308,14 +300,6 @@
 .auth-form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  width: 100%;
-}
-
-/* 2-column input row for registration form */
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
   gap: 14px;
   width: 100%;
 }
@@ -1103,11 +1087,6 @@
     background: #2E241D !important;
     border-color: #D5A953 !important;
     color: #D5A953 !important;
-  }
-
-  .form-row {
-    grid-template-columns: 1fr;
-    gap: 8px;
   }
 
   .otp-box {

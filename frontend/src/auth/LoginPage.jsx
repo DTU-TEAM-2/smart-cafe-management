@@ -199,13 +199,13 @@ export default function LoginPage({ onNavigate }) {
               <a
                 href="#register"
                 className="auth-link auth-register-composite"
-                aria-label="Chưa có tài khoản? Đăng ký"
+                aria-label="Đăng ký (Chưa khả dụng)"
                 onClick={(e) => {
                   e.preventDefault();
                   handleNavigate("#register");
                 }}
               >
-                <span className="auth-register-label">Chưa có tài khoản?</span>
+                <span className="auth-register-label">Chưa khả dụng</span>
                 <span className="auth-register-pill">Đăng ký</span>
               </a>
             </div>
