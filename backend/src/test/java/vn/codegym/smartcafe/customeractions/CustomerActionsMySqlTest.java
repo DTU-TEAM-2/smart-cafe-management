@@ -233,19 +233,15 @@ class CustomerActionsMySqlTest {
 
     @Test void customerEndpointsAcceptCaseInsensitiveBearerSchemePerRfc9110() throws Exception {
         for (String scheme : List.of("Bearer ", "bearer ", "BEARER ")) {
-            mvc.perform(post(BASE + "/service-requests").with(csrf()).header("Authorization", scheme + TOKEN)
-                            .header("Idempotency-Key", "req-" + scheme.trim().toLowerCase(java.util.Locale.ROOT))
-                            .contentType("application/json")
-                            .content("{\"type\":\"WAITER\"}"))
+            mvc.perform(post(BASE + "/waiter-requests").with(csrf()).header("Authorization", scheme + TOKEN)
+                            .header("Idempotency-Key", "req-" + scheme.trim().toLowerCase(java.util.Locale.ROOT)))
                     .andExpect(status().isOk());
             jdbc.update("DELETE FROM service_requests WHERE session_id=?", ID);
         }
 
         // Negative test: invalid auth scheme returns 401
-        mvc.perform(post(BASE + "/service-requests").with(csrf()).header("Authorization", "Basic " + TOKEN)
-                        .header("Idempotency-Key", "req-basic")
-                        .contentType("application/json")
-                        .content("{\"type\":\"WAITER\"}"))
+        mvc.perform(post(BASE + "/waiter-requests").with(csrf()).header("Authorization", "Basic " + TOKEN)
+                        .header("Idempotency-Key", "req-basic"))
                 .andExpect(status().isUnauthorized());
     }
 }
