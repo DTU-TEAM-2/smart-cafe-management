@@ -1,0 +1,398 @@
+openapi: 3.0.3
+info:
+  title: Smart Cafe DT2-3 / DT2-27 Personal Account
+  version: 1.0.0
+  description: |
+    QA #8 and owner decision 2026-11-15 authorize ACTIVE ADMIN/STAFF to edit only their
+    own name/address/phone. CUSTOMER cannot use personnel Profile APIs. Identity comes
+    from the authenticated principal and current database status/role/auth_version.
+    Home/Profile share one account projection. No DDL, upload or employee administration.
+    Successful Profile/Login and Profile-advice errors are no-store; shared security errors
+    keep existing headers. Password expiry is informational, not a business-API lock.
+security:
+- bearerAuth: []
+paths:
+  /api/v1/profiles/me:
+    get:
+      operationId: getOwnProfile
+      description: No userId/username/role query parameter changes identity. Missing personnel fields are null; deleted
+        avatar media is excluded.
+      responses:
+        '200':
+          description: Own profile, decimal IDs/salary/version strings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+    patch:
+      operationId: updateOwnProfile
+      description: |
+        ADMIN/STAFF send expected version and at least one editable field. Omitted fields
+        remain unchanged; null, whitespace-only, wrong JSON type, unknown/protected fields
+        reject the entire request. No phone regex or birthday/age rule is invented.
+        users is locked first; status/auth_version/version are checked, users.version increments,
+        and optional staff_profiles.address writes commit atomically. Missing personnel returns409
+        and rolls back users. Reload after409; do not blindly retry a stale write.
+        Username/role/salary/status/email/birthday/gender/avatar/auth fields are not editable here.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Patch'
+      responses:
+        '200':
+          description: Current persisted profile with incremented version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Profile'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/profiles/me/password:
+    post:
+      operationId: changeOwnPassword
+      description: |
+        ADMIN/STAFF, including expired/flagged accounts. Passwords are not trimmed or normalized.
+        Current password uses the existing PasswordEncoder; new password must differ and match
+        confirmation. Existing PasswordPolicy: 8-64 Java characters, upper/lower/digit, <=72 UTF8 bytes.
+        A users lock and expected auth_version protect password/password and password/reset races.
+        Hash/timestamp/flag/auth_version/version commit atomically; TokenService issues a replacement
+        only after commit. Frontend must replace AuthContext token before GET Profile/Header.
+        Old sessions and previously issued reset grants fail auth_version validation. A later reset
+        or deactivation can invalidate the replacement too. If response is lost, sign in with the new
+        password; never auto-retry this POST. No new throttle or permanent lockout is implemented.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordChange'
+      responses:
+        '200':
+          description: Committed password change; replace bearer and return to personal page
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordChanged'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/auth/login:
+    post:
+      operationId: loginWithPasswordStatus
+      security: []
+      description: |
+        Existing Auth endpoint. Three fields are added at the TOP LEVEL alongside token and user:
+        passwordChangedAt, passwordExpiresAt, mustChangePassword. They are not nested in user.
+        Existing user.id remains numeric; Profile.id is a decimal string. The server selects identity
+        from the signed bearer, never from a client-roundtripped numeric ID.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - username
+              - password
+              properties:
+                username:
+                  type: string
+                  maxLength: 64
+                password:
+                  type: string
+                  format: password
+                  maxLength: 128
+                  writeOnly: true
+      responses:
+        '200':
+          description: Existing login contract plus top-level password status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Login'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Existing signed Auth bearer; no cookie authentication
+  schemas:
+    Version:
+      type: string
+      pattern: ^(0|[1-9][0-9]{0,18})$
+      description: Nonnegative signed BIGINT decimal string; maximum 9223372036854775807
+    PasswordStatus:
+      type: object
+      required:
+      - passwordChangedAt
+      - passwordExpiresAt
+      - mustChangePassword
+      properties:
+        passwordChangedAt:
+          type: string
+          format: date-time
+        passwordExpiresAt:
+          type: string
+          format: date-time
+          description: changedAt plus exactly 30x24 hours UTC; not a database column
+        mustChangePassword:
+          type: boolean
+          description: DB flag OR now >= expiresAt. No global business-API enforcement in this approved scope.
+    Profile:
+      allOf:
+      - $ref: '#/components/schemas/PasswordStatus'
+      - type: object
+        required:
+        - id
+        - username
+        - name
+        - email
+        - phone
+        - role
+        - address
+        - birthday
+        - gender
+        - salary
+        - avatarUrl
+        - canUpdateProfile
+        - version
+        properties:
+          id:
+            type: string
+            pattern: ^[1-9][0-9]*$
+          username:
+            type: string
+            readOnly: true
+          name:
+            type: string
+            maxLength: 160
+          email:
+            type: string
+            readOnly: true
+          phone:
+            type: string
+            nullable: true
+            maxLength: 20
+          role:
+            type: string
+            enum:
+            - ADMIN
+            - STAFF
+            readOnly: true
+          address:
+            type: string
+            nullable: true
+            maxLength: 255
+          birthday:
+            type: string
+            format: date
+            nullable: true
+            readOnly: true
+          gender:
+            type: string
+            enum:
+            - MALE
+            - FEMALE
+            nullable: true
+            readOnly: true
+          salary:
+            type: string
+            nullable: true
+            readOnly: true
+            description: Exact DECIMAL(18,0) VND string; null when personnel is missing. Never coerce to a JavaScript
+              Number.
+          avatarUrl:
+            type: string
+            nullable: true
+            readOnly: true
+          canUpdateProfile:
+            type: boolean
+          version:
+            $ref: '#/components/schemas/Version'
+    Patch:
+      type: object
+      additionalProperties: false
+      required:
+      - version
+      minProperties: 2
+      properties:
+        version:
+          $ref: '#/components/schemas/Version'
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+          description: At least one non-whitespace character
+        address:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: At least one non-whitespace character; existing personnel required
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 20
+          description: At least one non-whitespace character; no additional approved regex
+    PasswordChange:
+      type: object
+      additionalProperties: false
+      required:
+      - currentPassword
+      - newPassword
+      - confirmNewPassword
+      properties:
+        currentPassword:
+          type: string
+          format: password
+          minLength: 1
+          maxLength: 256
+          writeOnly: true
+          description: Nonempty, at most 256 Java UTF-16 code units; never trim.
+        newPassword:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 64
+          writeOnly: true
+          description: 'Existing PasswordPolicy: 8–64 Java UTF-16 code units, at most 72 UTF-8 bytes, includes uppercase,
+            lowercase and digit; never trim.'
+        confirmNewPassword:
+          type: string
+          format: password
+          minLength: 1
+          maxLength: 256
+          writeOnly: true
+          description: Exact equality with newPassword; at most 256 Java UTF-16 code units.
+    PasswordChanged:
+      allOf:
+      - $ref: '#/components/schemas/PasswordStatus'
+      - type: object
+        required:
+        - token
+        properties:
+          token:
+            type: string
+            description: Sensitive replacement bearer; never log/publish it
+    Login:
+      allOf:
+      - $ref: '#/components/schemas/PasswordStatus'
+      - type: object
+        required:
+        - token
+        - user
+        properties:
+          token:
+            type: string
+          user:
+            type: object
+            required:
+            - id
+            - username
+            - fullName
+            - email
+            - phone
+            - role
+            properties:
+              id:
+                type: integer
+                format: int64
+              username:
+                type: string
+              fullName:
+                type: string
+              email:
+                type: string
+              phone:
+                type: string
+                nullable: true
+              role:
+                type: string
+                enum:
+                - ADMIN
+                - STAFF
+                - CUSTOMER
+    Problem:
+      type: object
+      required:
+      - type
+      - title
+      - status
+      - detail
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: integer
+        detail:
+          type: string
+        instance:
+          type: string
+        code:
+          type: string
+  responses:
+    BadRequest:
+      description: Profile codes INVALID_PROFILE_REQUEST, CURRENT_PASSWORD_INCORRECT, PASSWORD_MISMATCH, INVALID_PASSWORD,
+        PASSWORD_REUSED. Existing Login validation code VALIDATION_FAILED.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unauthorized:
+      description: UNAUTHORIZED; absent/invalid/expired/revoked bearer or non-ACTIVE account
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Forbidden:
+      description: FORBIDDEN; no personnel permission
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Conflict:
+      description: PROFILE_CONFLICT reload, PROFILE_INCOMPLETE contact employee administrator, PASSWORD_CONFLICT reauthenticate.
+        No blind retry.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+    Unavailable:
+      description: PROFILE_UNAVAILABLE from Profile advice. Existing shared bearer filter returns sanitized503 and can
+        omit code/type.
+      content:
+        application/problem+json:
+          schema:
+            type: object
+x-verified-http-evidence:
+  path: dt2-3-http-examples.json
+  executedAt: '2026-11-15T06:24:09.420434+00:00'
+  runtimeJarSha256: 7e1fca9a1138b02912700b2f7004508732e2e9361da359e8b39cf71b5e3f2b12

@@ -37,6 +37,10 @@ public class SecurityConfig {
 
         return http
                 .csrf(csrf -> csrf.ignoringRequestMatchers(
+                        // These exact endpoints authenticate only explicit bearer headers, never cookies.
+                        request -> ("PATCH".equals(request.getMethod()) && "/api/v1/profiles/me".equals(request.getServletPath()))
+                                || ("POST".equals(request.getMethod()) && "/api/v1/profiles/me/password".equals(request.getServletPath()))
+                ).ignoringRequestMatchers(
                         "/api/v1/auth/**",
                         "/api/v1/admin/**",
                         "/api/v1/staff/**"
@@ -47,7 +51,8 @@ public class SecurityConfig {
                 .exceptionHandling(exceptions -> exceptions
                         .authenticationEntryPoint((request, response, authException) -> {
                             String path = request.getRequestURI();
-                            if (path.startsWith("/api/v1/admin/") || path.startsWith("/api/v1/staff/")) {
+                            if (path.startsWith("/api/v1/admin/") || path.startsWith("/api/v1/staff/")
+                                    || path.startsWith("/api/v1/profiles/")) {
                                 response.setContentType("application/problem+json");
                                 response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                                 response.getWriter().write("""
@@ -76,6 +81,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/customer/tables/qr/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/customer/menu/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/home/account").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/profiles/me").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/profiles/me").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/profiles/me/password").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers(HttpMethod.GET, "/api/v1/home/notifications").hasAnyRole("STAFF", "ADMIN")
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/staff/**").hasAnyRole("ADMIN", "STAFF")

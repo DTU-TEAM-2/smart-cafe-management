@@ -1,0 +1,104 @@
+{
+  "outcome": "PASS",
+  "backend": "real loopback HTTP",
+  "profile": "verified-db",
+  "database": "isolated *_test",
+  "mail": "real loopback SMTP capture",
+  "cleanup": "owned fixtures removed",
+  "results": [
+    {
+      "scenario": "original requests 1-15",
+      "requests": 15,
+      "assertions": 27,
+      "failures": 0,
+      "newmanVerdict": "PASS",
+      "expected": "PASS",
+      "failedItems": []
+    },
+    {
+      "scenario": "original requests 16-23",
+      "requests": 8,
+      "assertions": 12,
+      "failures": 0,
+      "newmanVerdict": "PASS",
+      "expected": "PASS",
+      "failedItems": []
+    },
+    {
+      "scenario": "recovery negative cases",
+      "requests": 14,
+      "assertions": 14,
+      "failures": 0,
+      "newmanVerdict": "PASS",
+      "expected": "PASS",
+      "failedItems": []
+    },
+    {
+      "scenario": "fault: wrong testOtpCode",
+      "requests": 1,
+      "assertions": 1,
+      "failures": 1,
+      "newmanVerdict": "FAIL",
+      "expected": "FAIL",
+      "failedItems": [
+        "19. Luồng hoàn chỉnh - Xác minh OTP thành công (Nhận resetToken)"
+      ]
+    },
+    {
+      "scenario": "fault: invalid reset grant verification",
+      "requests": 1,
+      "assertions": 1,
+      "failures": 1,
+      "newmanVerdict": "FAIL",
+      "expected": "FAIL",
+      "failedItems": [
+        "20. Luồng hoàn chỉnh - Xác minh Reset Token hợp lệ (valid: true)"
+      ]
+    },
+    {
+      "scenario": "fault: rejected password reset",
+      "requests": 1,
+      "assertions": 1,
+      "failures": 1,
+      "newmanVerdict": "FAIL",
+      "expected": "FAIL",
+      "failedItems": [
+        "21. Luồng hoàn chỉnh - Đặt lại mật khẩu thành công (200 OK)"
+      ]
+    },
+    {
+      "scenario": "fault: rejected new-password login",
+      "requests": 1,
+      "assertions": 1,
+      "failures": 1,
+      "newmanVerdict": "FAIL",
+      "expected": "FAIL",
+      "failedItems": [
+        "22. Luồng hoàn chỉnh - Đăng nhập lại với mật khẩu mới vừa đổi (200 OK)"
+      ]
+    },
+    {
+      "audit": "no login throttle at six failures; eight distinct dummy emails accepted from loopback",
+      "policy": "NEEDS OWNER DECISION"
+    },
+    {
+      "scenario": "Home account after recovery",
+      "requests": 2,
+      "assertions": 4,
+      "failures": 0,
+      "newmanVerdict": "PASS",
+      "expected": "PASS",
+      "failedItems": []
+    }
+  ],
+  "provenance": {
+    "revision": "331c1e329dac40780c56b75aaf32403c4acddadf",
+    "dirty": true,
+    "runtimeJarSha256": "7e1fca9a1138b02912700b2f7004508732e2e9361da359e8b39cf71b5e3f2b12",
+    "sourceManifest": "results.json#sourceSha256",
+    "launcher": "scripts/auth-postman-live.cjs",
+    "profileEnvironment": "AUTH_TEST_PROFILE=verified-db",
+    "capturedOn": "2026-11-18",
+    "note": "Real current JAR/MySQL/loopback SMTP; owned native schema removed after run."
+  }
+}

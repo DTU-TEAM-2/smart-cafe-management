@@ -1,0 +1,103 @@
+{
+  "source": "Actual2026-11-18 real Newman/MySQL run; synthetic accounts; credentials redacted",
+  "executedAt": "2026-11-18T02:40:24.468811+00:00",
+  "runtimeJarSha256": "7e1fca9a1138b02912700b2f7004508732e2e9361da359e8b39cf71b5e3f2b12",
+  "examples": [
+    {
+      "name": "Login admin",
+      "method": "POST",
+      "path": "/api/v1/auth/login",
+      "status": 200,
+      "request": {
+        "username": "pm_profile_admin",
+        "password": "<redacted>"
+      },
+      "response": {
+        "token": "<redacted>",
+        "user": {
+          "id": 101,
+          "username": "pm_profile_admin",
+          "fullName": "Synthetic Admin",
+          "email": "pm_profile_admin@example.test",
+          "phone": "0900000001",
+          "role": "ADMIN"
+        },
+        "passwordChangedAt": "2026-11-18T02:40:43.181403Z",
+        "passwordExpiresAt": "2026-12-18T02:40:43.181403Z",
+        "mustChangePassword": false
+      }
+    },
+    {
+      "name": "Own profile admin",
+      "method": "GET",
+      "path": "/api/v1/profiles/me",
+      "status": 200,
+      "request": null,
+      "response": {
+        "id": "101",
+        "username": "pm_profile_admin",
+        "name": "Synthetic Admin",
+        "email": "pm_profile_admin@example.test",
+        "phone": "0900000001",
+        "role": "ADMIN",
+        "address": "Synthetic address",
+        "birthday": null,
+        "gender": null,
+        "salary": "10000000",
+        "avatarUrl": "https://example.test/profile-visible.png",
+        "passwordChangedAt": "2026-11-18T02:40:43.181403Z",
+        "passwordExpiresAt": "2026-12-18T02:40:43.181403Z",
+        "mustChangePassword": false,
+        "canUpdateProfile": true,
+        "version": "0"
+      }
+    },
+    {
+      "name": "Update admin own allowed fields",
+      "method": "PATCH",
+      "path": "/api/v1/profiles/me",
+      "status": 200,
+      "request": {
+        "version": "0",
+        "name": "Nguyễn Ánh admin",
+        "address": "Đà Nẵng admin",
+        "phone": "+84 900 000 000"
+      },
+      "response": {
+        "id": "101",
+        "username": "pm_profile_admin",
+        "name": "Nguyễn Ánh admin",
+        "email": "pm_profile_admin@example.test",
+        "phone": "+84 900 000 000",
+        "role": "ADMIN",
+        "address": "Đà Nẵng admin",
+        "birthday": null,
+        "gender": null,
+        "salary": "10000000",
+        "avatarUrl": "https://example.test/profile-visible.png",
+        "passwordChangedAt": "2026-11-18T02:40:43.181403Z",
+        "passwordExpiresAt": "2026-12-18T02:40:43.181403Z",
+        "mustChangePassword": false,
+        "canUpdateProfile": true,
+        "version": "1"
+      }
+    },
+    {
+      "name": "Change STAFF password",
+      "method": "POST",
+      "path": "/api/v1/profiles/me/password",
+      "status": 200,
+      "request": {
+        "currentPassword": "<redacted>",
+        "newPassword": "<redacted>",
+        "confirmNewPassword": "<redacted>"
+      },
+      "response": {
+        "token": "<redacted>",
+        "passwordChangedAt": "2026-11-18T02:42:20.040193Z",
+        "passwordExpiresAt": "2026-12-18T02:42:20.040193Z",
+        "mustChangePassword": false
+      }
+    }
+  ]
+}
