@@ -126,10 +126,28 @@ public class StaffImageService {
                 }
                 return new StaffModels.ImageUploadResponse(key.longValue(), url);
             } catch (Exception dbEx) {
-                boolean cleaned = cleanupOrphanAsset(publicId);
-                if (!cleaned) {
-                    System.err.println("WARN: Failed to clean up orphan Cloudinary asset with public_id: " + publicId);
+                boolean persisted = false;
+                try {
+                    Integer count = jdbc.queryForObject(
+                            "SELECT COUNT(*) FROM media_assets WHERE provider = 'CLOUDINARY' AND provider_asset_id = ?",
+                            Integer.class,
+                            assetId);
+                    persisted = count != null && count > 0;
+                } catch (Exception checkEx) {
+                    persisted = true;
+                    System.err.println("WARN: Cannot verify DB persistence for Cloudinary asset_id: " + assetId + ", err: " + checkEx.getMessage());
                 }
+
+                if (!persisted) {
+                    boolean cleaned = cleanupOrphanAsset(publicId);
+                    if (!cleaned) {
+                        System.err.println("WARN: Failed to clean up orphan Cloudinary asset with public_id: " + publicId);
+                    }
+                } else {
+                    System.err.println("WARN: media_assets record exists or DB state is UNKNOWN for asset_id: " + assetId
+                            + "; skipping Cloudinary destroy to prevent dangling reference. Logged for reconciliation.");
+                }
+
                 if (dbEx instanceof ResponseStatusException rse) {
                     throw rse;
                 }

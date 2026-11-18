@@ -150,16 +150,70 @@ class StaffImageServiceTest {
                 .andExpect(content().string(org.hamcrest.Matchers.containsString("orphan-pub-789")))
                 .andRespond(withSuccess("{\"result\":\"ok\"}", MediaType.APPLICATION_JSON));
 
-        // Mock DB failure
+        // Mock DB failure where row was not persisted (rollback confirmed)
         var jdbc = mock(JdbcTemplate.class);
         doThrow(new DataIntegrityViolationException("Simulated DB connection or constraint failure"))
                 .when(jdbc).update(any(PreparedStatementCreator.class), any(KeyHolder.class));
+        when(jdbc.queryForObject(anyString(), eq(Integer.class), any())).thenReturn(0);
 
         var service = new StaffImageService("test-cloud", "test-key", "test-secret", builder.build(), jdbc);
 
         assertThatThrownBy(() -> service.upload(file(png())))
                 .isInstanceOfSatisfying(ResponseStatusException.class, ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR));
 
+        server.verify();
+    }
+
+    @Test
+    void insertSucceedsWithoutGeneratedKeyDoesNotDestroyPersistedCloudinaryAsset() throws Exception {
+        var builder = RestClient.builder();
+        var server = MockRestServiceServer.bindTo(builder).build();
+
+        server.expect(requestTo("https://api.cloudinary.com/v1_1/test-cloud/image/upload"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(
+                        "{\"asset_id\":\"persisted-asset-123\",\"public_id\":\"persisted-pub-123\",\"secure_url\":\"https://res.cloudinary.com/test-cloud/image/upload/v1/avatar.png\"}",
+                        MediaType.APPLICATION_JSON));
+
+        // Mock DB insert succeeded (returning 1) but keyHolder has no generated key
+        var jdbc = mock(JdbcTemplate.class);
+        when(jdbc.update(any(PreparedStatementCreator.class), any(KeyHolder.class))).thenReturn(1);
+        // DB check confirms row was persisted
+        when(jdbc.queryForObject(anyString(), eq(Integer.class), any())).thenReturn(1);
+
+        var service = new StaffImageService("test-cloud", "test-key", "test-secret", builder.build(), jdbc);
+
+        assertThatThrownBy(() -> service.upload(file(png())))
+                .isInstanceOfSatisfying(ResponseStatusException.class, ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR));
+
+        // server.verify() confirms upload was called and NO destroy request was sent
+        server.verify();
+    }
+
+    @Test
+    void dbCheckExceptionTreatsStatusAsUnknownAndDoesNotDestroyCloudinaryAsset() throws Exception {
+        var builder = RestClient.builder();
+        var server = MockRestServiceServer.bindTo(builder).build();
+
+        server.expect(requestTo("https://api.cloudinary.com/v1_1/test-cloud/image/upload"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(
+                        "{\"asset_id\":\"unknown-asset-456\",\"public_id\":\"unknown-pub-456\",\"secure_url\":\"https://res.cloudinary.com/test-cloud/image/upload/v1/avatar.png\"}",
+                        MediaType.APPLICATION_JSON));
+
+        var jdbc = mock(JdbcTemplate.class);
+        doThrow(new DataIntegrityViolationException("Simulated DB connection failure during insert"))
+                .when(jdbc).update(any(PreparedStatementCreator.class), any(KeyHolder.class));
+        // DB query also fails (network outage / connection drop -> status UNKNOWN)
+        doThrow(new DataIntegrityViolationException("Simulated connection outage during status check"))
+                .when(jdbc).queryForObject(anyString(), eq(Integer.class), any());
+
+        var service = new StaffImageService("test-cloud", "test-key", "test-secret", builder.build(), jdbc);
+
+        assertThatThrownBy(() -> service.upload(file(png())))
+                .isInstanceOfSatisfying(ResponseStatusException.class, ex -> assertThat(ex.getStatusCode()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR));
+
+        // server.verify() confirms upload was called and NO destroy request was sent
         server.verify();
     }
 }
