@@ -84,17 +84,31 @@ export function AuthProvider({ children }) {
     };
   }, [token]);
 
-  async function login(username, password) {
+  async function login(username, password, { signal, onAuthenticated } = {}) {
     setIsLoading(true);
     try {
-      const res = await loginApi(username, password);
-      const tokenValue = res.accessToken || res.token;
-      setToken(tokenValue);
-      setUser(res.user);
+      const res = await loginApi(username, password, signal);
+      const tokenValue = res?.accessToken || res?.token;
+      if (typeof tokenValue !== "string" || !tokenValue || tokenValue.length > 2048) {
+        throw new Error("Không xác minh được phiên đăng nhập.");
+      }
+      let currentUser;
+      try {
+        currentUser = await getCurrentUserApi(tokenValue, signal);
+      } catch {
+        throw new Error("Không xác minh được phiên đăng nhập.");
+      }
+      if (!["ADMIN", "STAFF", "CUSTOMER"].includes(currentUser?.role)) {
+        throw new Error("Không xác minh được phiên đăng nhập.");
+      }
+      signal?.throwIfAborted();
       sessionStorage.setItem("smart_cafe_token", tokenValue);
-      sessionStorage.setItem("smart_cafe_user", JSON.stringify(res.user));
+      sessionStorage.setItem("smart_cafe_user", JSON.stringify(currentUser));
+      onAuthenticated?.(currentUser);
+      setToken(tokenValue);
+      setUser(currentUser);
       window.dispatchEvent(new CustomEvent("smart-cafe-auth-change"));
-      return res.user;
+      return currentUser;
     } finally {
       setIsLoading(false);
     }

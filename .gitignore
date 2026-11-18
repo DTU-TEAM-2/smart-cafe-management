@@ -15,6 +15,9 @@
 **/__pycache__/
 *.pyc
 *.log
+# Local Firebase image exports must stay paired with the developer's private test DB, outside Git.
+backend/firebase-emulator/.local-data/
+backend/firebase-emulator/.firebase/
 .cache/
 **/test-results/
 **/playwright-report/

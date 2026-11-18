@@ -3,11 +3,9 @@ package vn.codegym.smartcafe.config;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import java.nio.charset.StandardCharsets;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -17,8 +15,6 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.context.NullSecurityContextRepository;
 import org.springframework.security.web.savedrequest.NullRequestCache;
-
-import vn.codegym.smartcafe.auth.TokenService;
 
 @Configuration
 @EnableWebSecurity
@@ -31,15 +27,15 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, JdbcClient jdbc,
-            TokenService tokenService) throws Exception {
-        var tokenFilter = new HeaderTokenFilter(jdbc, tokenService.getSecretKey());
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, BearerTokenAuthenticator authenticator) throws Exception {
+        var tokenFilter = new HeaderTokenFilter(authenticator);
 
         return http
                 .csrf(csrf -> csrf.ignoringRequestMatchers(
                         "/api/v1/auth/**",
                         "/api/v1/admin/**",
-                        "/api/v1/staff/**"
+                        "/api/v1/staff/**",
+                        "/api/v1/news", "/api/v1/news/**"
                 ))
                 .sessionManagement(session -> session.requireExplicitAuthenticationStrategy(true))
                 .securityContext(context -> context.securityContextRepository(new NullSecurityContextRepository()))
@@ -77,6 +73,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/customer/menu/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/home/account").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/home/notifications").hasAnyRole("STAFF", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/news/events").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/news/images").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/news/images/{id}").hasAnyRole("ADMIN", "STAFF", "CUSTOMER")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/news", "/api/v1/news/{id}").hasAnyRole("ADMIN", "STAFF", "CUSTOMER")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/news").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/news/{id}").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/news/{id}").hasRole("ADMIN")
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/staff/**").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers(HttpMethod.GET, "/api/v1/sales/csrf", "/api/v1/sales/tables", "/api/v1/sales/tables/*/services").hasAnyRole("STAFF", "ADMIN")

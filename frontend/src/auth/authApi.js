@@ -21,20 +21,23 @@ async function handleResponse(res) {
   return data;
 }
 
-export async function loginApi(username, password) {
+export async function loginApi(username, password, signal) {
   const res = await fetch("/api/v1/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ username, password }),
+    signal,
   });
   return handleResponse(res);
 }
 
-export async function getCurrentUserApi(token) {
+export async function getCurrentUserApi(token, signal) {
   const res = await fetch("/api/v1/auth/me", {
     headers: {
       Authorization: `Bearer ${token}`,
     },
+    signal,
+    cache: "no-store",
   });
   return handleResponse(res);
 }

@@ -37,6 +37,8 @@ Concrete starting points for owner review, **not approved limits**: gateway logi
 
 Deployment remains **BLOCKED** until the DB owner/leader reconciles current DDL and migration lineage; see the dated database-contract audit. No full-suite result replaces deployment acceptance.
 
+Các mục nội bộ lịch sử bên dưới cần đối chiếu với Q&A hiện hành trước khi áp dụng. Phần DT2-7 đã được đối chiếu online ngày 11/11/2026 ở cuối tài liệu.
+
 Các quyết định liên quan DT2-6 được đối chiếu với [QA nhóm cung cấp](https://docs.google.com/spreadsheets/d/1m2vnTOdGWivwqokRiJYOpWmY2u3G_o-U/edit?gid=1741591823#gid=1741591823). Xem [bàn giao DT2-6](../handover/dt2-06-sales-income.md) để phân biệt phần đã trả lời và phần tích hợp còn thiếu.
 
 | ID | Câu hỏi | Trạng thái |
@@ -50,6 +52,31 @@ Các quyết định liên quan DT2-6 được đối chiếu với [QA nhóm cu
 | QA-07 | DT2-1: route menu/footer và provider session production? | Header đã đọc profile/feed từ DB và kiểm chứng provider local; chờ nhập auth/route của DT2-2, DT2-3, DT2-4, DT2-9 để smoke production integration |
 
 Mỗi câu trả lời cần người chốt, ngày, nguồn bằng chứng và task bị ảnh hưởng. Đề xuất kỹ thuật chưa được duyệt vẫn là đề xuất.
+
+## DT2-7 — đối chiếu Q&A thật ngày 11/11/2026
+
+Nguồn online: [Q&A dự án](https://docs.google.com/spreadsheets/d/1m2vnTOdGWivwqokRiJYOpWmY2u3G_o-U/edit), No.4/5/10; [Project Plan](https://docs.google.com/spreadsheets/d/1nT1hxrsgVdBxTbORlTwohwzmbvujldYR/edit), Tasks_Sprint_1!B9/E9. Các số No. này thuộc file Q&A khách hàng, không đồng nhất với mã QA-01…QA-07 nội bộ phía trên.
+
+- **Đã trả lời, No.4:** chỉ quyền quản lý làm các tác vụ được hỏi, bao gồm đăng/sửa/xóa tin tức. ADMIN quản lý là cách mapping hiện tại; không hỏi lại STAFF có được thao tác hay không.
+- **Đã trả lời, No.5:** tất cả trường hợp xóa dùng xóa mềm/logic. Không hỏi lại xóa cứng hay mềm. Dùng ARCHIVED sẵn có là lựa chọn hiện thực; không tự suy ra toàn bộ chính sách khôi phục/retention từ đáp án này.
+- **Đã trả lời, No.10:** nhóm tự suy nghĩ thiết kế tin tức, chốt ở phiên prototype. Không xin bổ sung lại toàn bộ layout/trường dữ liệu; đưa prototype cụ thể để xác nhận.
+
+Danh sách QA-08–QA-12 từng soạn local được thay bằng đối chiếu này vì có câu hỏi trùng đáp án. Giới hạn ảnh, kiểu editor và trạng thái cụ thể là đề xuất prototype, không phải điều khoản đã được nguồn yêu cầu xác nhận. Bucket/ADC là dependency cấu hình kỹ thuật riêng, không hỏi secret trong Q&A.
+
+## DT2-7 — Q&A 19–20 đã được trả lời
+
+[Ảnh phản hồi và cách triển khai](../handover/dt2-7-qa-replies-2026-11-11.md):
+
+| No. Q&A | Trạng thái | Trả lời | Kết quả triển khai BE |
+| --- | --- | --- | --- |
+| 19 | Answered | Thêm lựa chọn gửi tin đến Nhân viên, Khách hàng | audiences STAFF/CUSTOMER, lưu hai cột theo ADR-005 được chủ repo duyệt; người đọc chỉ thấy PUBLISHED đúng nhóm. |
+| 20 | Answered | Chỉ thông báo nhân viên | Socket chỉ STAFF; generic NEWS_CHANGED sau commit khi danh sách STAFF bị ảnh hưởng; CUSTOMER/ADMIN không nhận. |
+
+Không hỏi lại hai câu đã trả lời. Hai checkbox độc lập, mặc định bài cũ 0/0 và API bắt buộc chọn ít nhất một nhóm khi tạo là cách triển khai đã trình chủ repo trong phương án schema. Chủ repo đã duyệt “vậy duyệt” sau khi nghe giải thích. Theo chỉ thị riêng tiếp theo tại ADR-006, đã áp dụng schema vào smart_cafe local; không seed hoặc ghi dữ liệu thử, chưa commit/push.
+
+Phần chưa được phản hồi chốt: “khách hàng” có gồm người chưa đăng nhập/phiên QR không, chi tiết UI toast hay tự reload. Tiếp tục giới hạn đọc ở tài khoản CUSTOMER thật và để FE thiết kế prototype theo No.10; không tự giả auth hoặc mở public mọi tin. Không chặn việc triển khai hai câu đã được duyệt vì các chi tiết UI chưa thuộc BE.
+
+Hợp đồng: [DT2-7 backend](../handover/dt2-7-backend-contract.md). Firebase cloud không sử dụng do ràng buộc miễn phí; local dùng Storage Emulator, không đổi trạng thái Q&A 19–20 về chưa trả lời.
 
 ### QA-02 — bổ sung yêu cầu DT2-4 ngày 11/11/2026
 

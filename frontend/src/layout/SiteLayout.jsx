@@ -40,7 +40,7 @@ function Icon({ name }) {
 }
 
 export default function SiteLayout({ children, account = null, notifications = null, links = {},
-  currentPage = "home", notificationState = "ready", onRetryNotifications, onNotificationsOpen }) {
+  currentPage = "home", notificationState = "ready", onRetryNotifications, onNotificationsOpen, onLogout }) {
   const [panel, setPanel] = useState(null);
   const regionId = useId();
   const menuButton = useRef(null);
@@ -76,7 +76,7 @@ export default function SiteLayout({ children, account = null, notifications = n
         </button>
         <nav id={`${regionId}-nav`} className={`header-nav ${panel === "menu" ? "is-open" : ""}`} aria-label="Điều hướng chính">
           {navigation.map(({ label, href, key }, index) => (
-            <SiteLink key={label} href={href ?? links[key]} aria-current={index === 0 && currentPage === "home" ? "page" : undefined}
+            <SiteLink key={label} href={href ?? links[key]} aria-current={(index === 0 && currentPage === "home") || key === currentPage ? "page" : undefined}
               onClick={() => { if (panel === "menu") menuButton.current?.focus(); setPanel(null); }}>{label}</SiteLink>
           ))}
         </nav>
@@ -116,6 +116,7 @@ export default function SiteLayout({ children, account = null, notifications = n
               {account && localLink(account.profileHref) ? <a href={account.profileHref} onClick={() => setPanel(null)}>Thông tin tài khoản</a>
                 : !account && localLink(links.login) ? <a href={links.login}>Đăng nhập</a>
                   : <p>{account ? "Chưa kết nối trang hồ sơ." : "Bạn chưa đăng nhập."}</p>}
+              {account && onLogout && <button type="button" className="header-logout" onClick={() => { setPanel(null); onLogout(); }}>Đăng xuất</button>}
             </section>
           </div>}
         </div>
