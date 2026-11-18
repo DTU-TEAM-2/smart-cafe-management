@@ -4,6 +4,7 @@ import jakarta.servlet.DispatcherType;
 import jakarta.servlet.http.HttpServletResponse;
 import java.nio.charset.StandardCharsets;
 import org.springframework.beans.factory.annotation.Value;
+import java.time.Clock;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -16,7 +17,10 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.context.NullSecurityContextRepository;
+import org.springframework.security.web.csrf.CsrfFilter;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 import org.springframework.security.web.savedrequest.NullRequestCache;
+import vn.codegym.smartcafe.customerfeedback.FeedbackAdmissionFilter;
 
 import vn.codegym.smartcafe.auth.TokenService;
 
@@ -32,9 +36,20 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http, JdbcClient jdbc,
-            TokenService tokenService) throws Exception {
+            TokenService tokenService, Clock clock,
+            @Value("${feedback.limits.per-source-per-minute:20}") int perSource,
+            @Value("${feedback.limits.total-per-minute:120}") int total,
+            @Value("${feedback.limits.concurrent-multipart:2}") int multipart,
+            @Value("${feedback.limits.csrf-per-source-per-minute:12}") int csrfPerSource,
+            @Value("${feedback.limits.csrf-total-per-minute:60}") int csrfTotal,
+            @Value("${feedback.limits.max-json-bytes:131072}") int maxJsonBytes) throws Exception {
         var tokenFilter = new HeaderTokenFilter(jdbc, tokenService.getSecretKey());
 
+        var feedbackPost = PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/v1/customer/feedback");
+        var feedbackCsrf = PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, "/api/v1/customer/feedback/csrf");
+        var customerCsrf = PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, "/api/v1/customer/csrf");
+        org.springframework.security.web.util.matcher.RequestMatcher guestCsrf =
+                request -> feedbackCsrf.matches(request) || customerCsrf.matches(request);
         return http
                 .csrf(csrf -> csrf.ignoringRequestMatchers(
                         "/api/v1/auth/**",
@@ -75,6 +90,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/home/highlights").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/customer/tables/qr/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/customer/menu/**").permitAll()
+                        .requestMatchers(guestCsrf, feedbackPost).permitAll()
+                        // The controller/service verifies an existing guest token against session_clients.
+                        .requestMatchers(HttpMethod.POST, "/api/v1/customer/sessions/*/orders").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/customer/csrf").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/customer/sessions/*/waiter-requests", "/api/v1/customer/sessions/*/bill-requests").permitAll()
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/customer/sessions/*/order-items/*").permitAll()
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/customer/sessions/*/order-items/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/home/account").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/home/notifications").hasAnyRole("STAFF", "ADMIN")
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
@@ -83,8 +105,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/sales/tables/*/bill", "/api/v1/sales/tables/*/requests/*/acknowledge").hasAnyRole("STAFF", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/income", "/api/v1/bills/*").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/v1/bills/*/payments", "/api/v1/sales/tables/*/reset").hasRole("ADMIN")
-                        .anyRequest().denyAll()
-                )
+                        .anyRequest().denyAll())
+                .addFilterBefore(new FeedbackAdmissionFilter(
+                        feedbackPost, guestCsrf, clock, perSource, total, multipart, csrfPerSource, csrfTotal, maxJsonBytes), CsrfFilter.class)
                 .addFilterBefore(tokenFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
