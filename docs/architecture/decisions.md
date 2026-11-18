@@ -41,3 +41,26 @@ Quyết định: main dành release, develop tích hợp task; feature/bugfix t�
 Cách thực thi: bootstrap develop từ main@8476ee3, retarget PR #7/#10/#11 vào develop, ruleset main/develop/release yêu cầu PR/2 approval/CI và merge bởi NV-DuyManh hoặc haitan2408. CI thêm Git Flow source/target check và regression tests. GitHub Actions kiểm quy trình/chất lượng, không giả báo đã cài bot AI code review. Tự review/AI review không thay hai người review. PR Git Flow chưa merge; các PR cũ cần nhận baseline workflow mới sau review. Không thay app/database, không tag/deploy hoặc nhập công việc local task tin tức còn dở.
 
 Skills áp dụng cho thay đổi quy trình: cafe-workflow, cafe-review, cafe-quality tại .agents/skills; định tuyến workflow/verification/review, giữ attribution và ghi đúng giới hạn kiểm chứng. Cấu hình chi tiết và giới hạn thực thi nằm trong docs/engineering/github-settings.md.
+
+## ADR-013 — hồ sơ cá nhân và vòng đời mật khẩu DT2-3 (15/11/2026)
+
+Trạng thái: **owner chấp thuận trực tiếp trong chat DT2-3 ngày 15/11/2026**. Nguồn, khác biệt SRS/Jira và AC được lưu tại [yêu cầu DT2-3](../handover/dt2-3-requirements.md).
+
+- Áp dụng QA #8 cho STAFF tự sửa đúng tên/địa chỉ/SĐT. ADMIN dùng cùng allowlist cá nhân; username/role/salary/status/auth/email/birthday/gender/avatar nằm ngoài endpoint này. CUSTOMER không có quyền hồ sơ nhân sự. Không thay module quản trị nhân viên.
+- `passwordExpiresAt = passwordChangedAt + Duration.ofDays(30)`; `now >= expiresAt` hoặc cờ DB bằng 1 làm `mustChangePassword=true`. Login/Profile trả thông tin này, **chưa cưỡng chế khóa API nghiệp vụ**. Dùng Clock UTC và JDBC session UTC, không thêm cột expiry.
+- PasswordPolicy/BCrypt/TokenService/AuthRepository được tái sử dụng. Từ chối password trùng hiện tại. Hash/timestamp/flag/auth_version/version đổi nguyên tử. Cấp bearer thay thế sau transaction commit, Frontend phải thay bearer cũ trước khi quay về hồ sơ. Reset grant gắn auth_version cũ bị thu hồi theo Auth hiện hữu.
+- Dùng một account projection cho Home/Profile; PATCH giữ omitted fields, cấm explicit null và field ngoài allowlist. `users.version` được kiểm và tăng; writers password reset/change cùng tăng version. Row lock trên users bảo vệ các cập nhật của task. Writer Staff PR #11 chưa tham gia hợp đồng version: chưa bảo đảm optimistic concurrency xuyên mọi module.
+- Chỉ hai mutation Profile chính xác dùng bearer-header stateless được miễn CSRF; không cookie login, không thêm CSRF bootstrap/session, không tắt CSRF chung. Menu/Sales giữ bảo vệ hiện hữu. Cơ chế này phù hợp API bearer hiện hữu; chuyển sang cookie auth phải đánh giá lại CSRF.
+- Không thêm rate limiter/cột/bảng/purpose OTP. Chưa có bảo vệ brute force current-password/login được phê duyệt để tái sử dụng; cần owner chốt gateway/quota trước production. Không tuyên bố có rate limiting chỉ vì OTP có quota.
+
+Không cấp quyền migrate database chung, deploy, push, tạo PR hoặc sửa ruleset. Thiếu CF vẫn chặn commit/title PR cuối cùng theo quyết định owner.
+
+### ADR-013 — verification bổ sung, không mở rộng quyết định (15/11/2026)
+
+Rehearsal với Staff#11 HEAD4c7b969 đã **tái hiện** lost update/stale version qua transaction MySQL đồng thời thật; đây không còn chỉ là rủi ro suy từ source. Hợp đồng lock users→staff_profiles, CAS expected-version/tăng version cho mọi writer và auth_version security transition được đóng gói thành [patch đề xuất cho owner Staff](../qa/rehearsals/dt2-3/README.md), chưa áp trên nhánh DT2-3 và chưa là quyết định API mới được owner module chấp thuận. Candidate sau patch9/9 không thay trạng thái full integrationFAIL.
+
+Shared filter/matcher proposal sửa Profile401 và STAFF cross-account personnel200 đã tái hiện ở candidate Auth/Staff/News; không thay authentication architecture hoặc tự nhập PR khác. Bounded Login/current-password probe không quan sát429; policy shared admission/body cap vẫn **NEEDS OWNER DECISION**, không được gọi đã brute-force protected. [Báo cáo hiện hành](../reports/dt2-3-hardening.md) phân biệt baseline failure, patch-only success, NOT RUN Sonar và DBA deployment blockers.
+
+### ADR-013 — CF/publication update18/11/2026
+
+Owner xác nhận **CF-04** cho DT2-3/DT2-27 và cho phép commit/push current feature branch, tạo **Draft PR vào develop**, title/commit theo [requirements](../handover/dt2-3-requirements.md). Ghi nhận không-publication/thiếu-CF15/11 được thay cho phạm vi publication này; không cấp merge/approve/JiraDone hoặc deployment. Backend/DDL/policy nghiệp vụ không đổi. Develop331c1e3 được fast-forward và restore local implementation không conflict; [checks và blockers mới](../reports/dt2-3-publication.md) tách khỏi rehearsal lịch sử.
