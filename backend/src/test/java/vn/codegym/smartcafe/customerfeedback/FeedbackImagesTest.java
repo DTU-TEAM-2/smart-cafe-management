@@ -183,11 +183,24 @@ class FeedbackImagesTest {
         verify(storage, never()).delete(any());
     }
 
+    enum CornerColor { RED, GREEN, BLUE, MAGENTA }
+
+    private static CornerColor getCornerColor(int rgb) {
+        int r = (rgb >> 16) & 0xFF;
+        int g = (rgb >> 8) & 0xFF;
+        int b = rgb & 0xFF;
+        if (r > 150 && g < 100 && b < 100) return CornerColor.RED;
+        if (g > 150 && r < 100 && b < 100) return CornerColor.GREEN;
+        if (b > 150 && r < 100 && g < 100) return CornerColor.BLUE;
+        if (r > 150 && b > 150 && g < 100) return CornerColor.MAGENTA;
+        throw new AssertionError("Unknown corner color: r=" + r + ", g=" + g + ", b=" + b);
+    }
+
     @Test void goldenImageExifOrientationsAll8Supported() throws Exception {
         var images = new FeedbackImages();
         for (int orientation = 1; orientation <= 8; orientation++) {
-            // Asymmetric image: width 32, height 16 with red arrow and blue 'F'
-            byte[] jpeg = createJpegWithExifGpsAndOrientation(32, 16, orientation);
+            // Asymmetric image 32x16 with 4 distinctive corner markers: TL=RED, TR=GREEN, BL=BLUE, BR=MAGENTA
+            byte[] jpeg = createJpegWithExifGpsAndOrientation(32, 16, orientation, false);
             var file = new MockMultipartFile("images", "orient-" + orientation + ".jpg", "image/jpeg", jpeg);
             var result = images.validate(List.of(file)).getFirst();
 
@@ -202,26 +215,88 @@ class FeedbackImagesTest {
             assertThat(decoded.getWidth()).isEqualTo(expectedWidth);
             assertThat(decoded.getHeight()).isEqualTo(expectedHeight);
 
-            // Verify asymmetric content is drawn and preserved after transformation
-            boolean hasColoredPixel = false;
-            for (int x = 0; x < decoded.getWidth(); x++) {
-                for (int y = 0; y < decoded.getHeight(); y++) {
-                    int rgb = decoded.getRGB(x, y) & 0x00FFFFFF;
-                    if (rgb != 0x00FFFFFF) { // Not background white
-                        hasColoredPixel = true;
-                        break;
-                    }
-                }
-            }
-            assertThat(hasColoredPixel).as("Transformed image contains asymmetric drawn features").isTrue();
+            // Verify directional placement of distinctive corner markers
+            CornerColor expectedTL = switch (orientation) {
+                case 1, 5 -> CornerColor.RED;
+                case 2, 8 -> CornerColor.GREEN;
+                case 3, 7 -> CornerColor.MAGENTA;
+                case 4, 6 -> CornerColor.BLUE;
+                default -> throw new IllegalStateException();
+            };
+            CornerColor expectedTR = switch (orientation) {
+                case 1, 7 -> CornerColor.GREEN;
+                case 2, 6 -> CornerColor.RED;
+                case 3, 5 -> CornerColor.BLUE;
+                case 4, 8 -> CornerColor.MAGENTA;
+                default -> throw new IllegalStateException();
+            };
+            CornerColor expectedBL = switch (orientation) {
+                case 1, 7 -> CornerColor.BLUE;
+                case 2, 6 -> CornerColor.MAGENTA;
+                case 3, 5 -> CornerColor.GREEN;
+                case 4, 8 -> CornerColor.RED;
+                default -> throw new IllegalStateException();
+            };
+            CornerColor expectedBR = switch (orientation) {
+                case 1, 5 -> CornerColor.MAGENTA;
+                case 2, 8 -> CornerColor.BLUE;
+                case 3, 7 -> CornerColor.RED;
+                case 4, 6 -> CornerColor.GREEN;
+                default -> throw new IllegalStateException();
+            };
+
+            int w = decoded.getWidth();
+            int h = decoded.getHeight();
+            assertThat(getCornerColor(decoded.getRGB(1, 1))).as("TL for orientation " + orientation).isEqualTo(expectedTL);
+            assertThat(getCornerColor(decoded.getRGB(w - 2, 1))).as("TR for orientation " + orientation).isEqualTo(expectedTR);
+            assertThat(getCornerColor(decoded.getRGB(1, h - 2))).as("BL for orientation " + orientation).isEqualTo(expectedBL);
+            assertThat(getCornerColor(decoded.getRGB(w - 2, h - 2))).as("BR for orientation " + orientation).isEqualTo(expectedBR);
 
             assertThat(new String(result.bytes(), StandardCharsets.ISO_8859_1))
                     .doesNotContain("GPS_SYNTHETIC_DATA_LAT_10_LONG_106");
         }
     }
 
+    @Test void jpegWithExifFillByteProperlyDetectsOrientationAndStripsExif() throws Exception {
+        // Construct ImageIO-decodable JPEG with extra FF marker fill byte (FF FF E1 ...) and Orientation 6
+        byte[] jpegWithFill = createJpegWithExifGpsAndOrientation(32, 16, 6, true);
+        assertThat(new String(jpegWithFill, StandardCharsets.ISO_8859_1)).contains("GPS_SYNTHETIC_DATA_LAT_10_LONG_106");
+
+        // Verify ImageIO can read the raw JPEG without error
+        var rawDecoded = ImageIO.read(new ByteArrayInputStream(jpegWithFill));
+        assertThat(rawDecoded).isNotNull();
+        assertThat(rawDecoded.getWidth()).isEqualTo(32);
+        assertThat(rawDecoded.getHeight()).isEqualTo(16);
+
+        // Validate via FeedbackImages
+        var file = new MockMultipartFile("images", "fill-test.jpg", "image/jpeg", jpegWithFill);
+        var images = new FeedbackImages();
+        var validatedList = images.validate(List.of(file));
+
+        assertThat(validatedList).hasSize(1);
+        var validated = validatedList.getFirst();
+        // Orientation 6: 32x16 rotated 90 CW -> 16x32
+        assertThat(validated.width()).isEqualTo(16);
+        assertThat(validated.height()).isEqualTo(32);
+        assertThat(validated.contentType()).isEqualTo("image/jpeg");
+
+        // Decoded transformed image verification: dimensions and corner placement for Orientation 6
+        var decoded = ImageIO.read(new ByteArrayInputStream(validated.bytes()));
+        assertThat(decoded).isNotNull();
+        assertThat(decoded.getWidth()).isEqualTo(16);
+        assertThat(decoded.getHeight()).isEqualTo(32);
+        assertThat(getCornerColor(decoded.getRGB(1, 1))).isEqualTo(CornerColor.BLUE);
+        assertThat(getCornerColor(decoded.getRGB(14, 1))).isEqualTo(CornerColor.RED);
+        assertThat(getCornerColor(decoded.getRGB(1, 30))).isEqualTo(CornerColor.MAGENTA);
+        assertThat(getCornerColor(decoded.getRGB(14, 30))).isEqualTo(CornerColor.GREEN);
+
+        // EXIF/GPS must be stripped
+        assertThat(new String(validated.bytes(), StandardCharsets.ISO_8859_1))
+                .doesNotContain("GPS_SYNTHETIC_DATA_LAT_10_LONG_106");
+    }
+
     @Test void syntheticGpsMetadataIsStrippedAndExifOrientationIsApplied() throws Exception {
-        byte[] jpegWithGps = createJpegWithExifGpsAndOrientation(32, 16, 6);
+        byte[] jpegWithGps = createJpegWithExifGpsAndOrientation(32, 16, 6, false);
         assertThat(new String(jpegWithGps, StandardCharsets.ISO_8859_1)).contains("GPS_SYNTHETIC_DATA_LAT_10_LONG_106");
 
         var file = new MockMultipartFile("images", "photo.jpg", "image/jpeg", jpegWithGps);
@@ -245,21 +320,32 @@ class FeedbackImagesTest {
         assertThat(decoded.getHeight()).isEqualTo(32);
     }
 
-    private static byte[] createJpegWithExifGpsAndOrientation(int width, int height, int orientation) throws Exception {
+    private static byte[] createJpegWithExifGpsAndOrientation(int width, int height, int orientation, boolean extraFillByte) throws Exception {
         var img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
         var g = img.createGraphics();
         try {
             g.setColor(java.awt.Color.WHITE);
             g.fillRect(0, 0, width, height);
-            // Draw asymmetric arrow pointing towards top-right
-            g.setColor(java.awt.Color.RED);
-            g.drawLine(1, height - 2, width - 2, 1);
-            g.drawLine(width - 2, 1, width - 2, Math.min(height - 1, 3));
-            g.drawLine(width - 2, 1, Math.max(0, width - 4), 1);
-            // Draw letter 'F' in top-left quadrant
-            g.setColor(java.awt.Color.BLUE);
-            g.fillRect(1, 1, 1, Math.min(height - 2, 4));
-            g.fillRect(1, 1, Math.min(width - 2, 3), 1);
+
+            // 4 distinctive corner markers (size 4x4)
+            // Top-Left: RED
+            g.setColor(new java.awt.Color(255, 0, 0));
+            g.fillRect(0, 0, 4, 4);
+            // Top-Right: GREEN
+            g.setColor(new java.awt.Color(0, 255, 0));
+            g.fillRect(width - 4, 0, 4, 4);
+            // Bottom-Left: BLUE
+            g.setColor(new java.awt.Color(0, 0, 255));
+            g.fillRect(0, height - 4, 4, 4);
+            // Bottom-Right: MAGENTA
+            g.setColor(new java.awt.Color(255, 0, 255));
+            g.fillRect(width - 4, height - 4, 4, 4);
+
+            // Asymmetric arrow pointing towards top-right
+            g.setColor(java.awt.Color.BLACK);
+            g.drawLine(4, height - 5, width - 5, 4);
+            g.drawLine(width - 5, 4, width - 5, Math.min(height - 1, 8));
+            g.drawLine(width - 5, 4, Math.max(0, width - 9), 4);
         } finally {
             g.dispose();
         }
@@ -298,12 +384,17 @@ class FeedbackImagesTest {
         // SOI marker 0xFFD8
         result.write(baseJpeg[0]);
         result.write(baseJpeg[1]);
-        // Insert synthetic APP1 marker
+
+        // Insert synthetic APP1 marker (optionally with 0xFF fill byte)
         result.write(0xFF);
+        if (extraFillByte) {
+            result.write(0xFF);
+        }
         result.write(0xE1);
         result.write((app1Length >> 8) & 0xFF);
         result.write(app1Length & 0xFF);
         result.write(app1Payload);
+
         // Append rest of the JPEG
         result.write(baseJpeg, 2, baseJpeg.length - 2);
         return result.toByteArray();

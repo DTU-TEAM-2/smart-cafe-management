@@ -112,30 +112,52 @@ public class FeedbackImages {
             return 1;
         }
         int offset = 0;
+        // Verify JPEG SOI marker (0xFF, 0xD8)
         if ((bytes[offset] & 0xFF) != 0xFF || (bytes[offset + 1] & 0xFF) != 0xD8) {
             return 1;
         }
         offset += 2;
-        while (offset + 4 <= bytes.length) {
+        while (offset < bytes.length) {
             if ((bytes[offset] & 0xFF) != 0xFF) {
                 break;
             }
-            int marker = bytes[offset + 1] & 0xFF;
+            // ITU-T T.81 / ISO 10918-1: skip repeated 0xFF marker fill bytes
+            while (offset < bytes.length && (bytes[offset] & 0xFF) == 0xFF) {
+                offset++;
+            }
+            if (offset >= bytes.length) {
+                break;
+            }
+            int marker = bytes[offset] & 0xFF;
+            offset++;
+
+            // Stand-alone markers without parameters:
+            // 0x00: byte stuffing; 0x01: TEM; 0xD0..0xD7: restart markers (RST0..RST7)
+            if (marker == 0x00 || marker == 0x01 || (marker >= 0xD0 && marker <= 0xD7)) {
+                continue;
+            }
+            // SOS (0xDA) or EOI (0xD9) signals start of entropy stream or end of image
             if (marker == 0xDA || marker == 0xD9) {
                 break;
             }
-            int length = ((bytes[offset + 2] & 0xFF) << 8) | (bytes[offset + 3] & 0xFF);
-            if (length < 2 || offset + 2 + length > bytes.length) {
+
+            // All parameterized markers have a 2-byte big-endian length field
+            if (offset + 2 > bytes.length) {
                 break;
             }
+            int length = ((bytes[offset] & 0xFF) << 8) | (bytes[offset + 1] & 0xFF);
+            if (length < 2 || offset + length > bytes.length) {
+                break;
+            }
+
             if (marker == 0xE1 && length >= 8) {
-                int exifHeader = offset + 4;
+                int exifHeader = offset + 2;
                 if (bytes[exifHeader] == 'E' && bytes[exifHeader + 1] == 'x' && bytes[exifHeader + 2] == 'i'
                         && bytes[exifHeader + 3] == 'f' && bytes[exifHeader + 4] == 0 && bytes[exifHeader + 5] == 0) {
                     return parseTiffOrientation(bytes, exifHeader + 6, length - 8);
                 }
             }
-            offset += 2 + length;
+            offset += length;
         }
         return 1;
     }
