@@ -35,7 +35,8 @@ public final class StaffModels {
             BigDecimal salary,
             String status,
             Long avatarMediaId,
-            String avatarUrl
+            String avatarUrl,
+            String version
     ) {}
 
     public record CreateStaffRequest(
@@ -60,7 +61,8 @@ public final class StaffModels {
             LocalDate birthday,
             String role,
             BigDecimal salary,
-            Long avatarMediaId
+            Long avatarMediaId,
+            String version
     ) {}
 
     public record PageResponse<T>(

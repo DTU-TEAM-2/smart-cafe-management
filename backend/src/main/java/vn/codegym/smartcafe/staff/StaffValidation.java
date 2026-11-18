@@ -27,6 +27,14 @@ public final class StaffValidation {
         if (request == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dữ liệu yêu cầu không được rỗng.");
         }
+        if (request.version() == null || !request.version().matches("0|[1-9][0-9]{0,18}")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Expected version is required.");
+        }
+        try {
+            Long.parseLong(request.version());
+        } catch (NumberFormatException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid version.");
+        }
         validateEmail(request.email());
         validateCommonFields(request.fullName(), request.address(), request.phone(), request.gender(), request.role(), request.salary());
     }

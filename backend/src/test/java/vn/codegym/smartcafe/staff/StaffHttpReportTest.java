@@ -352,6 +352,7 @@ class StaffHttpReportTest {
             run(17, "Admin cập nhật thông tin nhân viên thành công", () -> {
                 String updatePayload = """
                         {
+                            "version": "0",
                             "fullName": "Nguyen Van Test Updated",
                             "email": "%s_upd@cafe.vn",
                             "phone": "0999999999",
@@ -401,6 +402,7 @@ class StaffHttpReportTest {
             run(22, "Quản trị viên tự hạ quyền thành STAFF bị hệ thống từ chối (400 Bad Request)", () -> {
                 String demotePayload = """
                         {
+                            "version": "0",
                             "fullName": "Quản trị viên Hệ thống",
                             "email": "%s@cafe.vn",
                             "phone": "0901111111",
@@ -461,6 +463,7 @@ class StaffHttpReportTest {
                 Long adm2Id = jdbc.queryForObject("SELECT id FROM users WHERE username=?", Long.class, "adm2_" + suffix);
                 String demoteBPayload = """
                         {
+                            "version": "0",
                             "fullName": "Quản trị viên thứ hai",
                             "email": "adm2_%s@cafe.vn",
                             "phone": "0909999991",

@@ -183,7 +183,7 @@ public class StaffService {
         String sql = """
                 SELECT u.id, u.username, u.full_name, u.email, u.phone,
                        p.address, p.gender, p.birthday, u.role, p.salary, u.status,
-                       u.avatar_media_id, m.secure_url AS avatar_url
+                       u.avatar_media_id, u.version, m.secure_url AS avatar_url
                 FROM users u
                 LEFT JOIN staff_profiles p ON p.user_id = u.id
                 LEFT JOIN media_assets m ON m.id = u.avatar_media_id AND m.deleted_at IS NULL
@@ -207,7 +207,8 @@ public class StaffService {
                     rs.getBigDecimal("salary"),
                     rs.getString("status"),
                     mediaId,
-                    rs.getString("avatar_url")
+                    rs.getString("avatar_url"),
+                    rs.getString("version")
             );
         }, id);
 
@@ -306,6 +307,7 @@ public class StaffService {
     public StaffModels.StaffDetail updateStaff(Long id, StaffModels.UpdateStaffRequest request, String currentUsername) {
         StaffValidation.validateUpdate(request);
 
+        lockUser(id);
         StaffModels.StaffDetail existing = getStaffById(id);
 
         if ("ADMIN".equalsIgnoreCase(existing.role())
@@ -339,11 +341,17 @@ public class StaffService {
                 : existing.role();
 
         try {
-            jdbc.update("""
+            int changed = jdbc.update("""
                     UPDATE users
-                    SET full_name = ?, email = ?, phone = ?, role = ?, avatar_media_id = ?
-                    WHERE id = ?
-                    """, request.fullName().trim(), email, request.phone().trim(), role, request.avatarMediaId(), id);
+                    SET auth_version = auth_version + CASE WHEN role <> ? THEN 1 ELSE 0 END,
+                        version = version + 1,
+                        full_name = ?, email = ?, phone = ?, role = ?, avatar_media_id = ?
+                    WHERE id = ? AND version = ? AND status = 'ACTIVE'
+                    """, role, request.fullName().trim(), email, request.phone().trim(), role, request.avatarMediaId(),
+                    id, Long.parseLong(request.version()));
+            if (changed != 1) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT, "Profile changed; reload before editing.");
+            }
         } catch (DuplicateKeyException ex) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email đã tồn tại trong hệ thống.");
         } catch (DataIntegrityViolationException ex) {
@@ -370,6 +378,7 @@ public class StaffService {
 
     @Transactional
     public void deleteStaff(Long id, String currentUsername) {
+        lockUser(id);
         StaffModels.StaffDetail target = getStaffById(id);
 
         if (currentUsername != null && currentUsername.equalsIgnoreCase(target.username())) {
@@ -381,6 +390,13 @@ public class StaffService {
         }
 
         // Soft delete: chuyển trạng thái INACTIVE để bảo toàn tham chiếu hóa đơn / phiên bàn
-        jdbc.update("UPDATE users SET status = 'INACTIVE' WHERE id = ?", id);
+        jdbc.update("UPDATE users SET status = 'INACTIVE', version = version + 1, auth_version = auth_version + 1 WHERE id = ?", id);
+    }
+
+    private void lockUser(Long id) {
+        var found = jdbc.queryForList("SELECT id FROM users WHERE id = ? FOR UPDATE", Long.class, id);
+        if (found.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Staff not found.");
+        }
     }
 }

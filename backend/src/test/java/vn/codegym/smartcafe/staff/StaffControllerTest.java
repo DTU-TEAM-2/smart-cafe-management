@@ -182,6 +182,7 @@ class StaffControllerTest {
     void updateStaffPreservesUsernameAndUpdatesProfile() throws Exception {
         String updateJson = """
                 {
+                    "version": "0",
                     "fullName": "Nguyen Updated Name",
                     "email": "updated@smartcafe.vn",
                     "phone": "0988776655",
@@ -246,6 +247,7 @@ class StaffControllerTest {
     void adminCannotSelfDemoteToStaff() throws Exception {
         String demoteJson = """
                 {
+                    "version": "0",
                     "fullName": "Test Admin",
                     "email": "admin@test.vn",
                     "phone": "0901111111",
@@ -475,6 +477,7 @@ class StaffControllerTest {
         // 4. UPDATE with non-existent avatarMediaId -> 400 Bad Request
         String updateNonExistentJson = """
                 {
+                    "version": "0",
                     "fullName": "Staff Updated Name",
                     "email": "staff@test.vn",
                     "phone": "0902222222",
@@ -505,10 +508,52 @@ class StaffControllerTest {
                 .andExpect(jsonPath("$.avatarUrl", is("https://example.com/active.png")));
 
         // 7. UPDATE with null avatarMediaId -> 200 OK
-        String updateNullJson = updateNonExistentJson.replace("\"avatarMediaId\": 999999", "\"avatarMediaId\": null");
+        String currentVersion = com.jayway.jsonpath.JsonPath.read(
+                mvc.perform(get("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")))
+                        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(), "$.version");
+        String updateNullJson = updateNonExistentJson.replace("\"avatarMediaId\": 999999", "\"avatarMediaId\": null")
+                .replace("\"version\": \"0\"", "\"version\": \"" + currentVersion + "\"");
         mvc.perform(put("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(updateNullJson))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void updateRequiresExpectedVersionAndRejectsStaleVersionWithoutOverwriting() throws Exception {
+        String body = """
+                {"fullName":"Nguyen Version Test","email":"staff@test.vn","phone":"0902222222",
+                 "address":"Da Nang","role":"STAFF","salary":7000000,"version":"0"}
+                """;
+        for (String invalid : new String[]{"null", "\"-1\"", "\"01\"", "\"9223372036854775808\""}) {
+            mvc.perform(put("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")).with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON).content(body.replace("\"0\"", invalid)))
+                    .andExpect(status().isBadRequest());
+        }
+        mvc.perform(put("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(body.replace(",\"version\":\"0\"", "")))
+                .andExpect(status().isBadRequest());
+        mvc.perform(put("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.version", is("1")));
+        mvc.perform(put("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(body.replace("Nguyen Version Test", "Stale Overwrite")))
+                .andExpect(status().isConflict());
+        org.assertj.core.api.Assertions.assertThat(jdbc.queryForObject(
+                "SELECT full_name FROM users WHERE id=?", String.class, testStaffId)).isEqualTo("Nguyen Version Test");
+    }
+
+    @Test
+    void roleTransitionIncrementsAuthVersionAsWellAsProfileVersion() throws Exception {
+        long before = jdbc.queryForObject("SELECT auth_version FROM users WHERE id=?", Long.class, testStaffId);
+        String body = """
+                {"fullName":"Nguyen Promoted Staff","email":"staff@test.vn","phone":"0902222222",
+                 "address":"Da Nang","role":"ADMIN","salary":7000000,"version":"0"}
+                """;
+        mvc.perform(put("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.version", is("1")));
+        org.assertj.core.api.Assertions.assertThat(jdbc.queryForObject(
+                "SELECT auth_version FROM users WHERE id=?", Long.class, testStaffId)).isEqualTo(before + 1);
     }
 }

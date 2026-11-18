@@ -187,7 +187,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n  \"fullName\": \"Trần Thị Thu Hà (Đã cập nhật)\",\n  \"email\": \"thuha_upd@smartcafe.vn\",\n  \"phone\": \"0988776655\",\n  \"address\": \"456 Lê Duẩn, Đà Nẵng\",\n  \"gender\": \"FEMALE\",\n  \"birthday\": \"2000-05-15\",\n  \"role\": \"STAFF\",\n  \"salary\": 7000000,\n  \"status\": \"ACTIVE\"\n}"
+					"raw": "{\n  \"version\": \"0\",\n  \"fullName\": \"Trần Thị Thu Hà (Đã cập nhật)\",\n  \"email\": \"thuha_upd@smartcafe.vn\",\n  \"phone\": \"0988776655\",\n  \"address\": \"456 Lê Duẩn, Đà Nẵng\",\n  \"gender\": \"FEMALE\",\n  \"birthday\": \"2000-05-15\",\n  \"role\": \"STAFF\",\n  \"salary\": 7000000,\n  \"status\": \"ACTIVE\"\n}"
 				},
 				"url": {
 					"raw": "{{baseUrl}}/api/v1/staff/{{createdStaffId}}",
