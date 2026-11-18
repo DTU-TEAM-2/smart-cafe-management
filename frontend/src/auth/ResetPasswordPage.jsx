@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "./useAuth.js";
 import { resetPasswordApi, verifyResetTokenApi } from "./authApi.js";
+import AuthSidebar from "./AuthSidebar.jsx";
 import "./auth.css";
 
 export default function ResetPasswordPage({ onNavigate }) {
@@ -100,135 +101,157 @@ export default function ResetPasswordPage({ onNavigate }) {
   }
 
   return (
-    <section className="auth-container" aria-label="Đặt lại mật khẩu">
-      <div className="auth-flow-card">
-        <div className="auth-card-header">
-          <div className="auth-brand-tag">
-            LECKER<span>COFFEE CAFE</span>
-          </div>
-          <span className="auth-step-pill">Bước 03 / 03 · Hoàn tất khôi phục</span>
-          <h1>Đặt lại mật khẩu</h1>
-          <p>Thiết lập mật khẩu mới cho tài khoản của bạn</p>
-        </div>
+    <section className="auth-page-container auth-container" aria-label="Đặt lại mật khẩu">
+      <div className="auth-card">
+        {/* Left Column: Atmospheric Story Side */}
+        <AuthSidebar
+          eyebrow="LECKER COFFEE CAFE"
+          title={"Mật khẩu mới.\nTrải nghiệm liền mạch."}
+          description="Thiết lập mật khẩu an toàn cho tài khoản của bạn."
+        />
 
-        {isVerifying ? (
-          <div style={{ textAlign: "center", padding: "24px 0", color: "var(--muted)" }}>
-            Đang xác minh liên kết đặt lại mật khẩu...
+        {/* Right Column: Reset Password Content */}
+        <div className="auth-content auth-flow-card">
+          <div className="auth-card-header">
+            <div className="auth-brand-tag">
+              LECKER<span>COFFEE CAFE</span>
+            </div>
+            <span className="auth-step-pill">Bước 03 / 03 · Hoàn tất khôi phục</span>
+            <h1 className="auth-title">Đặt lại mật khẩu</h1>
+            <p className="auth-subtitle">Thiết lập mật khẩu mới cho tài khoản của bạn.</p>
           </div>
-        ) : successMessage ? (
-          <div>
-            <div className="auth-success-banner" role="status">
-              <span>{successMessage}</span>
+
+          {isVerifying ? (
+            <div style={{ textAlign: "center", padding: "32px 0", color: "var(--auth-muted)" }}>
+              Đang xác minh liên kết đặt lại mật khẩu...
             </div>
-            <div className="auth-actions-row">
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => onNavigate("#login")}
-              >
-                Đăng nhập ngay
-              </button>
-            </div>
-          </div>
-        ) : !isTokenValid ? (
-          <div>
-            <div className="auth-error-banner" role="alert">
-              <span aria-hidden="true">⚠️</span>
-              <span>{errorMessage || "Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn."}</span>
-            </div>
-            <div className="auth-actions-row">
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => onNavigate("#forgot-password")}
-              >
-                Yêu cầu mã OTP mới
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            {errorMessage && (
-              <div className="auth-error-banner" role="alert">
-                <span aria-hidden="true">⚠️</span>
-                <span>{errorMessage}</span>
+          ) : successMessage ? (
+            <div className="auth-success-card">
+              <div className="auth-success-icon" aria-hidden="true">
+                ✓
               </div>
-            )}
+              <h2 style={{ fontFamily: "var(--font-heading)", color: "var(--auth-text)", margin: "0 0 8px" }}>
+                Đổi mật khẩu thành công!
+              </h2>
+              <div className="auth-success-banner" role="status">
+                <span>{successMessage}</span>
+              </div>
+              <div className="auth-actions-row" style={{ marginTop: "16px" }}>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => onNavigate("#login")}
+                >
+                  Đăng nhập ngay
+                </button>
+              </div>
+            </div>
+          ) : !isTokenValid ? (
+            <div>
+              <div id="reset-password-error" className="auth-error-banner" role="alert">
+                <span aria-hidden="true">⚠️</span>
+                <span>{errorMessage || "Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn."}</span>
+              </div>
+              <div className="auth-actions-row">
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => onNavigate("#forgot-password")}
+                >
+                  Yêu cầu mã OTP mới
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {errorMessage && (
+                <div id="reset-password-error" className="auth-error-banner" role="alert">
+                  <span aria-hidden="true">⚠️</span>
+                  <span>{errorMessage}</span>
+                </div>
+              )}
 
-            <form className="auth-form" onSubmit={handleSubmit} noValidate>
-              <div className="form-group">
-                <label className="form-label" htmlFor="new-password">
-                  Mật khẩu mới
-                </label>
-                <div className="password-input-wrapper">
+              <form className="auth-form" onSubmit={handleSubmit} noValidate>
+                <div className="form-group">
+                  <label className="form-label" htmlFor="new-password">
+                    Mật khẩu mới
+                    <span className="required-asterisk" aria-hidden="true" title="Bắt buộc">*</span>
+                  </label>
+                  <div className="password-input-wrapper">
+                    <input
+                      id="new-password"
+                      type={showPassword ? "text" : "password"}
+                      aria-label="Mật khẩu mới"
+                      className="form-input"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      disabled={isSubmitting}
+                      autoComplete="new-password"
+                      required
+                      autoFocus
+                      aria-describedby={errorMessage ? "reset-password-error" : undefined}
+                      aria-invalid={Boolean(errorMessage)}
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle-btn"
+                      onClick={() => setShowPassword((prev) => !prev)}
+                      aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                      disabled={isSubmitting}
+                    >
+                      {showPassword ? "Ẩn" : "Hiện"}
+                    </button>
+                  </div>
+                  <p className="form-hint">
+                    Tối thiểu 8 ký tự, gồm ít nhất 1 chữ hoa, 1 chữ thường và 1 chữ số.
+                  </p>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" htmlFor="confirm-password">
+                    Xác nhận mật khẩu mới
+                    <span className="required-asterisk" aria-hidden="true" title="Bắt buộc">*</span>
+                  </label>
                   <input
-                    id="new-password"
+                    id="confirm-password"
                     type={showPassword ? "text" : "password"}
+                    aria-label="Xác nhận mật khẩu mới"
                     className="form-input"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
                     disabled={isSubmitting}
                     autoComplete="new-password"
                     required
-                    autoFocus
+                    aria-describedby={errorMessage ? "reset-password-error" : undefined}
                     aria-invalid={Boolean(errorMessage)}
                   />
+                </div>
+
+                <div className="auth-actions-row">
                   <button
-                    type="button"
-                    className="password-toggle-btn"
-                    onClick={() => setShowPassword((prev) => !prev)}
-                    aria-label={showPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                    type="submit"
+                    className="btn-primary"
                     disabled={isSubmitting}
                   >
-                    {showPassword ? "Ẩn" : "Hiện"}
+                    {isSubmitting ? "Đang cập nhật..." : "Cập nhật mật khẩu"}
                   </button>
                 </div>
-                <p className="form-hint">
-                  Tối thiểu 8 ký tự, gồm ít nhất 1 chữ hoa, 1 chữ thường và 1 chữ số.
-                </p>
-              </div>
+              </form>
+            </>
+          )}
 
-              <div className="form-group">
-                <label className="form-label" htmlFor="confirm-password">
-                  Xác nhận mật khẩu mới
-                </label>
-                <input
-                  id="confirm-password"
-                  type={showPassword ? "text" : "password"}
-                  className="form-input"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  disabled={isSubmitting}
-                  autoComplete="new-password"
-                  required
-                  aria-invalid={Boolean(errorMessage)}
-                />
-              </div>
-
-              <div className="auth-actions-row">
-                <button
-                  type="submit"
-                  className="btn-primary"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? "Đang cập nhật..." : "Cập nhật mật khẩu"}
-                </button>
-              </div>
-            </form>
-          </>
-        )}
-
-        <div className="auth-links-row" style={{ justifyContent: "center" }}>
-          <a
-            href="#login"
-            className="auth-text-link"
-            onClick={(e) => {
-              e.preventDefault();
-              onNavigate("#login");
-            }}
-          >
-            ← Quay lại trang Đăng nhập
-          </a>
+          <div className="auth-links-row" style={{ justifyContent: "center" }}>
+            <a
+              href="#login"
+              className="auth-link"
+              onClick={(e) => {
+                e.preventDefault();
+                onNavigate("#login");
+              }}
+            >
+              ← Quay lại trang Đăng nhập
+            </a>
+          </div>
         </div>
       </div>
     </section>

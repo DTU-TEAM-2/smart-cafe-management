@@ -1,0 +1,13 @@
+--- a/backend/src/test/java/vn/codegym/smartcafe/database/ProfileMySqlTest.java
++++ b/backend/src/test/java/vn/codegym/smartcafe/database/ProfileMySqlTest.java
+@@ -280,6 +280,10 @@
+         assertThat(value(call("POST", "/auth/login", "", Map.of("username", "profile_2", "password", password)), "$.mustChangePassword")).isEqualTo(true);
+     }
+
++    @Test void staffCannotReadOtherEmployeePersonnelThroughManagementNamespace() throws Exception {
++        assertThat(call("GET", "/staff/1", login(2), null).statusCode()).isEqualTo(403);
++    }
++
+     private Map<String, Object> userState(int id) { return jdbc.queryForMap("SELECT password_hash,password_changed_at,must_change_password,auth_version,version,full_name,phone FROM users WHERE id=?", id); }
+     private String login(int id) throws Exception {
+         var result = call("POST", "/auth/login", "", Map.of("username", "profile_" + id, "password", password));

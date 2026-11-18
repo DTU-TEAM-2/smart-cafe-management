@@ -9,24 +9,13 @@ import org.springframework.web.server.ResponseStatusException;
 @Service
 class HeaderService {
     private final JdbcClient jdbc;
+    private final AccountReader accounts;
 
-    HeaderService(JdbcClient jdbc) { this.jdbc = jdbc; }
+    HeaderService(JdbcClient jdbc, AccountReader accounts) { this.jdbc = jdbc; this.accounts = accounts; }
 
     @Transactional(readOnly = true)
     public HomeAccount account(String username) {
-        return jdbc.sql("""
-                SELECT u.id, u.username, u.full_name, u.email, u.phone, u.role,
-                       p.address, p.birthday, p.gender, p.salary, a.secure_url
-                FROM users u
-                LEFT JOIN staff_profiles p ON p.user_id=u.id
-                LEFT JOIN media_assets a ON a.id=u.avatar_media_id AND a.deleted_at IS NULL
-                WHERE u.username=? AND u.status='ACTIVE'
-                """).param(username).query((row, index) -> new HomeAccount(
-                        row.getString("id"), row.getString("username"), row.getString("full_name"),
-                        row.getString("email"), row.getString("phone"), row.getString("role"),
-                        row.getString("address"), row.getString("birthday"), row.getString("gender"),
-                        row.getBigDecimal("salary") == null ? null : row.getBigDecimal("salary").toPlainString(),
-                        row.getString("secure_url"))).optional()
+        return accounts.byUsername(username).map(AccountReader.Account::home)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED));
     }
 
