@@ -55,3 +55,16 @@ Revision `c0fa0805c7bba38122e6f70768fccba9ddc30393`, ngày 13/11/2026. HTTP, Web
 - Giao diện editor kiểm ở độ rộng 320, 390, 768 và 1440 px. Toàn bộ runtime và database do lượt kiểm tạo đã được dừng sau kiểm tra.
 
 [Bằng chứng từng bước](evidence/dt2-1-dt2-7-live-check-2026-11-13.json). Tài khoản và dữ liệu thử nằm trong database riêng. Storage cloud và luồng tự cấp phiên khách tại bàn chưa được kiểm trong lượt này.
+
+## Xử lý review tài nguyên và độ trễ — 18/11/2026
+
+Đối chiếu hai góp ý ngày 17/11 trên `ff10950` trong PR #15. Trước sửa đã tái hiện hai ca upload/read giữ cả 2 connection Hikari khi Storage chờ, và hai ca callback commit không hoàn tất trong 1 giây khi socket bị chặn ở quy mô 64/256 subscriber giả lập.
+
+- Ảnh dùng transaction ngắn cho metadata và quyền. Upload/download chạy ngoài transaction. Cleanup chạy sau khi transaction đã giải phóng tài nguyên; lỗi begin hoặc rollback chắc chắn thì xóa object, outcome UNKNOWN thì giữ để đối soát. Test completion dùng Spring transaction manager giả lập để kiểm tra commit, begin failure, rollback, cleanup failure và UNKNOWN; test metadata/quyền/rollback INSERT dùng MySQL thật.
+- Callback AFTER_COMMIT đưa lượt gửi vào executor 4 worker, queue tối đa bằng connection budget (mặc định 256). Worker kiểm lại quyền trước gửi, native Tomcat blocking send giới hạn 5 giây. Khi queue đầy, kết nối bị đánh dấu để bộ quét đóng 1013 và client reconnect/REST re-fetch. Có meter queue/active/drop/duration.
+- Regression kiểm hai upload hoặc hai download bị chặn cùng lúc với Hikari pool 2, xác nhận 0 connection bận trong lúc chờ và API đọc News khác vẫn trả 200. Socket test kiểm 64/256 subscriber chậm, queue đầy, thu hồi quyền và native timeout. Test tích hợp MySQL kiểm POST/PUT/DELETE trả về trong 2 giây mỗi request khi 64 session giả lập còn chờ gửi; rollback và socket mạng thật tiếp tục được kiểm qua bộ News hiện có.
+- Các phép chặn Storage/socket là test doubles có latch để tái hiện tài nguyên bị giữ, không phải benchmark Firebase cloud hoặc 256 kết nối TCP thật. Bằng chứng live 13/11 phía trên thuộc revision đã ghi. Luồng reconnect nhận READY và đọc lại REST vẫn là cơ chế phục hồi.
+
+Kết quả local ngày 18/11 là **307/307 Maven verify đạt**, 0 lỗi và 0 bỏ qua, trên MySQL 8.0 Docker `_test` riêng. Registry/checksum 17 skill/169 file, 9 routing tests và kiểm whitespace đạt. Lệnh backend là `backend/mvnw.cmd -o -B -ntp verify` với `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD` trỏ database thử riêng; container được dừng sau kiểm thử. Frontend được kiểm lại bởi CI của revision bàn giao.
+
+Skills áp dụng trong lượt này gồm `cafe-workflow`, `cafe-spring-api`, `cafe-quality`, `cafe-review` tại `.agents/skills/<tên-skill>/SKILL.md`. Mã ảnh, socket và hợp đồng được đối chiếu với các caller hiện có; dữ liệu thử chỉ nằm trong MySQL `_test` riêng.

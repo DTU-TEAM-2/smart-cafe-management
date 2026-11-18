@@ -3,6 +3,7 @@ package vn.codegym.smartcafe.news;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.imageio.ImageIO;
 import javax.imageio.stream.MemoryCacheImageInputStream;
 import org.slf4j.Logger;
@@ -11,9 +12,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -24,31 +28,47 @@ class NewsImageService {
     private final JdbcClient jdbc;
     private final NewsImageStorage storage;
     private final NewsReaderAccess readers;
+    private final TransactionTemplate metadata;
+    private final TransactionTemplate lookup;
 
-    NewsImageService(JdbcClient jdbc, NewsImageStorage storage, NewsReaderAccess readers) {
+    NewsImageService(JdbcClient jdbc, NewsImageStorage storage, NewsReaderAccess readers,
+            PlatformTransactionManager transactions) {
         this.jdbc = jdbc;
         this.storage = storage;
         this.readers = readers;
+        this.metadata = new TransactionTemplate(transactions);
+        this.lookup = new TransactionTemplate(transactions);
+        this.lookup.setReadOnly(true);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.NEVER)
     public UploadedImage upload(MultipartFile file) {
         var image = validateImage(file);
         var stored = storage.upload(image.bytes(), image.mimeType());
-        // A failed INSERT or failed commit must not leave the uploaded object orphaned.
-        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-            @Override
-            public void afterCompletion(int status) {
-                if (status == STATUS_ROLLED_BACK) {
-                    try { storage.delete(stored.assetId()); }
-                    catch (RuntimeException failure) {
-                        LOG.warn("Could not remove uncommitted news image asset {}", stored.assetId());
-                    }
-                } else if (status == STATUS_UNKNOWN) {
-                    LOG.warn("Unknown transaction outcome for news image {}; retain object for reconciliation", stored.assetId());
+        // Before begin succeeds, no metadata can have committed. Record the actual outcome once enlisted.
+        var outcome = new AtomicInteger(TransactionSynchronization.STATUS_ROLLED_BACK);
+        try {
+            return metadata.execute(status -> {
+                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                    @Override public void afterCompletion(int completion) { outcome.set(completion); }
+                });
+                return insertMetadata(stored, image);
+            });
+        } catch (RuntimeException | Error failure) {
+            // execute() has already released JDBC resources, including after commit/rollback failure.
+            if (outcome.get() == TransactionSynchronization.STATUS_ROLLED_BACK) {
+                try { storage.delete(stored.assetId()); }
+                catch (RuntimeException cleanupFailure) {
+                    LOG.warn("Could not remove uncommitted news image asset {}", stored.assetId());
                 }
+            } else if (outcome.get() == TransactionSynchronization.STATUS_UNKNOWN) {
+                LOG.warn("Unknown transaction outcome for news image {}; retain object for reconciliation", stored.assetId());
             }
-        });
+            throw failure;
+        }
+    }
+
+    private UploadedImage insertMetadata(NewsImageStorage.StoredImage stored, ValidatedImage image) {
         var key = new GeneratedKeyHolder();
         jdbc.sql("""
                 INSERT INTO media_assets(provider,provider_asset_id,secure_url,mime_type,size_bytes,
@@ -62,8 +82,13 @@ class NewsImageService {
                 image.width(), image.height());
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(propagation = Propagation.NEVER)
     public ImageContent read(long id, String username) {
+        var image = lookup.execute(status -> findImage(id, username));
+        return new ImageContent(storage.read(image.assetId()), image.mimeType());
+    }
+
+    private ImageMetadata findImage(long id, String username) {
         String access = readers.predicate(username);
         var image = jdbc.sql("""
                 SELECT m.provider_asset_id,m.mime_type FROM media_assets m
@@ -78,7 +103,7 @@ class NewsImageService {
         if (!"image/jpeg".equals(image.mimeType()) && !"image/png".equals(image.mimeType())) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy ảnh tin tức.");
         }
-        return new ImageContent(storage.read(image.assetId()), image.mimeType());
+        return image;
     }
 
     private ValidatedImage validateImage(MultipartFile file) {

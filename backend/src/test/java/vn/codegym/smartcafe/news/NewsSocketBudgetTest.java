@@ -164,6 +164,88 @@ class NewsSocketBudgetTest {
         assertThatIllegalArgumentException().isThrownBy(() -> new NewsSocket(authenticator, meters, clock, 4, 5, 1, 1));
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(ints = {64, 256})
+    void slowSubscribersDoNotBlockTheCommitThread(int subscribers) throws Exception {
+        socket.shutdown(); meters.clear();
+        socket = new NewsSocket(authenticator, meters, clock, 256, 256, 256, 256);
+        var entered = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        var delivered = new CountDownLatch(subscribers);
+        for (int i = 0; i < subscribers; i++) {
+            var session = establish(admit(source(i)));
+            socket.handleMessage(session, new TextMessage("Bearer staff"));
+            doAnswer(call -> {
+                entered.countDown();
+                if (!release.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("Slow socket timed out");
+                delivered.countDown();
+                return null;
+            }).when(session).sendMessage(any(TextMessage.class));
+        }
+        try (var request = Executors.newSingleThreadExecutor()) {
+            var commit = request.submit(() -> socket.changed(new NewsChanged("1", "UPDATED", 1, true)));
+            try {
+                assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+                commit.get(1, TimeUnit.SECONDS);
+                assertThat(delivered.getCount()).isEqualTo(subscribers);
+            } finally { release.countDown(); }
+            assertThat(delivered.await(5, TimeUnit.SECONDS)).isTrue();
+        }
+    }
+
+    @Test
+    void fullDeliveryQueueNeverRunsOnCallerAndReconnectCanRefreshMissedHints() throws Exception {
+        socket.shutdown(); meters.clear();
+        socket = new NewsSocket(authenticator, meters, clock, 4, 4, 4, 4);
+        var entered = new CountDownLatch(4);
+        var release = new CountDownLatch(1);
+        var sessions = new ArrayList<WebSocketSession>();
+        for (int i = 0; i < 4; i++) {
+            var session = establish(admit(source(i))); sessions.add(session);
+            socket.handleMessage(session, new TextMessage("Bearer staff"));
+            doAnswer(call -> {
+                entered.countDown();
+                if (!release.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("Slow socket timed out");
+                return null;
+            }).when(session).sendMessage(any(TextMessage.class));
+        }
+        try {
+            socket.changed(new NewsChanged("1", "UPDATED", 1, true));
+            assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+            socket.changed(new NewsChanged("1", "UPDATED", 2, true));
+            assertThat(meters.get("news.websocket.delivery.queued").gauge().value()).isEqualTo(4);
+            socket.changed(new NewsChanged("1", "UPDATED", 3, true));
+            assertThat(meters.get("news.websocket.delivery.dropped").counter().count()).isEqualTo(4);
+            assertThat(meters.get("news.websocket.delivery.queued").gauge().value()).isEqualTo(4);
+            for (var session : sessions) verify(session, never()).close(any(CloseStatus.class));
+            socket.expirePendingClients();
+            for (var session : sessions) verify(session).close(CloseStatus.SERVICE_OVERLOAD);
+            assertThat(connections()).isZero();
+            var replacement = establish(admit(source(9)));
+            socket.handleMessage(replacement, new TextMessage("Bearer staff"));
+            verify(replacement).sendMessage(argThat(message -> message.getPayload().toString().contains("READY")));
+        } finally { release.countDown(); }
+    }
+
+    @Test
+    void queuedDeliveryRechecksRevocationAndNativeSendHasFiveSecondTimeout() throws Exception {
+        var nativeSession = mock(jakarta.websocket.Session.class);
+        var properties = new HashMap<String, Object>();
+        when(nativeSession.getUserProperties()).thenReturn(properties);
+        var standard = mock(org.springframework.web.socket.adapter.standard.StandardWebSocketSession.class);
+        when(standard.getAttributes()).thenReturn(admit(source(1)).attributes());
+        when(standard.getNativeSession()).thenReturn(nativeSession);
+        when(standard.isOpen()).thenReturn(true);
+        socket.afterConnectionEstablished(standard);
+        assertThat(properties).containsEntry("org.apache.tomcat.websocket.BLOCKING_SEND_TIMEOUT", 5000L);
+        socket.handleMessage(standard, new TextMessage("Bearer staff"));
+        clearInvocations(standard);
+        when(authenticator.isCurrentStaff(staff)).thenReturn(false);
+        socket.changed(new NewsChanged("1", "UPDATED", 1, true));
+        verify(standard, timeout(2000)).close(CloseStatus.POLICY_VIOLATION);
+        verify(standard, never()).sendMessage(any());
+    }
+
     private Admission admit(String address) {
         var request = new MockHttpServletRequest("GET", "/api/v1/news/events"); request.setRemoteAddr(address);
         var servlet = new ServletServerHttpRequest(request); var response = new MockHttpServletResponse();

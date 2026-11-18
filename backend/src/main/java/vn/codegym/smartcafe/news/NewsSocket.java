@@ -10,10 +10,14 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -28,6 +32,7 @@ import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
 import org.springframework.web.socket.WebSocketHandler;
 import org.springframework.web.socket.WebSocketSession;
+import org.springframework.web.socket.adapter.standard.StandardWebSocketSession;
 import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
@@ -46,6 +51,7 @@ class NewsSocket extends TextWebSocketHandler implements WebSocketConfigurer, Ha
     private final Clock clock;
     private final int maxConnections, maxPending, maxPerSource, maxPerAccount;
     private final ConcurrentHashMap<String, Client> clients = new ConcurrentHashMap<>();
+    private final ThreadPoolExecutor delivery;
     private volatile boolean stopping;
     private final ScheduledExecutorService expiry = Executors.newSingleThreadScheduledExecutor(task -> {
         var thread = new Thread(task, "news-socket-expiry");
@@ -70,9 +76,17 @@ class NewsSocket extends TextWebSocketHandler implements WebSocketConfigurer, Ha
         this.maxPending = maxPending;
         this.maxPerSource = maxPerSource;
         this.maxPerAccount = maxPerAccount;
+        delivery = new ThreadPoolExecutor(4, 4, 0, TimeUnit.SECONDS,
+                new ArrayBlockingQueue<>(maxConnections), task -> {
+                    var thread = new Thread(task, "news-socket-delivery");
+                    thread.setDaemon(true);
+                    return thread;
+                }, new ThreadPoolExecutor.AbortPolicy());
         Gauge.builder("news.websocket.connections", clients, Map::size).register(meters);
         Gauge.builder("news.websocket.pending", clients,
                 map -> map.values().stream().filter(client -> client.authentication() == null).count()).register(meters);
+        Gauge.builder("news.websocket.delivery.queued", delivery, pool -> pool.getQueue().size()).register(meters);
+        Gauge.builder("news.websocket.delivery.active", delivery, ThreadPoolExecutor::getActiveCount).register(meters);
     }
 
     @PostConstruct
@@ -143,6 +157,11 @@ class NewsSocket extends TextWebSocketHandler implements WebSocketConfigurer, Ha
             if (client != null && client.session() == null && client.deadline().isAfter(clock.instant())) {
                 session.setTextMessageSizeLimit(4096);
                 session.setBinaryMessageSizeLimit(1);
+                if (session instanceof StandardWebSocketSession standard) {
+                    // The decorator's send limit alone cannot interrupt a single blocked native send.
+                    standard.getNativeSession().getUserProperties()
+                            .put("org.apache.tomcat.websocket.BLOCKING_SEND_TIMEOUT", 5000L);
+                }
                 clients.put(id, new Client(new ConcurrentWebSocketSessionDecorator(session, 5000, 65536),
                         null, client.source(), client.deadline()));
                 return;
@@ -194,9 +213,21 @@ class NewsSocket extends TextWebSocketHandler implements WebSocketConfigurer, Ha
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void changed(NewsChanged event) {
         if (!event.staffFeedChanged()) return;
-        var message = new TextMessage("{\"type\":\"NEWS_CHANGED\"}");
+        // The commit thread only offers work. It never validates DB state, sends or closes sockets.
         clients.forEach((id, client) -> {
-            if (client.authentication() == null) return;
+            if (client.authentication() == null || client.lagging().get()) return;
+            try { delivery.execute(() -> deliver(id, client)); }
+            catch (RejectedExecutionException full) {
+                client.lagging().set(true);
+                meters.counter("news.websocket.delivery.dropped").increment();
+            }
+        });
+    }
+
+    private void deliver(String id, Client client) {
+        if (clients.get(id) != client || client.lagging().get()) return;
+        var message = new TextMessage("{\"type\":\"NEWS_CHANGED\"}");
+        meters.timer("news.websocket.delivery.duration").record(() -> {
             try {
                 if (!authenticator.isCurrentStaff(client.authentication())) {
                     close(id, client, CloseStatus.POLICY_VIOLATION);
@@ -224,7 +255,9 @@ class NewsSocket extends TextWebSocketHandler implements WebSocketConfigurer, Ha
     void expirePendingClients() {
         Instant now = clock.instant();
         clients.forEach((id, client) -> {
-            if (client.authentication() == null && !client.deadline().isAfter(now)) {
+            if (client.lagging().get()) {
+                close(id, client, CloseStatus.SERVICE_OVERLOAD);
+            } else if (client.authentication() == null && !client.deadline().isAfter(now)) {
                 close(id, client, CloseStatus.POLICY_VIOLATION);
             }
         });
@@ -264,8 +297,14 @@ class NewsSocket extends TextWebSocketHandler implements WebSocketConfigurer, Ha
     void shutdown() {
         stopping = true;
         expiry.shutdownNow();
+        delivery.shutdownNow();
         clients.forEach((id, client) -> close(id, client, CloseStatus.GOING_AWAY));
     }
 
-    private record Client(WebSocketSession session, Authentication authentication, String source, Instant deadline) {}
+    private record Client(WebSocketSession session, Authentication authentication, String source, Instant deadline,
+            AtomicBoolean lagging) {
+        Client(WebSocketSession session, Authentication authentication, String source, Instant deadline) {
+            this(session, authentication, source, deadline, new AtomicBoolean());
+        }
+    }
 }

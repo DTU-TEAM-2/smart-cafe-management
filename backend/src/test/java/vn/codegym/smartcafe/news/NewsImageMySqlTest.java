@@ -2,6 +2,9 @@ package vn.codegym.smartcafe.news;
 
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import javax.imageio.ImageIO;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,7 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 // MySQL metadata/transactions are real; only the external Firebase boundary is mocked.
 @SpringBootTest(properties = {
         "spring.datasource.url=${TEST_DB_URL}", "spring.datasource.username=${TEST_DB_USERNAME}",
-        "spring.datasource.password=${TEST_DB_PASSWORD:}"
+        "spring.datasource.password=${TEST_DB_PASSWORD:}", "spring.datasource.hikari.maximum-pool-size=2"
 })
 @AutoConfigureMockMvc
 @EnabledIfEnvironmentVariable(named = "TEST_DB_URL", matches = "jdbc:mysql:.*")
@@ -42,6 +45,52 @@ class NewsImageMySqlTest {
     @Autowired MockMvc mvc;
     @MockitoBean NewsImageStorage storage;
     @MockitoSpyBean JdbcClient client;
+    @Autowired javax.sql.DataSource dataSource;
+
+    @ParameterizedTest
+    @ValueSource(strings = {"upload", "read"})
+    void slowStorageDoesNotHoldEitherConnectionOrBlockOtherDatabaseRequests(String operation) throws Exception {
+        var entered = new CountDownLatch(2);
+        var release = new CountDownLatch(1);
+        var sequence = new java.util.concurrent.atomic.AtomicInteger();
+        var image = png();
+        jdbc.update("""
+                INSERT INTO media_assets(id,provider,provider_asset_id,secure_url,mime_type,size_bytes)
+                VALUES (9501,'FIREBASE',?,'https://example.invalid/news.png','image/png',1)
+                """, ASSET);
+        doAnswer(call -> {
+            entered.countDown();
+            if (!release.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("Storage test timed out");
+            return image.getBytes();
+        }).when(storage).read(ASSET);
+        doAnswer(call -> {
+            int number = sequence.incrementAndGet();
+            entered.countDown();
+            if (!release.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("Storage test timed out");
+            return new NewsImageStorage.StoredImage("news/00000000-0000-0000-0000-%012d.png".formatted(number + 1),
+                    "https://example.invalid/upload-" + number);
+        }).when(storage).upload(any(), anyString());
+        try (var pool = Executors.newFixedThreadPool(3)) {
+            var requests = java.util.stream.IntStream.range(0, 2).mapToObj(i -> pool.submit(() -> {
+                if (operation.equals("upload")) {
+                    mvc.perform(multipart("/api/v1/news/images").file(image).with(user("image-admin").roles("ADMIN")))
+                            .andExpect(status().isCreated());
+                } else {
+                    mvc.perform(get("/api/v1/news/images/9501").with(user("image-admin").roles("ADMIN")))
+                            .andExpect(status().isOk());
+                }
+                return null;
+            })).toList();
+            try {
+                assertThat(entered.await(5, TimeUnit.SECONDS)).isTrue();
+                var hikari = dataSource.unwrap(com.zaxxer.hikari.HikariDataSource.class);
+                assertThat(hikari.getHikariPoolMXBean().getActiveConnections()).isZero();
+                pool.submit(() -> mvc.perform(get("/api/v1/news").with(user("image-admin").roles("ADMIN")))
+                        .andExpect(status().isOk())).get(2, TimeUnit.SECONDS);
+            } finally { release.countDown(); }
+            for (var request : requests) request.get(5, TimeUnit.SECONDS);
+        }
+    }
 
     @BeforeEach
     void seed() {
@@ -63,6 +112,8 @@ class NewsImageMySqlTest {
         jdbc.update("DELETE FROM users WHERE id IN (951,952,953)");
         jdbc.update("DELETE FROM media_assets WHERE id BETWEEN 9501 AND 9503");
         jdbc.update("DELETE FROM media_assets WHERE provider_asset_id=?", ASSET);
+        jdbc.update("DELETE FROM media_assets WHERE provider_asset_id IN (?,?)",
+                "news/00000000-0000-0000-0000-000000000002.png", "news/00000000-0000-0000-0000-000000000003.png");
     }
 
     @ParameterizedTest

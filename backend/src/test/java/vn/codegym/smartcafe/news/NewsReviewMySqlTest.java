@@ -1,6 +1,9 @@
 package vn.codegym.smartcafe.news;
 
 import java.util.List;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -25,18 +28,28 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
+import org.springframework.http.server.ServletServerHttpRequest;
+import org.springframework.http.server.ServletServerHttpResponse;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.web.socket.CloseStatus;
+import org.springframework.web.socket.TextMessage;
+import org.springframework.web.socket.WebSocketSession;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.not;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -45,7 +58,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "spring.datasource.url=${TEST_DB_URL}", "spring.datasource.username=${TEST_DB_USERNAME}",
         "spring.datasource.password=${TEST_DB_PASSWORD:}",
-        "smartcafe.auth.token-secret=review-news-secret-only-at-least-32-characters"
+        "smartcafe.auth.token-secret=review-news-secret-only-at-least-32-characters",
+        "smartcafe.news.socket.max-per-account=256"
 })
 @AutoConfigureMockMvc
 @EnabledIfEnvironmentVariable(named = "TEST_DB_URL", matches = "jdbc:mysql:.*")
@@ -55,6 +69,55 @@ class NewsReviewMySqlTest {
     @MockitoSpyBean JdbcClient client;
     @LocalServerPort int port;
     @Autowired vn.codegym.smartcafe.config.BearerTokenAuthenticator authenticator;
+    @Autowired NewsSocket newsSocket;
+
+    @Test
+    void createUpdateAndArchiveReturnWhileSixtyFourSubscribersAreStillBlocked() throws Exception {
+        var entered = new CountDownLatch(4);
+        var release = new CountDownLatch(1);
+        var sessions = new ArrayList<WebSocketSession>();
+        try {
+            for (int i = 0; i < 64; i++) {
+                var request = new MockHttpServletRequest("GET", "/api/v1/news/events");
+                request.setRemoteAddr("192.0.2." + (i + 1));
+                var attributes = new HashMap<String, Object>();
+                assertThat(newsSocket.beforeHandshake(new ServletServerHttpRequest(request),
+                        new ServletServerHttpResponse(new MockHttpServletResponse()),
+                        newsSocket, attributes)).isTrue();
+                var session = mock(WebSocketSession.class);
+                when(session.getAttributes()).thenReturn(attributes);
+                when(session.isOpen()).thenReturn(true);
+                newsSocket.afterConnectionEstablished(session);
+                sessions.add(session);
+                newsSocket.handleMessage(session, new TextMessage(bearer(902, "review-staff")));
+                doAnswer(call -> {
+                    entered.countDown();
+                    if (!release.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("Slow subscriber timed out");
+                    return null;
+                }).when(session).sendMessage(any(TextMessage.class));
+            }
+            try (var writer = Executors.newSingleThreadExecutor()) {
+                writer.submit(() -> mvc.perform(post("/api/v1/news").with(user("review-admin").roles("ADMIN"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"slug\":\"slow-subscribers\",\"title\":\"Created\",\"body\":\"Body\",\"status\":\"PUBLISHED\",\"audiences\":[\"STAFF\"]}"))
+                        .andExpect(status().isCreated())).get(2, TimeUnit.SECONDS);
+                assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
+                long id = jdbc.queryForObject("SELECT id FROM news_posts WHERE slug='slow-subscribers'", Long.class);
+                writer.submit(() -> mvc.perform(put("/api/v1/news/" + id).with(user("review-admin").roles("ADMIN"))
+                        .header("If-Match", "\"0\"").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\":\"Updated\",\"body\":\"Body\"}"))
+                        .andExpect(status().isOk())).get(2, TimeUnit.SECONDS);
+                writer.submit(() -> mvc.perform(delete("/api/v1/news/" + id).with(user("review-admin").roles("ADMIN"))
+                        .header("If-Match", "\"1\""))
+                        .andExpect(status().isNoContent())).get(2, TimeUnit.SECONDS);
+                assertThat(release.getCount()).isEqualTo(1);
+                assertThat(jdbc.queryForObject("SELECT status FROM news_posts WHERE id=?", String.class, id)).isEqualTo("ARCHIVED");
+            }
+        } finally {
+            for (var session : sessions) newsSocket.afterConnectionClosed(session, CloseStatus.NORMAL);
+            release.countDown();
+        }
+    }
 
     @BeforeEach
     void seed() {
