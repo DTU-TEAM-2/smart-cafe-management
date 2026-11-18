@@ -9,6 +9,7 @@ import ResetPasswordPage from "../auth/ResetPasswordPage.jsx";
 import AdminDashboard from "../dashboard/AdminDashboard.jsx";
 import StaffDashboard from "../dashboard/StaffDashboard.jsx";
 import SalesWorkspace from "../sales/SalesWorkspace.jsx";
+import CustomerApp from "../customer/CustomerApp.jsx";
 
 function subscribeHash(callback) {
   window.addEventListener("hashchange", callback);
@@ -94,6 +95,7 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
   const onAdminPage = hash.startsWith("#admin");
   const onStaffPage = hash.startsWith("#staff");
   const onSalesPage = hash === "#sale" || hash === "#sale-income";
+  const onCustomerPage = hash.startsWith("#customer");
 
   const isAuthPage = onLoginPage || onRegisterPage || onForgotPasswordPage || onOtpPage || onResetPasswordPage;
   const isSpecialPage = onAccountPage || isAuthPage || onAdminPage || onStaffPage || onSalesPage;
@@ -113,6 +115,7 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
     window.location.hash = newHash;
   }
 
+  if (onCustomerPage) return <CustomerApp onNavigateHome={() => handleNavigate("#top")} />;
   const account = identity.account ? { ...identity.account, profileHref: "#account" } : null;
   if (onSalesPage) return <SalesWorkspace account={account} identityStatus={identity.status}
     authorization={authorization} credentials={credentials} income={hash === "#sale-income"}
