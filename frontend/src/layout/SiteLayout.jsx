@@ -1,4 +1,4 @@
-﻿import { useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 
 const noticeTime = new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", timeZone: "Asia/Ho_Chi_Minh" });
 function formattedTime(value) {
@@ -40,7 +40,7 @@ function Icon({ name }) {
 }
 
 export default function SiteLayout({ children, account = null, notifications = null, links = {},
-  currentPage = "home", notificationState = "ready", onRetryNotifications, onNotificationsOpen, management = false }) {
+  currentPage = "home", isAuthPage = false, notificationState = "ready", onRetryNotifications, onNotificationsOpen, management = false }) {
   const [panel, setPanel] = useState(null);
   const regionId = useId();
   const menuButton = useRef(null);
@@ -66,7 +66,7 @@ export default function SiteLayout({ children, account = null, notifications = n
       event.preventDefault();
       document.getElementById("main")?.focus();
     } : undefined}>Bỏ qua điều hướng</a>
-    <header className={management ? "site-header billing-header" : "site-header"} onKeyDown={handleHeaderKey} onBlur={(event) => {
+    <header className={`site-header${management ? " billing-header" : ""}${isAuthPage ? " site-header-auth" : ""}`} onKeyDown={handleHeaderKey} onBlur={(event) => {
       if (!event.currentTarget.contains(event.relatedTarget)) setPanel(null);
     }}>
       <div className="header-inner">
@@ -134,7 +134,7 @@ export default function SiteLayout({ children, account = null, notifications = n
       </div>
     </header>
     <main id="main" tabIndex={-1}>{children}</main>
-    {!management && <footer className="site-footer">
+    {!management && <footer className={`site-footer${isAuthPage ? " site-footer-auth" : ""}`}>
       <div className="footer-inner">
         <a className="brand footer-brand" href="#top" aria-label="LECKER Về đầu trang">
           <strong>LECKER</strong><span>COFFEE CAFE</span>

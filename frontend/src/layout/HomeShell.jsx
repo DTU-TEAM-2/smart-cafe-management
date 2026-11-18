@@ -2,6 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import HomePage from "../home/HomePage.jsx";
 import SiteLayout from "./SiteLayout.jsx";
 import LoginPage from "../auth/LoginPage.jsx";
+import RegisterPage from "../auth/RegisterPage.jsx";
 import ForgotPasswordPage from "../auth/ForgotPasswordPage.jsx";
 import OtpPage from "../auth/OtpPage.jsx";
 import ResetPasswordPage from "../auth/ResetPasswordPage.jsx";
@@ -87,6 +88,7 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
 
   const onAccountPage = hash.startsWith("#account");
   const onLoginPage = hash.startsWith("#login");
+  const onRegisterPage = hash.startsWith("#register");
   const onForgotPasswordPage = hash.startsWith("#forgot-password");
   const onOtpPage = hash.startsWith("#verify-otp");
   const onResetPasswordPage = hash.startsWith("#reset-password");
@@ -96,7 +98,8 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
   const onStatistics = hash === "#statistics";
   const onBillsPage = onStatistics || ["#bills", "#manage/bills", "#manage-bills"].includes(hash);
 
-  const isSpecialPage = onAccountPage || onLoginPage || onForgotPasswordPage || onOtpPage || onResetPasswordPage || onAdminPage || onStaffPage || onSalesPage || onBillsPage;
+  const isAuthPage = onLoginPage || onRegisterPage || onForgotPasswordPage || onOtpPage || onResetPasswordPage;
+  const isSpecialPage = onAccountPage || isAuthPage || onAdminPage || onStaffPage || onSalesPage || onBillsPage;
 
   useEffect(() => {
     if (!isSpecialPage && hash) {
@@ -127,7 +130,7 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
   if (onBillsPage && (isAdmin || (!onStatistics && account?.role === "STAFF"))) {
     return <BillsWorkspace layout={layout} authorization={authorization} credentials={credentials} statistics={onStatistics} isAdmin={isAdmin} />;
   }
-  return <SiteLayout {...layout} currentPage={onAccountPage ? "account" : onLoginPage ? "login" : "home"}>
+  return <SiteLayout {...layout} currentPage={onAccountPage ? "account" : onLoginPage ? "login" : "home"} isAuthPage={isAuthPage}>
     {identity.status === "error" && <div className="identity-error" role="alert">Chưa tải được thông tin tài khoản.
       <button type="button" onClick={() => setAccountAttempt(value => value + 1)}>Thử lại</button></div>}
     {onLoginPage ? (
@@ -136,6 +139,8 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
       ) : (
         <LoginPage onNavigate={handleNavigate} />
       )
+    ) : onRegisterPage ? (
+      <RegisterPage onNavigate={handleNavigate} />
     ) : onForgotPasswordPage ? (
       <ForgotPasswordPage onNavigate={handleNavigate} />
     ) : onOtpPage ? (
