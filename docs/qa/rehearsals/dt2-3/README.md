@@ -1,5 +1,7 @@
 # DT2-3 — integration rehearsal artifacts
 
+> Latest base update: Customer PR14 merged into develop b96a821; feature synchronization e2a3eb3 has no conflicts. Fresh primary315 and proposed B468 plus their separate live HTTP/Auth runs pass. Official A remains merge-blocked; News/Bills proposals still need owners. See the current review follow-up for hashes/timestamps; earlier baseline statements below are historical.
+
 > Current Staff is **official57ea6f1**, already implementing version/CAS/auth_version and caller migration. `staff-version-locking.patch`, `staff-version-locking-latest.patch` and `staff-caller-migration-latest.patch` are frozen historical b74 proposals: **DO NOT APPLY to57ea6f1**. Current13-case [official Staff/Profile harness](OfficialStaffProfileConcurrencyTest.java) uses the official DTO explicitly. [Native HTTP regression patch](official-shared-http-regressions.patch) and [path boundary tests](ProfileConsumerPathTest.java) are candidate-only test additions; they do not replace official Staff production/caller source. See [current report](../../../reports/dt2-3-review-follow-up.md) for separate A/B evidence.
 
 

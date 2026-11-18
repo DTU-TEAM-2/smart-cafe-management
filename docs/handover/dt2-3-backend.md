@@ -1,5 +1,7 @@
 # DT2-3 / DT2-27 — bàn giao Backend cho DT2-28
 
+> Latest base update: Customer PR14 merged into develop b96a821; feature synchronization e2a3eb3 has no conflicts. Fresh primary315 and proposed B468 plus their separate live HTTP/Auth runs pass. Official A remains merge-blocked; News/Bills proposals still need owners. See the current review follow-up for hashes/timestamps; earlier baseline statements below are historical.
+
 Ngày 15/11/2026; branch `feature/dt2-3_personal-account-backend`, HEAD/base `ffa4d9527e7924dd0bc9815fefb3034463d03156`, implementation còn local/uncommitted. Xem [yêu cầu và nguồn](dt2-3-requirements.md), [ADR-013](../architecture/decisions.md#adr-013--hồ-sơ-cá-nhân-và-vòng-đời-mật-khẩu-dt2-3-15112026), [OpenAPI](../api/dt2-3-profile.yaml), [ví dụ HTTP thật đã che credentials](../api/dt2-3-http-examples.json), [47 response lỗi HTTP thật](../api/dt2-3-http-errors.json), và [kết quả hardening hiện hành](../reports/dt2-3-hardening.md).
 
 ## Contract hiện thực

@@ -1,6 +1,6 @@
 # CF-04 / DT2-3 — finding matrix and proposed security contract
 
-Snapshot18/11/2026: develop331c1e3, Profilee7848df, officialStaff57ea6f1, Customer50745ba (round 2: 468 tests; round 1: ebe0a97, 461 tests), Newsc2343ed, Bills86b70e2. Full SHA, timestamps, source/fixture/POM/config/patch/JAR hashes and actual commands/results are in [machine evidence](../reports/dt2-3-review-follow-up-results.json). No member branch or foreign production module is changed in PR19.
+Latest base: develop `b96a821`, feature sync `e2a3eb3`; primary315 and proposed B468 freshly rerun after Customer merge. Earlier snapshot18/11/2026: develop331c1e3, Profilee7848df, officialStaff57ea6f1, Customer50745ba (round 2: 468 tests; round 1: ebe0a97, 461 tests), Newsc2343ed, Bills86b70e2. Full SHA, timestamps, source/fixture/POM/config/patch/JAR hashes and actual commands/results are in [machine evidence](../reports/dt2-3-review-follow-up-results.json). No member branch or foreign production module is changed in PR19.
 
 Read6review submissions,5inline threads and1conversation. Conversation6970922514 translates review5951694756; it is not a new finding. The latter review's Staff allegation is stale against57ea6f1. At read time reviewers had resolved3old code threads;2documentation threads remained open. No agent resolution/approval occurred.
 
@@ -61,3 +61,5 @@ TokenService is byte-identical across all6refs: standard5-field issuer. One News
 5. Verify before/at/after30×24h UTC and DB flag warning, CUSTOMER personnel denial. Capture actual HTTP/SQL with browser assertions; existing mocked UI tests do not establish this E2E.
 
 Maintainer next gate: reconcile A conflicts with this endpoint table, adopt News/Bills fixes on official branches, then rerun combined evidence at final revisions before independent approval/merge. CI green alone does not close these gates.
+
+Customer PR14 is now merged as b96a821. The feature integrated that approved base without conflicts; latest official A still exits2 at the same five conflict paths. Fresh primary315/315 and proposed B468/468, plus separate live HTTP/Auth, are pinned under machine evidence currentIntegration.postCustomerMerge. Own Profile runtime is unchanged from e7848df. Documentation corrections were first published at bd22f63; final synchronization commits are linked in PR19.

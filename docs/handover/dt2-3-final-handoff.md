@@ -1,5 +1,7 @@
 # DT2-3 / DT2-27 — final local handoff
 
+> Latest base update: Customer PR14 merged into develop b96a821; feature synchronization e2a3eb3 has no conflicts. Fresh primary315 and proposed B468 plus their separate live HTTP/Auth runs pass. Official A remains merge-blocked; News/Bills proposals still need owners. See the current review follow-up for hashes/timestamps; earlier baseline statements below are historical.
+
 > Current correction: official Staff57ea6f1 has fixed version/CAS/auth_version/callers. Do not apply historical Staffb74 proposals or treat its5/9 failures as current. Current official/proposed candidates, Draft verification timestamp and remaining News/Bills blockers are recorded in [review follow-up](../reports/dt2-3-review-follow-up.md). The dated results below remain historical.
 
 

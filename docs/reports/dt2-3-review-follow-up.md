@@ -1,3 +1,17 @@
+# Latest synchronized handoff — develop b96a821
+
+Customer PR #14 was officially merged while the first publication CI ran. The feature branch merged `develop@b96a821ae66d96dca0667c27956107c7de61df51` normally at `e2a3eb32680b85c4823a52553c7d05a700e18e08`, **without conflicts**. Customer guest CSRF, ownership, quotas, JSON cap and Firebase dependency are inherited from the approved base; Profile/runtime/API/DDL and BCrypt behavior are preserved. No unapproved Staff/News/Bills PR is merged into this branch.
+
+Fresh primary Maven/MySQL: **315/315 PASS**, zero failure/error/skip. Fresh Profile/Menu/QR HTTP: **203 requests / 587 assertions PASS**, 10 SQL checks; Auth/OTP/Home **39/57 PASS**, real loopback SMTP. Primary JAR SHA-256 `6c8c7103ccd97923fe3d44b8c02e15b05edce41a72c7dee488b4ffdeabaa7230`. Existing frontend source/dependencies are unchanged; new-base CI also confirms lint/build/100 Playwright, without implying Profile browser E2E.
+
+Official **Candidate A remains COMPOSITION BLOCKED**, direct Git exit 2, same five conflict paths, no runnable combined source, Maven/MySQL/Newman NOT RUN. The clean restored checkout is the new develop base, not a combined application. Proposed **Candidate B re-ran 468/468 PASS** at the new base (zero failure/error/skip), source manifest unchanged and verified; fresh HTTP **230/623 PASS**, 14 SQL checks and separate Auth/Home **39/57 PASS**. B JAR SHA-256 `152dc0ae6cb052345cb3c6b985d2b7b95cd6165733ca490d435a4d9de2c0511b`. Native Flyway provision/validate/repeat and owned-schema cleanup pass in both HTTP runs. Expected negative controls remain separate. Candidate B is not official adoption or A PASS.
+
+Staff `57ea6f1` remains FIXED in official source: 13 genuine-overlap cases pass, with exact official production/caller source and no historical Staff patch. News `c2343ed`, Bills `86b70e2` and the shared-chain proposals still await owner adoption. Customer `50745ba` is now approved develop ancestry, not an open dependency. [Machine evidence](dt2-3-review-follow-up-results.json) under `currentIntegration.postCustomerMerge` pins the commands, source, hashes and timestamps; earlier entries below are historical. [Finding matrix and DT2-28 plan](../handover/dt2-3-review-matrix.md) apply with this update.
+
+Draft was verified true before publication at 2026-11-18T07:59:40.488258Z; final GitHub verification is recorded with the final pushed head in the PR body/authorized inline replies. **HOLD merge** regardless of flag. AUTH-GATEWAY-01, DBA/Sonar/production SMTP/storage and dependency-advisory gates remain open; editable Profile browser E2E remains NOT RUN. No resolve/approval/merge/Jira Done.
+
+## Historical pre-Customer-merge snapshot below
+
 # CF-04 / DT2-3 / DT2-27 — current review and integration handoff
 
 Verified sources on 18/11/2026: develop `331c1e3`, Profile `e7848df`, **official Staff `57ea6f1`**, Customer `50745ba`, News `c2343ed`, Bills `86b70e2`. Full SHA, commands, source/configuration/fixture/POM/patch/JAR hashes and timestamps are pinned in [machine evidence](dt2-3-review-follow-up-results.json). [Finding matrix](../handover/dt2-3-review-matrix.md) maps all reviews to fixes, remaining dependencies and the endpoint security contract. Runtime Profile and the approved API/DDL are unchanged in this follow-up.
