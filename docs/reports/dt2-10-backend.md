@@ -65,7 +65,15 @@
 ## 3. Ranh giới kiến trúc, Handoff & Rollback
 
 - **Tích hợp với những PR đã merge vào develop:** #7 (Auth BE), #17 (Auth FE), #14 (Customer). Không dùng trạng thái PR chưa merge để đánh giá tính đúng của code hiện tại. CI [44268573892](https://github.com/DTU-TEAM-2/smart-cafe-management/actions/runs/44268573892) đã chạy trên synthetic merge `38152af` = Staff `f5226c8` + `develop@b96a821`: **295/295 Backend tests PASS**, **5/5 CI jobs PASS**. Trên kết quả merge, GET `/api/v1/staff/dashboard` cho ADMIN/STAFF; CRUD và avatar API dưới `/api/v1/staff` chỉ ADMIN; các route và filter Customer của PR #14 vẫn được bảo toàn. Đây là kiểm chứng CI, chưa thay thế nghiệm thu database/Cloudinary/SMTP production.
-- **Onboarding nhân viên — dependency DT2-2 chưa hoàn tất:** Auth đã có SMTP và các endpoint Forgot Password → OTP → Reset Password; nhận định cũ rằng SMTP chưa tích hợp hoặc PR #7 chưa merge **đã lỗi thời**. `createStaff` sinh mật khẩu ngẫu nhiên an toàn, chỉ lưu BCrypt, tạo user ACTIVE với `must_change_password=1`, nhưng chưa tự gửi email kích hoạt/hướng dẫn để nhân viên mới đặt mật khẩu. Cần chốt với PO/Auth: (a) invitation/activation token một lần với retry an toàn, hoặc (b) quy trình thủ công dùng Forgot Password đã merge nếu được nghiệm thu backend-only. Kiểm thử E2E tạo nhân viên → nhận OTP → reset password → login; không trả hoặc log mật khẩu plaintext.
+- **Onboarding nhân viên — Chốt Phương án (B) Onboarding thủ công qua Forgot Password (DT2-2):**
+  - **Quyết định nghiệm thu:** Tác giả và PO thống nhất áp dụng **Phương án (B)** cho phase backend-only của PR #11: Sử dụng luồng Quên mật khẩu đã merge của DT2-2 để nhân viên thiết lập mật khẩu lần đầu; không tự tuyên bố hệ thống có tính năng tự động gửi email lời mời (auto email invitation).
+  - **Quy trình vận hành chuẩn 5 bước:**
+    1. *Admin tạo tài khoản:* Admin gọi `POST /api/v1/staff`. Backend tạo user với `status = 'ACTIVE'`, `must_change_password = 1`, sinh mật khẩu ngẫu nhiên an toàn và lưu dạng BCrypt hash (bảo đảm không bao giờ trả về hoặc log mật khẩu plaintext).
+    2. *Admin thông báo:* Admin thông báo cho nhân viên qua email đã đăng ký.
+    3. *Nhân viên yêu cầu cấp OTP:* Nhân viên truy cập luồng Quên mật khẩu (`POST /api/v1/auth/forgot-password`) bằng email để nhận OTP qua SMTP.
+    4. *Xác thực & Thiết lập mật khẩu:* Nhân viên xác thực OTP (`POST /api/v1/auth/verify-otp`) và đặt mật khẩu mới (`POST /api/v1/auth/reset-password`).
+    5. *Đăng nhập lần đầu:* Nhân viên đăng nhập vào hệ thống (`POST /api/v1/auth/login`) và truy cập các chức năng được phân quyền.
+  - **Ranh giới tích hợp:** Độc lập với luồng backend CRUD của DT2-10. Tính năng tự động phát hành email kích hoạt kèm token dùng 1 lần (Option A) sẽ được cân nhắc ở giai đoạn tích hợp E2E tiếp theo nếu PO yêu cầu.
 - **Kế hoạch Rollback an toàn:**
   - Tuyệt đối **KHÔNG DROP TABLE** `staff_profiles` khi hệ thống đã có dữ liệu thực tế vì sẽ gây mất mát dữ liệu hồ sơ nhân sự không thể phục hồi.
   - Quy trình rollback an toàn khi phát sinh sự cố: (1) Revert code backend về commit trước đó, (2) Khóa endpoint `/api/v1/staff/**` qua cấu hình Security / routing, (3) Dữ liệu trong bảng `staff_profiles` được bảo toàn nguyên vẹn hoặc phục hồi từ bản sao lưu DB gần nhất trước sự kiện.
