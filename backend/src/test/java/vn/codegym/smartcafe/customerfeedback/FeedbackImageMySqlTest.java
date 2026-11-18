@@ -63,4 +63,12 @@ class FeedbackImageMySqlTest {
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM media_assets WHERE provider='FIREBASE'",Integer.class)).isZero();
         verify(storage,org.mockito.Mockito.times(2)).delete(image);
     }
+    @Test void multipartRejectsOversizedContentWithoutCallingStorageUpload() throws Exception {
+        String hugeJson = "{\"name\":\"Khách ảnh test\",\"email\":\"images@example.invalid\",\"content\":\"" + "A".repeat(65_536) + "\",\"rating\":5}";
+        mvc.perform(multipart("/api/v1/customer/feedback")
+                .file(new MockMultipartFile("feedback", "", "application/json", hugeJson.getBytes(StandardCharsets.UTF_8)))
+                .file(new MockMultipartFile("images", "test.png", "image/png", FeedbackImagesTest.png())).with(csrf()))
+                .andExpect(status().isBadRequest());
+        org.mockito.Mockito.verifyNoInteractions(storage);
+    }
 }

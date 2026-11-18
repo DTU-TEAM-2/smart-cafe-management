@@ -5,6 +5,7 @@ import java.sql.Statement;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -13,12 +14,22 @@ public class CustomerFeedbackService {
 
     public CustomerFeedbackService(JdbcTemplate jdbc) { this.jdbc = jdbc; }
 
+    public static void validateContent(String content) {
+        if (content == null || content.isBlank()) {
+            throw new IllegalArgumentException("Vui lòng nhập nội dung phản hồi.");
+        }
+        // MySQL TEXT holds at most 65,535 bytes, including multibyte Vietnamese text.
+        if (content.strip().getBytes(StandardCharsets.UTF_8).length > 65_535) {
+            throw new IllegalArgumentException("Nội dung phản hồi vượt quá dung lượng cho phép.");
+        }
+    }
+
     @Transactional
     public String submit(CustomerFeedbackController.Command command) {
         return insert(command);
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     public String submitWithImages(CustomerFeedbackController.Command command, java.util.List<FirebaseFeedbackStorage.Uploaded> images) {
         String feedbackId = insert(command);
         for (int i = 0; i < images.size(); i++) {
@@ -34,11 +45,11 @@ public class CustomerFeedbackService {
     }
 
     private String insert(CustomerFeedbackController.Command command) {
-        String content = command.content().strip();
-        // MySQL TEXT holds at most 65,535 bytes, including multibyte Vietnamese text.
-        if (content.getBytes(StandardCharsets.UTF_8).length > 65_535) {
-            throw new IllegalArgumentException("Nội dung phản hồi vượt quá dung lượng cho phép.");
+        if (command == null) {
+            throw new IllegalArgumentException("Dữ liệu phản hồi không được để trống.");
         }
+        validateContent(command.content());
+        String content = command.content().strip();
         var keys = new GeneratedKeyHolder();
         jdbc.update(connection -> {
             var statement = connection.prepareStatement("""
