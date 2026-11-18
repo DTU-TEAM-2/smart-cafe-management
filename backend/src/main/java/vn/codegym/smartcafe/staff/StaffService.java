@@ -9,6 +9,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -58,6 +59,19 @@ public class StaffService {
             return "";
         }
         return value.replace("!", "!!").replace("%", "!%").replace("_", "!_");
+    }
+
+    private void validateAvatarMediaId(Long avatarMediaId) {
+        if (avatarMediaId == null) {
+            return;
+        }
+        Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM media_assets WHERE id = ? AND deleted_at IS NULL",
+                Integer.class,
+                avatarMediaId);
+        if (count == null || count == 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ảnh đại diện không tồn tại hoặc đã bị xóa.");
+        }
     }
 
     @Transactional(readOnly = true)
@@ -233,6 +247,8 @@ public class StaffService {
             }
         }
 
+        validateAvatarMediaId(request.avatarMediaId());
+
         String tempPassword = generateRandomPassword();
         String passwordHash = passwordEncoder.encode(tempPassword);
 
@@ -258,6 +274,8 @@ public class StaffService {
             }, keyHolder);
         } catch (DuplicateKeyException ex) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Username hoặc email đã tồn tại.");
+        } catch (DataIntegrityViolationException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ảnh đại diện không tồn tại hoặc đã bị xóa.");
         }
 
         Number generatedKey = keyHolder.getKey();
@@ -314,15 +332,23 @@ public class StaffService {
             }
         }
 
+        validateAvatarMediaId(request.avatarMediaId());
+
         String role = (request.role() != null && !request.role().trim().isEmpty())
                 ? request.role().trim().toUpperCase(Locale.ROOT)
                 : existing.role();
 
-        jdbc.update("""
-                UPDATE users
-                SET full_name = ?, email = ?, phone = ?, role = ?, avatar_media_id = ?
-                WHERE id = ?
-                """, request.fullName().trim(), email, request.phone().trim(), role, request.avatarMediaId(), id);
+        try {
+            jdbc.update("""
+                    UPDATE users
+                    SET full_name = ?, email = ?, phone = ?, role = ?, avatar_media_id = ?
+                    WHERE id = ?
+                    """, request.fullName().trim(), email, request.phone().trim(), role, request.avatarMediaId(), id);
+        } catch (DuplicateKeyException ex) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email đã tồn tại trong hệ thống.");
+        } catch (DataIntegrityViolationException ex) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ảnh đại diện không tồn tại hoặc đã bị xóa.");
+        }
 
         Date birthdaySql = request.birthday() != null ? Date.valueOf(request.birthday()) : null;
         String gender = request.gender() != null && !request.gender().trim().isEmpty()

@@ -42,6 +42,7 @@ class StaffControllerTest {
     void setUp() {
         jdbc.update("DELETE FROM staff_profiles");
         jdbc.update("DELETE FROM users");
+        jdbc.update("DELETE FROM media_assets");
 
         // Insert Admin test user
         jdbc.update("""
@@ -417,5 +418,97 @@ class StaffControllerTest {
         mvc.perform(get("/api/v1/staff?keyword=%_").with(user("test_admin").roles("ADMIN")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements", is(0)));
+    }
+
+    @Test
+    void avatarMediaIdValidationForCreateAndUpdate() throws Exception {
+        // Seed active media asset
+        jdbc.update("""
+                INSERT INTO media_assets(id, provider, provider_asset_id, secure_url, mime_type, size_bytes)
+                VALUES (501, 'CLOUDINARY', 'pub_test_501', 'https://example.com/active.png', 'image/png', 1024)
+                """);
+        // Seed soft-deleted media asset
+        jdbc.update("""
+                INSERT INTO media_assets(id, provider, provider_asset_id, secure_url, mime_type, size_bytes, deleted_at)
+                VALUES (502, 'CLOUDINARY', 'pub_test_502', 'https://example.com/deleted.png', 'image/png', 1024, CURRENT_TIMESTAMP(6))
+                """);
+
+        // 1. CREATE with non-existent avatarMediaId -> 400 Bad Request
+        String nonExistentJson = """
+                {
+                    "username": "staff_avatar_none",
+                    "fullName": "Staff Avatar None",
+                    "email": "avatar_none@smartcafe.vn",
+                    "phone": "0911000001",
+                    "address": "123 Da Nang",
+                    "gender": "MALE",
+                    "salary": 6500000,
+                    "avatarMediaId": 999999
+                }
+                """;
+        mvc.perform(post("/api/v1/staff").with(user("test_admin").roles("ADMIN")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(nonExistentJson))
+                .andExpect(status().isBadRequest());
+
+        // 2. CREATE with soft-deleted avatarMediaId -> 400 Bad Request
+        String softDeletedJson = nonExistentJson
+                .replace("staff_avatar_none", "staff_avatar_del")
+                .replace("avatar_none@smartcafe.vn", "avatar_del@smartcafe.vn")
+                .replace("999999", "502");
+        mvc.perform(post("/api/v1/staff").with(user("test_admin").roles("ADMIN")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(softDeletedJson))
+                .andExpect(status().isBadRequest());
+
+        // 3. CREATE with active avatarMediaId -> 201 Created
+        String activeJson = nonExistentJson
+                .replace("staff_avatar_none", "staff_avatar_ok")
+                .replace("avatar_none@smartcafe.vn", "avatar_ok@smartcafe.vn")
+                .replace("999999", "501");
+        mvc.perform(post("/api/v1/staff").with(user("test_admin").roles("ADMIN")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(activeJson))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.avatarUrl", is("https://example.com/active.png")));
+
+        // 4. UPDATE with non-existent avatarMediaId -> 400 Bad Request
+        String updateNonExistentJson = """
+                {
+                    "fullName": "Staff Updated Name",
+                    "email": "staff@test.vn",
+                    "phone": "0902222222",
+                    "address": "Hue City",
+                    "gender": "FEMALE",
+                    "salary": 7000000,
+                    "avatarMediaId": 999999
+                }
+                """;
+        mvc.perform(put("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateNonExistentJson))
+                .andExpect(status().isBadRequest());
+
+        // 5. UPDATE with soft-deleted avatarMediaId -> 400 Bad Request
+        String updateSoftDeletedJson = updateNonExistentJson.replace("999999", "502");
+        mvc.perform(put("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateSoftDeletedJson))
+                .andExpect(status().isBadRequest());
+
+        // 6. UPDATE with active avatarMediaId -> 200 OK
+        String updateActiveJson = updateNonExistentJson.replace("999999", "501");
+        mvc.perform(put("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateActiveJson))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.avatarUrl", is("https://example.com/active.png")));
+
+        // 7. UPDATE with null avatarMediaId -> 200 OK
+        String updateNullJson = updateNonExistentJson.replace("\"avatarMediaId\": 999999", "\"avatarMediaId\": null");
+        mvc.perform(put("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateNullJson))
+                .andExpect(status().isOk());
     }
 }
