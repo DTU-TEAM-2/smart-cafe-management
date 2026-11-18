@@ -1,0 +1,81 @@
+{
+  "schemaVersion": 1,
+  "task": "DT2-8",
+  "source": {
+    "title": "LECKER • Smart Cafe — Prototype UI/UX (Customer · Staff · Admin)",
+    "fileKey": "7iFkUz20p6rE2fPC9Xn8rp",
+    "url": "https://www.figma.com/design/7iFkUz20p6rE2fPC9Xn8rp/LECKER",
+    "exportedAt": "2026-11-18T02:01:18.850Z",
+    "receivedOn": "2026-11-18",
+    "provenance": "User-supplied native Figma export and two original frame PNG exports. Both frames were also inspected in the Figma browser UI.",
+    "documentScope": "The native .fig contains the full prototype. The two PNG references cover DT2-8 desktop frames."
+  },
+  "artifacts": [
+    {
+      "path": "lecker-smart-cafe.fig",
+      "kind": "source-document",
+      "bytes": 416796,
+      "sha256": "fdd12d608e8495e5b7f3bb72b21a8cf89cda302c29eff8fda04be2fdc9ddbf49"
+    },
+    {
+      "path": "staff-bills.png",
+      "kind": "design-reference",
+      "bytes": 54755,
+      "sha256": "9ffade80a7c01161ef2eebe5d613e47489b6c423514b703f096c8f3b04d77836",
+      "nodeId": "8:66",
+      "width": 1440,
+      "height": 892
+    },
+    {
+      "path": "admin-revenue.png",
+      "kind": "design-reference",
+      "bytes": 59558,
+      "sha256": "b4083cb6125df8cc3dbeac1a915d0f5b65405b4fd2c3f1f6feca4a0c72e23e34",
+      "nodeId": "8:427",
+      "width": 1440,
+      "height": 892
+    }
+  ],
+  "verifiedDesignValues": {
+    "source": "Figma browser properties and supplied frame exports",
+    "canvas": {
+      "width": 1440,
+      "height": 892,
+      "background": "#100E0C"
+    },
+    "sidebar": {
+      "width": 253,
+      "background": "#1D1916"
+    },
+    "header": {
+      "height": 96
+    },
+    "pageHeading": {
+      "fontFamily": "Playfair Display",
+      "fontWeight": 700,
+      "fontSize": 33,
+      "color": "#F9EDDA"
+    }
+  },
+  "approvedOverrides": [
+    {
+      "source": "QA SRS 21",
+      "behavior": "Staff can read invoices. Revenue statistics and printing controls require Admin."
+    },
+    {
+      "source": "QA SRS 22 and owner instruction 2026-11-18",
+      "behavior": "Keep the implemented revenue charts, payment-method breakdown, filters and reconciliation logic. The statistical sample image is a layout reference."
+    },
+    {
+      "source": "SRS 6.1.9 and Jira DT2-8",
+      "behavior": "Keep search by ID/date, show-all, pagination and creator data even where the prototype omits them."
+    }
+  ],
+  "usage": {
+    "default": "Read this manifest and the local frame PNG files before remote Figma access for DT2-8 UI work.",
+    "nativeFile": "Use the native source for deeper inspection. PNG exports are viewable without Figma.",
+    "refresh": "Refresh the bundle when the owner supplies an updated design. Update file hashes after replacing exports.",
+    "sampleData": "Prototype names, invoice amounts and chart values are reference content. Application business values come from its APIs.",
+    "qaRecord": "../../../handover/dt2-8-qa.md"
+  }
+}

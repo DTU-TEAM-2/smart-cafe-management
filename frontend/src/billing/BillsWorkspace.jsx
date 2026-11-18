@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { fetchBills, fetchBillDetail, formatDateTime, vnd } from "./billingApi.js";
+import { fetchBills, fetchBillDetail, formatDateTime, vnd, billStatusLabels } from "./billingApi.js";
 import BillDetailModal from "./BillDetailModal.jsx";
 import StatisticsView from "./StatisticsView.jsx";
 import SiteLayout from "../layout/SiteLayout.jsx";
@@ -13,14 +13,20 @@ export default function BillsWorkspace({ layout, authorization, credentials, sta
           <strong>LECKER</strong><span>COFFEE CAFE</span>
         </a>
         <nav aria-label="Quản lý hóa đơn và thống kê">
+          <a href={isAdmin ? "#admin" : "#staff"}>{isAdmin ? "Tổng quan quản trị" : "Tổng quan ca làm"}</a>
+          <a href="#sale">Trạng thái bàn</a>
           <a href="#bills" aria-current={!statistics ? "page" : undefined}>Hóa đơn</a>
           {isAdmin && <a href="#statistics" aria-current={statistics ? "page" : undefined}>Thống kê doanh thu</a>}
         </nav>
+        <small className="billing-sidebar-caption">SMART CAFÉ MANAGEMENT</small>
       </aside>
       <div className="billing-main">
         <SiteLayout {...layout} management>
           <section className="billing-content" aria-labelledby="billing-title">
-            <h1 id="billing-title">{statistics ? "Thống kê doanh thu" : "Quản lý hóa đơn"}</h1>
+            <div className="billing-page-heading">
+              <h1 id="billing-title">{statistics ? "Thống kê doanh thu" : "Hóa đơn"}</h1>
+              <p>LECKER Coffee Cafe • Smart Café Management System</p>
+            </div>
             {statistics ? <StatisticsView authorization={authorization} credentials={credentials} />
               : <BillList authorization={authorization} credentials={credentials} isAdmin={isAdmin} />}
           </section>
@@ -143,6 +149,7 @@ function BillList({ authorization, credentials, isAdmin }) {
   return (
     <section className="billing-list" aria-labelledby="billing-list-title">
       <h2 id="billing-list-title">Danh sách hóa đơn</h2>
+      <p className="billing-list-description">Tra cứu dữ liệu nghiệp vụ theo quyền</p>
       {/* Search and Action Toolbar */}
       <div className="billing-control-panel">
         <form className="billing-search-form" onSubmit={handleSearch}>
@@ -216,13 +223,6 @@ function BillList({ authorization, credentials, isAdmin }) {
             >
               Show List Bill
             </button>
-            <button
-              type="button"
-              className="billing-button secondary"
-              onClick={() => handleOpenDetail(selectedBillId)}
-            >
-              {detailLoading ? "Đang tải…" : "Detail"}
-            </button>
           </div>
         </form>
       </div>
@@ -269,12 +269,12 @@ function BillList({ authorization, credentials, isAdmin }) {
         <table className="billing-table" aria-label="Bảng danh sách hóa đơn">
           <thead>
             <tr>
-              <th scope="col">ID (Mã HĐ)</th>
-              <th scope="col">Date Created</th>
-              <th scope="col">Creator</th>
-              <th scope="col">Table</th>
-              <th scope="col">Total</th>
-              <th scope="col">Status</th>
+              <th scope="col">Mã hóa đơn</th>
+              <th scope="col">Ngày tạo</th>
+              <th scope="col">Người lập</th>
+              <th scope="col">Bàn</th>
+              <th scope="col">Tổng tiền</th>
+              <th scope="col">Trạng thái</th>
             </tr>
           </thead>
           <tbody>
@@ -314,7 +314,7 @@ function BillList({ authorization, credentials, isAdmin }) {
                     <td className="total-amount-cell">{vnd(bill.totalAmount)}</td>
                     <td>
                       <span className={`billing-status-badge ${bill.status.toLowerCase()}`}>
-                        {bill.status}
+                        {billStatusLabels[bill.status] ?? bill.status}
                       </span>
                     </td>
                   </tr>
@@ -327,6 +327,10 @@ function BillList({ authorization, credentials, isAdmin }) {
 
         {/* Pagination Controls */}
         <div className="billing-pagination-bar">
+          <button type="button" className="billing-button primary billing-detail-button"
+            onClick={() => handleOpenDetail(selectedBillId)}>
+            {detailLoading ? "Đang tải…" : "Xem chi tiết"}
+          </button>
           <div>
             Hiển thị {data.content.length} / {data.totalElements} hóa đơn
             {data.totalPages > 1 && ` (Trang ${data.page + 1} của ${data.totalPages})`}

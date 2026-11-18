@@ -4,6 +4,12 @@ export const moneyFormatter = new Intl.NumberFormat("vi-VN", {
   maximumFractionDigits: 0,
 });
 
+export const billStatusLabels = {
+  PAID: "Đã thanh toán",
+  PENDING: "Chờ thanh toán",
+  VOID: "Đã hủy",
+};
+
 export function vnd(amount) {
   if (amount == null || amount === "") return "0 ₫";
   try {

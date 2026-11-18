@@ -12,7 +12,7 @@ Doanh thu theo phương thức phân nhóm các hóa đơn PAID theo `payments.m
 
 Đã đếm dữ liệu trên MySQL Docker local `smart_cafe_dt26` bằng truy vấn chỉ đọc. Hai bảng `bills` và `bill_items` đều có 0 dòng. Nếu còn bản dữ liệu cũ ở nguồn khác, cần xác nhận nguồn và đối chiếu các trường snapshot trước khi chuyển.
 
-Đã đối chiếu cấu trúc của hai frame [Staff · Hóa đơn](https://www.figma.com/design/7iFkUz20p6rE2fPC9Xn8rp/LECKER?node-id=8-66) và [Admin · Thống kê doanh thu](https://www.figma.com/design/7iFkUz20p6rE2fPC9Xn8rp/LECKER?node-id=8-427) qua metadata Figma. Figma MCP đã hết hạn mức lấy ảnh frame trực tiếp. Biểu đồ tròn được bổ sung theo QA 22. Ảnh triển khai trên dữ liệu kiểm thử có trong [thư mục evidence](evidence/dt2-8/).
+Ngày 18/11/2026 đã mở trực tiếp hai frame [Staff · Hóa đơn](https://www.figma.com/design/7iFkUz20p6rE2fPC9Xn8rp/LECKER?node-id=8-66) và [Admin · Thống kê doanh thu](https://www.figma.com/design/7iFkUz20p6rE2fPC9Xn8rp/LECKER?node-id=8-427) trên trình duyệt. Đã nhận bản `.fig` và hai PNG nguồn từ người dùng, lưu trong [gói tham chiếu local và manifest](../design/figma/dt2-8/README.md). Người dùng yêu cầu giữ biểu đồ hiện tại theo QA SRS 22 và chỉ sửa các sai lệch UI khác. Ảnh triển khai trên dữ liệu kiểm thử có trong [thư mục evidence](evidence/dt2-8/).
 
 ## Kiểm tra local trên `develop@ffa4d95`
 
@@ -26,3 +26,13 @@ Doanh thu theo phương thức phân nhóm các hóa đơn PAID theo `payments.m
 | API DT2-8 | Đăng nhập thật Admin, Staff và Customer trên DB kiểm thử. Danh sách/chi tiết trả 200 cho Admin và Staff, thống kê/Income chỉ Admin, Customer và khách chưa đăng nhập nhận 403. Tổng 200.000 ₫ khớp Income, bằng 110.000 ₫ tiền mặt và 90.000 ₫ chuyển khoản. |
 
 Các kiểm tra chạy trên Windows local. Trạng thái check GitHub cho DT2-8 sẽ có khi có sự kiện pull request trên nhánh đích.
+
+## Đối chiếu UI và gói nguồn ngày 18/11/2026
+
+Đã đối chiếu trực tiếp hai frame trong trình duyệt và các PNG nguồn người dùng gửi. Đã chỉnh header desktop theo mốc 96 px, tách logo và dòng COFFEE CAFE, dùng Playfair Display 33 px cho tiêu đề, bổ sung dòng phụ, nhãn Thông báo/Tài khoản và khung danh sách. Bảng và chi tiết hiển thị trạng thái tiếng Việt. Nút Xem chi tiết nằm dưới danh sách và tiếp tục hỗ trợ chọn dòng, retry, bàn phím và in theo quyền.
+
+Biểu đồ và phép tính tiếp tục theo QA SRS 22 theo yêu cầu mới nhất. Sidebar liên kết các route đã có của Tổng quan, Trạng thái bàn, Hóa đơn và Thống kê theo quyền. Điều hướng tới các module khác trong Figma phụ thuộc task tương ứng.
+
+[Manifest local](../design/figma/dt2-8/manifest.json) ghi file key, node ID, thời điểm xuất, kích thước và SHA-256. Bản `.fig` đã qua kiểm tra CRC của ZIP và có canvas, metadata, thumbnail. Hai PNG nguồn đều có kích thước 1440×892. Gói nguồn khoảng 519 KiB và được hướng dẫn dùng trước trong AGENTS.md.
+
+Sau chỉnh UI, `npm run lint`, `npm run build` và toàn bộ Playwright đạt 90/90. Đã chụp lại các ảnh evidence sau khi font tải xong, kiểm tra lại 6 ca liên quan ảnh desktop/mobile. Registry/checksums và 20 kiểm thử scripts đạt, `git diff --check` sạch. Các kiểm thử API/MySQL của bản trước được ghi ở trên, CI sẽ chạy lại trên commit cập nhật của PR #18.

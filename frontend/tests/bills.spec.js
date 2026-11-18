@@ -156,7 +156,7 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
     await setToken(page, "admin-token");
     await navigateToBills(page);
 
-    await expect(page.getByRole("heading", { name: "Quản lý hóa đơn", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Hóa đơn", exact: true })).toBeVisible();
     await page.getByRole("link", { name: "Bỏ qua điều hướng" }).focus();
     await page.keyboard.press("Enter");
     await expect(page.getByRole("main")).toBeFocused();
@@ -165,6 +165,8 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
     await expect(page.getByText("BILL-2026-002")).toBeVisible();
     await expect(page.getByText("180.000 ₫")).toBeVisible();
     await expect(page.getByText("95.000 ₫")).toBeVisible();
+    await page.getByRole("main").evaluate(element => element.blur());
+    await page.evaluate(() => document.fonts.ready.then(() => true));
 
     if (page.viewportSize()?.width === 1440) {
       await page.screenshot({ path: test.info().outputPath("dt2-8-bills-desktop.png"), fullPage: true });
@@ -250,7 +252,7 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
     await setToken(page, "admin-token");
 
     // Click Detail without selecting a row
-    const detailBtn = page.getByRole("button", { name: "Detail" });
+    const detailBtn = page.getByRole("button", { name: "Xem chi tiết" });
     await detailBtn.click();
     await expect(page.getByText("Vui lòng chọn hóa đơn cụ thể!")).toBeVisible();
 
@@ -272,6 +274,7 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
     await expect(dialog.getByText("Cà phê sữa đá")).toBeVisible();
     await expect(dialog.getByRole("button", { name: "In hóa đơn" })).toBeHidden();
     await page.emulateMedia({ media: "screen" });
+    await page.evaluate(() => document.fonts.ready.then(() => true));
 
     if (page.viewportSize()?.width === 1440) {
       await page.screenshot({ path: test.info().outputPath("dt2-8-detail-modal-desktop.png") });
@@ -322,7 +325,7 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
     await page.goto("/#bills");
     await setToken(page, "admin-token");
     await page.getByRole("button", { name: "BILL-2026-001" }).click();
-    await page.getByRole("button", { name: "Detail", exact: true }).click();
+    await page.getByRole("button", { name: "Xem chi tiết", exact: true }).click();
     await expect(page.getByRole("alert")).toContainText("Không kết nối được máy chủ");
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await page.getByRole("button", { name: "Thử lại chi tiết" }).click();
@@ -361,6 +364,7 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
     await expect(breakdown.getByText(/65,5%/)).toBeVisible();
     await expect(breakdown.getByText(/34,5%/)).toBeVisible();
     await expect(page).toHaveURL(/#statistics$/);
+    await page.evaluate(() => document.fonts.ready.then(() => true));
 
     if (page.viewportSize()?.width === 1440) {
       await page.screenshot({ path: test.info().outputPath("dt2-8-statistics-desktop.png"), fullPage: true });
@@ -409,7 +413,7 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
     await expect(page.getByText("KHÔNG GIAN NHÂN VIÊN")).toBeVisible();
     await expect(page.getByRole("link", { name: "Thống kê doanh thu" })).toHaveCount(0);
     await page.getByRole("button", { name: "BILL-2026-001" }).click();
-    await page.getByRole("button", { name: "Detail", exact: true }).click();
+    await page.getByRole("button", { name: "Xem chi tiết", exact: true }).click();
     const detail = page.getByRole("dialog");
     await expect(detail).toContainText("BILL-2026-001");
     await expect(detail.getByRole("button", { name: "In hóa đơn" })).toHaveCount(0);

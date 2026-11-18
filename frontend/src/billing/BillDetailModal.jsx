@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { formatDateTime, vnd } from "./billingApi.js";
+import { formatDateTime, vnd, billStatusLabels } from "./billingApi.js";
 
 export default function BillDetailModal({ bill, onClose, canPrint }) {
   const modalRef = useRef(null);
@@ -51,7 +51,7 @@ export default function BillDetailModal({ bill, onClose, canPrint }) {
             <span className="billing-metadata-label">Trạng thái</span>
             <span className="billing-metadata-value">
               <span className={`billing-status-badge ${bill.status.toLowerCase()}`}>
-                {bill.status}
+                {billStatusLabels[bill.status] ?? bill.status}
               </span>
             </span>
           </div>

@@ -99,6 +99,7 @@ export default function SiteLayout({ children, account = null, notifications = n
               aria-expanded={panel === "notifications"} aria-controls={`${regionId}-notifications`}
               onClick={() => { toggle("notifications"); onNotificationsOpen?.(); }}>
               <Icon name="bell" />{unread > 0 && <span className="notification-dot" />}
+              {management && <span className="billing-header-action-label">Thông báo</span>}
             </button>
             <section className="header-panel" id={`${regionId}-notifications`} hidden={panel !== "notifications"} aria-label="Thông báo phục vụ">
               <h2>Thông báo</h2>
@@ -119,6 +120,7 @@ export default function SiteLayout({ children, account = null, notifications = n
             <button type="button" ref={accountButton} className="icon-button" aria-label={account ? `Tài khoản ${account.name}` : "Tài khoản"}
               aria-expanded={panel === "account"} aria-controls={`${regionId}-account`} onClick={() => toggle("account")}>
               <span className="avatar" aria-hidden="true">{account?.name?.trim().slice(0, 1).toLocaleUpperCase("vi")}</span>
+              {management && <span className="billing-header-action-label">Tài khoản</span>}
             </button>
             <section className="header-panel" id={`${regionId}-account`} hidden={panel !== "account"} aria-label="Thông tin tài khoản">
               <h2>{account?.name ?? "Tài khoản"}</h2>
