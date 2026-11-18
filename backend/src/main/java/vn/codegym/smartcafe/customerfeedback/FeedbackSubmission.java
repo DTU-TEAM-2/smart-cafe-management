@@ -44,17 +44,25 @@ public class FeedbackSubmission {
             throw uploadError;
         }
 
-        TransactionStatus status = transactionManager.getTransaction(new DefaultTransactionDefinition());
+        TransactionStatus status;
+        try {
+            status = transactionManager.getTransaction(new DefaultTransactionDefinition());
+        } catch (RuntimeException txAcquisitionError) {
+            cleanupBlobs(uploaded);
+            throw txAcquisitionError;
+        }
+
         String feedbackId;
         try {
             feedbackId = service.submitWithImages(command, uploaded);
         } catch (RuntimeException executionError) {
             try {
                 transactionManager.rollback(status);
+                cleanupBlobs(uploaded);
             } catch (Exception rbEx) {
-                LOG.warn("Lỗi khi rollback giao dịch phản hồi: {}", rbEx.getMessage());
+                LOG.error("Lỗi khi rollback giao dịch phản hồi; giữ lại blob để đối soát và không xóa: {}", rbEx.getMessage());
+                executionError.addSuppressed(rbEx);
             }
-            cleanupBlobs(uploaded);
             throw executionError;
         }
 

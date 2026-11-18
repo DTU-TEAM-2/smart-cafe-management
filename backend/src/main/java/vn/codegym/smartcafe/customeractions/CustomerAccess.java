@@ -20,8 +20,11 @@ public class CustomerAccess {
 
     // Caller must hold a transaction. Lock order matches Sales/Checkout: table, session, client.
     public Client lock(long sessionId, String authorization) {
-        if (sessionId <= 0 || authorization == null || !authorization.startsWith("Bearer ")) throw unauthorized();
-        String token = authorization.substring(7);
+        if (sessionId <= 0 || authorization == null) throw unauthorized();
+        String trimmed = authorization.trim();
+        // RFC 9110 §11.1: HTTP authentication scheme names are case-insensitive.
+        if (trimmed.length() < 8 || !trimmed.regionMatches(true, 0, "Bearer ", 0, 7)) throw unauthorized();
+        String token = trimmed.substring(7).trim();
         if (!token.matches("[A-Za-z0-9_-]{43,256}")) throw unauthorized();
         String hash = hash(token);
         var rows = jdbc.queryForList("""

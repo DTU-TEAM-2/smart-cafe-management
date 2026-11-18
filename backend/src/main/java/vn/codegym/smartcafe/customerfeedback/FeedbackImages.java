@@ -1,5 +1,6 @@
 package vn.codegym.smartcafe.customerfeedback;
 
+import java.awt.geom.AffineTransform;
 import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -43,10 +44,7 @@ public class FeedbackImages {
                     if (raster == null) throw new IllegalArgumentException("Ảnh không đọc được.");
 
                     int orientation = readOrientation(bytes, format);
-                    BufferedImage cleanImage = raster;
-                    if (orientation == 3 || orientation == 6 || orientation == 8) {
-                        cleanImage = rotate(cleanImage, orientation);
-                    }
+                    BufferedImage cleanImage = applyExifOrientation(raster, orientation);
                     int width = cleanImage.getWidth();
                     int height = cleanImage.getHeight();
                     if ((long) width * height > MAX_PIXELS) {
@@ -79,26 +77,30 @@ public class FeedbackImages {
         } catch (IOException error) { throw new IllegalArgumentException("Ảnh không đọc được."); }
     }
 
-    private static BufferedImage rotate(BufferedImage src, int orientation) {
+    private static BufferedImage applyExifOrientation(BufferedImage src, int orientation) {
+        if (orientation < 2 || orientation > 8) {
+            return src;
+        }
         int w = src.getWidth();
         int h = src.getHeight();
-        int targetW = (orientation == 6 || orientation == 8) ? h : w;
-        int targetH = (orientation == 6 || orientation == 8) ? w : h;
+        boolean transpose = (orientation >= 5 && orientation <= 8);
+        int targetW = transpose ? h : w;
+        int targetH = transpose ? w : h;
         int type = src.getType() == 0 ? BufferedImage.TYPE_INT_RGB : src.getType();
         BufferedImage dest = new BufferedImage(targetW, targetH, type);
         var g2d = dest.createGraphics();
         try {
-            if (orientation == 6) {
-                g2d.translate(targetW, 0);
-                g2d.rotate(Math.PI / 2);
-            } else if (orientation == 8) {
-                g2d.translate(0, targetH);
-                g2d.rotate(-Math.PI / 2);
-            } else if (orientation == 3) {
-                g2d.translate(targetW, targetH);
-                g2d.rotate(Math.PI);
-            }
-            g2d.drawImage(src, 0, 0, null);
+            var tx = switch (orientation) {
+                case 2 -> new AffineTransform(-1, 0, 0, 1, w, 0);
+                case 3 -> new AffineTransform(-1, 0, 0, -1, w, h);
+                case 4 -> new AffineTransform(1, 0, 0, -1, 0, h);
+                case 5 -> new AffineTransform(0, 1, 1, 0, 0, 0);
+                case 6 -> new AffineTransform(0, 1, -1, 0, h, 0);
+                case 7 -> new AffineTransform(0, -1, -1, 0, h, w);
+                case 8 -> new AffineTransform(0, -1, 1, 0, 0, w);
+                default -> new AffineTransform();
+            };
+            g2d.drawImage(src, tx, null);
         } finally {
             g2d.dispose();
         }

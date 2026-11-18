@@ -137,6 +137,74 @@ class FeedbackImagesTest {
         verify(storage).delete(uploaded);
     }
 
+    @Test void cleansUpBlobsWhenTransactionAcquisitionFails() throws Exception {
+        var storage = mock(FirebaseFeedbackStorage.class);
+        var db = mock(CustomerFeedbackService.class);
+        var txManager = mock(PlatformTransactionManager.class);
+
+        when(txManager.getTransaction(any())).thenThrow(new org.springframework.transaction.CannotCreateTransactionException("DB pool timeout"));
+
+        var uploaded = new FirebaseFeedbackStorage.Uploaded("feedback/test.png", "https://example.invalid/test.png", "image/png", 4, 2, 2);
+        when(storage.upload(any())).thenReturn(uploaded);
+
+        var submit = new FeedbackSubmission(new FeedbackImages(), storage, db, txManager);
+        var file = new MockMultipartFile("images", "test.png", "image/png", png());
+        var command = new CustomerFeedbackController.Command("Khách test", "test@example.invalid", "Nội dung phản hồi", BigDecimal.valueOf(5));
+
+        assertThatThrownBy(() -> submit.submit(command, List.of(file)))
+                .isInstanceOf(org.springframework.transaction.CannotCreateTransactionException.class);
+
+        verify(storage).delete(uploaded);
+        verifyNoInteractions(db);
+    }
+
+    @Test void retainsBlobsForReconciliationWhenRollbackFails() throws Exception {
+        var storage = mock(FirebaseFeedbackStorage.class);
+        var db = mock(CustomerFeedbackService.class);
+        var txManager = mock(PlatformTransactionManager.class);
+        var txStatus = mock(TransactionStatus.class);
+
+        when(txManager.getTransaction(any())).thenReturn(txStatus);
+        when(db.submitWithImages(any(), any())).thenThrow(new DataIntegrityViolationException("DB error"));
+        doThrow(new TransactionSystemException("Rollback ACK timeout")).when(txManager).rollback(txStatus);
+
+        var uploaded = new FirebaseFeedbackStorage.Uploaded("feedback/test.png", "https://example.invalid/test.png", "image/png", 4, 2, 2);
+        when(storage.upload(any())).thenReturn(uploaded);
+
+        var submit = new FeedbackSubmission(new FeedbackImages(), storage, db, txManager);
+        var file = new MockMultipartFile("images", "test.png", "image/png", png());
+        var command = new CustomerFeedbackController.Command("Khách test", "test@example.invalid", "Nội dung phản hồi", BigDecimal.valueOf(5));
+
+        assertThatThrownBy(() -> submit.submit(command, List.of(file)))
+                .isInstanceOf(DataIntegrityViolationException.class);
+
+        verify(txManager).rollback(txStatus);
+        verify(storage, never()).delete(any());
+    }
+
+    @Test void goldenImageExifOrientationsAll8Supported() throws Exception {
+        var images = new FeedbackImages();
+        for (int orientation = 1; orientation <= 8; orientation++) {
+            byte[] jpeg = createJpegWithExifGpsAndOrientation(4, 2, orientation);
+            var file = new MockMultipartFile("images", "orient-" + orientation + ".jpg", "image/jpeg", jpeg);
+            var result = images.validate(List.of(file)).getFirst();
+
+            boolean transposed = orientation >= 5;
+            int expectedWidth = transposed ? 2 : 4;
+            int expectedHeight = transposed ? 4 : 2;
+            assertThat(result.width()).as("Width for orientation " + orientation).isEqualTo(expectedWidth);
+            assertThat(result.height()).as("Height for orientation " + orientation).isEqualTo(expectedHeight);
+
+            var decoded = ImageIO.read(new ByteArrayInputStream(result.bytes()));
+            assertThat(decoded).as("Decoded image for orientation " + orientation).isNotNull();
+            assertThat(decoded.getWidth()).isEqualTo(expectedWidth);
+            assertThat(decoded.getHeight()).isEqualTo(expectedHeight);
+
+            assertThat(new String(result.bytes(), StandardCharsets.ISO_8859_1))
+                    .doesNotContain("GPS_SYNTHETIC_DATA_LAT_10_LONG_106");
+        }
+    }
+
     @Test void syntheticGpsMetadataIsStrippedAndExifOrientationIsApplied() throws Exception {
         byte[] jpegWithGps = createJpegWithExifGpsAndOrientation(4, 2, 6);
         assertThat(new String(jpegWithGps, StandardCharsets.ISO_8859_1)).contains("GPS_SYNTHETIC_DATA_LAT_10_LONG_106");
