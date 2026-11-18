@@ -160,6 +160,109 @@ class FeedbackAdmissionTest {
         assertThat(readBody).isEqualTo(payload);
     }
 
+    @Test
+    void acceptsValidJsonPayloadNear64KiBThreshold() throws Exception {
+        var filter = new FeedbackAdmissionFilter(request -> true, request -> false,
+                Clock.fixed(Instant.ofEpochSecond(65), ZoneOffset.UTC), 20, 120, 1, 12, 60, 131072);
+
+        String largeContent = "x".repeat(65000);
+        byte[] payload = ("{\"name\":\"Khách 64K\",\"email\":\"customer64k@example.invalid\",\"content\":\""
+                + largeContent + "\",\"rating\":5}").getBytes(java.nio.charset.StandardCharsets.UTF_8);
+
+        assertThat(payload.length).isGreaterThan(60 * 1024).isLessThan(131072);
+
+        var request = request("192.0.2.1", false);
+        request.setContent(payload);
+
+        var response = new MockHttpServletResponse();
+        var downstreamReadBytes = new byte[payload.length];
+        var downstreamCalled = new boolean[]{false};
+
+        filter.doFilter(request, response, (req, res) -> {
+            downstreamCalled[0] = true;
+            ((MockHttpServletResponse) res).setStatus(200);
+            try {
+                req.getInputStream().read(downstreamReadBytes);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        assertThat(downstreamCalled[0]).isTrue();
+        assertThat(response.getStatus()).isEqualTo(200);
+        assertThat(downstreamReadBytes).isEqualTo(payload);
+    }
+
+    @Test
+    void concurrentOversizedAndChunkedRequestsRejectWith413WithoutExceedingBoundedMemory() throws Exception {
+        int maxLimit = 100;
+        var filter = new FeedbackAdmissionFilter(request -> true, request -> false,
+                Clock.fixed(Instant.ofEpochSecond(65), ZoneOffset.UTC), 50, 200, 1, 12, 60, maxLimit);
+
+        int workersCount = 8;
+        var bytesReadTracker = new java.util.concurrent.atomic.AtomicLong();
+        var executor = Executors.newFixedThreadPool(workersCount);
+
+        try {
+            var tasks = new ArrayList<java.util.concurrent.Callable<MockHttpServletResponse>>();
+            for (int i = 0; i < workersCount; i++) {
+                final int id = i;
+                tasks.add(() -> {
+                    var countingStream = new java.io.InputStream() {
+                        private int count = 0;
+                        private final int total = 1024 * 1024; // 1 MB
+                        @Override
+                        public int read() {
+                            if (count >= total) return -1;
+                            count++;
+                            bytesReadTracker.incrementAndGet();
+                            return 'a';
+                        }
+                    };
+
+                    var req = new MockHttpServletRequest("POST", "/api/v1/customer/feedback") {
+                        @Override
+                        public long getContentLengthLong() {
+                            return -1; // chunked
+                        }
+                        @Override
+                        public int getContentLength() {
+                            return -1;
+                        }
+                        @Override
+                        public jakarta.servlet.ServletInputStream getInputStream() {
+                            return new jakarta.servlet.ServletInputStream() {
+                                @Override public boolean isFinished() { return false; }
+                                @Override public boolean isReady() { return true; }
+                                @Override public void setReadListener(jakarta.servlet.ReadListener readListener) {}
+                                @Override public int read() { return countingStream.read(); }
+                            };
+                        }
+                    };
+                    req.setRemoteAddr("192.0.2." + (10 + id));
+                    req.setContentType("application/json");
+
+                    var res = new MockHttpServletResponse();
+                    filter.doFilter(req, res, (r, s) -> { throw new AssertionError("Downstream should not be reached"); });
+                    return res;
+                });
+            }
+
+            var results = executor.invokeAll(tasks, 10, TimeUnit.SECONDS);
+            for (var future : results) {
+                var response = future.get();
+                assertThat(response.getStatus()).isEqualTo(413);
+                assertThat(response.getContentAsString()).contains("\"status\":413");
+                assertThat(response.getContentAsString()).contains("Dung lượng yêu cầu quá lớn");
+            }
+
+            long totalRead = bytesReadTracker.get();
+            assertThat(totalRead).isEqualTo(workersCount * (maxLimit + 1L));
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
     private MockHttpServletResponse send(FeedbackAdmissionFilter filter, String source, boolean multipart) throws Exception {
         var response = new MockHttpServletResponse();
         filter.doFilter(request(source, multipart), response, (req, res) -> ((MockHttpServletResponse) res).setStatus(200));

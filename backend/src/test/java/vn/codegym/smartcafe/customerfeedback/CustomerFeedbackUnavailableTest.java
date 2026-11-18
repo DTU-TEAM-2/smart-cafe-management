@@ -114,4 +114,23 @@ class CustomerFeedbackUnavailableTest {
 
         org.mockito.Mockito.verifyNoInteractions(service);
     }
+
+    @Test
+    void acceptsValidJsonPayloadNear64KiBThresholdAndPassesToService() throws Exception {
+        given(service.submit(any())).willReturn("fb-64k-success");
+        String largeContent = "a".repeat(65000); // 65,000 bytes, near 64 KiB
+        String validJson = """
+                {"name":"Khách 64K","email":"customer64k@example.invalid","content":"%s","rating":5}
+                """.formatted(largeContent);
+
+        mvc.perform(post("/api/v1/customer/feedback").with(csrf())
+                        .with(request -> { request.setRemoteAddr("192.0.2.72"); return request; })
+                        .contentType("application/json")
+                        .content(validJson))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value("fb-64k-success"))
+                .andExpect(jsonPath("$.message").value("Cảm ơn bạn đã gửi phản hồi!"));
+
+        org.mockito.Mockito.verify(service).submit(any());
+    }
 }
