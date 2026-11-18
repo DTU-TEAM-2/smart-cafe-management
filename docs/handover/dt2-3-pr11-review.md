@@ -1,5 +1,8 @@
 # DT2-3 → DT2-10: review proposal cho PR #11
 
+> Follow-up PR #19 ngày18/11/2026: source refs và proposal dành cho HEAD mới được ghi ở [review follow-up](../reports/dt2-3-review-follow-up.md) và [artifact README](../qa/rehearsals/dt2-3/README.md). Các findings/version/line bên dưới là snapshot có ngày; không coi historical revert/bean collision là lỗi của HEAD Staff hiện hành.
+
+
 > Cập nhật18/11/2026: review chi tiết bên dưới giữ nguyên phạm vi HEAD4c7b969 lịch sử. HEAD mớib74a365 đã khôi phục Auth/verified-db, đổi Auth dashboard controller và có ADMIN management matcher; không còn quy các chênh lệch đó cho HEAD mới. Writer version vẫn chưa có CAS/increment,9ca hiện hành tái hiện5failure. [Kết quả mới](../reports/dt2-3-publication.md).
 
 **Local handoff, chưa đăng GitHub và chưa yêu cầu review.** Task DT2-3/DT2-27 phụ thuộc writer DT2-10/DT2-69. Owner PR #11: `yennhi5033`; reviewer kỹ thuật đề xuất: `NV-DuyManh`, `haitan2408`. Đây không phải approval hoặc yêu cầu tự sửa nhánh của owner.

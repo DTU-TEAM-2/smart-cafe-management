@@ -1,6 +1,7 @@
 package vn.codegym.smartcafe.database;
 
 import com.jayway.jsonpath.JsonPath;
+import com.zaxxer.hikari.HikariDataSource;
 import java.net.URI;
 import java.net.http.*;
 import java.nio.charset.StandardCharsets;
@@ -21,6 +22,8 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.*;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.*;
 import tools.jackson.databind.json.JsonMapper;
@@ -29,7 +32,8 @@ import static org.assertj.core.api.Assertions.*;
 
 /** Real Tomcat, real Login/bearer and native verified Flyway/MySQL. No repository or HTTP doubles. */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "spring.profiles.active=verified-db", "server.address=127.0.0.1"})
+        "spring.profiles.active=verified-db", "server.address=127.0.0.1",
+        "spring.datasource.hikari.maximum-pool-size=2", "spring.datasource.hikari.minimum-idle=0"})
 @Import(ProfileMySqlTest.TimeConfiguration.class)
 @DirtiesContext
 class ProfileMySqlTest {
@@ -48,6 +52,7 @@ class ProfileMySqlTest {
 
     @TestConfiguration
     static class TimeConfiguration {
+        @Bean @Primary ControlledEncoder profileTestEncoder() { return new ControlledEncoder(); }
         @Bean @Primary Clock profileTestClock() {
             return new Clock() {
                 public ZoneId getZone() { return ZoneOffset.UTC; }
@@ -65,6 +70,7 @@ class ProfileMySqlTest {
 
     @LocalServerPort int port;
     @Autowired JdbcTemplate jdbc;
+    @Autowired HikariDataSource dataSource;
     @Autowired PasswordEncoder encoder;
     @Autowired TokenService tokens;
     private final HttpClient client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
@@ -278,6 +284,96 @@ class ProfileMySqlTest {
         }
         SCHEMA.update("UPDATE users SET password_changed_at=?,must_change_password=1 WHERE id=2", Timestamp.from(NOW.get()));
         assertThat(value(call("POST", "/auth/login", "", Map.of("username", "profile_2", "password", password)), "$.mustChangePassword")).isEqualTo(true);
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"wrong-current", "reuse-check", "encode"})
+    void slowPasswordWorkDoesNotHoldConnectionOrBlockOwnGetAndPatch(String phase) throws Exception {
+        String token = login(2);
+        String current = phase.equals("wrong-current") ? "WrongAa1" : password;
+        var controlled = (ControlledEncoder) encoder;
+        controlled.arm(phase.equals("wrong-current") ? current : nextPassword, phase.equals("encode"));
+        var pool = Executors.newFixedThreadPool(2);
+        try {
+            var changing = pool.submit(() -> call("POST", "/profiles/me/password", token,
+                    passwordRequest(current, nextPassword, nextPassword)));
+            assertThat(controlled.entered.await(10, TimeUnit.SECONDS)).isTrue();
+            assertThat(controlled.transactionActive).as("BCrypt must run outside a DB transaction").isFalse();
+            assertThat(dataSource.getHikariPoolMXBean().getActiveConnections()).isZero();
+            var browsing = pool.submit(() -> {
+                assertThat(call("GET", "/profiles/me", token, null).statusCode()).isEqualTo(200);
+                return call("PATCH", "/profiles/me", token, Map.of("version", "0", "name", "While hashing"));
+            });
+            assertThat(browsing.get(3, TimeUnit.SECONDS).statusCode()).isEqualTo(200);
+            controlled.release.countDown();
+            assertThat(changing.get(10, TimeUnit.SECONDS).statusCode())
+                    .isEqualTo(phase.equals("wrong-current") ? 400 : 200);
+            assertThat(jdbc.queryForObject("SELECT version FROM users WHERE id=2", Long.class))
+                    .isEqualTo(phase.equals("wrong-current") ? 1L : 2L);
+        } finally {
+            controlled.release.countDown();
+            pool.shutdown();
+            assertThat(pool.awaitTermination(15, TimeUnit.SECONDS)).isTrue();
+            controlled.blockedValue = null;
+        }
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"hash", "auth-version", "inactive"})
+    void passwordSnapshotIsRevalidatedAfterHashingBeforeAnyWriteOrToken(String change) throws Exception {
+        String token = login(2);
+        String interveningHash = encoder.encode("InterveningCc3");
+        var controlled = (ControlledEncoder) encoder;
+        controlled.arm(nextPassword, true);
+        var pool = Executors.newFixedThreadPool(2);
+        try {
+            var changing = pool.submit(() -> call("POST", "/profiles/me/password", token,
+                    passwordRequest(password, nextPassword, nextPassword)));
+            assertThat(controlled.entered.await(10, TimeUnit.SECONDS)).isTrue();
+            var intervening = pool.submit(() -> {
+                switch (change) {
+                    case "hash" -> jdbc.update("UPDATE users SET password_hash=? WHERE id=2", interveningHash);
+                    case "auth-version" -> jdbc.update("UPDATE users SET auth_version=auth_version+1 WHERE id=2");
+                    default -> jdbc.update("UPDATE users SET status='INACTIVE' WHERE id=2");
+                }
+            });
+            intervening.get(3, TimeUnit.SECONDS);
+            var state = userState(2);
+            controlled.release.countDown();
+            var result = changing.get(10, TimeUnit.SECONDS);
+            assertThat(result.statusCode()).isEqualTo(change.equals("hash") ? 409 : 401);
+            assertThat(result.body()).doesNotContain("\"token\"", nextPassword, interveningHash);
+            assertThat(userState(2)).isEqualTo(state);
+        } finally {
+            controlled.release.countDown();
+            pool.shutdown();
+            assertThat(pool.awaitTermination(15, TimeUnit.SECONDS)).isTrue();
+            controlled.blockedValue = null;
+        }
+    }
+
+    /** Only delays the selected real BCrypt operation; repositories, HTTP and MySQL stay real. */
+    static class ControlledEncoder implements PasswordEncoder {
+        final PasswordEncoder delegate = new BCryptPasswordEncoder();
+        volatile String blockedValue;
+        volatile boolean blockEncode;
+        volatile boolean transactionActive;
+        volatile CountDownLatch entered = new CountDownLatch(1), release = new CountDownLatch(1);
+        void arm(String value, boolean encode) {
+            entered = new CountDownLatch(1);
+            release = new CountDownLatch(1);
+            transactionActive = false;
+            blockEncode = encode;
+            blockedValue = value;
+        }
+        private void delay(CharSequence value, boolean encode) {
+            if (blockedValue == null || blockEncode != encode || !blockedValue.contentEquals(value)) return;
+            transactionActive = TransactionSynchronizationManager.isActualTransactionActive();
+            entered.countDown();
+            try {
+                if (!release.await(15, TimeUnit.SECONDS)) throw new IllegalStateException("Encoder gate timed out");
+            } catch (InterruptedException ex) { Thread.currentThread().interrupt(); throw new IllegalStateException(ex); }
+        }
+        public String encode(CharSequence value) { delay(value, true); return delegate.encode(value); }
+        public boolean matches(CharSequence value, String hash) { delay(value, false); return delegate.matches(value, hash); }
     }
 
     private Map<String, Object> userState(int id) { return jdbc.queryForMap("SELECT password_hash,password_changed_at,must_change_password,auth_version,version,full_name,phone FROM users WHERE id=?", id); }

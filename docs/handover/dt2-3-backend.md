@@ -39,3 +39,9 @@ Hai mutation Profile dùng bearer header stateless, được miễn CSRF đúng 
 DDL20261113.1 không đổi; `verified-db` bật native Flyway/preflight trên schema `_test` mới. `smart_cafe` cấu hình local vẫn legacy13 bảng/0view, thiếu staff_profiles/media_assets; không phải target đã duyệt. DBA phải xác định instance đích, lineage, grants/DEFINER, backup/restore và rollout trước deployment. Không dùng startup seed, không tắt safety để chạy.
 
 Tổ hợp PR #11/#14/#15 chưa đạt integration full-suite; patch nằm [riêng để owner xem xét](../qa/rehearsals/dt2-3/README.md). Không nhập module chưa được duyệt vào nhánh này. Shared Login/current-password admission limit và transport JSON cap chưa được phê duyệt/triển khai; chưa được mô tả là brute-force protected. Chưa lập trình FE, commit/push/PR/Jira Done hay deployment.
+
+## Review follow-up: password contention và frontend scope
+
+BCrypt verification/reuse-check/hash chạy ngoài transaction và row lock. Khi bắt đầu write transaction, service khóa users, kiểm tra lại DB authority cùng password hash/auth_version đã xác minh rồi mới ghi; không cấp token khi snapshot stale hoặc commit lỗi. API payload/status và UTC expiry không thay đổi.
+
+Frontend AuthContext hiện chưa tích hợp top-level expiry status và replacement token; AccountPage còn read-only. Đây là phần DT2-28 phải hoàn tất theo các bước trên. Backend HTTP/Newman PASS không chứng minh browser đổi password rồi quay lại Profile đã E2E PASS. Không sửa Auth UI của module khác trong follow-up Backend này.

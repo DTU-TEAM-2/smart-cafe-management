@@ -1,0 +1,43 @@
+--- a/backend/src/test/java/vn/codegym/smartcafe/billing/BillMySqlIntegrationTest.java
++++ b/backend/src/test/java/vn/codegym/smartcafe/billing/BillMySqlIntegrationTest.java
+@@ -1,14 +1,10 @@
+ package vn.codegym.smartcafe.billing;
+
+ import java.math.BigDecimal;
+-import java.nio.charset.StandardCharsets;
++import vn.codegym.smartcafe.auth.TokenService;
+ import java.time.Clock;
+ import java.time.Instant;
+ import java.time.ZoneId;
+-import java.util.Base64;
+-import java.util.HexFormat;
+-import javax.crypto.Mac;
+-import javax.crypto.spec.SecretKeySpec;
+ import org.junit.jupiter.api.BeforeEach;
+ import org.junit.jupiter.api.Test;
+ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
+@@ -37,7 +33,7 @@
+ @EnabledIfEnvironmentVariable(named = "TEST_DB_URL", matches = "jdbc:mysql:.*")
+ @Transactional
+ class BillMySqlIntegrationTest {
+-    private static final String SECRET = "test-secret-at-least-32-bytes-long-for-testing!";
++    @Autowired TokenService tokens;
+
+     @Autowired JdbcTemplate jdbc;
+     @Autowired MockMvc mvc;
+@@ -53,12 +49,9 @@
+     }
+
+     private String bearer(int id, String username) throws Exception {
+-        long expiry = Instant.now().plusSeconds(3600).toEpochMilli();
+-        String payload = Base64.getUrlEncoder().withoutPadding().encodeToString(
+-                (id + ":" + username + ":ANY:" + expiry).getBytes(StandardCharsets.UTF_8));
+-        Mac mac = Mac.getInstance("HmacSHA256");
+-        mac.init(new SecretKeySpec(SECRET.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
+-        return "Bearer " + payload + "." + HexFormat.of().formatHex(mac.doFinal(payload.getBytes(StandardCharsets.UTF_8)));
++        var user = jdbc.queryForMap("SELECT role, auth_version FROM users WHERE id=? AND username=?", id, username);
++        return "Bearer " + tokens.generateToken((long) id, username, (String) user.get("role"),
++                ((Number) user.get("auth_version")).longValue());
+     }
+
+     @BeforeEach

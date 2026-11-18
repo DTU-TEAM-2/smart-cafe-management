@@ -57,17 +57,23 @@ public class ProfileService {
         if (!PasswordPolicy.isValid(request.newPassword)) {
             throw new ProfileException(BAD_REQUEST, "INVALID_PASSWORD", "Mật khẩu mới không đáp ứng chính sách mật khẩu.");
         }
+        current(principal);
+        var verified = auth.findUserById(principal.id()).orElseThrow(ProfileService::unauthorized);
+        if (verified.authVersion() != principal.authVersion()) throw unauthorized();
+        if (!encoder.matches(request.currentPassword, verified.passwordHash())) {
+            throw new ProfileException(BAD_REQUEST, "CURRENT_PASSWORD_INCORRECT", "Mật khẩu hiện tại không chính xác.");
+        }
+        if (encoder.matches(request.newPassword, verified.passwordHash())) {
+            throw new ProfileException(BAD_REQUEST, "PASSWORD_REUSED", "Mật khẩu mới không được trùng mật khẩu hiện tại.");
+        }
+        String newHash = encoder.encode(request.newPassword);
         UserRecord changed = transaction.execute(status -> {
             profiles.lock(principal.id());
             current(principal);
             var user = auth.findUserById(principal.id()).orElseThrow(ProfileService::unauthorized);
-            if (!encoder.matches(request.currentPassword, user.passwordHash())) {
-                throw new ProfileException(BAD_REQUEST, "CURRENT_PASSWORD_INCORRECT", "Mật khẩu hiện tại không chính xác.");
-            }
-            if (encoder.matches(request.newPassword, user.passwordHash())) {
-                throw new ProfileException(BAD_REQUEST, "PASSWORD_REUSED", "Mật khẩu mới không được trùng mật khẩu hiện tại.");
-            }
-            if (auth.updateUserPassword(user.id(), encoder.encode(request.newPassword), principal.authVersion()) != 1) {
+            // Hashing runs without a connection/lock; reject an intervening credential change under the lock.
+            if (user.authVersion() != verified.authVersion() || !user.passwordHash().equals(verified.passwordHash())
+                    || auth.updateUserPassword(user.id(), newHash, principal.authVersion()) != 1) {
                 throw new ProfileException(CONFLICT, "PASSWORD_CONFLICT", "Thông tin xác thực đã thay đổi. Vui lòng đăng nhập lại.");
             }
             return auth.findUserById(user.id()).orElseThrow(ProfileService::unauthorized);

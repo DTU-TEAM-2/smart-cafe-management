@@ -1,5 +1,7 @@
 # DT2-3 / DT2-27 — final local handoff
 
+> Follow-up sau review PR #19: xem [kết quả hiện hành](../reports/dt2-3-review-follow-up.md). Các số liệu/JAR và hạn chế bên dưới là snapshot của các lượt handoff/publication trước.
+
 > Cập nhật18/11/2026: CF-04 đã được xác nhận, user đã cho phép commit/push và Draft PR vào develop. Base mới331c1e3 đã tích hợp không conflict; trạng thái HOLD do thiếu CF ở phần handoff15/11 là lịch sử. Kết quả và blockers hiện hành ở [publication report](../reports/dt2-3-publication.md), không suy ra ready-to-merge.
 
 Ngày15/11/2026. Owner đã chấp nhận Backend DT2-3 triển khai và kiểm thử local đạt; **không chấp nhận full integrationPASS**. Lượt này chỉ hoàn thiện tài liệu, phân loại file, đóng gói regression/proposal và chuẩn bị publication; không đổi runtime/test executable, API contract, DDL hoặc task của thành viên khác.

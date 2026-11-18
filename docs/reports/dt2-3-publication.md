@@ -1,5 +1,7 @@
 # CF-04 / DT2-3 / DT2-27 — publication verification, 18/11/2026
 
+> Publication baseline dưới đây thuộc `f6d38243`. Kết quả sửa review sau đó, candidate với Customer mới và trạng thái Draft được cập nhật ở [review follow-up](dt2-3-review-follow-up.md). Không dùng JAR/counts của baseline như bằng chứng cho runtime sau sửa.
+
 Owner xác nhận **CF-04** và cho phép commit/push/**Draft PR vào develop**. Commit/title dùng chính xác:
 
 ```text

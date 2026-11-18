@@ -92,13 +92,13 @@
     }
   ],
   "provenance": {
-    "revision": "331c1e329dac40780c56b75aaf32403c4acddadf",
+    "revision": "f6d38243fc603925ff2a3c7cd513a477cdf63598",
     "dirty": true,
-    "runtimeJarSha256": "7e1fca9a1138b02912700b2f7004508732e2e9361da359e8b39cf71b5e3f2b12",
+    "runtimeJarSha256": "9e17cca76d54c15f2d4b09b97b78dd2a7705222d83ab40c350627da8fa71455e",
     "sourceManifest": "results.json#sourceSha256",
     "launcher": "scripts/auth-postman-live.cjs",
     "profileEnvironment": "AUTH_TEST_PROFILE=verified-db",
-    "capturedOn": "2026-11-18",
-    "note": "Real current JAR/MySQL/loopback SMTP; owned native schema removed after run."
+    "capturedAt": "2026-11-18T04:01:10.112148+00:00",
+    "note": "Fresh launcher stdout captured with real current JAR/MySQL/loopback SMTP; owned native schema removed by wrapper after exit0. Provenance appended after capture."
   }
 }

@@ -1,5 +1,8 @@
 # DT2-3 → Auth / Staff / News: shared-security review proposal
 
+> Follow-up PR #19 ngày18/11/2026: source refs và proposal dành cho HEAD mới được ghi ở [review follow-up](../reports/dt2-3-review-follow-up.md) và [artifact README](../qa/rehearsals/dt2-3/README.md). Các findings/version/line bên dưới là snapshot có ngày; không coi historical revert/bean collision là lỗi của HEAD Staff hiện hành.
+
+
 > Cập nhật18/11/2026: findings bên dưới là snapshot15/11. Staffb74a365 sửa Auth resources/dashboard rename/management matcher; candidate hiện hành giữ matcher mới trả403 đúng. Newsc2343ed sửa root/path boundary nhưng vẫn thiếu Profile consumer, tái hiện401; patch mới chỉ là proposal trong candidate. Customera41152d đã khôi phục Auth/verified resources; domain/tests trùng Git tree với ref đã chạy, shared-chain reconciliation vẫn cần giữ đầy đủ rules. [Publication report](../reports/dt2-3-publication.md) là trạng thái mới nhất.
 
 **Local handoff, chưa đăng comment GitHub, chưa request reviewer hoặc approve PR.** Áp dụng cho integration candidate, không quy mọi finding cho từng PR standalone.
