@@ -151,10 +151,10 @@ class FeedbackImagesTest {
         var file = new MockMultipartFile("images", "test.png", "image/png", png());
         var command = new CustomerFeedbackController.Command("Khách test", "test@example.invalid", "Nội dung phản hồi", BigDecimal.valueOf(5));
 
-        assertThatThrownBy(() -> submit.submit(command, List.of(file)))
+        assertThatThrownBy(() -> submit.submit(command, List.of(file, file)))
                 .isInstanceOf(org.springframework.transaction.CannotCreateTransactionException.class);
 
-        verify(storage).delete(uploaded);
+        verify(storage, times(2)).delete(uploaded);
         verifyNoInteractions(db);
     }
 
@@ -176,7 +176,8 @@ class FeedbackImagesTest {
         var command = new CustomerFeedbackController.Command("Khách test", "test@example.invalid", "Nội dung phản hồi", BigDecimal.valueOf(5));
 
         assertThatThrownBy(() -> submit.submit(command, List.of(file)))
-                .isInstanceOf(DataIntegrityViolationException.class);
+                .isInstanceOf(DataIntegrityViolationException.class)
+                .satisfies(ex -> assertThat(ex.getSuppressed()).anyMatch(s -> s.getMessage().contains("Rollback ACK timeout")));
 
         verify(txManager).rollback(txStatus);
         verify(storage, never()).delete(any());
@@ -185,13 +186,14 @@ class FeedbackImagesTest {
     @Test void goldenImageExifOrientationsAll8Supported() throws Exception {
         var images = new FeedbackImages();
         for (int orientation = 1; orientation <= 8; orientation++) {
-            byte[] jpeg = createJpegWithExifGpsAndOrientation(4, 2, orientation);
+            // Asymmetric image: width 32, height 16 with red arrow and blue 'F'
+            byte[] jpeg = createJpegWithExifGpsAndOrientation(32, 16, orientation);
             var file = new MockMultipartFile("images", "orient-" + orientation + ".jpg", "image/jpeg", jpeg);
             var result = images.validate(List.of(file)).getFirst();
 
             boolean transposed = orientation >= 5;
-            int expectedWidth = transposed ? 2 : 4;
-            int expectedHeight = transposed ? 4 : 2;
+            int expectedWidth = transposed ? 16 : 32;
+            int expectedHeight = transposed ? 32 : 16;
             assertThat(result.width()).as("Width for orientation " + orientation).isEqualTo(expectedWidth);
             assertThat(result.height()).as("Height for orientation " + orientation).isEqualTo(expectedHeight);
 
@@ -200,13 +202,26 @@ class FeedbackImagesTest {
             assertThat(decoded.getWidth()).isEqualTo(expectedWidth);
             assertThat(decoded.getHeight()).isEqualTo(expectedHeight);
 
+            // Verify asymmetric content is drawn and preserved after transformation
+            boolean hasColoredPixel = false;
+            for (int x = 0; x < decoded.getWidth(); x++) {
+                for (int y = 0; y < decoded.getHeight(); y++) {
+                    int rgb = decoded.getRGB(x, y) & 0x00FFFFFF;
+                    if (rgb != 0x00FFFFFF) { // Not background white
+                        hasColoredPixel = true;
+                        break;
+                    }
+                }
+            }
+            assertThat(hasColoredPixel).as("Transformed image contains asymmetric drawn features").isTrue();
+
             assertThat(new String(result.bytes(), StandardCharsets.ISO_8859_1))
                     .doesNotContain("GPS_SYNTHETIC_DATA_LAT_10_LONG_106");
         }
     }
 
     @Test void syntheticGpsMetadataIsStrippedAndExifOrientationIsApplied() throws Exception {
-        byte[] jpegWithGps = createJpegWithExifGpsAndOrientation(4, 2, 6);
+        byte[] jpegWithGps = createJpegWithExifGpsAndOrientation(32, 16, 6);
         assertThat(new String(jpegWithGps, StandardCharsets.ISO_8859_1)).contains("GPS_SYNTHETIC_DATA_LAT_10_LONG_106");
 
         var file = new MockMultipartFile("images", "photo.jpg", "image/jpeg", jpegWithGps);
@@ -215,9 +230,9 @@ class FeedbackImagesTest {
 
         assertThat(validatedList).hasSize(1);
         var validated = validatedList.getFirst();
-        // Original was 4x2 with Orientation 6 (Rotate 90 CW) -> Transformed to 2x4
-        assertThat(validated.width()).isEqualTo(2);
-        assertThat(validated.height()).isEqualTo(4);
+        // Original was 32x16 with Orientation 6 (Rotate 90 CW) -> Transformed to 16x32
+        assertThat(validated.width()).isEqualTo(16);
+        assertThat(validated.height()).isEqualTo(32);
         assertThat(validated.contentType()).isEqualTo("image/jpeg");
 
         // EXIF GPS metadata must be completely stripped from output bytes
@@ -226,13 +241,31 @@ class FeedbackImagesTest {
         // Verify output bytes are valid JPEG raster readable by ImageIO
         var decoded = ImageIO.read(new ByteArrayInputStream(cleanBytes));
         assertThat(decoded).isNotNull();
-        assertThat(decoded.getWidth()).isEqualTo(2);
-        assertThat(decoded.getHeight()).isEqualTo(4);
+        assertThat(decoded.getWidth()).isEqualTo(16);
+        assertThat(decoded.getHeight()).isEqualTo(32);
     }
 
     private static byte[] createJpegWithExifGpsAndOrientation(int width, int height, int orientation) throws Exception {
+        var img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        var g = img.createGraphics();
+        try {
+            g.setColor(java.awt.Color.WHITE);
+            g.fillRect(0, 0, width, height);
+            // Draw asymmetric arrow pointing towards top-right
+            g.setColor(java.awt.Color.RED);
+            g.drawLine(1, height - 2, width - 2, 1);
+            g.drawLine(width - 2, 1, width - 2, Math.min(height - 1, 3));
+            g.drawLine(width - 2, 1, Math.max(0, width - 4), 1);
+            // Draw letter 'F' in top-left quadrant
+            g.setColor(java.awt.Color.BLUE);
+            g.fillRect(1, 1, 1, Math.min(height - 2, 4));
+            g.fillRect(1, 1, Math.min(width - 2, 3), 1);
+        } finally {
+            g.dispose();
+        }
+
         var baseOut = new ByteArrayOutputStream();
-        ImageIO.write(new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB), "jpeg", baseOut);
+        ImageIO.write(img, "jpeg", baseOut);
         byte[] baseJpeg = baseOut.toByteArray();
 
         // Construct synthetic APP1 segment containing EXIF with orientation and GPS marker
