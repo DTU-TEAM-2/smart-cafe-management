@@ -8,6 +8,7 @@ import ResetPasswordPage from "../auth/ResetPasswordPage.jsx";
 import AdminDashboard from "../dashboard/AdminDashboard.jsx";
 import StaffDashboard from "../dashboard/StaffDashboard.jsx";
 import SalesWorkspace from "../sales/SalesWorkspace.jsx";
+import BillsWorkspace from "../billing/BillsWorkspace.jsx";
 
 function subscribeHash(callback) {
   window.addEventListener("hashchange", callback);
@@ -92,8 +93,10 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
   const onAdminPage = hash.startsWith("#admin");
   const onStaffPage = hash.startsWith("#staff");
   const onSalesPage = hash === "#sale" || hash === "#sale-income";
+  const onStatistics = hash === "#statistics";
+  const onBillsPage = onStatistics || ["#bills", "#manage/bills", "#manage-bills"].includes(hash);
 
-  const isSpecialPage = onAccountPage || onLoginPage || onForgotPasswordPage || onOtpPage || onResetPasswordPage || onAdminPage || onStaffPage || onSalesPage;
+  const isSpecialPage = onAccountPage || onLoginPage || onForgotPasswordPage || onOtpPage || onResetPasswordPage || onAdminPage || onStaffPage || onSalesPage || onBillsPage;
 
   useEffect(() => {
     if (!isSpecialPage && hash) {
@@ -115,10 +118,16 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
     authorization={authorization} credentials={credentials} income={hash === "#sale-income"}
     retryIdentity={() => { setIdentity({ status: "loading", account: null }); setAccountAttempt(value => value + 1); }} />;
   const notifications = feed.data && { ...feed.data, items: feed.data.items.map(item => ({ ...item, read: readIds.has(item.id) })) };
-  return <SiteLayout account={account} notifications={notifications} links={{ login: loginHref }}
-    currentPage={onAccountPage ? "account" : onLoginPage ? "login" : "home"} notificationState={feed.status}
-    onRetryNotifications={() => { setFeed({ status: "loading", data: null }); setFeedAttempt(value => value + 1); }}
-    onNotificationsOpen={() => setReadIds(previous => new Set([...previous, ...(feed.data?.items.map(item => item.id) ?? [])]))}>
+  const layout = {
+    account, notifications, links: { login: loginHref }, notificationState: feed.status,
+    onRetryNotifications: () => { setFeed({ status: "loading", data: null }); setFeedAttempt(value => value + 1); },
+    onNotificationsOpen: () => setReadIds(previous => new Set([...previous, ...(feed.data?.items.map(item => item.id) ?? [])])),
+  };
+  const isAdmin = account?.role === "ADMIN";
+  if (onBillsPage && (isAdmin || (!onStatistics && account?.role === "STAFF"))) {
+    return <BillsWorkspace layout={layout} authorization={authorization} credentials={credentials} statistics={onStatistics} isAdmin={isAdmin} />;
+  }
+  return <SiteLayout {...layout} currentPage={onAccountPage ? "account" : onLoginPage ? "login" : "home"}>
     {identity.status === "error" && <div className="identity-error" role="alert">Chưa tải được thông tin tài khoản.
       <button type="button" onClick={() => setAccountAttempt(value => value + 1)}>Thử lại</button></div>}
     {onLoginPage ? (
@@ -139,6 +148,13 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
       <StaffDashboard onNavigate={handleNavigate} />
     ) : onAccountPage ? (
       <AccountPage status={identity.status} account={identity.account} />
+    ) : onBillsPage ? (
+      <section className="account-page">
+        <h1>{onStatistics ? "Thống kê doanh thu" : "Khu vực quản lý hóa đơn"}</h1>
+        {identity.status === "loading" ? <p role="status">Đang tải thông tin tài khoản…</p>
+          : identity.status === "ready" && <p>{onStatistics ? "Chỉ Quản trị viên (ADMIN) được xem thống kê." : "Khu vực dành cho nhân viên và Quản trị viên (ADMIN)."}</p>}
+        <a href={account ? "#top" : loginHref}>{account ? "Về trang chủ" : "Đăng nhập"}</a>
+      </section>
     ) : (
       <HomePage />
     )}

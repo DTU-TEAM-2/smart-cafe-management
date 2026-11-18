@@ -37,3 +37,7 @@ Quyết định: main dành release, develop tích hợp task; feature/bugfix t�
 Cách thực thi: bootstrap develop từ main@8476ee3, retarget PR #7/#10/#11 vào develop, ruleset main/develop/release yêu cầu PR/2 approval/CI và merge bởi NV-DuyManh hoặc haitan2408. CI thêm Git Flow source/target check và regression tests. GitHub Actions kiểm quy trình/chất lượng, không giả báo đã cài bot AI code review. Tự review/AI review không thay hai người review. PR Git Flow chưa merge; các PR cũ cần nhận baseline workflow mới sau review. Không thay app/database, không tag/deploy hoặc nhập công việc local task tin tức còn dở.
 
 Skills áp dụng cho thay đổi quy trình: cafe-workflow, cafe-review, cafe-quality tại .agents/skills; định tuyến workflow/verification/review, giữ attribution và ghi đúng giới hạn kiểm chứng. Cấu hình chi tiết và giới hạn thực thi nằm trong docs/engineering/github-settings.md.
+
+## DT2-8 · Quyền xem và biểu đồ doanh thu
+
+Theo QA SRS câu 21, STAFF được đọc hóa đơn và ADMIN có quyền thống kê, in hóa đơn. Theo câu 22, biểu đồ tròn dùng tỷ trọng doanh thu theo phương thức thanh toán trong cùng kỳ với biểu đồ cột. [Trả lời QA DT2-8](../handover/dt2-8-qa.md)

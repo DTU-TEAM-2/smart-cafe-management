@@ -238,7 +238,9 @@ class SalesMySqlTest {
 
     @Test void qaFourRestrictsReportsPaymentsAndResetToManagers() throws Exception {
         var bill=sales.createBill(1,new SalesService.BillCommand("SESSION-OLD","auth"),"staff");
-        for (String path : java.util.List.of("/api/v1/income", "/api/v1/bills/" + bill.id()))
+        mvc.perform(get("/api/v1/bills/"+bill.id()).with(user("staff").roles("STAFF")))
+                .andExpect(status().isOk());
+        for (String path : java.util.List.of("/api/v1/income", "/api/v1/statistics/revenue"))
             mvc.perform(get(path).with(user("staff").roles("STAFF"))).andExpect(status().isForbidden());
         mvc.perform(post("/api/v1/bills/"+bill.id()+"/payments").with(user("staff").roles("STAFF")).with(csrf())
                 .contentType("application/json").content("{\"method\":\"CASH\",\"idempotencyKey\":\"pay\"}"))
