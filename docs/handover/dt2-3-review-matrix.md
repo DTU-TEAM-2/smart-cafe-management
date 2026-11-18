@@ -2,7 +2,7 @@
 
 Latest base: develop `b96a821`, feature sync `e2a3eb3`; primary315 and proposed B468 freshly rerun after Customer merge. Earlier snapshot18/11/2026: develop331c1e3, Profilee7848df, officialStaff57ea6f1, Customer50745ba (round 2: 468 tests; round 1: ebe0a97, 461 tests), Newsc2343ed, Bills86b70e2. Full SHA, timestamps, source/fixture/POM/config/patch/JAR hashes and actual commands/results are in [machine evidence](../reports/dt2-3-review-follow-up-results.json). No member branch or foreign production module is changed in PR19.
 
-Read6review submissions,5inline threads and1conversation. Conversation6970922514 translates review5951694756; it is not a new finding. The latter review's Staff allegation is stale against57ea6f1. At read time reviewers had resolved3old code threads;2documentation threads remained open. No agent resolution/approval occurred.
+Read6review submissions,5inline threads and1conversation. Conversation6970922514 translates review5951694756; it is not a new finding. The latter review's Staff allegation is stale against57ea6f1. At read time3old code threads were already marked resolved; this does not establish reviewer approval or who performed those earlier actions. The2documentation threads now have the authorized replies and were verified unresolved after restoring their open state when the final API snapshot showed author-account resolution. No resolve/approve/merge action was requested by this agent.
 
 ## Finding-to-fix matrix
 
