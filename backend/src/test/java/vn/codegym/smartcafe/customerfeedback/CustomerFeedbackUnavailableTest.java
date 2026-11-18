@@ -94,4 +94,24 @@ class CustomerFeedbackUnavailableTest {
                 .andExpect(jsonPath("$.detail").value("Hiện chưa gửi được phản hồi. Vui lòng thử lại."))
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("private-jdbc-host"))));
     }
+
+    @Test
+    void rejectsOversizedJsonBodyWithPayloadTooLargeBeforeControllerParsing() throws Exception {
+        byte[] oversized = new byte[131073];
+        java.util.Arrays.fill(oversized, (byte) ' ');
+        oversized[0] = '{';
+        oversized[oversized.length - 1] = '}';
+
+        mvc.perform(post("/api/v1/customer/feedback").with(csrf())
+                        .with(request -> { request.setRemoteAddr("192.0.2.70"); return request; })
+                        .contentType("application/json")
+                        .content(oversized))
+                .andExpect(status().isPayloadTooLarge())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.status").value(413))
+                .andExpect(jsonPath("$.title").value("Dung lượng yêu cầu quá lớn"))
+                .andExpect(jsonPath("$.detail").value("Dung lượng yêu cầu quá lớn."));
+
+        org.mockito.Mockito.verifyNoInteractions(service);
+    }
 }

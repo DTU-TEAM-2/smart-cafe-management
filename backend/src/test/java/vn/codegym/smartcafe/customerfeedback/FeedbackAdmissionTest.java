@@ -74,6 +74,92 @@ class FeedbackAdmissionTest {
         }
     }
 
+    @Test
+    void rejectsOversizedJsonViaContentLengthBeforeReadingStream() throws Exception {
+        var filter = new FeedbackAdmissionFilter(request -> true, request -> false,
+                Clock.fixed(Instant.ofEpochSecond(65), ZoneOffset.UTC), 20, 120, 1, 12, 60, 50);
+
+        var request = request("192.0.2.1", false);
+        request.setContent(new byte[51]);
+        var response = new MockHttpServletResponse();
+        var downstreamCalled = new boolean[]{false};
+
+        filter.doFilter(request, response, (req, res) -> downstreamCalled[0] = true);
+
+        assertThat(downstreamCalled[0]).isFalse();
+        assertThat(response.getStatus()).isEqualTo(413);
+        assertThat(response.getContentAsString()).contains("\"status\":413");
+        assertThat(response.getContentAsString()).contains("Dung lượng yêu cầu quá lớn");
+    }
+
+    @Test
+    void rejectsChunkedOversizedJsonStreamAndDoesNotCallDownstream() throws Exception {
+        var filter = new FeedbackAdmissionFilter(request -> true, request -> false,
+                Clock.fixed(Instant.ofEpochSecond(65), ZoneOffset.UTC), 20, 120, 1, 12, 60, 50);
+
+        var request = new MockHttpServletRequest("POST", "/api/v1/customer/feedback") {
+            @Override
+            public long getContentLengthLong() {
+                return -1;
+            }
+
+            @Override
+            public int getContentLength() {
+                return -1;
+            }
+        };
+        request.setRemoteAddr("192.0.2.1");
+        request.setContentType("application/json");
+        request.setContent(new byte[51]);
+
+        var response = new MockHttpServletResponse();
+        var downstreamCalled = new boolean[]{false};
+
+        filter.doFilter(request, response, (req, res) -> downstreamCalled[0] = true);
+
+        assertThat(downstreamCalled[0]).isFalse();
+        assertThat(response.getStatus()).isEqualTo(413);
+        assertThat(response.getContentAsString()).contains("\"status\":413");
+        assertThat(response.getContentAsString()).contains("Dung lượng yêu cầu quá lớn");
+    }
+
+    @Test
+    void allowsChunkedJsonWithinLimitAndDownstreamCanReadBody() throws Exception {
+        var filter = new FeedbackAdmissionFilter(request -> true, request -> false,
+                Clock.fixed(Instant.ofEpochSecond(65), ZoneOffset.UTC), 20, 120, 1, 12, 60, 50);
+
+        byte[] payload = "{\"test\":123}".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        var request = new MockHttpServletRequest("POST", "/api/v1/customer/feedback") {
+            @Override
+            public long getContentLengthLong() {
+                return -1;
+            }
+
+            @Override
+            public int getContentLength() {
+                return -1;
+            }
+        };
+        request.setRemoteAddr("192.0.2.1");
+        request.setContentType("application/json");
+        request.setContent(payload);
+
+        var response = new MockHttpServletResponse();
+        var readBody = new byte[payload.length];
+
+        filter.doFilter(request, response, (req, res) -> {
+            ((MockHttpServletResponse) res).setStatus(200);
+            try {
+                req.getInputStream().read(readBody);
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        });
+
+        assertThat(response.getStatus()).isEqualTo(200);
+        assertThat(readBody).isEqualTo(payload);
+    }
+
     private MockHttpServletResponse send(FeedbackAdmissionFilter filter, String source, boolean multipart) throws Exception {
         var response = new MockHttpServletResponse();
         filter.doFilter(request(source, multipart), response, (req, res) -> ((MockHttpServletResponse) res).setStatus(200));

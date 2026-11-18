@@ -41,7 +41,8 @@ public class SecurityConfig {
             @Value("${feedback.limits.total-per-minute:120}") int total,
             @Value("${feedback.limits.concurrent-multipart:2}") int multipart,
             @Value("${feedback.limits.csrf-per-source-per-minute:12}") int csrfPerSource,
-            @Value("${feedback.limits.csrf-total-per-minute:60}") int csrfTotal) throws Exception {
+            @Value("${feedback.limits.csrf-total-per-minute:60}") int csrfTotal,
+            @Value("${feedback.limits.max-json-bytes:131072}") int maxJsonBytes) throws Exception {
         var tokenFilter = new HeaderTokenFilter(jdbc, tokenService.getSecretKey());
 
         var feedbackPost = PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/v1/customer/feedback");
@@ -106,7 +107,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/bills/*/payments", "/api/v1/sales/tables/*/reset").hasRole("ADMIN")
                         .anyRequest().denyAll())
                 .addFilterBefore(new FeedbackAdmissionFilter(
-                        feedbackPost, guestCsrf, clock, perSource, total, multipart, csrfPerSource, csrfTotal), CsrfFilter.class)
+                        feedbackPost, guestCsrf, clock, perSource, total, multipart, csrfPerSource, csrfTotal, maxJsonBytes), CsrfFilter.class)
                 .addFilterBefore(tokenFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }

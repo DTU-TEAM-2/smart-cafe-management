@@ -25,6 +25,8 @@ Kiểm tra tất cả file trước upload. Cloud calls ngoài DB transaction; t
 
 Mặc định mỗi tiến trình nhận tối đa 20 lượt POST Feedback/phút cho mỗi địa chỉ nguồn và 120 lượt/phút tổng cộng, tính theo phút UTC. Bộ đếm chạy trước khi đọc body và tính cả lượt sai CSRF hoặc validation. Quá ngưỡng trả `429` kèm `Retry-After` theo giây. Giới hạn dùng địa chỉ do servlet container cung cấp. Khi triển khai sau reverse proxy, chỉ cấu hình nhận địa chỉ chuyển tiếp từ proxy tin cậy. Nhiều replica cần quota chung ở tầng proxy/gateway.
 
+Body JSON (`application/json`) bị giới hạn tối đa `131.072` byte (128 KiB) tại filter trước khi giải mã Jackson. Request có Content-Length vượt quá hoặc stream chunked vượt quá giới hạn này bị từ chối ngay với HTTP `413 Payload Too Large`, `{"title":"Dung lượng yêu cầu quá lớn","status":413,"detail":"Dung lượng yêu cầu quá lớn."}`.
+
 Mỗi tiến trình mặc định nhận tối đa 2 request multipart đồng thời, tính từ trước khi parse đến khi xử lý xong upload và ghi DB. Request vượt giới hạn trả `503` kèm `Retry-After: 1`. Với mặc định này, tối đa 2 raster đang giải mã (mỗi raster ≤4 triệu điểm ảnh) và 30 MiB dữ liệu ảnh nén giữ trong các lượt upload, chưa tính chi phí bộ nhớ của decoder, SDK và servlet. Đo heap/CPU ở môi trường triển khai trước khi nâng giới hạn hoặc bật Firebase.
 
 GET cấp CSRF có hạn mức riêng mặc định 12 lượt/phút/nguồn và 60 lượt/phút/tiến trình, tính cả lượt có cookie. Quá hạn mức trả `429` kèm `Retry-After` và `Cache-Control: no-store` trước khi tạo session. Client dùng lại token và cookie để tránh gọi GET nhiều lần. Khi triển khai, cấu hình giới hạn và thời gian hết hạn của session store theo tài nguyên thực tế, đồng thời áp dụng quota GET chung tại gateway nếu có nhiều replica.
@@ -38,6 +40,7 @@ FEEDBACK_TOTAL_PER_MINUTE=120
 FEEDBACK_CONCURRENT_MULTIPART=2
 FEEDBACK_CSRF_PER_SOURCE_PER_MINUTE=12
 FEEDBACK_CSRF_TOTAL_PER_MINUTE=60
+FEEDBACK_MAX_JSON_BYTES=131072
 ```
 
 Admin SDK 9.11.0 dùng Application Default Credentials; GOOGLE_APPLICATION_CREDENTIALS là đường dẫn file ngoài Git, không phải JSON/key dán vào .env.example. Không hardcode project/bucket/credential, không tự tạo project/billing/IAM. Chỉ bật enabled khi thành viên phụ trách cung cấp bucket và quyền cần thiết. Chưa cấu hình thì multipart ảnh hợp lệ trả 503, không ghi feedback/media; Feedback JSON vẫn hoạt động.
