@@ -140,10 +140,12 @@ class BillMySqlIntegrationTest {
     }
 
     @Test
-    void staffRoleIsForbiddenFromManagerBills() throws Exception {
+    void staffCanReadBillsButCannotReadRevenue() throws Exception {
         String staffAuth = bearer(2, "staff_u");
-        mvc.perform(get("/api/v1/bills").header("Authorization", staffAuth)).andExpect(status().isForbidden());
-        mvc.perform(get("/api/v1/bills/1").header("Authorization", staffAuth)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/bills").header("Authorization", staffAuth)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(2));
+        mvc.perform(get("/api/v1/bills/1").header("Authorization", staffAuth)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value("1"));
         mvc.perform(get("/api/v1/statistics/revenue").header("Authorization", staffAuth)).andExpect(status().isForbidden());
     }
 
@@ -317,7 +319,9 @@ class BillMySqlIntegrationTest {
                 .andExpect(jsonPath("$.dailyRevenue.length()").value(1))
                 .andExpect(jsonPath("$.dailyRevenue[0].date").value("2026-11-11"))
                 .andExpect(jsonPath("$.dailyRevenue[0].revenue").value("110000"))
-                .andExpect(jsonPath("$.dailyRevenue[0].billCount").value(1));
+                .andExpect(jsonPath("$.dailyRevenue[0].billCount").value(1))
+                .andExpect(jsonPath("$.revenueByPaymentMethod[0].method").value("UNKNOWN"))
+                .andExpect(jsonPath("$.revenueByPaymentMethod[0].revenue").value("110000"));
 
         // Query Nov 10 (when Bill 1 was created): revenue should be 0 because paid_at was Nov 11!
         mvc.perform(get("/api/v1/statistics/revenue").header("Authorization", adminAuth)
@@ -327,7 +331,31 @@ class BillMySqlIntegrationTest {
                 .andExpect(jsonPath("$.summary.totalRevenue").value("0"))
                 .andExpect(jsonPath("$.summary.totalBills").value(0))
                 .andExpect(jsonPath("$.summary.averageBillAmount").value("0"))
-                .andExpect(jsonPath("$.dailyRevenue[0].revenue").value("0"));
+                .andExpect(jsonPath("$.dailyRevenue[0].revenue").value("0"))
+                .andExpect(jsonPath("$.revenueByPaymentMethod").isEmpty());
+    }
+
+    @Test
+    void paymentBreakdownReconcilesWithPaidRevenueAcrossMethods() throws Exception {
+        jdbc.update("""
+                UPDATE bills SET created_at='2026-11-10 16:59:59', paid_at='2026-11-10 17:00:00', status='PAID'
+                WHERE id=2
+                """);
+        jdbc.update("""
+                INSERT INTO payments(bill_id,method,amount,received_by_user_id,received_at,idempotency_key,request_hash)
+                VALUES (1,'CASH',110000,1,'2026-11-11 09:00:00','tender-1',REPEAT('0',64)),
+                       (2,'BANK_TRANSFER',90000,1,'2026-11-10 17:00:00','tender-2',REPEAT('1',64))
+                """);
+        mvc.perform(get("/api/v1/statistics/revenue").header("Authorization", bearer(1, "admin_u"))
+                .param("period", "today"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.totalRevenue").value("200000"))
+                .andExpect(jsonPath("$.dailyRevenue[0].revenue").value("200000"))
+                .andExpect(jsonPath("$.revenueByPaymentMethod.length()").value(2))
+                .andExpect(jsonPath("$.revenueByPaymentMethod[0].method").value("BANK_TRANSFER"))
+                .andExpect(jsonPath("$.revenueByPaymentMethod[0].revenue").value("90000"))
+                .andExpect(jsonPath("$.revenueByPaymentMethod[1].method").value("CASH"))
+                .andExpect(jsonPath("$.revenueByPaymentMethod[1].revenue").value("110000"));
     }
 
     @Test

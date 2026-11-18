@@ -1,6 +1,5 @@
 package vn.codegym.smartcafe.home;
 
-import java.time.ZoneOffset;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
@@ -59,7 +58,7 @@ class HeaderService {
                 """).query((row, index) -> new HomeNotificationFeed.Notice(
                         row.getString("event_id"), row.getString("event_type"), row.getString("table_id"),
                         row.getString("table_name"), row.getString("message"),
-                        row.getTimestamp("created_at").toLocalDateTime().atOffset(ZoneOffset.UTC).toString())).list();
+                        row.getTimestamp("created_at").toInstant().toString())).list();
         return new HomeNotificationFeed(recipient.id(), notices);
     }
 }

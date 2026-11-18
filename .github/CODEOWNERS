@@ -1,0 +1,13 @@
+# Critical workflow/policy edits need either owner; GitHub still requires two independent approvals overall.
+# CODEOWNERS is loaded from the PR base branch. This first addition requires explicit owner review before bootstrap.
+/.github/CODEOWNERS @NV-DuyManh @haitan2408
+/.github/workflows/** @NV-DuyManh @haitan2408
+/scripts/git-flow*.mjs @NV-DuyManh @haitan2408
+/git-flow.md @NV-DuyManh @haitan2408
+/AGENTS.md @NV-DuyManh @haitan2408
+/CONTRIBUTING.md @NV-DuyManh @haitan2408
+/.agents/workflows/** @NV-DuyManh @haitan2408
+/.agents/rules/** @NV-DuyManh @haitan2408
+/.agents/skills/cafe-workflow/** @NV-DuyManh @haitan2408
+/.agents/skills/cafe-release/** @NV-DuyManh @haitan2408
+/docs/engineering/github-settings.md @NV-DuyManh @haitan2408

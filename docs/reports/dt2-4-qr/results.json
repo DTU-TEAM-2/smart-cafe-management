@@ -1,0 +1,259 @@
+{
+  "generatedAt": "2026-11-11T07:26:25.447301+00:00",
+  "revision": "7e52ab782343d348fb30030ee9eae544381c578c",
+  "runUrl": "Local Docker: 127.0.0.1:13316; HTTP: 127.0.0.1:18084",
+  "runner": "Newman 6.2.1 / Postman Collection v2.1",
+  "environment": "Windows / Spring Boot 4.1.2 / Java 25 (release 21) / MySQL 8.0.46 / smart_cafe_qr_test",
+  "fixture": "Synthetic menu rows only; existing schema.sql fixture, not production DDL.",
+  "stats": {
+    "iterations": {
+      "total": 1,
+      "pending": 0,
+      "failed": 0
+    },
+    "items": {
+      "total": 9,
+      "pending": 0,
+      "failed": 0
+    },
+    "scripts": {
+      "total": 9,
+      "pending": 0,
+      "failed": 0
+    },
+    "prerequests": {
+      "total": 9,
+      "pending": 0,
+      "failed": 0
+    },
+    "requests": {
+      "total": 9,
+      "pending": 0,
+      "failed": 0
+    },
+    "tests": {
+      "total": 9,
+      "pending": 0,
+      "failed": 0
+    },
+    "assertions": {
+      "total": 16,
+      "pending": 0,
+      "failed": 0
+    },
+    "testScripts": {
+      "total": 9,
+      "pending": 0,
+      "failed": 0
+    },
+    "prerequestScripts": {
+      "total": 0,
+      "pending": 0,
+      "failed": 0
+    }
+  },
+  "failureCount": 0,
+  "cases": [
+    {
+      "name": "1. QR bàn A không cần đăng nhập",
+      "method": "GET",
+      "url": "/api/v1/customer/tables/qr/7d57e0b0-dfca-4ed3-846a-5b77e4450001",
+      "status": 200,
+      "responseTimeMs": 1654,
+      "body": {
+        "tableId": "81001",
+        "tableCode": "QR_TEST_A",
+        "tableName": "Bàn QR A"
+      },
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Đúng bàn, không cấp quyền phiên",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "2. QR bàn B phải trả đúng bàn B",
+      "method": "GET",
+      "url": "/api/v1/customer/tables/qr/7d57e0b0-dfca-4ed3-846a-5b77e4450002",
+      "status": 200,
+      "responseTimeMs": 54,
+      "body": {
+        "tableId": "81002",
+        "tableCode": "QR_TEST_B",
+        "tableName": "Bàn QR B"
+      },
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Đúng bàn, không cấp quyền phiên",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "3. Quét lại QR bàn A không đổi ngữ cảnh",
+      "method": "GET",
+      "url": "/api/v1/customer/tables/qr/7d57e0b0-dfca-4ed3-846a-5b77e4450001",
+      "status": 200,
+      "responseTimeMs": 51,
+      "body": {
+        "tableId": "81001",
+        "tableCode": "QR_TEST_A",
+        "tableName": "Bàn QR A"
+      },
+      "assertions": [
+        {
+          "name": "HTTP 200",
+          "passed": true
+        },
+        {
+          "name": "Đúng bàn, không cấp quyền phiên",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "4. QR sai định dạng",
+      "method": "GET",
+      "url": "/api/v1/customer/tables/qr/bad-qr",
+      "status": 400,
+      "responseTimeMs": 103,
+      "body": {
+        "detail": "Mã QR không hợp lệ.",
+        "instance": "/api/v1/customer/tables/qr/bad-qr",
+        "status": 400,
+        "title": "Không thể truy cập bàn"
+      },
+      "assertions": [
+        {
+          "name": "HTTP 400",
+          "passed": true
+        },
+        {
+          "name": "Lỗi Problem Details tiếng Việt",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "5. QR không tồn tại",
+      "method": "GET",
+      "url": "/api/v1/customer/tables/qr/7d57e0b0-dfca-4ed3-846a-5b77e4459999",
+      "status": 404,
+      "responseTimeMs": 104,
+      "body": {
+        "detail": "Không tìm thấy bàn.",
+        "instance": "/api/v1/customer/tables/qr/7d57e0b0-dfca-4ed3-846a-5b77e4459999",
+        "status": 404,
+        "title": "Không thể truy cập bàn"
+      },
+      "assertions": [
+        {
+          "name": "HTTP 404",
+          "passed": true
+        },
+        {
+          "name": "Lỗi Problem Details tiếng Việt",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "6. Bàn ngừng phục vụ",
+      "method": "GET",
+      "url": "/api/v1/customer/tables/qr/7d57e0b0-dfca-4ed3-846a-5b77e4450003",
+      "status": 409,
+      "responseTimeMs": 60,
+      "body": {
+        "detail": "Bàn hiện không phục vụ.",
+        "instance": "/api/v1/customer/tables/qr/7d57e0b0-dfca-4ed3-846a-5b77e4450003",
+        "status": 409,
+        "title": "Không thể truy cập bàn"
+      },
+      "assertions": [
+        {
+          "name": "HTTP 409",
+          "passed": true
+        },
+        {
+          "name": "Lỗi Problem Details tiếng Việt",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "7. Bàn lưu trữ không được truy cập",
+      "method": "GET",
+      "url": "/api/v1/customer/tables/qr/7d57e0b0-dfca-4ed3-846a-5b77e4450004",
+      "status": 404,
+      "responseTimeMs": 80,
+      "body": {
+        "detail": "Không tìm thấy bàn.",
+        "instance": "/api/v1/customer/tables/qr/7d57e0b0-dfca-4ed3-846a-5b77e4450004",
+        "status": 404,
+        "title": "Không thể truy cập bàn"
+      },
+      "assertions": [
+        {
+          "name": "HTTP 404",
+          "passed": true
+        },
+        {
+          "name": "Lỗi Problem Details tiếng Việt",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "8. Không mở quyền ghi từ route QR",
+      "method": "POST",
+      "url": "/api/v1/customer/tables/qr/7d57e0b0-dfca-4ed3-846a-5b77e4450001",
+      "status": 403,
+      "responseTimeMs": 287,
+      "body": {
+        "timestamp": "2026-11-11T07:24:53.801Z",
+        "status": 403,
+        "error": "Forbidden",
+        "path": "/api/v1/customer/tables/qr/7d57e0b0-dfca-4ed3-846a-5b77e4450001"
+      },
+      "assertions": [
+        {
+          "name": "HTTP 403",
+          "passed": true
+        }
+      ],
+      "passed": true
+    },
+    {
+      "name": "9. Không truy cập bàn bằng ID thay QR",
+      "method": "GET",
+      "url": "/api/v1/customer/tables/81002",
+      "status": 403,
+      "responseTimeMs": 41,
+      "body": "",
+      "assertions": [
+        {
+          "name": "HTTP 403",
+          "passed": true
+        }
+      ],
+      "passed": true
+    }
+  ],
+  "feature": "qr"
+}

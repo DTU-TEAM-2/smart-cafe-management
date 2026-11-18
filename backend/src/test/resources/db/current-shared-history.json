@@ -1,0 +1,77 @@
+{
+  "source": "read-only metadata,2026-11-13; not business data",
+  "history": [
+    {
+      "rank": 1,
+      "version": "001",
+      "description": "create home highlights",
+      "type": "SQL",
+      "script": "V001__create_home_highlights.sql",
+      "checksum": -796760827,
+      "success": true
+    },
+    {
+      "rank": 2,
+      "version": "005",
+      "description": "create users and password recovery",
+      "type": "SQL",
+      "script": "V005__create_users_and_password_recovery.sql",
+      "checksum": 2104374474,
+      "success": true
+    },
+    {
+      "rank": 3,
+      "version": "006",
+      "description": "add customer registration and otp",
+      "type": "SQL",
+      "script": "V006__add_customer_registration_and_otp.sql",
+      "checksum": -1469299444,
+      "success": true
+    },
+    {
+      "rank": 4,
+      "version": "007",
+      "description": "queue otp mail delivery",
+      "type": "SQL",
+      "script": "V007__queue_otp_mail_delivery.sql",
+      "checksum": -1858867750,
+      "success": true
+    },
+    {
+      "rank": 5,
+      "version": "008",
+      "description": "preserve otp delivery and failure reason",
+      "type": "SQL",
+      "script": "V008__preserve_otp_delivery_and_failure_reason.sql",
+      "checksum": 1642156858,
+      "success": true
+    },
+    {
+      "rank": 6,
+      "version": "002",
+      "description": "create bills and tables",
+      "type": "SQL",
+      "script": "V002__create_bills_and_tables.sql",
+      "checksum": 176605066,
+      "success": true
+    },
+    {
+      "rank": 7,
+      "version": "003",
+      "description": "update bills orders and idempotency",
+      "type": "SQL",
+      "script": "V003__update_bills_orders_and_idempotency.sql",
+      "checksum": 1309426143,
+      "success": true
+    },
+    {
+      "rank": 8,
+      "version": "004",
+      "description": "snapshot bill table header",
+      "type": "SQL",
+      "script": "V004__snapshot_bill_table_header.sql",
+      "checksum": -369513734,
+      "success": true
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from "react";
+﻿import { useId, useRef, useState } from "react";
 
 const noticeTime = new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", timeZone: "Asia/Ho_Chi_Minh" });
 function formattedTime(value) {
@@ -40,7 +40,7 @@ function Icon({ name }) {
 }
 
 export default function SiteLayout({ children, account = null, notifications = null, links = {},
-  currentPage = "home", notificationState = "ready", onRetryNotifications, onNotificationsOpen }) {
+  currentPage = "home", notificationState = "ready", onRetryNotifications, onNotificationsOpen, management = false }) {
   const [panel, setPanel] = useState(null);
   const regionId = useId();
   const menuButton = useRef(null);
@@ -62,11 +62,15 @@ export default function SiteLayout({ children, account = null, notifications = n
 
   return <>
     <div id="top" />
-    <a href="#main" className="skip-link">Bỏ qua điều hướng</a>
-    <header className="site-header" onKeyDown={handleHeaderKey} onBlur={(event) => {
+    <a href="#main" className="skip-link" onClick={management ? event => {
+      event.preventDefault();
+      document.getElementById("main")?.focus();
+    } : undefined}>Bỏ qua điều hướng</a>
+    <header className={management ? "site-header billing-header" : "site-header"} onKeyDown={handleHeaderKey} onBlur={(event) => {
       if (!event.currentTarget.contains(event.relatedTarget)) setPanel(null);
     }}>
       <div className="header-inner">
+        {management ? <strong className="billing-header-title">{account?.role === "ADMIN" ? "KHU VỰC QUẢN TRỊ" : "KHÔNG GIAN NHÂN VIÊN"}</strong> : <>
         <a className="brand" href="#top" aria-label="LECKER Trang chủ">
           <strong>LECKER</strong><span>Coffee Cafe</span>
         </a>
@@ -77,15 +81,18 @@ export default function SiteLayout({ children, account = null, notifications = n
         <nav id={`${regionId}-nav`} className={`header-nav ${panel === "menu" ? "is-open" : ""}`} aria-label="Điều hướng chính">
           {[
             ...navigation,
-            ...(account?.role === "ADMIN" ? [{ label: "Quản lý hóa đơn", href: "#bills" }] : []),
+            ...(isStaff ? [{ label: "Quản lý hóa đơn", href: "#bills" }] : []),
           ].map(({ label, href, key }, index) => (
-            <SiteLink key={label} href={href ?? links[key]} aria-current={href === "#bills" && currentPage === "bills" ? "page" : index === 0 && currentPage === "home" ? "page" : undefined}
+            <SiteLink key={label} href={href ?? links[key]} aria-current={index === 0 && currentPage === "home" ? "page" : undefined}
               onClick={() => { if (panel === "menu") menuButton.current?.focus(); setPanel(null); }}>{label}</SiteLink>
           ))}
         </nav>
+        </>}
         <div className="header-actions">
+          {!management && <>
           <a className="icon-button" href="#newest" aria-label="Khám phá danh sách món"><Icon name="search" /></a>
           <a className="icon-button" href="#most-ordered" aria-label="Món được gọi nhiều"><Icon name="heart" /></a>
+          </>}
           {isStaff && <div className="header-control">
             <button type="button" ref={notificationButton} className="icon-button"
               aria-label={unread ? `Thông báo, ${unread} chưa đọc` : "Thông báo"}
@@ -125,7 +132,7 @@ export default function SiteLayout({ children, account = null, notifications = n
       </div>
     </header>
     <main id="main" tabIndex={-1}>{children}</main>
-    <footer className="site-footer">
+    {!management && <footer className="site-footer">
       <div className="footer-inner">
         <a className="brand footer-brand" href="#top" aria-label="LECKER Về đầu trang">
           <strong>LECKER</strong><span>COFFEE CAFE</span>
@@ -135,6 +142,6 @@ export default function SiteLayout({ children, account = null, notifications = n
         </nav>
         <small>© 2026 LECKER Coffee Cafe</small>
       </div>
-    </footer>
+    </footer>}
   </>;
 }

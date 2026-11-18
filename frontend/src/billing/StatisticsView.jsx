@@ -8,7 +8,68 @@ const PERIODS = [
   { key: "in_year", label: "Năm nay (In Year)" },
 ];
 
-export default function StatisticsView({ authorization }) {
+const PAYMENT_METHODS = {
+  CASH: { label: "Tiền mặt", color: "#d5a953" },
+  BANK_TRANSFER: { label: "Chuyển khoản", color: "#7bb8a0" },
+  UNKNOWN: { label: "Chưa rõ phương thức", color: "#9c8b7a" },
+};
+const percent = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 1 });
+
+function PaymentChart({ methods, totalRevenue }) {
+  const total = BigInt(totalRevenue);
+  let cumulative = 0n;
+  const entries = methods.map(({ method, revenue }) => {
+    const amount = BigInt(revenue);
+    const start = total > 0n ? Number(cumulative * 100000n / total) / 1000 : 0;
+    cumulative += amount;
+    const end = total > 0n ? Number(cumulative * 100000n / total) / 1000 : 0;
+    const share = total > 0n ? Number((amount * 1000n + total / 2n) / total) / 10 : 0;
+    return { method, revenue, start, end, share, ...(PAYMENT_METHODS[method] ?? PAYMENT_METHODS.UNKNOWN) };
+  });
+  const stops = entries.filter(entry => entry.end > entry.start)
+    .map(({ color, start, end }) => `${color} ${start}% ${end}%`);
+
+  return (
+    <section className="billing-chart-panel" aria-labelledby="payment-chart-title">
+      <h2 id="payment-chart-title">Doanh thu theo phương thức thanh toán</h2>
+      {total === 0n ? <p className="subtitle">Chưa có doanh thu để tính tỷ trọng.</p> : (
+        <div className="billing-payment-chart">
+          {stops.length > 0 && <div className="billing-pie" aria-hidden="true"
+            style={{ background: `conic-gradient(${stops.join(", ")})` }} />}
+          <ul aria-label="Tỷ trọng doanh thu theo phương thức thanh toán">
+            {entries.map(({ method, label, color, revenue, share }) => (
+              <li key={method}>
+                <span className="billing-pie-swatch" style={{ backgroundColor: color }} aria-hidden="true" />
+                <span>{label}</span>
+                <strong>{vnd(revenue)} · {percent.format(share)}%</strong>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function chartBuckets(days) {
+  if (days.length <= 31) return days.map(({ date, revenue, billCount }) => ({
+    key: date, label: date.slice(5), amount: BigInt(revenue), billCount,
+  }));
+
+  const months = new Map();
+  for (const { date, revenue, billCount } of days) {
+    const month = date.slice(0, 7);
+    const bucket = months.get(month) ?? {
+      key: month, label: `${month.slice(5)}/${month.slice(0, 4)}`, amount: 0n, billCount: 0,
+    };
+    bucket.amount += BigInt(revenue);
+    bucket.billCount += billCount;
+    months.set(month, bucket);
+  }
+  return [...months.values()];
+}
+
+export default function StatisticsView({ authorization, credentials }) {
   const [query, setQuery] = useState({ period: "in_month" });
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -21,7 +82,7 @@ export default function StatisticsView({ authorization }) {
     const controller = new AbortController();
     async function loadStats() {
       try {
-        const result = await fetchRevenueStatistics({ ...query, authorization, signal: controller.signal });
+        const result = await fetchRevenueStatistics({ ...query, authorization, credentials, signal: controller.signal });
         if (!controller.signal.aborted) setData(result);
       } catch (error) {
         if (!controller.signal.aborted) setError(error.message === "UNAUTHORIZED"
@@ -33,7 +94,7 @@ export default function StatisticsView({ authorization }) {
     }
     void loadStats();
     return () => controller.abort();
-  }, [query, authorization]);
+  }, [query, authorization, credentials]);
 
   function load(nextQuery) {
     setValidation("");
@@ -58,10 +119,9 @@ export default function StatisticsView({ authorization }) {
 
   const summary = data?.summary;
   const daily = data?.dailyRevenue ?? [];
-  const maxDayRevenue = daily.reduce((max, day) => {
-    const amount = BigInt(day.revenue);
-    return amount > max ? amount : max;
-  }, 1n);
+  const buckets = chartBuckets(daily);
+  const maxRevenue = buckets.reduce((max, bucket) => bucket.amount > max ? bucket.amount : max, 1n);
+  const unit = daily.length > 31 ? "tháng" : "ngày";
 
   return (
     <div className="billing-statistics-section">
@@ -134,46 +194,41 @@ export default function StatisticsView({ authorization }) {
             </div>
           </div>
 
-          {/* Biểu đồ hình cột (Column Chart): Doanh thu theo ngày */}
           <section className="billing-chart-panel" aria-labelledby="column-chart-title">
             <h2 id="column-chart-title">Biểu đồ doanh thu</h2>
             <p className="subtitle">
-              Doanh thu từng ngày trong kỳ ({summary.from} đến {summary.to}) từ hóa đơn đã thanh toán (PAID).
+              Doanh thu theo {unit} trong kỳ ({summary.from} đến {summary.to}) từ hóa đơn đã thanh toán (PAID).
             </p>
 
-            {daily.length === 0 ? (
+            {summary.totalBills === 0 ? (
               <p style={{ color: "var(--muted)", textAlign: "center", padding: "30px 0" }}>
                 Không có dữ liệu trong khoảng thời gian này.
               </p>
             ) : (
-              <div className="billing-column-chart" role="img" aria-label="Biểu đồ cột: Doanh thu theo ngày">
-                {daily.map((d) => {
-                  const amount = BigInt(d.revenue);
-                  const height = Number(amount * 10000n / maxDayRevenue) / 100;
-                  return (
-                    <div key={d.date} className="billing-column-bar-group">
-                      {amount > 0n && (
-                        <span className="billing-column-value-tip">{vnd(d.revenue)}</span>
-                      )}
-                      <div
-                        className="billing-column-bar"
-                        style={{ height: `${height}%` }}
-                        title={`${d.date}: ${vnd(d.revenue)} (${d.billCount} hóa đơn)`}
-                      />
-                      <span className="billing-column-label">{d.date.slice(5)}</span>
-                    </div>
-                  );
-                })}
+              <div className="billing-chart-scroll" role="region" aria-label="Vùng cuộn biểu đồ doanh thu" tabIndex={0}>
+                <div className="billing-column-chart" role="img" aria-label={`Biểu đồ cột: Doanh thu theo ${unit}`}>
+                  {buckets.map(({ key, label, amount, billCount }) => {
+                    const height = Number(amount * 10000n / maxRevenue) / 100;
+                    return (
+                      <div key={key} className="billing-column-bar-group" title={`${key}: ${vnd(amount)} (${billCount} hóa đơn)`}>
+                        <div className="billing-column-bar" style={{ height: `${height}%`, minHeight: amount > 0n ? 1 : 0 }} />
+                        <span className="billing-column-label">{label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
           </section>
+
+          <PaymentChart methods={data.revenueByPaymentMethod} totalRevenue={summary.totalRevenue} />
 
           {/* Accessible Table for Screen Readers & Verification */}
           <details style={{ marginTop: "16px", color: "var(--muted)", fontSize: "13px" }}>
             <summary style={{ cursor: "pointer", fontWeight: 600 }}>
               Xem bảng đối soát dữ liệu chi tiết
             </summary>
-            <div style={{ marginTop: "12px", background: "#1b1612", padding: "16px", borderRadius: "8px" }}>
+            <div className="billing-audit-scroll" role="region" aria-label="Bảng đối soát doanh thu" tabIndex={0}>
               <table style={{ width: "100%", textAlign: "left", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ color: "var(--gold)" }}>

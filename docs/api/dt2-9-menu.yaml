@@ -128,7 +128,12 @@ paths:
         - name: field
           in: query
           schema: { type: string, enum: [name, code, price, category], default: name }
-          description: Exact code/price; literal substring name/category name. Empty keyword returns all.
+          description: >-
+            Exact code/price; literal substring name/category name. Name matching is
+            case- and accent-insensitive under the system schema's utf8mb4_0900_ai_ci
+            collation (for example bac xiu matches Bạc xỉu, ca phe matches Cà phê).
+            Literal means percent, underscore and exclamation are treated as ordinary
+            characters, not client-supplied SQL wildcards. Empty keyword returns all.
         - name: categoryCode
           in: query
           schema: { type: string, pattern: '^[A-Za-z0-9_-]{1,32}$' }

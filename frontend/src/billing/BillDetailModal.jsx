@@ -1,7 +1,8 @@
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { formatDateTime, vnd } from "./billingApi.js";
 
-export default function BillDetailModal({ bill, onClose }) {
+export default function BillDetailModal({ bill, onClose, canPrint }) {
   const modalRef = useRef(null);
 
   useEffect(() => {
@@ -14,7 +15,7 @@ export default function BillDetailModal({ bill, onClose }) {
     };
   }, []);
 
-  return (
+  return createPortal(
     <dialog ref={modalRef} className="billing-modal-content" aria-labelledby="bill-detail-title"
       onCancel={(event) => { event.preventDefault(); onClose(); }}>
         <div className="billing-modal-header">
@@ -67,26 +68,28 @@ export default function BillDetailModal({ bill, onClose }) {
         </div>
 
         <h3>Danh sách món đã gọi</h3>
-        <table className="billing-items-table">
-          <thead>
-            <tr>
-              <th scope="col">Tên món</th>
-              <th scope="col">Số lượng</th>
-              <th scope="col">Đơn giá</th>
-              <th scope="col">Thành tiền</th>
-            </tr>
-          </thead>
-          <tbody>
-            {bill.items?.map((item, idx) => (
-              <tr key={item.orderItemId || idx}>
-                <th scope="row" style={{ fontWeight: 600 }}>{item.itemName}</th>
-                <td>{item.quantity}</td>
-                <td>{vnd(item.unitPrice)}</td>
-                <td>{vnd(item.lineTotal)}</td>
+        <div className="billing-items-scroll" role="region" aria-label="Món trong hóa đơn" tabIndex={0}>
+          <table className="billing-items-table">
+            <thead>
+              <tr>
+                <th scope="col">Tên món</th>
+                <th scope="col">Số lượng</th>
+                <th scope="col">Đơn giá</th>
+                <th scope="col">Thành tiền</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {bill.items?.map((item, idx) => (
+                <tr key={item.orderItemId || idx}>
+                  <th scope="row" style={{ fontWeight: 600 }}>{item.itemName}</th>
+                  <td>{item.quantity}</td>
+                  <td>{vnd(item.unitPrice)}</td>
+                  <td>{vnd(item.lineTotal)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         <div className="billing-modal-footer">
           <div className="billing-modal-total">
@@ -94,7 +97,7 @@ export default function BillDetailModal({ bill, onClose }) {
             <strong>{vnd(bill.totalAmount)}</strong>
           </div>
           <div style={{ display: "flex", gap: "10px" }}>
-            {bill.status === "PAID" && (
+            {canPrint && bill.status === "PAID" && (
               <button type="button" className="billing-button secondary" onClick={() => window.print()}>
                 In hóa đơn
               </button>
@@ -108,6 +111,7 @@ export default function BillDetailModal({ bill, onClose }) {
             </button>
           </div>
         </div>
-    </dialog>
+    </dialog>,
+    document.body,
   );
 }

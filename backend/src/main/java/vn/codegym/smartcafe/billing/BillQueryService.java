@@ -9,6 +9,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import vn.codegym.smartcafe.income.IncomeService;
@@ -53,10 +54,13 @@ public class BillQueryService {
 
     public record Statistics(
             SummaryStatistics summary,
-            List<IncomeService.Day> dailyRevenue
+            List<IncomeService.Day> dailyRevenue,
+            List<PaymentRevenue> revenueByPaymentMethod
     ) {}
 
-    @Transactional(readOnly = true)
+    public record PaymentRevenue(String method, String revenue, long billCount) {}
+
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public Page list(String code, LocalDate from, LocalDate to, String status, int page, int size, String sort) {
         if (page < 0 || size < 1 || size > 100) {
             throw bad("page >= 0 và size từ 1 đến 100.");
@@ -118,12 +122,25 @@ public class BillQueryService {
         return new Page(rows, page, size, count, totalPages);
     }
 
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public Statistics statistics(String period, LocalDate from, LocalDate to) {
-        var report = income.report(income.window(period, from, to));
+        var window = income.window(period, from, to);
+        var report = income.report(window);
+        var paymentRevenue = jdbc.sql("""
+                SELECT COALESCE(p.method, 'UNKNOWN') AS method,
+                       SUM(b.total_amount) AS revenue, COUNT(*) AS bill_count
+                FROM bills b LEFT JOIN payments p ON p.bill_id = b.id
+                WHERE b.status = 'PAID' AND b.paid_at >= :start AND b.paid_at < :end
+                GROUP BY COALESCE(p.method, 'UNKNOWN')
+                ORDER BY method
+                """).param("start", window.start()).param("end", window.endExclusive())
+                .query((row, index) -> new PaymentRevenue(row.getString("method"),
+                        row.getBigDecimal("revenue").toPlainString(), row.getLong("bill_count")))
+                .list();
         return new Statistics(
                 new SummaryStatistics(report.from(), report.to(), report.timezone(),
                         report.totalAmount(), report.billCount(), report.averageBillAmount()),
-                report.dailyRevenue());
+                report.dailyRevenue(), paymentRevenue);
     }
 
     private static final RowMapper<Summary> SUMMARY_MAPPER = (r, n) -> new Summary(

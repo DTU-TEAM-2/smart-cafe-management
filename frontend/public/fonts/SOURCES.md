@@ -3,3 +3,7 @@
 Self-hosted Vietnamese, Latin Extended and Latin subsets, weights 400/700, normal/italic. Source: @fontsource/noto-serif 5.3.0 from the npm registry. Original SIL Open Font License retained in LICENSE. No Google Fonts runtime request.
 
 Reused from the previous project's local font bundle on 06/11/2026 by explicit user request. The matching unicode-range declarations in src/fonts.css preserve Vietnamese glyphs in one font family. No Alex Brush font is bundled in this implementation.
+
+# Menu preview fonts
+
+The menu preview also uses locally hosted Inter and Playfair Display snapshots from the original DT2-9 frontend branch. Exact upstream URLs and provenance are retained in `MENU-SOURCES.md`; licenses remain in `INTER-LICENSE.txt` and `PLAYFAIR-DISPLAY-LICENSE.txt`. The font faces in `fonts.css` load only with the preview stylesheet.

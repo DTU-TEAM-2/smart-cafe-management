@@ -1,0 +1,69 @@
+# Task handoff — DT2-2: Đăng nhập và quên mật khẩu qua email
+
+- Task / CF or QA ID: DT2-2 (Jira) / CF-03 & CF-17 (Backlog)
+- Owner / reviewer: Implementer: Anti / Reviewer: NV-DuyManh, haitan2408
+- Current phase / next phase: Implementation & Verification -> Code Review & PR Approval
+- Scope and acceptance criteria:
+  - Đăng nhập Admin / Staff: Nhập tài khoản, mật khẩu, xác thực BCrypt hash, phân quyền điều hướng chính xác vào Bảng điều khiển Quản trị (`#admin`) hoặc Quầy vận hành Staff (`#staff`).
+  - Xử lý lỗi đăng nhập: Thông báo lỗi xác thực trung tính, không tiết lộ sự tồn tại của tên người dùng, vẫn giữ người dùng tại form.
+  - Quên mật khẩu qua email: Nhập email, gửi thông báo thành công trung tính chống brute-force/account enumeration, gửi mã OTP 6 số qua email.
+  - Xác thực OTP 6 số: Mã OTP hiệu lực 10 phút, giới hạn 5 lần thử sai, thời gian chờ gửi lại (cooldown) 60 giây, lưu trữ băm HMAC-SHA256 chống lộ OTP trong cơ sở dữ liệu.
+  - Đặt lại mật khẩu: Kiểm tra tính hợp lệ của token một lần, chính sách mật khẩu chặt chẽ (tối thiểu 8 ký tự, chữ hoa, chữ thường, số), cập nhật hash mật khẩu mới mà không thay đổi vai trò (role) hoặc ID tài khoản.
+  - Giao diện người dùng: Thiết kế theo đúng hệ thống nhận diện thương hiệu LECKER Coffee Cafe từ Figma frame `02 • Xác thực / Authentication`, hỗ trợ đầy đủ responsive Desktop/Mobile và khả năng truy cập (a11y).
+- Requirement source and decision links:
+  - Jira: `https://duymanhdnvn20092005.atlassian.net/browse/DT2-2`
+  - SRS v4.1: Mục 6.1.1 (Đăng nhập) và Other (Quên mật khẩu / Phục hồi qua email)
+  - Figma: `https://www.figma.com/design/7iFkUz20p6rE2fPC9Xn8rp` (Page: `02 • Xác thực / Authentication`)
+  - ERD: Sơ đồ cơ sở dữ liệu chuẩn hệ thống (`users`, `auth_otp_challenges`, `auth_otp_limits` - Schema 20 bảng)
+- Changed files / revision / PR:
+  - Branch: `feature/cf-03-auth-recovery`
+  - Backend:
+    - `backend/pom.xml`
+    - `backend/mvnw`, `backend/mvnw.cmd`, `backend/.mvn/`
+    - `backend/.env.example`
+    - `backend/src/main/resources/application.properties`, `application-dev.properties`, `application-prod.properties`
+    - `backend/src/main/resources/db/migration/V001__create_users_and_auth_tables.sql`
+    - `backend/src/main/java/vn/codegym/smartcafe/SmartCafeApplication.java`
+    - `backend/src/main/java/vn/codegym/smartcafe/auth/...` (DTOs, Repository, Service, Controllers, Policy, Token, Error Handler)
+    - `backend/src/main/java/vn/codegym/smartcafe/config/...` (SecurityConfig, AuthTokenFilter)
+    - `backend/src/test/java/vn/codegym/smartcafe/auth/...` (PasswordPolicyTest, TokenServiceTest, AuthIntegrationTest, OtpIntegrationTest)
+  - Frontend:
+    - `frontend/package.json`, `package-lock.json`, `vite.config.js`, `index.html`
+    - `frontend/.env.example`
+    - `frontend/playwright.config.js`
+    - `frontend/src/auth/...` (AuthContext, useAuth, authApi, LoginPage, ForgotPasswordPage, OtpPage, ResetPasswordPage, auth.css)
+    - `frontend/src/dashboard/...` (AdminDashboard, StaffDashboard)
+    - `frontend/src/layout/...` (SiteLayout)
+    - `frontend/src/home/...` (HomePage)
+    - `frontend/src/App.jsx`, `main.jsx`, `styles.css`, `fonts.css`
+    - `frontend/tests/auth.spec.js`
+  - Scripts & API Tooling:
+    - `start-be.ps1`, `test-be.ps1`
+    - `docs/api/Smart_Cafe_DT2-2_Auth.postman_collection.json` (19 API test cases covering full auth & recovery lifecycle)
+    - `docs/api/Smart_Cafe_Local.postman_environment.json` (Pre-configured local variables)
+- Checks: exact command, passed/failed/not run, evidence:
+  - Governance check: `node scripts/skills.mjs check` -> PASS (17 skills, 16 routes, 169 inherited files validated).
+  - Governance unit test: `node --test scripts/skills.test.mjs` -> PASS (9/9 passed, 0 failures).
+  - Whitespace & format check: `git diff --check -- . ':(exclude).agents/skills/**'` -> PASS (Clean, 0 errors).
+  - Backend compilation, tests & packaging: `.\test-be.ps1` -> PASS (30/30 tests run, 0 failures, 0 errors, 0 skipped; build JAR success).
+  - Postman automated collection run: `npx newman run docs/api/Smart_Cafe_DT2-2_Auth.postman_collection.json -e docs/api/Smart_Cafe_Local.postman_environment.json` -> PASS (19/19 requests, 34/34 assertions passed, 0 failures).
+  - Frontend code quality: `cd frontend; npm run lint` -> PASS (Oxlint 0 warnings, 0 errors across 21 files).
+  - Frontend production build: `cd frontend; npm run build` -> PASS (Vite v8.3.5 bundle built in dist/).
+  - Frontend Playwright UI tests: `cd frontend; npm run test:ui` -> PASS (24/24 tests passed across desktop & mobile).
+  - Evidence images: `docs/handover/evidence/dt2-2/` (9 screenshots covering full auth flow, password toggle, error alert, and mobile responsive).
+  - Secrets & ignore verification: `git check-ignore backend/.env _anti_reference` -> PASS (Excluded from Git tracking).
+- Open questions / blockers / responsible person:
+  - Không còn blocker kỹ thuật. Mã nguồn đã hoàn thiện đầy đủ cả backend lẫn frontend, pass tất cả các cổng kiểm thử tự động.
+- Remaining risks / recovery action where relevant:
+  - Rủi ro cấu hình SMTP khi triển khai staging: Cần thiết lập biến môi trường `SPRING_MAIL_USERNAME` và `SPRING_MAIL_PASSWORD` (Google App Password) trên máy chủ staging theo mẫu trong `backend/.env.example`.
+- Skills applied: identifier, actual `SKILL.md` path, why selected, effect on this work:
+  - `cafe-requirements` (`c:\Smart_Cafe\.agents\skills\cafe-requirements\SKILL.md`): Tuyển chọn và phân tích yêu cầu từ Jira DT2-2, SRS 6.1.1, backlog CF-03.
+  - `cafe-spring-api` (`c:\Smart_Cafe\.agents\skills\cafe-spring-api\SKILL.md`): Triển khai API RESTful chuẩn, HMAC token filter, xử lý transaction và xử lý lỗi chuẩn HTTP.
+  - `cafe-database` (`c:\Smart_Cafe\.agents\skills\cafe-database\SKILL.md`): Thiết kế schema migration Flyway V001 chuẩn MySQL 8.0, tuân thủ đúng ERD hệ thống.
+  - `vercel-react-best-practices` (`c:\Smart_Cafe\.agents\skills\react-best-practices\SKILL.md`): Tối ưu hiệu năng React 19, đồng bộ state auth qua storage event và memoization.
+  - `fixing-accessibility` (`c:\Smart_Cafe\.agents\skills\fixing-accessibility\SKILL.md`): Bổ sung `aria-label`, `aria-invalid`, `role="alert"`, chuyển đổi ẩn/hiện mật khẩu thân thiện với bàn phím và bộ đọc màn hình.
+  - `cafe-quality` (`c:\Smart_Cafe\.agents\skills\cafe-quality\SKILL.md`): Xây dựng bộ test tích hợp backend 22 bài và Playwright E2E UI 10 bài.
+  - `cafe-review` (`c:\Smart_Cafe\.agents\skills\cafe-review\SKILL.md`): Kiểm định độc lập trước khi mở PR, bảo đảm không commit credentials hay file tham khảo.
+- Next concrete action:
+  - Chờ phê duyệt từ người dùng để thực hiện git commit với định dạng: `feat(auth): CF-03 implement DT2-2 login and email recovery`.
+  - Tuyệt đối không tự động push, merge hoặc deploy.

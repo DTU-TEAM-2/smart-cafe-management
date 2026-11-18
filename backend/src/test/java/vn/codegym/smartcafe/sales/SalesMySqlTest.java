@@ -130,9 +130,10 @@ class SalesMySqlTest {
 
     @Test void billResolvesOnlyItsSessionBillRequest() {
         jdbc.update("INSERT INTO session_clients(id,session_id,access_token_hash,expires_at) VALUES(1,1,REPEAT('f',64),DATE_ADD(CURRENT_TIMESTAMP,INTERVAL 1 DAY))");
+        // Row timestamps must precede FixedClock; wall-clock defaults break temporal constraints after 11/11.
         jdbc.update("""
-                INSERT INTO service_requests(session_id,requested_by_client_id,request_type,idempotency_key)
-                VALUES(1,1,'BILL','bill-request'),(1,1,'WAITER','waiter-request')
+                INSERT INTO service_requests(session_id,requested_by_client_id,request_type,idempotency_key,created_at)
+                VALUES(1,1,'BILL','bill-request','2026-11-10 00:01:00'),(1,1,'WAITER','waiter-request','2026-11-10 00:01:00')
                 """);
         sales.createBill(1,new SalesService.BillCommand("SESSION-OLD","key"),"staff");
         assertThat(jdbc.queryForObject("SELECT status FROM service_requests WHERE request_type='BILL'",String.class)).isEqualTo("RESOLVED");
@@ -223,7 +224,7 @@ class SalesMySqlTest {
 
     @Test void acknowledgeCannotTargetAnotherOrClosedSessionAndRetryIsSafe() {
         jdbc.update("INSERT INTO session_clients(id,session_id,access_token_hash,expires_at) VALUES(1,1,REPEAT('f',64),DATE_ADD(CURRENT_TIMESTAMP,INTERVAL 1 DAY))");
-        jdbc.update("INSERT INTO service_requests(id,session_id,requested_by_client_id,request_type,idempotency_key) VALUES(1,1,1,'WAITER','request')");
+        jdbc.update("INSERT INTO service_requests(id,session_id,requested_by_client_id,request_type,idempotency_key,created_at) VALUES(1,1,1,'WAITER','request','2026-11-10 00:01:00')");
         assertThatThrownBy(()->sales.acknowledge(2,1,"SESSION-OLD","staff")).hasMessageContaining("409");
         assertThatThrownBy(()->sales.acknowledge(1,1,null,"staff")).hasMessageContaining("400");
         sales.acknowledge(1,1,"SESSION-OLD","staff");
@@ -237,7 +238,9 @@ class SalesMySqlTest {
 
     @Test void qaFourRestrictsReportsPaymentsAndResetToManagers() throws Exception {
         var bill=sales.createBill(1,new SalesService.BillCommand("SESSION-OLD","auth"),"staff");
-        for (String path : java.util.List.of("/api/v1/income", "/api/v1/bills/" + bill.id()))
+        mvc.perform(get("/api/v1/bills/"+bill.id()).with(user("staff").roles("STAFF")))
+                .andExpect(status().isOk());
+        for (String path : java.util.List.of("/api/v1/income", "/api/v1/statistics/revenue"))
             mvc.perform(get(path).with(user("staff").roles("STAFF"))).andExpect(status().isForbidden());
         mvc.perform(post("/api/v1/bills/"+bill.id()+"/payments").with(user("staff").roles("STAFF")).with(csrf())
                 .contentType("application/json").content("{\"method\":\"CASH\",\"idempotencyKey\":\"pay\"}"))

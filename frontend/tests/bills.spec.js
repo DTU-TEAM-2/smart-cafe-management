@@ -82,6 +82,10 @@ const mockStats = {
     { date: "2026-11-10", revenue: "180000", billCount: 1 },
     { date: "2026-11-11", revenue: "95000", billCount: 1 },
   ],
+  revenueByPaymentMethod: [
+    { method: "CASH", revenue: "180000", billCount: 1 },
+    { method: "BANK_TRANSFER", revenue: "95000", billCount: 1 },
+  ],
 
 };
 
@@ -105,6 +109,11 @@ async function navigateToBills(page) {
 
 test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", () => {
   test.beforeEach(async ({ page }) => {
+    await page.route("**/api/v1/auth/me", route => {
+      const token = route.request().headers().authorization;
+      const role = token === "Bearer staff-token" ? "STAFF" : token === "Bearer cust-token" ? "CUSTOMER" : "ADMIN";
+      return route.fulfill({ json: { ...(role === "CUSTOMER" ? customer : admin), role } });
+    });
     await page.route("**/api/v1/home/highlights", route =>
       route.fulfill({ json: { newest: [], mostOrdered: [] } })
     );
@@ -113,7 +122,7 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
     );
   });
 
-  test("Non-admin users cannot access bills management", async ({ page }) => {
+  test("Customers cannot access bill management", async ({ page }) => {
     await page.route("**/api/v1/home/account", route =>
       route.fulfill({ json: customer })
     );
@@ -124,7 +133,7 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
     // Nav bar should not show "Quản lý hóa đơn"
     await expect(page.getByRole("link", { name: "Quản lý hóa đơn" })).toHaveCount(0);
     // Page should display restricted access notice
-    await expect(page.getByText("Khu vực quản lý chỉ dành cho Quản trị viên (ADMIN)")).toBeVisible();
+    await expect(page.getByText("Khu vực dành cho nhân viên và Quản trị viên (ADMIN).")).toBeVisible();
   });
 
   test("Admin user can navigate to bills, view table, and see formatted amounts", async ({ page }) => {
@@ -148,6 +157,10 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
     await navigateToBills(page);
 
     await expect(page.getByRole("heading", { name: "Quản lý hóa đơn", exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "Bỏ qua điều hướng" }).focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("main")).toBeFocused();
+    await expect(page).toHaveURL(/#bills$/);
     await expect(page.getByText("BILL-2026-001")).toBeVisible();
     await expect(page.getByText("BILL-2026-002")).toBeVisible();
     await expect(page.getByText("180.000 ₫")).toBeVisible();
@@ -255,6 +268,10 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
     await expect(dialog.getByText("Bạc xỉu")).toBeVisible();
     await expect(dialog.getByText("Bánh croissant")).toBeVisible();
     await expect(dialog.getByRole("button", { name: "In hóa đơn" })).toBeVisible();
+    await page.emulateMedia({ media: "print" });
+    await expect(dialog.getByText("Cà phê sữa đá")).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "In hóa đơn" })).toBeHidden();
+    await page.emulateMedia({ media: "screen" });
 
     if (page.viewportSize()?.width === 1440) {
       await page.screenshot({ path: test.info().outputPath("dt2-8-detail-modal-desktop.png") });
@@ -291,6 +308,28 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
     await expect(page.getByText("BILL-2026-002")).toBeVisible();
   });
 
+  test("Retries the selected bill after a connection failure", async ({ page }) => {
+    await page.route("**/api/v1/home/account", route => route.fulfill({ json: admin }));
+    await page.route("**/api/v1/bills?**", route => route.fulfill({
+      json: { content: mockBills, totalElements: 2, totalPages: 1, page: 0 },
+    }));
+    let attempts = 0;
+    await page.route("**/api/v1/bills/1", route => {
+      attempts += 1;
+      return attempts === 1 ? route.abort("failed") : route.fulfill({ json: mockBillDetail1 });
+    });
+
+    await page.goto("/#bills");
+    await setToken(page, "admin-token");
+    await page.getByRole("button", { name: "BILL-2026-001" }).click();
+    await page.getByRole("button", { name: "Detail", exact: true }).click();
+    await expect(page.getByRole("alert")).toContainText("Không kết nối được máy chủ");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await page.getByRole("button", { name: "Thử lại chi tiết" }).click();
+    await expect(page.getByRole("dialog")).toContainText("BILL-2026-001");
+    expect(attempts).toBe(2);
+  });
+
   test("Statistics route renders column chart and summary KPI cards", async ({ page }) => {
     await page.route("**/api/v1/home/account", route =>
       route.fulfill({ json: admin })
@@ -317,10 +356,65 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
 
     // Verify charts
     await expect(page.getByRole("img", { name: "Biểu đồ cột: Doanh thu theo ngày" })).toBeVisible();
+    const breakdown = page.getByRole("list", { name: "Tỷ trọng doanh thu theo phương thức thanh toán" });
+    await expect(breakdown.getByText("Tiền mặt")).toBeVisible();
+    await expect(breakdown.getByText(/65,5%/)).toBeVisible();
+    await expect(breakdown.getByText(/34,5%/)).toBeVisible();
     await expect(page).toHaveURL(/#statistics$/);
 
     if (page.viewportSize()?.width === 1440) {
       await page.screenshot({ path: test.info().outputPath("dt2-8-statistics-desktop.png"), fullPage: true });
     }
+  });
+
+  test("Year chart groups days by month without overflowing a 320px page", async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 720 });
+    await page.route("**/api/v1/home/account", route => route.fulfill({ json: admin }));
+    await page.route("**/api/v1/statistics/revenue**", route => {
+      if (!route.request().url().includes("in_year")) return route.fulfill({ json: mockStats });
+      const dailyRevenue = Array.from({ length: 365 }, (_, index) => ({
+        date: new Date(Date.UTC(2026, 0, index + 1)).toISOString().slice(0, 10),
+        revenue: index < 2 ? "1500" : "0",
+        billCount: index < 2 ? 1 : 0,
+      }));
+      return route.fulfill({ json: {
+        summary: { ...mockStats.summary, from: "2026-01-01", to: "2026-12-31", totalRevenue: "3000", averageBillAmount: "1500" },
+        dailyRevenue,
+        revenueByPaymentMethod: [{ method: "CASH", revenue: "3000", billCount: 2 }],
+      } });
+    });
+
+    await page.goto("/#statistics");
+    await setToken(page, "admin-token");
+    await page.getByRole("radio", { name: "Năm nay (In Year)" }).check();
+    const chart = page.getByRole("img", { name: "Biểu đồ cột: Doanh thu theo tháng" });
+    await expect(chart.locator(".billing-column-bar")).toHaveCount(12);
+    await expect(chart.locator(".billing-column-bar-group").first()).toHaveAttribute("title", /2026-01: 3\.000.*2 hóa đơn/);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
+  });
+
+  test("Staff sees bill detail without print or revenue controls", async ({ page }) => {
+    await page.route("**/api/v1/home/account", route => route.fulfill({ json: { ...admin, role: "STAFF" } }));
+    await page.route("**/api/v1/bills?**", route => route.fulfill({
+      json: { content: mockBills, totalElements: 2, totalPages: 1, page: 0 },
+    }));
+    await page.route("**/api/v1/bills/1", route => route.fulfill({ json: mockBillDetail1 }));
+    let revenueRequests = 0;
+    await page.route("**/api/v1/statistics/revenue**", route => {
+      revenueRequests += 1;
+      return route.fulfill({ status: 403 });
+    });
+    await page.goto("/#bills");
+    await setToken(page, "staff-token");
+    await expect(page.getByText("KHÔNG GIAN NHÂN VIÊN")).toBeVisible();
+    await expect(page.getByRole("link", { name: "Thống kê doanh thu" })).toHaveCount(0);
+    await page.getByRole("button", { name: "BILL-2026-001" }).click();
+    await page.getByRole("button", { name: "Detail", exact: true }).click();
+    const detail = page.getByRole("dialog");
+    await expect(detail).toContainText("BILL-2026-001");
+    await expect(detail.getByRole("button", { name: "In hóa đơn" })).toHaveCount(0);
+    await page.goto("/#statistics");
+    await expect(page.getByText("Chỉ Quản trị viên (ADMIN) được xem thống kê.")).toBeVisible();
+    expect(revenueRequests).toBe(0);
   });
 });

@@ -1,0 +1,183 @@
+{
+  "info": {
+    "name": "DT2-4 — QR, nhận diện bàn (chưa cấp phiên)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:18084"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. QR bàn A không cần đăng nhập",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/customer/tables/qr/7d57e0b0-dfca-4ed3-846a-5b77e4450001"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Đúng bàn, không cấp quyền phiên', () => { const b=pm.response.json(); pm.expect(b.tableId).to.eql('81001'); pm.expect(b).to.have.all.keys('tableId','tableCode','tableName'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. QR bàn B phải trả đúng bàn B",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/customer/tables/qr/7d57e0b0-dfca-4ed3-846a-5b77e4450002"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Đúng bàn, không cấp quyền phiên', () => { const b=pm.response.json(); pm.expect(b.tableId).to.eql('81002'); pm.expect(b).to.have.all.keys('tableId','tableCode','tableName'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Quét lại QR bàn A không đổi ngữ cảnh",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/customer/tables/qr/7d57e0b0-dfca-4ed3-846a-5b77e4450001"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+              "pm.test('Đúng bàn, không cấp quyền phiên', () => { const b=pm.response.json(); pm.expect(b.tableId).to.eql('81001'); pm.expect(b).to.have.all.keys('tableId','tableCode','tableName'); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. QR sai định dạng",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/customer/tables/qr/bad-qr"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+              "pm.test('Lỗi Problem Details tiếng Việt', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(pm.response.json().detail).to.eql(\"Mã QR không hợp lệ.\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. QR không tồn tại",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/customer/tables/qr/7d57e0b0-dfca-4ed3-846a-5b77e4459999"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+              "pm.test('Lỗi Problem Details tiếng Việt', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(pm.response.json().detail).to.eql(\"Không tìm thấy bàn.\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Bàn ngừng phục vụ",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/customer/tables/qr/7d57e0b0-dfca-4ed3-846a-5b77e4450003"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+              "pm.test('Lỗi Problem Details tiếng Việt', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(pm.response.json().detail).to.eql(\"Bàn hiện không phục vụ.\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Bàn lưu trữ không được truy cập",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/customer/tables/qr/7d57e0b0-dfca-4ed3-846a-5b77e4450004"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 404', () => pm.response.to.have.status(404));",
+              "pm.test('Lỗi Problem Details tiếng Việt', () => { pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'); pm.expect(pm.response.json().detail).to.eql(\"Không tìm thấy bàn.\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Không mở quyền ghi từ route QR",
+      "request": {
+        "method": "POST",
+        "url": "{{baseUrl}}/api/v1/customer/tables/qr/7d57e0b0-dfca-4ed3-846a-5b77e4450001"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Không truy cập bàn bằng ID thay QR",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/v1/customer/tables/81002"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test('HTTP 403', () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -2,29 +2,37 @@ import { useState, useEffect, useRef } from "react";
 import { fetchBills, fetchBillDetail, formatDateTime, vnd } from "./billingApi.js";
 import BillDetailModal from "./BillDetailModal.jsx";
 import StatisticsView from "./StatisticsView.jsx";
+import SiteLayout from "../layout/SiteLayout.jsx";
 import "./billing.css";
 
-export default function BillsWorkspace({ authorization, statistics }) {
+export default function BillsWorkspace({ layout, authorization, credentials, statistics, isAdmin }) {
   return (
     <div className="billing-workspace">
       <aside className="billing-sidebar">
-        <p className="billing-admin-label">Khu vực quản trị</p>
+        <a className="brand billing-brand" href="#top" aria-label="LECKER Trang chủ">
+          <strong>LECKER</strong><span>COFFEE CAFE</span>
+        </a>
         <nav aria-label="Quản lý hóa đơn và thống kê">
           <a href="#bills" aria-current={!statistics ? "page" : undefined}>Hóa đơn</a>
-          <a href="#statistics" aria-current={statistics ? "page" : undefined}>Thống kê doanh thu</a>
+          {isAdmin && <a href="#statistics" aria-current={statistics ? "page" : undefined}>Thống kê doanh thu</a>}
         </nav>
       </aside>
-      <section className="billing-content" aria-labelledby="billing-title">
-        <h1 id="billing-title">{statistics ? "Thống kê doanh thu" : "Quản lý hóa đơn"}</h1>
-        {statistics ? <StatisticsView authorization={authorization} /> : <BillList authorization={authorization} />}
-      </section>
+      <div className="billing-main">
+        <SiteLayout {...layout} management>
+          <section className="billing-content" aria-labelledby="billing-title">
+            <h1 id="billing-title">{statistics ? "Thống kê doanh thu" : "Quản lý hóa đơn"}</h1>
+            {statistics ? <StatisticsView authorization={authorization} credentials={credentials} />
+              : <BillList authorization={authorization} credentials={credentials} isAdmin={isAdmin} />}
+          </section>
+        </SiteLayout>
+      </div>
     </div>
   );
 }
 
 const emptyPage = { content: [], totalElements: 0, totalPages: 0, page: 0 };
 
-function BillList({ authorization }) {
+function BillList({ authorization, credentials, isAdmin }) {
   const [searchType, setSearchType] = useState("id");
   const [keyword, setKeyword] = useState("");
   const [query, setQuery] = useState({ status: "ALL", page: 0 });
@@ -35,16 +43,17 @@ function BillList({ authorization }) {
   const [selectedBillId, setSelectedBillId] = useState(null);
   const [detailModalBill, setDetailModalBill] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
   const detailRequest = useRef(null);
 
   useEffect(() => {
     const controller = new AbortController();
     async function loadBills() {
       try {
-        const result = await fetchBills({ ...query, authorization, signal: controller.signal });
+        const result = await fetchBills({ ...query, authorization, credentials, signal: controller.signal });
         if (controller.signal.aborted) return;
         setData(result);
-        if (result.totalElements === 0 && (query.code || query.from)) setSearchNotice("Not found!");
+        if (result.totalElements === 0 && (query.code || query.from || query.status !== "ALL")) setSearchNotice("Not found!");
       } catch (error) {
         if (controller.signal.aborted) return;
         setErrorMsg(error.message === "UNAUTHORIZED"
@@ -56,13 +65,14 @@ function BillList({ authorization }) {
     }
     void loadBills();
     return () => controller.abort();
-  }, [query, authorization]);
+  }, [query, authorization, credentials]);
 
   useEffect(() => () => detailRequest.current?.abort(), []);
 
   function load(nextQuery) {
     detailRequest.current?.abort();
     setDetailLoading(false);
+    setDetailError("");
     setDetailModalBill(null);
     setSelectedBillId(null);
     setSearchNotice("");
@@ -102,9 +112,10 @@ function BillList({ authorization }) {
     detailRequest.current = controller;
     setSearchNotice("");
     setErrorMsg("");
+    setDetailError("");
     setDetailLoading(true);
     try {
-      const detail = await fetchBillDetail(id, authorization, controller.signal);
+      const detail = await fetchBillDetail(id, { authorization, credentials, signal: controller.signal });
       if (!controller.signal.aborted) setDetailModalBill(detail);
     } catch (error) {
       if (controller.signal.aborted) return;
@@ -113,7 +124,7 @@ function BillList({ authorization }) {
         setSelectedBillId(null);
         setErrorMsg("Bạn không có quyền xem hóa đơn.");
       } else {
-        setSearchNotice(error.message === "NOT_FOUND" ? "Không tìm thấy hóa đơn được chọn." : error.message);
+        setDetailError(error.message === "NOT_FOUND" ? "Không tìm thấy hóa đơn được chọn." : error.message);
       }
     } finally {
       if (!controller.signal.aborted) setDetailLoading(false);
@@ -126,6 +137,7 @@ function BillList({ authorization }) {
     setDetailLoading(false);
     setSelectedBillId(id);
     setSearchNotice("");
+    setDetailError("");
   }
 
   return (
@@ -242,9 +254,18 @@ function BillList({ authorization }) {
           </button>
         </div>
       )}
+      {detailError && (
+        <div className="billing-message-banner error" role="alert" style={{ marginBottom: "16px" }}>
+          <span>{detailError}</span>
+          <button type="button" className="billing-button secondary" onClick={() => void handleOpenDetail(selectedBillId)}>
+            Thử lại chi tiết
+          </button>
+        </div>
+      )}
 
       {/* Bill List Table */}
       <div className="billing-table-wrapper">
+        <div className="billing-table-scroll" role="region" aria-label="Danh sách hóa đơn" tabIndex={0}>
         <table className="billing-table" aria-label="Bảng danh sách hóa đơn">
           <thead>
             <tr>
@@ -302,6 +323,7 @@ function BillList({ authorization }) {
             )}
           </tbody>
         </table>
+        </div>
 
         {/* Pagination Controls */}
         <div className="billing-pagination-bar">
@@ -340,6 +362,7 @@ function BillList({ authorization }) {
       {detailModalBill && (
         <BillDetailModal
           bill={detailModalBill}
+          canPrint={isAdmin}
           onClose={() => setDetailModalBill(null)}
         />
       )}

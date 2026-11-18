@@ -1,9 +1,9 @@
 name: CI
 on:
   push:
-    branches: [main]
+    branches: [main, develop, 'release/**']
   pull_request:
-    branches: [main]
+    branches: [main, develop, 'release/**']
     types: [opened, synchronize, reopened, edited]
 permissions:
   contents: read
@@ -11,6 +11,17 @@ concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 jobs:
+  git-flow:
+    name: Git Flow
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - run: node --test scripts/git-flow.test.mjs
+      - run: node scripts/git-flow.mjs
   backend:
     name: Backend MySQL
     runs-on: ubuntu-latest
@@ -22,7 +33,7 @@ jobs:
           MYSQL_DATABASE: smart_cafe_ci_test
         ports: ['3306:3306']
         options: >-
-          --health-cmd="mysqladmin ping --silent"
+          --health-cmd="mysqladmin ping --host=127.0.0.1 --protocol=TCP --silent"
           --health-interval=5s --health-timeout=5s --health-retries=30
     steps:
       - uses: actions/checkout@v4
@@ -33,7 +44,7 @@ jobs:
           cache: maven
           cache-dependency-path: backend/pom.xml
       - name: Prepare isolated schema contract fixture
-        run: docker exec -i $(docker ps -q --filter ancestor=mysql:8.0) mysql -uroot smart_cafe_ci_test < backend/src/test/resources/schema.sql
+        run: docker exec -i $(docker ps -q --filter ancestor=mysql:8.0) mysql --protocol=TCP --host=127.0.0.1 -uroot smart_cafe_ci_test < backend/src/test/resources/schema.sql
       - name: Verify API on MySQL
         working-directory: backend
         env:
@@ -79,6 +90,7 @@ jobs:
             node scripts/skills.mjs check
           fi
       - run: node --test scripts/skills.test.mjs
+      - run: node --test scripts/git-flow.test.mjs
       - name: Check local changes without rewriting inherited snapshots
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}

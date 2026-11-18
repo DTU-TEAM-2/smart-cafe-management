@@ -10,7 +10,7 @@ paths:
     get:
       summary: Danh sách hóa đơn có phân trang, tìm kiếm và sắp xếp
       description: >
-        Dành riêng cho Quản lý (ADMIN). Cho phép tìm kiếm theo mã hóa đơn,
+        Dành cho Quản lý (ADMIN) và Nhân viên (STAFF). Cho phép tìm kiếm theo mã hóa đơn,
         khoảng ngày tạo, lọc theo trạng thái và sắp xếp ổn định.
       security:
         - BearerAuth: []
@@ -29,14 +29,14 @@ paths:
           schema:
             type: string
             format: date
-          description: Ngày bắt đầu khoảng thời gian tạo hóa đơn (YYYY-MM-DD).
+          description: Ngày bắt đầu khoảng thời gian tạo hóa đơn tại Asia/Ho_Chi_Minh. Gửi cùng to.
         - name: to
           in: query
           required: false
           schema:
             type: string
             format: date
-          description: Ngày kết thúc khoảng thời gian tạo hóa đơn (YYYY-MM-DD).
+          description: Ngày cuối được tính, tối đa một năm kể từ from. Gửi cùng from.
         - name: status
           in: query
           required: false
@@ -66,8 +66,8 @@ paths:
           required: false
           schema:
             type: string
-            enum: [createdAt,desc, createdAt,asc, totalAmount,desc, totalAmount,asc]
-            default: createdAt,desc
+            enum: ["createdAt,desc", "createdAt,asc", "totalAmount,desc", "totalAmount,asc"]
+            default: "createdAt,desc"
           description: Tiêu chí sắp xếp.
       responses:
         '200':
@@ -84,13 +84,15 @@ paths:
         '400':
           description: Tham số tìm kiếm, phân trang hoặc sắp xếp không hợp lệ
         '403':
-          description: Chưa đăng nhập hoặc không có vai trò ADMIN
+          description: Chưa đăng nhập hoặc không có vai trò ADMIN hay STAFF
+        '503':
+          description: Dữ liệu hóa đơn hoặc xác thực tạm thời không khả dụng
 
   /api/v1/bills/{id}:
     get:
       summary: Xem chi tiết hóa đơn (snapshot bất biến)
       description: >
-        Dành riêng cho Quản lý (ADMIN). Trả về dữ liệu chi tiết hóa đơn gồm thông tin
+        Dành cho Quản lý (ADMIN) và Nhân viên (STAFF). Trả về dữ liệu chi tiết hóa đơn gồm thông tin
         chung và danh sách món được chụp tại thời điểm lập hóa đơn.
       security:
         - BearerAuth: []
@@ -114,19 +116,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BillSnapshot'
+        '400':
+          description: ID hóa đơn sai định dạng
         '403':
-          description: Chưa đăng nhập hoặc không có vai trò ADMIN
+          description: Chưa đăng nhập hoặc không có vai trò ADMIN hay STAFF
         '404':
           description: Không tìm thấy hóa đơn với ID tương ứng
+        '503':
+          description: Dữ liệu hóa đơn hoặc xác thực tạm thời không khả dụng
 
   /api/v1/statistics/revenue:
     get:
-      summary: Thống kê doanh thu và chuỗi ngày biểu đồ cột
+      summary: Thống kê doanh thu theo ngày và phương thức thanh toán
       description: >
         Dành riêng cho Quản lý (ADMIN). Thống kê tổng hợp số liệu doanh thu từ các
         hóa đơn có trạng thái PAID theo mốc paid_at trong múi giờ Asia/Ho_Chi_Minh.
-        Dữ liệu này phục vụ trực tiếp cho số liệu tóm tắt, biểu đồ cột (dailyRevenue)
-        và không công bố tỷ trọng khi chưa có quyết định nghiệp vụ.
+        Cả biểu đồ cột, biểu đồ tròn và KPI dùng cùng tập hóa đơn và kỳ. Doanh thu mỗi
+        nhóm là tổng giá trị hóa đơn theo payments.method. Hóa đơn thiếu bản ghi
+        thanh toán được đưa vào UNKNOWN.
       security:
         - BearerAuth: []
       parameters:
@@ -136,21 +143,21 @@ paths:
           schema:
             type: string
             enum: [today, in_week, in_month, in_year]
-          description: Kỳ thống kê mặc định. Không dùng cùng lúc với cặp from/to.
+          description: Kỳ thống kê. Khi bỏ cả period, from và to, API dùng today. Gửi period hoặc cặp from/to.
         - name: from
           in: query
           required: false
           schema:
             type: string
             format: date
-          description: Ngày bắt đầu khoảng thời gian thống kê tùy chọn.
+          description: Ngày đầu được tính tại Asia/Ho_Chi_Minh. Gửi cùng to.
         - name: to
           in: query
           required: false
           schema:
             type: string
             format: date
-          description: Ngày kết thúc khoảng thời gian thống kê tùy chọn.
+          description: Ngày cuối được tính, tối đa một năm kể từ from. Gửi cùng from.
       responses:
         '200':
           description: Dữ liệu thống kê và biểu đồ
@@ -167,6 +174,8 @@ paths:
           description: Kỳ hoặc khoảng ngày không hợp lệ
         '403':
           description: Chưa đăng nhập hoặc không có vai trò ADMIN
+        '503':
+          description: Dữ liệu doanh thu hoặc xác thực tạm thời không khả dụng
 
 components:
   securitySchemes:
@@ -343,11 +352,35 @@ components:
           format: int64
           example: 1
 
+    SummaryStatistics:
+      type: object
+      required: [from, to, timezone, totalRevenue, totalBills, averageBillAmount]
+      properties:
+        from:
+          type: string
+          format: date
+        to:
+          type: string
+          format: date
+        timezone:
+          type: string
+          example: Asia/Ho_Chi_Minh
+        totalRevenue:
+          type: string
+          example: "110000"
+        totalBills:
+          type: integer
+          format: int64
+        averageBillAmount:
+          type: string
+          example: "110000"
+
     Statistics:
       type: object
       required:
         - summary
         - dailyRevenue
+        - revenueByPaymentMethod
       properties:
         summary:
           $ref: '#/components/schemas/SummaryStatistics'
@@ -355,3 +388,18 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DayRevenue'
+        revenueByPaymentMethod:
+          type: array
+          items:
+            type: object
+            required: [method, revenue, billCount]
+            properties:
+              method:
+                type: string
+                enum: [CASH, BANK_TRANSFER, UNKNOWN]
+              revenue:
+                type: string
+                example: "110000"
+              billCount:
+                type: integer
+                format: int64

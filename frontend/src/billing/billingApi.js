@@ -7,7 +7,7 @@ export const moneyFormatter = new Intl.NumberFormat("vi-VN", {
 export function vnd(amount) {
   if (amount == null || amount === "") return "0 ₫";
   try {
-    const numeric = typeof amount === "string" ? BigInt(amount) : BigInt(Math.round(amount));
+    const numeric = typeof amount === "number" ? BigInt(Math.round(amount)) : BigInt(amount);
     return moneyFormatter.format(numeric);
   } catch {
     const num = Number(amount);
@@ -34,82 +34,46 @@ export function formatDateTime(isoString) {
   }
 }
 
-export async function fetchBills({ code, from, to, status, page = 0, size = 10, sort = "createdAt,desc", authorization = "", signal }) {
-  const params = new URLSearchParams();
-  if (code && code.trim()) params.set("code", code.trim());
+export function fetchBills({ code, from, to, status, page = 0, size = 10, sort = "createdAt,desc", ...options }) {
+  const params = new URLSearchParams({ page: String(page), size: String(size), sort });
+  if (code?.trim()) params.set("code", code.trim());
   if (from) params.set("from", from);
   if (to) params.set("to", to);
   if (status && status !== "ALL") params.set("status", status);
-  params.set("page", String(page));
-  params.set("size", String(size));
-  params.set("sort", sort);
-
-  const headers = {};
-  if (authorization) headers.Authorization = authorization;
-
-  const res = await fetch(`/api/v1/bills?${params.toString()}`, {
-    headers,
-    signal,
-    cache: "no-store",
-    credentials: "same-origin",
-  });
-
-  if (res.status === 401 || res.status === 403) {
-    throw new Error("UNAUTHORIZED");
-  }
-  if (!res.ok) {
-    throw new Error(`Lỗi tải danh sách hóa đơn (HTTP ${res.status})`);
-  }
-  return res.json();
+  return readBilling(`/api/v1/bills?${params}`, "danh sách hóa đơn", options);
 }
 
-export async function fetchBillDetail(id, authorization = "", signal) {
-  const headers = {};
-  if (authorization) headers.Authorization = authorization;
-
-  const res = await fetch(`/api/v1/bills/${encodeURIComponent(id)}`, {
-    headers,
-    signal,
-    cache: "no-store",
-    credentials: "same-origin",
-  });
-
-  if (res.status === 401 || res.status === 403) {
-    throw new Error("UNAUTHORIZED");
-  }
-  if (res.status === 404) {
-    throw new Error("NOT_FOUND");
-  }
-  if (!res.ok) {
-    throw new Error(`Lỗi tải chi tiết hóa đơn (HTTP ${res.status})`);
-  }
-  return res.json();
+export function fetchBillDetail(id, options) {
+  return readBilling(`/api/v1/bills/${encodeURIComponent(id)}`, "chi tiết hóa đơn", options);
 }
 
-export async function fetchRevenueStatistics({ period, from, to, authorization = "", signal }) {
+export function fetchRevenueStatistics({ period, from, to, ...options }) {
   const params = new URLSearchParams();
-  if (from && to) {
-    params.set("from", from);
-    params.set("to", to);
-  } else if (period) {
-    params.set("period", period);
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+  if (period) params.set("period", period);
+  return readBilling(`/api/v1/statistics/revenue?${params}`, "số liệu thống kê", options);
+}
+
+async function readBilling(path, resource, { authorization, credentials = "same-origin", signal }) {
+  const timeout = AbortSignal.timeout(12000);
+  const requestSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
+  let response;
+  try {
+    response = await fetch(path, {
+      headers: authorization ? { Authorization: authorization } : {},
+      signal: requestSignal,
+      cache: "no-store",
+      credentials,
+    });
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    throw new Error("Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.");
   }
 
-  const headers = {};
-  if (authorization) headers.Authorization = authorization;
-
-  const res = await fetch(`/api/v1/statistics/revenue?${params.toString()}`, {
-    headers,
-    signal,
-    cache: "no-store",
-    credentials: "same-origin",
-  });
-
-  if (res.status === 401 || res.status === 403) {
-    throw new Error("UNAUTHORIZED");
-  }
-  if (!res.ok) {
-    throw new Error(`Lỗi tải số liệu thống kê (HTTP ${res.status})`);
-  }
-  return res.json();
+  if (response.status === 401 || response.status === 403) throw new Error("UNAUTHORIZED");
+  if (response.status === 404) throw new Error("NOT_FOUND");
+  if (response.status === 503) throw new Error("Dữ liệu tạm thời không khả dụng (HTTP 503).");
+  if (!response.ok) throw new Error(`Lỗi tải ${resource} (HTTP ${response.status})`);
+  return response.json();
 }

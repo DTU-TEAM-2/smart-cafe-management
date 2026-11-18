@@ -4,6 +4,8 @@ Task CF/QA và link issue/Jira/Trello:
 
 Nguồn yêu cầu / quyết định liên quan:
 
+Nhánh nguồn / tách từ / đích PR theo [Git Flow](../git-flow.md):
+
 Hành vi trước và sau thay đổi:
 
 ## Kiểm tra và bằng chứng
@@ -25,7 +27,9 @@ Hành vi trước và sau thay đổi:
 
 - [ ] Đạt AC và Definition of Done liên quan
 - [ ] Checks phù hợp đạt; không có secret/dữ liệu cá nhân
-- [ ] Có reviewer khác tác giả, đã xử lý blocker/discussion
+- [ ] Đúng đích Git Flow; đã tự review/AI review và CI/bot checks đạt trước vòng duyệt
+- [ ] Có ít nhất 2 reviewer khác tác giả approve revision hiện tại; đã xử lý blocker/discussion
+- [ ] Nếu release/hotfix: có kế hoạch PR đồng bộ main → develop và cập nhật release đang mở nếu cần
 - [ ] Tài liệu/hợp đồng liên quan đã cập nhật
 - [ ] Tuân thủ [rule công nghệ](../.agents/rules/technology-constraints.md): Spring Boot / ReactJS / MySQL bắt buộc; công cụ khác tùy chọn trong phạm vi task
 - [ ] Nếu liên quan dữ liệu: đã đối chiếu [rule database](../.agents/rules/database-source-of-truth.md); không tự chế bảng/cột/quan hệ hoặc sửa schema chưa được chấp thuận
