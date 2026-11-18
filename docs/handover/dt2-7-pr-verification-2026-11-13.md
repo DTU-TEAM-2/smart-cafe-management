@@ -68,3 +68,11 @@ Revision `c0fa0805c7bba38122e6f70768fccba9ddc30393`, ngày 13/11/2026. HTTP, Web
 Kết quả local ngày 18/11 là **307/307 Maven verify đạt**, 0 lỗi và 0 bỏ qua, trên MySQL 8.0 Docker `_test` riêng. Registry/checksum 17 skill/169 file, 9 routing tests và kiểm whitespace đạt. Lệnh backend là `backend/mvnw.cmd -o -B -ntp verify` với `TEST_DB_URL`, `TEST_DB_USERNAME`, `TEST_DB_PASSWORD` trỏ database thử riêng; container được dừng sau kiểm thử. Frontend được kiểm lại bởi CI của revision bàn giao.
 
 Skills áp dụng trong lượt này gồm `cafe-workflow`, `cafe-spring-api`, `cafe-quality`, `cafe-review` tại `.agents/skills/<tên-skill>/SKILL.md`. Mã ảnh, socket và hợp đồng được đối chiếu với các caller hiện có; dữ liệu thử chỉ nằm trong MySQL `_test` riêng.
+
+## Góp ý P1 về collection và thống kê — 18/11/2026
+
+Góp ý mới được đăng trong lúc xử lý hai P2. `HeaderTokenFilter` bỏ sót collection `/api/v1/staff`, `/api/v1/bills` và nhóm statistics do kiểm prefix kết thúc bằng dấu `/`. Bản sửa dùng một danh sách resource root với điều kiện bằng root hoặc có subpath, bao gồm statistics. Handshake News và các route public được kiểm hồi quy riêng.
+
+- Lượt Maven verify chọn lọc trên nhánh hiện tại đạt **62/62**, 0 bỏ qua, với MySQL `_test` riêng. Bao gồm Auth login thật, filter tại ba đường dẫn với ADMIN/STAFF/CUSTOMER, token hết hạn/sai chữ ký/đã thu hồi, Home public khi user DB lỗi, Menu và News REST/WebSocket.
+- Bản ghép thử BE trong checkout riêng dùng News hiện tại cùng source PR #11 tại `035baace98c9d4c6d2530e2973b5983e89b3dbb6`, PR #18 tại `dfd71e3b90489353201e16af0e7bea6f69875bbe` và các authorization/CSRF matcher của hai PR. Giữ đúng rename StaffController → StaffDashboardController của #11. Chạy **38/38 test đạt**, 0 bỏ qua, trên database riêng.
+- Kiểm HTTP trên controller thật của bản ghép xác nhận ADMIN GET ba endpoint trả 200; STAFF chỉ GET bills trả 200 và bị 403 ở staff/revenue; CUSTOMER bị 403 cả ba. Anonymous, bearer hết hạn, sai chữ ký và bị thu hồi đều bị chặn. POST staff thiếu CSRF vẫn trả 403. Đây là kiểm tích hợp backend tại các biên xác thực/phân quyền, dùng dữ liệu tổng hợp từ schema fixture hiện hành.

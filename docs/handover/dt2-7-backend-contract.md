@@ -77,6 +77,8 @@ Upload tạo media độc lập để form dùng khi lưu bài. Hủy form có t
 
 ## Socket
 
+Bộ lọc bearer dùng chung khớp cả collection path và subpath của các nhóm API được bảo vệ, gồm `/api/v1/staff`, `/api/v1/bills`, `/api/v1/statistics/revenue`. Quyền truy cập từng endpoint do SecurityFilterChain và module sở hữu xác định. Public highlights/menu khách/QR/login và handshake `/api/v1/news/events` đi theo contract riêng; handshake xác minh bearer ở frame đầu.
+
 WebSocket native /api/v1/news/events, cùng origin. HTTP upgrade được allowlist riêng; chưa cấp quyền nhận dữ liệu. Frame text đầu trong 10 giây là Bearer <token>. Server kiểm chữ ký/expiry và DB role STAFF, ACTIVE, auth_version khớp token rồi trả {"type":"READY"}. CUSTOMER và ADMIN bị đóng 1008; quyền quản lý REST của ADMIN không bị ảnh hưởng. Không có token trong URL/cookie.
 
 Sau transaction commit, chỉ khi thay đổi ảnh hưởng danh sách STAFF (bài PUBLISHED có audience_staff=1 ở trước hoặc sau thay đổi), server gửi {"type":"NEWS_CHANGED"}. Không gửi ID, title, body hoặc nhóm nhận tin trong payload socket. Nháp, thay đổi bài chỉ dành CUSTOMER và rollback không gây thông báo. Khi bài bỏ nhóm STAFF, chuyển nháp hoặc ARCHIVED, STAFF được báo để reload và bỏ bài khỏi danh sách.

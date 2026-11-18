@@ -1,6 +1,7 @@
 package vn.codegym.smartcafe.config;
 
 import java.io.IOException;
+import java.util.List;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,6 +12,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 /** Consumer of the authentication module's signed bearer contract. */
 final class HeaderTokenFilter extends OncePerRequestFilter {
+    private static final List<String> AUTHENTICATED_RESOURCES = List.of(
+            "/api/v1/home/account", "/api/v1/home/notifications", "/api/v1/auth/me",
+            "/api/v1/news", "/api/v1/menu", "/api/v1/sales", "/api/v1/income",
+            "/api/v1/bills", "/api/v1/statistics", "/api/v1/admin", "/api/v1/staff");
     private final BearerTokenAuthenticator authenticator;
 
     HeaderTokenFilter(BearerTokenAuthenticator authenticator) {
@@ -20,12 +25,8 @@ final class HeaderTokenFilter extends OncePerRequestFilter {
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI().substring(request.getContextPath().length());
-        return path.equals("/api/v1/news/events") || (!path.equals("/api/v1/home/account")
-                && !path.equals("/api/v1/home/notifications") && !path.equals("/api/v1/news")
-                && !path.startsWith("/api/v1/news/") && !path.equals("/api/v1/menu")
-                && !path.startsWith("/api/v1/menu/") && !path.startsWith("/api/v1/sales/")
-                && !path.equals("/api/v1/income") && !path.startsWith("/api/v1/bills/") && !path.startsWith("/api/v1/admin/")
-                && !path.startsWith("/api/v1/staff/") && !path.equals("/api/v1/auth/me"));
+        return path.equals("/api/v1/news/events") || AUTHENTICATED_RESOURCES.stream()
+                .noneMatch(resource -> path.equals(resource) || path.startsWith(resource + "/"));
     }
 
     @Override

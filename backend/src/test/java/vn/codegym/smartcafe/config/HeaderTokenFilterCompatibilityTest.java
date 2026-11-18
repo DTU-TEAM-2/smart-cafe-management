@@ -21,7 +21,8 @@ class HeaderTokenFilterCompatibilityTest {
         when(authenticator.authenticate("Bearer isolated-unit-fixture")).thenReturn(expected);
         var filter = new HeaderTokenFilter(authenticator);
         for (String path : List.of("/api/v1/menu/categories", "/api/v1/menu", "/api/v1/sales/tables",
-                "/api/v1/income", "/api/v1/bills/42", "/api/v1/auth/me", "/api/v1/admin/test", "/api/v1/staff/test")) {
+                "/api/v1/income", "/api/v1/bills", "/api/v1/bills/42", "/api/v1/statistics/revenue",
+                "/api/v1/auth/me", "/api/v1/admin/test", "/api/v1/staff", "/api/v1/staff/test")) {
             SecurityContextHolder.clearContext();
             try {
                 var request = new MockHttpServletRequest("GET", "/cafe" + path);
@@ -32,6 +33,19 @@ class HeaderTokenFilterCompatibilityTest {
                 assertThat(observed.get()).as("Existing main chain caller %s", path).isSameAs(expected);
             } finally { SecurityContextHolder.clearContext(); }
         }
+    }
+
+    @Test
+    void publicRoutesAndWebSocketHandshakeDoNotAuthenticateAnUnsolicitedBearer() throws Exception {
+        var authenticator = mock(BearerTokenAuthenticator.class);
+        var filter = new HeaderTokenFilter(authenticator);
+        for (String path : List.of("/api/v1/home/highlights", "/api/v1/news/events", "/api/v1/auth/login",
+                "/api/v1/customer/menu", "/api/v1/customer/tables/qr/fixture", "/api/v1/bills-other")) {
+            var request = new MockHttpServletRequest("GET", path);
+            request.addHeader("Authorization", "Bearer unsolicited-fixture");
+            filter.doFilter(request, new MockHttpServletResponse(), (req, res) -> {});
+        }
+        verifyNoInteractions(authenticator);
     }
 
     @Test
