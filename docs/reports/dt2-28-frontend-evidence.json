@@ -1,0 +1,827 @@
+{
+  "verifiedAt": "2026-11-19T04:05:44.230206+00:00",
+  "timezone": "Asia/Saigon",
+  "branch": "feature/dt2-3_personal-account-frontend",
+  "baseRevision": "e3ce5b1df9475f3bde709828ad0ccdead2fa19ef",
+  "publication": "Owner accepted UI and authorized feature commit/push/PR on 2026-11-19. Actual CI follows publication.",
+  "ui": {
+    "fullRun": {
+      "status": "PASS",
+      "expected": 176,
+      "unexpected": 0,
+      "skipped": 0,
+      "flaky": 0,
+      "groups": {
+        "existing": 100,
+        "lifecycle": 54,
+        "product": 22
+      },
+      "unitTests": 4,
+      "command": "npm run test:ui -- --workers=2",
+      "date": "2026-11-19",
+      "log": "backend/target/dt2-28-final-session-guard-playwright.log",
+      "note": "Final source with login session snapshot guard and stabilized capture helpers; complete suite."
+    },
+    "priorCaptureRerun": {
+      "expected": 22,
+      "unexpected": 0,
+      "skipped": 0,
+      "reason": "Earlier screenshot stabilization run; superseded by final full176 after login guard fix"
+    },
+    "reviewRegression": {
+      "beforeFix": "FAIL: pending login replaced externally switched bearer",
+      "fix": "Capture session at login start and require same generation/token before commit",
+      "afterFix": "Covered by final176 desktop/mobile"
+    },
+    "verifiedDistinctScenarios": 176,
+    "unitTests": 4,
+    "mocked": true
+  },
+  "realBrowser": {
+    "revision": "e3ce5b1df9475f3bde709828ad0ccdead2fa19ef",
+    "executedAt": "2026-11-19T04:03:38.247730+00:00",
+    "schema": "smart_cafe_dt2_28_browser_d28ea5b3708d_test",
+    "ddlVersion": "20261113.1",
+    "ddlSha256": "84cb9f2e99073ea73b117e828dc7f144928052a8f8345cde6f903b82280e4b5e",
+    "mockedEndpoints": 0,
+    "nativeFlyway": "provision/validate/repeat PASS",
+    "mysqlVersion": "8.0.45",
+    "backendJarSha256": "6c8c7103ccd97923fe3d44b8c02e15b05edce41a72c7dee488b4ffdeabaa7230",
+    "browserExitCode": 0,
+    "browserStats": {
+      "startTime": "2026-11-19T04:04:24.157Z",
+      "duration": 41646.703,
+      "expected": 8,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "ownedSchemaRemoved": true
+  },
+  "liveSourceManifestMatchesCurrent": false,
+  "sourceSha256": {
+    "frontend/src/App.jsx": "a33200bc4022c65093a7ccc22b0d0b188daadcfb41872ac9cda9c5c6fbd49205",
+    "frontend/src/fonts.css": "4f720a0b68b8f905753017e0041ff6500cfa20b255130c9964277069902d1e3a",
+    "frontend/src/main.jsx": "fb5bd73625f95f000a62d50f5b26548ab50646e2dd725591840bae3b32e3bafc",
+    "frontend/src/styles.css": "44acb66f39cf97ce44e0e392121c357d6bd850d30cbb76cb3f9d93c6d1630266",
+    "frontend/src/account/account.css": "80372ce07cefe0b9aa1d8d941cd8ca3b56be69196eae31bc002d6be4b988850a",
+    "frontend/src/account/accountApi.js": "7446827c993fd1688311919690aa6902c6d18e2ed6b81a6bd3e56c1e3df2b269",
+    "frontend/src/account/AccountFeedback.jsx": "51c642f39f8c0801d275cb2cbd4043556a83c0d6278b1182c41a669fba9ff077",
+    "frontend/src/account/AccountPage.jsx": "0318f73820479e12d7ce90cac672bdf461b875727cabfd957555d83f130d3de4",
+    "frontend/src/account/ChangePasswordForm.jsx": "e80c7c79662c7757954077a3e49027d59fcbe47f7c04c8c089538ea4dc8ac930",
+    "frontend/src/account/LeaveProfileDialog.jsx": "ccd1d8026f7a5202da5d6b5e5e37ae0027e841c34db71a2899a15b4846fa25ef",
+    "frontend/src/account/PasswordExpiryNotice.jsx": "42b3aaccaccbed1d9ef3abf90a295916a071fa0c3fb951186c9020b54877e21b",
+    "frontend/src/account/profileValidation.js": "c77e6901e0f8e7770dbbb33bd10171d4fe0f7d7144ee5d03571fd2fc50321e9f",
+    "frontend/src/account/ProfileView.jsx": "4bcb4e871e3daaffaecd567ec66a8d0520acae5bedd09dbf9ccd607742767382",
+    "frontend/src/account/useAccountProfile.js": "13a6cf577579a0084c1bb596159ee2b708ab7633ac129d83a908b32aa914e8f3",
+    "frontend/src/auth/auth.css": "3bf67bc025b06b5b727f462748af7ea6b00c6a93a916cc82ddbaa61e38f6dd69",
+    "frontend/src/auth/authApi.js": "6d2ecdc0c043a8a45ce4325509885f2012f1c82d82ce1d9b6f63393bfa83e325",
+    "frontend/src/auth/AuthContext.jsx": "f19f0bcc2ae456ccaae16387fda00880b16c5dc6163c10efc9f9f73db41a1ff5",
+    "frontend/src/auth/AuthSidebar.jsx": "258f6febdc80c69d2daba2c71967d3572501e67f6cdb4c5aae74ddc0be148080",
+    "frontend/src/auth/ForgotPasswordPage.jsx": "00e3303479bcfaed925dd002181f640b9b613d6b4650a5a60edbbd5111c3a76d",
+    "frontend/src/auth/LoginPage.jsx": "a7b44f9e11e53f8d3b2a54e924c29ae6e413633cf12b7e7f0007c33fb1ef665b",
+    "frontend/src/auth/OtpPage.jsx": "1b66167a68d905238417b081f27449e63bea28561286d5203190368214556d69",
+    "frontend/src/auth/RegisterPage.jsx": "35dd791c2c5e7967686589074f3f36d99572e90be80a0538332974d4f6c06aa1",
+    "frontend/src/auth/ResetPasswordPage.jsx": "f0611d5a97e9a52396a0ceb718cbe25dd34576b8b27ef1f35317903f4f18a9e3",
+    "frontend/src/auth/useAuth.js": "affb592b8d152ae7cd21ba925e2845a3df76de492e903c5580044c42d3835939",
+    "frontend/src/dashboard/AdminDashboard.jsx": "2a26f554ff20117ff00abbcf9549dd448d6fd4ce5d8ce17569b36576a7cea524",
+    "frontend/src/dashboard/StaffDashboard.jsx": "2b292e63a6a2f12c4842555ef404137da5d007eb1d42bad4520c9b2126a96bab",
+    "frontend/src/home/HomePage.jsx": "4e1516f03d20a470fff03cb4dce3760bef54668df8799d1dfc011c952496ae91",
+    "frontend/src/layout/AccountAvatar.jsx": "55c111dffa279376a477d43e9aa4e05399fd2e5ce09fd3282ba992d177a5af1a",
+    "frontend/src/layout/HomeShell.jsx": "6e744586fea9d206388f2ff4e7ede15c583624fecd88f494a0163c51ff8395e8",
+    "frontend/src/layout/SiteLayout.jsx": "82f347661e04a3d900c1008f531d3170255cd5e0ec48600093b276010c0d1828",
+    "frontend/src/menu/DeleteDialog.jsx": "14b9e0c07bf285a16103e404f9373410d4b527b27148ff6b1c7867d35a0eb0d7",
+    "frontend/src/menu/demoMenu.js": "3d85242154718ffd13464c06463a10334f25bc7f9473e79e395c6c20dcfcc5d8",
+    "frontend/src/menu/imageDimensions.js": "f96bb608d9e6122e52d4bb40aea6738b192b48af4637349bbbcc22a3e0dc86e8",
+    "frontend/src/menu/menu.css": "f755ce53562e615b180fad49e107089e93d202c0f2a53cbedff3477d2e08fcee",
+    "frontend/src/menu/MenuEditor.jsx": "5b767866aac52622fb430d1471dd4a31d85d661fc0ec6b904f5fabf78c75a8e4",
+    "frontend/src/menu/MenuManagement.jsx": "427bbd4a7207034062c32d18dd7fef99ddea4e8d5ea36b565278ff8201323012",
+    "frontend/src/sales/IncomePanel.jsx": "2e9a8a0b663ee0284708cbc3c212ec0eb42a0dfc1418abfb0f29886cfe0a125c",
+    "frontend/src/sales/sales.css": "0644689f26b44acdbd1a44e91cabb69852a207675dd71c145802e06c1bebe236",
+    "frontend/src/sales/salesApi.js": "51886b7b2fef45d9450120ed5c91b819790ff693b6166aa92923e63668c4d8c0",
+    "frontend/src/sales/SalesWorkspace.jsx": "077c63dc823353061693393143892787d39ffd940d4ab3b04da06f12187ff292",
+    "frontend/tests/account-fixtures.js": "62009f89742cc3e321592ee033b85fb6fabf38642b69ed0163cd9f4d114d523f",
+    "frontend/tests/account-harness.html": "69df9a26535aa609aac09c56068219d30573ea6960b4390de3359200e0671a6b",
+    "frontend/tests/account-harness.jsx": "2f322b8ddabe417dc4544e9cca64fcdce19e27b92d570bc2994ac7a9a296407d",
+    "frontend/tests/account-lifecycle.spec.js": "c283e48728286b55112ce57a1296fc45a3ad908906fb9de638c3cd6a60a8e5de",
+    "frontend/tests/account-ui.spec.js": "e93ae95da951fb785974a24348e1453cb63b687f6de246a515aa9ff82bc6d55f",
+    "frontend/tests/auth-figma.spec.js": "0dfff4f66eb7676348095d91a67229173928930c8edabe0a248a62844d9c5810",
+    "frontend/tests/auth-regression.spec.js": "e6334399c082cb09c78122d48fb5088f5125af4ed66bee9495c5c34f7826ceb8",
+    "frontend/tests/auth.spec.js": "bee12ad3609336f7e915fd3eb9d0bca88b872a69477345e35b5ee4f65a89c68f",
+    "frontend/tests/header.spec.js": "1b602d7830b06b0f0742074c0149bb4275b3bb460571e12e64c6736cbd081b56",
+    "frontend/tests/home.spec.js": "015a82c1fed99bd0e82733297cc5ef1256a39a7b7c5cb74b4624dc7a59c2e16a",
+    "frontend/tests/layout-harness.html": "c7b16c599fa07ed9e113a809a653d50f1b6ee88b3fdf1b35dad21f853d863db1",
+    "frontend/tests/layout-harness.jsx": "a76aac8298c2c3624c3a635fbd26b9634de521703979fc0e3db9d1641206069d",
+    "frontend/tests/login.spec.js": "186a5ee450f930b9a659db641df339051fd4988878759799bed719c5c4aa9d41",
+    "frontend/tests/menu-regression.spec.js": "6719501e056746245b8b38553e831d4345ad50e79387f9a16926e265cc1e39ae",
+    "frontend/tests/menu-review.spec.js": "2c182a8b88c4439e62e85ce2ce7ca057e7488cf52ad1c9fa9942ca931f0665a1",
+    "frontend/tests/menu.spec.js": "bb603d5af54db1fab06cbe92ee06554e3b2a8bf014637f064b01e560207208ed",
+    "frontend/tests/sales.spec.js": "9867643f310ed29c542dbbb8d80ce76c8a82ab6a3392b9879d5d6951c92307dc",
+    "frontend/e2e-live/account.spec.js": "1891f18518a32ababfb90930d4ac3efb4d312148e77c6f134ad5ee8cbb0cdc12",
+    "frontend/unit/profile-validation.test.mjs": "d2186b08e0d69012edf0ea1bf7593473d9bdbd04585956f40606136c434b92e9",
+    "frontend/package.json": "f0db0d756d118a36972c1a298ef7be126af04ae9b113b9a13f6b5a9a98816917",
+    "frontend/playwright.account-live.config.js": "41165ba68d97af2962a8a63b9ca1f783623d1b74fe904baae752980d54ae2a39",
+    "scripts/profile-browser-live.py": "176d4c28b5c04153db8b901896d07cb4cb682f3fe91c1e42fd467030191a0b76"
+  },
+  "maven": {
+    "tests": 315,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0
+  },
+  "profileMenuQrNewman": {
+    "status": "PASS",
+    "requests": 203,
+    "assertions": 587,
+    "sqlChecks": [
+      {
+        "check": "name/address/phone persisted in users and staff_profiles",
+        "status": "PASS"
+      },
+      {
+        "check": "missing personnel rolls back earlier users update",
+        "status": "PASS"
+      },
+      {
+        "check": "all rejected requests leave account/personnel rows unchanged",
+        "status": "PASS"
+      },
+      {
+        "check": "new BCrypt hash differs and verifies new password",
+        "status": "PASS"
+      },
+      {
+        "check": "old password no longer verifies",
+        "status": "PASS"
+      },
+      {
+        "check": "password timestamp updated; auth version increments once; version preserves profile update",
+        "status": "PASS"
+      },
+      {
+        "check": "other ADMIN remains unchanged",
+        "status": "PASS"
+      },
+      {
+        "check": "expired and flagged accounts clear persisted flag and increment auth version",
+        "status": "PASS"
+      },
+      {
+        "check": "restored full run still persists new password",
+        "status": "PASS"
+      },
+      {
+        "check": "bounded brute-force and oversized-body probes leave all account rows unchanged",
+        "status": "PASS"
+      }
+    ],
+    "negativeControls": [
+      {
+        "name": "11-negative-control",
+        "requests": 1,
+        "assertions": 3,
+        "failedAssertions": 1,
+        "failures": 1,
+        "exitCode": 1,
+        "negativeControl": true,
+        "failedItems": [
+          "Health"
+        ]
+      }
+    ],
+    "cleanup": "PASS"
+  },
+  "authOtpHomeNewman": {
+    "status": "PASS",
+    "requests": 39,
+    "assertions": 57,
+    "negativeControls": 4,
+    "cleanup": "owned fixtures removed"
+  },
+  "governance": {
+    "skills": 17,
+    "routes": 16,
+    "inheritedFiles": 169,
+    "scriptTests": 17,
+    "gitFlow": "PASS with local PR payload",
+    "prTitle": "PASS local regex",
+    "diffCheck": "PASS"
+  },
+  "secretPatternScan": {
+    "files": 58,
+    "findings": [],
+    "limit": "Pattern scan plus manual review, no absolute assurance; private config/logs excluded"
+  },
+  "internalLinks": {
+    "checked": 40,
+    "broken": []
+  },
+  "productionFixtureMarkerScan": "PASS",
+  "dependencyAudit": {
+    "info": 0,
+    "low": 0,
+    "moderate": 0,
+    "high": 0,
+    "critical": 0,
+    "total": 0
+  },
+  "auditNote": "Fresh npm ci/audit 2026-11-19 report zero vulnerabilities; dependencies and lockfile unchanged. Five high on 2026-11-18 remain a historical observation.",
+  "githubActions": "PENDING publication at evidence capture; final actual HEAD checks are recorded on the published PR",
+  "sonarqube": "NOT RUN",
+  "figmaProfileFrames": [],
+  "design": "Owner-authorized LECKER supplemental design; no pixel-perfect claim",
+  "images": [
+    {
+      "file": "docs/handover/evidence/dt2-28/change-password.png",
+      "sha256": "5b436ce82c285ab70c4db63314d6456ca43ec9eefdba572498bf951e38dd1acb",
+      "imagePixels": [
+        1440,
+        1300
+      ],
+      "viewport": [
+        1440,
+        1300
+      ],
+      "source": "HTTP mock product UI",
+      "fullPage": true
+    },
+    {
+      "file": "docs/handover/evidence/dt2-28/live-admin-profile.png",
+      "sha256": "1bf9631674c4d7f6c91ce53bdc1bede5854ed524358b73cbf9b3840c8fb94752",
+      "imagePixels": [
+        1440,
+        1115
+      ],
+      "viewport": [
+        1440,
+        900
+      ],
+      "source": "real browser / real Backend and MySQL",
+      "fullPage": true
+    },
+    {
+      "file": "docs/handover/evidence/dt2-28/live-conflict.png",
+      "sha256": "4128bf96d01f4af535b7473c777db30e95b50a626500881299127a03f6b53b09",
+      "imagePixels": [
+        1440,
+        1191
+      ],
+      "viewport": [
+        1440,
+        900
+      ],
+      "source": "real browser / real Backend and MySQL",
+      "fullPage": true
+    },
+    {
+      "file": "docs/handover/evidence/dt2-28/live-expiry.png",
+      "sha256": "7747cb51136bc33b0d82122c2804cb569f505056600fced303c021db61de5244",
+      "imagePixels": [
+        1440,
+        1217
+      ],
+      "viewport": [
+        1440,
+        900
+      ],
+      "source": "real browser / real Backend and MySQL",
+      "fullPage": true
+    },
+    {
+      "file": "docs/handover/evidence/dt2-28/live-password-success.png",
+      "sha256": "c0a3188b0208a51441400e1fc2d0adeddb607e5b00acb197bf4955b374a49e60",
+      "imagePixels": [
+        1440,
+        1217
+      ],
+      "viewport": [
+        1440,
+        900
+      ],
+      "source": "real browser / real Backend and MySQL",
+      "fullPage": true
+    },
+    {
+      "file": "docs/handover/evidence/dt2-28/live-staff-profile.png",
+      "sha256": "111caefe82398d38734065adf3f6273fbc6708e76a2ab91a7449adfbf5eac042",
+      "imagePixels": [
+        1440,
+        1115
+      ],
+      "viewport": [
+        1440,
+        900
+      ],
+      "source": "real browser / real Backend and MySQL",
+      "fullPage": true
+    },
+    {
+      "file": "docs/handover/evidence/dt2-28/password-mobile.png",
+      "sha256": "a2b62b3029a7dbe1a88f051dd5bd1a979e6dab320778486f26b702ad28dddbd9",
+      "imagePixels": [
+        390,
+        1395
+      ],
+      "viewport": [
+        390,
+        844
+      ],
+      "source": "HTTP mock product UI",
+      "fullPage": true
+    },
+    {
+      "file": "docs/handover/evidence/dt2-28/password-success.png",
+      "sha256": "90858285c30a8142a00ce5e66b2e83323ad1b2301942e66abd37a0a70d19ad67",
+      "imagePixels": [
+        1440,
+        1300
+      ],
+      "viewport": [
+        1440,
+        1300
+      ],
+      "source": "HTTP mock product UI",
+      "fullPage": true
+    },
+    {
+      "file": "docs/handover/evidence/dt2-28/profile-1024x768.png",
+      "sha256": "c782c8e9adaedc124302f0fb490ce466329e738928eea3e48f19b1e71542472f",
+      "imagePixels": [
+        1024,
+        1103
+      ],
+      "viewport": [
+        1024,
+        768
+      ],
+      "source": "HTTP mock product UI",
+      "fullPage": true
+    },
+    {
+      "file": "docs/handover/evidence/dt2-28/profile-1366x768.png",
+      "sha256": "dae6d9ebabe4676127adbf0a2901ec6801041f3866c5ef6c9a7ac0cf17620b30",
+      "imagePixels": [
+        1366,
+        1115
+      ],
+      "viewport": [
+        1366,
+        768
+      ],
+      "source": "HTTP mock product UI",
+      "fullPage": true
+    },
+    {
+      "file": "docs/handover/evidence/dt2-28/profile-1440x900.png",
+      "sha256": "c2d510b9b03b37a86d37b0ddaef8ef306746648fb71559f2bd779a47d92808b7",
+      "imagePixels": [
+        1440,
+        1115
+      ],
+      "viewport": [
+        1440,
+        900
+      ],
+      "source": "HTTP mock product UI",
+      "fullPage": true
+    },
+    {
+      "file": "docs/handover/evidence/dt2-28/profile-1920x1080.png",
+      "sha256": "2d9d79d68efe7b578263e17e8776f5e82c0605b9a6869f6ac3dec722ef639cd7",
+      "imagePixels": [
+        1920,
+        1115
+      ],
+      "viewport": [
+        1920,
+        1080
+      ],
+      "source": "HTTP mock product UI",
+      "fullPage": true
+    },
+    {
+      "file": "docs/handover/evidence/dt2-28/profile-390x844.png",
+      "sha256": "f87628694ab4a94df20ebdb55f68b2de865c19571d9075880ee5f7b29b4f7a20",
+      "imagePixels": [
+        390,
+        1673
+      ],
+      "viewport": [
+        390,
+        844
+      ],
+      "source": "HTTP mock product UI",
+      "fullPage": true
+    },
+    {
+      "file": "docs/handover/evidence/dt2-28/profile-768x1024.png",
+      "sha256": "a1f8aee1690d2ecbb06a60c4aaea08cec1eaf3aa44f9ee430f38bf23dea6945d",
+      "imagePixels": [
+        768,
+        1076
+      ],
+      "viewport": [
+        768,
+        1024
+      ],
+      "source": "HTTP mock product UI",
+      "fullPage": true
+    },
+    {
+      "file": "docs/handover/evidence/dt2-28/profile-admin.png",
+      "sha256": "28d4e96f004175df89ee1d541125a6c1cb3a0df76459b33c61bdb6825afbe968",
+      "imagePixels": [
+        1440,
+        1115
+      ],
+      "viewport": [
+        1440,
+        900
+      ],
+      "source": "HTTP mock product UI",
+      "fullPage": true
+    },
+    {
+      "file": "docs/handover/evidence/dt2-28/profile-conflict.png",
+      "sha256": "1b7e1a241b50d6959193d9b3d06145000d73b9f4d61d07939e7ac596a3e5e426",
+      "imagePixels": [
+        1440,
+        1300
+      ],
+      "viewport": [
+        1440,
+        1300
+      ],
+      "source": "HTTP mock product UI",
+      "fullPage": true
+    },
+    {
+      "file": "docs/handover/evidence/dt2-28/profile-edit.png",
+      "sha256": "2380487a48ebae111f9acf6f2906df66304fb726b491b467ddbf8fe7f8ff2800",
+      "imagePixels": [
+        1440,
+        1162
+      ],
+      "viewport": [
+        1440,
+        900
+      ],
+      "source": "HTTP mock product UI",
+      "fullPage": true
+    },
+    {
+      "file": "docs/handover/evidence/dt2-28/profile-empty.png",
+      "sha256": "5b9704cfc7d9cf87392584ce9ba7e4a20ecfc93d410fb570529f68e06554472d",
+      "imagePixels": [
+        1440,
+        1300
+      ],
+      "viewport": [
+        1440,
+        1300
+      ],
+      "source": "HTTP mock product UI",
+      "fullPage": true
+    },
+    {
+      "file": "docs/handover/evidence/dt2-28/profile-error.png",
+      "sha256": "5cc4689fb0deab0194c705bcef900699d657a8e0ce09c8f82b8439e6efaf706a",
+      "imagePixels": [
+        1440,
+        1300
+      ],
+      "viewport": [
+        1440,
+        1300
+      ],
+      "source": "HTTP mock product UI",
+      "fullPage": true
+    },
+    {
+      "file": "docs/handover/evidence/dt2-28/profile-expiry.png",
+      "sha256": "66613a458a791fb5bc210f54f88288a90d092a4a5ca9b355984d4a6f91454cb2",
+      "imagePixels": [
+        1440,
+        1300
+      ],
+      "viewport": [
+        1440,
+        1300
+      ],
+      "source": "HTTP mock product UI",
+      "fullPage": true
+    },
+    {
+      "file": "docs/handover/evidence/dt2-28/profile-loading.png",
+      "sha256": "d0271340326f77f8775a88e41c7961c773562ac031ab9c55d2d167e5fde1a754",
+      "imagePixels": [
+        1440,
+        1300
+      ],
+      "viewport": [
+        1440,
+        1300
+      ],
+      "source": "HTTP mock product UI",
+      "fullPage": true
+    },
+    {
+      "file": "docs/handover/evidence/dt2-28/profile-staff.png",
+      "sha256": "c2d510b9b03b37a86d37b0ddaef8ef306746648fb71559f2bd779a47d92808b7",
+      "imagePixels": [
+        1440,
+        1115
+      ],
+      "viewport": [
+        1440,
+        900
+      ],
+      "source": "HTTP mock product UI",
+      "fullPage": true
+    },
+    {
+      "file": "docs/handover/evidence/dt2-28/profile-success.png",
+      "sha256": "966c0dabb78db8bc4b23832441cf2570971ce6c612a8ab3b3057888484039dba",
+      "imagePixels": [
+        1440,
+        1217
+      ],
+      "viewport": [
+        1440,
+        900
+      ],
+      "source": "HTTP mock product UI",
+      "fullPage": true
+    },
+    {
+      "file": "docs/handover/evidence/dt2-28/profile-validation.png",
+      "sha256": "8d14b667e18d8918c610865f57d833cfc73037fbc0e3cf2e88a043f3dd6c653b",
+      "imagePixels": [
+        1440,
+        1335
+      ],
+      "viewport": [
+        1440,
+        1300
+      ],
+      "source": "HTTP mock product UI",
+      "fullPage": true
+    },
+    {
+      "file": "docs/handover/evidence/dt2-28/reference-auth.png",
+      "sha256": "91c6e2ea366f18e27a7926c197f9459939abb3d7593a29d19bde8af6b2a24aec",
+      "imagePixels": [
+        1659,
+        1650
+      ],
+      "viewport": null,
+      "source": "owner-supplied Authentication reference",
+      "fullPage": false
+    }
+  ],
+  "changedFiles": [
+    "docs/architecture/decisions.md",
+    "docs/handover/dt2-28-frontend.md",
+    "docs/handover/dt2-28-pr-description.md",
+    "docs/handover/evidence/dt2-28/change-password.png",
+    "docs/handover/evidence/dt2-28/live-admin-profile.png",
+    "docs/handover/evidence/dt2-28/live-conflict.png",
+    "docs/handover/evidence/dt2-28/live-expiry.png",
+    "docs/handover/evidence/dt2-28/live-password-success.png",
+    "docs/handover/evidence/dt2-28/live-staff-profile.png",
+    "docs/handover/evidence/dt2-28/password-mobile.png",
+    "docs/handover/evidence/dt2-28/password-success.png",
+    "docs/handover/evidence/dt2-28/profile-1024x768.png",
+    "docs/handover/evidence/dt2-28/profile-1366x768.png",
+    "docs/handover/evidence/dt2-28/profile-1440x900.png",
+    "docs/handover/evidence/dt2-28/profile-1920x1080.png",
+    "docs/handover/evidence/dt2-28/profile-390x844.png",
+    "docs/handover/evidence/dt2-28/profile-768x1024.png",
+    "docs/handover/evidence/dt2-28/profile-admin.png",
+    "docs/handover/evidence/dt2-28/profile-conflict.png",
+    "docs/handover/evidence/dt2-28/profile-edit.png",
+    "docs/handover/evidence/dt2-28/profile-empty.png",
+    "docs/handover/evidence/dt2-28/profile-error.png",
+    "docs/handover/evidence/dt2-28/profile-expiry.png",
+    "docs/handover/evidence/dt2-28/profile-loading.png",
+    "docs/handover/evidence/dt2-28/profile-staff.png",
+    "docs/handover/evidence/dt2-28/profile-success.png",
+    "docs/handover/evidence/dt2-28/profile-validation.png",
+    "docs/handover/evidence/dt2-28/reference-auth.png",
+    "docs/reports/dt2-28-frontend-evidence.json",
+    "docs/reports/dt2-28-frontend-test-results.md",
+    "frontend/e2e-live/account.spec.js",
+    "frontend/package.json",
+    "frontend/playwright.account-live.config.js",
+    "frontend/src/account/AccountFeedback.jsx",
+    "frontend/src/account/AccountPage.jsx",
+    "frontend/src/account/ChangePasswordForm.jsx",
+    "frontend/src/account/LeaveProfileDialog.jsx",
+    "frontend/src/account/PasswordExpiryNotice.jsx",
+    "frontend/src/account/ProfileView.jsx",
+    "frontend/src/account/account.css",
+    "frontend/src/account/accountApi.js",
+    "frontend/src/account/profileValidation.js",
+    "frontend/src/account/useAccountProfile.js",
+    "frontend/src/auth/AuthContext.jsx",
+    "frontend/src/auth/authApi.js",
+    "frontend/src/layout/AccountAvatar.jsx",
+    "frontend/src/layout/HomeShell.jsx",
+    "frontend/src/layout/SiteLayout.jsx",
+    "frontend/src/main.jsx",
+    "frontend/tests/account-fixtures.js",
+    "frontend/tests/account-harness.html",
+    "frontend/tests/account-harness.jsx",
+    "frontend/tests/account-lifecycle.spec.js",
+    "frontend/tests/account-ui.spec.js",
+    "frontend/tests/header.spec.js",
+    "frontend/tests/home.spec.js",
+    "frontend/unit/profile-validation.test.mjs",
+    "scripts/profile-browser-live.py"
+  ],
+  "evidenceCapturedBeforeCommit": true,
+  "uiApproval": "Accepted by owner 2026-11-19",
+  "integration": {
+    "fetchPrune": "PASS 2026-11-19",
+    "develop": "e3ce5b1df9475f3bde709828ad0ccdead2fa19ef",
+    "merge": "Already up to date",
+    "conflicts": [],
+    "remoteFeatureBeforePublication": "absent",
+    "unmergedContributorPRsImported": false
+  },
+  "sharedDatabaseReadOnlyObservation": {
+    "date": "2026-11-19",
+    "mysql": "8.0.45",
+    "baseTables": 13,
+    "views": 0,
+    "profileDependencyTablesPresent": [
+      "users"
+    ],
+    "missing": [
+      "staff_profiles",
+      "media_assets"
+    ],
+    "writes": false,
+    "scope": "Legacy shared instance; DBA rollout not established by isolated acceptance"
+  },
+  "gitCanonicalSourceSha256": {
+    "frontend/src/App.jsx": "a33200bc4022c65093a7ccc22b0d0b188daadcfb41872ac9cda9c5c6fbd49205",
+    "frontend/src/fonts.css": "4f720a0b68b8f905753017e0041ff6500cfa20b255130c9964277069902d1e3a",
+    "frontend/src/main.jsx": "fb5bd73625f95f000a62d50f5b26548ab50646e2dd725591840bae3b32e3bafc",
+    "frontend/src/styles.css": "44acb66f39cf97ce44e0e392121c357d6bd850d30cbb76cb3f9d93c6d1630266",
+    "frontend/src/account/account.css": "80372ce07cefe0b9aa1d8d941cd8ca3b56be69196eae31bc002d6be4b988850a",
+    "frontend/src/account/accountApi.js": "7446827c993fd1688311919690aa6902c6d18e2ed6b81a6bd3e56c1e3df2b269",
+    "frontend/src/account/AccountFeedback.jsx": "51c642f39f8c0801d275cb2cbd4043556a83c0d6278b1182c41a669fba9ff077",
+    "frontend/src/account/AccountPage.jsx": "0318f73820479e12d7ce90cac672bdf461b875727cabfd957555d83f130d3de4",
+    "frontend/src/account/ChangePasswordForm.jsx": "e80c7c79662c7757954077a3e49027d59fcbe47f7c04c8c089538ea4dc8ac930",
+    "frontend/src/account/LeaveProfileDialog.jsx": "ccd1d8026f7a5202da5d6b5e5e37ae0027e841c34db71a2899a15b4846fa25ef",
+    "frontend/src/account/PasswordExpiryNotice.jsx": "42b3aaccaccbed1d9ef3abf90a295916a071fa0c3fb951186c9020b54877e21b",
+    "frontend/src/account/profileValidation.js": "c77e6901e0f8e7770dbbb33bd10171d4fe0f7d7144ee5d03571fd2fc50321e9f",
+    "frontend/src/account/ProfileView.jsx": "4bcb4e871e3daaffaecd567ec66a8d0520acae5bedd09dbf9ccd607742767382",
+    "frontend/src/account/useAccountProfile.js": "13a6cf577579a0084c1bb596159ee2b708ab7633ac129d83a908b32aa914e8f3",
+    "frontend/src/auth/auth.css": "3bf67bc025b06b5b727f462748af7ea6b00c6a93a916cc82ddbaa61e38f6dd69",
+    "frontend/src/auth/authApi.js": "6d2ecdc0c043a8a45ce4325509885f2012f1c82d82ce1d9b6f63393bfa83e325",
+    "frontend/src/auth/AuthContext.jsx": "f19f0bcc2ae456ccaae16387fda00880b16c5dc6163c10efc9f9f73db41a1ff5",
+    "frontend/src/auth/AuthSidebar.jsx": "258f6febdc80c69d2daba2c71967d3572501e67f6cdb4c5aae74ddc0be148080",
+    "frontend/src/auth/ForgotPasswordPage.jsx": "00e3303479bcfaed925dd002181f640b9b613d6b4650a5a60edbbd5111c3a76d",
+    "frontend/src/auth/LoginPage.jsx": "a7b44f9e11e53f8d3b2a54e924c29ae6e413633cf12b7e7f0007c33fb1ef665b",
+    "frontend/src/auth/OtpPage.jsx": "1b66167a68d905238417b081f27449e63bea28561286d5203190368214556d69",
+    "frontend/src/auth/RegisterPage.jsx": "35dd791c2c5e7967686589074f3f36d99572e90be80a0538332974d4f6c06aa1",
+    "frontend/src/auth/ResetPasswordPage.jsx": "f0611d5a97e9a52396a0ceb718cbe25dd34576b8b27ef1f35317903f4f18a9e3",
+    "frontend/src/auth/useAuth.js": "affb592b8d152ae7cd21ba925e2845a3df76de492e903c5580044c42d3835939",
+    "frontend/src/dashboard/AdminDashboard.jsx": "2a26f554ff20117ff00abbcf9549dd448d6fd4ce5d8ce17569b36576a7cea524",
+    "frontend/src/dashboard/StaffDashboard.jsx": "2b292e63a6a2f12c4842555ef404137da5d007eb1d42bad4520c9b2126a96bab",
+    "frontend/src/home/HomePage.jsx": "13eed678a4a2ffe91765db793d29116b47a5ded10cce0523da84b7c46a904ad3",
+    "frontend/src/layout/AccountAvatar.jsx": "55c111dffa279376a477d43e9aa4e05399fd2e5ce09fd3282ba992d177a5af1a",
+    "frontend/src/layout/HomeShell.jsx": "6e744586fea9d206388f2ff4e7ede15c583624fecd88f494a0163c51ff8395e8",
+    "frontend/src/layout/SiteLayout.jsx": "82f347661e04a3d900c1008f531d3170255cd5e0ec48600093b276010c0d1828",
+    "frontend/src/menu/DeleteDialog.jsx": "14b9e0c07bf285a16103e404f9373410d4b527b27148ff6b1c7867d35a0eb0d7",
+    "frontend/src/menu/demoMenu.js": "3d85242154718ffd13464c06463a10334f25bc7f9473e79e395c6c20dcfcc5d8",
+    "frontend/src/menu/imageDimensions.js": "f96bb608d9e6122e52d4bb40aea6738b192b48af4637349bbbcc22a3e0dc86e8",
+    "frontend/src/menu/menu.css": "f755ce53562e615b180fad49e107089e93d202c0f2a53cbedff3477d2e08fcee",
+    "frontend/src/menu/MenuEditor.jsx": "5b767866aac52622fb430d1471dd4a31d85d661fc0ec6b904f5fabf78c75a8e4",
+    "frontend/src/menu/MenuManagement.jsx": "427bbd4a7207034062c32d18dd7fef99ddea4e8d5ea36b565278ff8201323012",
+    "frontend/src/sales/IncomePanel.jsx": "2e9a8a0b663ee0284708cbc3c212ec0eb42a0dfc1418abfb0f29886cfe0a125c",
+    "frontend/src/sales/sales.css": "0644689f26b44acdbd1a44e91cabb69852a207675dd71c145802e06c1bebe236",
+    "frontend/src/sales/salesApi.js": "51886b7b2fef45d9450120ed5c91b819790ff693b6166aa92923e63668c4d8c0",
+    "frontend/src/sales/SalesWorkspace.jsx": "077c63dc823353061693393143892787d39ffd940d4ab3b04da06f12187ff292",
+    "frontend/tests/account-fixtures.js": "62009f89742cc3e321592ee033b85fb6fabf38642b69ed0163cd9f4d114d523f",
+    "frontend/tests/account-harness.html": "69df9a26535aa609aac09c56068219d30573ea6960b4390de3359200e0671a6b",
+    "frontend/tests/account-harness.jsx": "2f322b8ddabe417dc4544e9cca64fcdce19e27b92d570bc2994ac7a9a296407d",
+    "frontend/tests/account-lifecycle.spec.js": "eb7dbc2a481735e057ba406bdc8f83d2fc3dd42cc295b8fd1d5150a4d1cfaddc",
+    "frontend/tests/account-ui.spec.js": "e93ae95da951fb785974a24348e1453cb63b687f6de246a515aa9ff82bc6d55f",
+    "frontend/tests/auth-figma.spec.js": "0dfff4f66eb7676348095d91a67229173928930c8edabe0a248a62844d9c5810",
+    "frontend/tests/auth-regression.spec.js": "e6334399c082cb09c78122d48fb5088f5125af4ed66bee9495c5c34f7826ceb8",
+    "frontend/tests/auth.spec.js": "bee12ad3609336f7e915fd3eb9d0bca88b872a69477345e35b5ee4f65a89c68f",
+    "frontend/tests/header.spec.js": "a2492f2755c6315e18d26ba0378e229246cbd9c9c2466a7a853616405cde2977",
+    "frontend/tests/home.spec.js": "015a82c1fed99bd0e82733297cc5ef1256a39a7b7c5cb74b4624dc7a59c2e16a",
+    "frontend/tests/layout-harness.html": "c7b16c599fa07ed9e113a809a653d50f1b6ee88b3fdf1b35dad21f853d863db1",
+    "frontend/tests/layout-harness.jsx": "a76aac8298c2c3624c3a635fbd26b9634de521703979fc0e3db9d1641206069d",
+    "frontend/tests/login.spec.js": "186a5ee450f930b9a659db641df339051fd4988878759799bed719c5c4aa9d41",
+    "frontend/tests/menu-regression.spec.js": "6719501e056746245b8b38553e831d4345ad50e79387f9a16926e265cc1e39ae",
+    "frontend/tests/menu-review.spec.js": "2c182a8b88c4439e62e85ce2ce7ca057e7488cf52ad1c9fa9942ca931f0665a1",
+    "frontend/tests/menu.spec.js": "bb603d5af54db1fab06cbe92ee06554e3b2a8bf014637f064b01e560207208ed",
+    "frontend/tests/sales.spec.js": "9867643f310ed29c542dbbb8d80ce76c8a82ab6a3392b9879d5d6951c92307dc",
+    "frontend/e2e-live/account.spec.js": "1891f18518a32ababfb90930d4ac3efb4d312148e77c6f134ad5ee8cbb0cdc12",
+    "frontend/unit/profile-validation.test.mjs": "d2186b08e0d69012edf0ea1bf7593473d9bdbd04585956f40606136c434b92e9",
+    "frontend/package.json": "f0db0d756d118a36972c1a298ef7be126af04ae9b113b9a13f6b5a9a98816917",
+    "frontend/playwright.account-live.config.js": "41165ba68d97af2962a8a63b9ca1f783623d1b74fe904baae752980d54ae2a39",
+    "scripts/profile-browser-live.py": "176d4c28b5c04153db8b901896d07cb4cb682f3fe91c1e42fd467030191a0b76"
+  },
+  "unchangedBaseSourcesWithCRLFWorkingCopies": [
+    "frontend/src/home/HomePage.jsx"
+  ],
+  "gitCanonicalSourceComparison": "PASS: runtime/live-test sources unchanged from primary; only Header/lifecycle UI HTTP test specs have independently verified follow-ups. Inherited HomePage CRLF normalizes to exact base/index LF.",
+  "primaryAcceptanceRevision": "eb9ff625141d2b1de448301db819bb4aaed0124b",
+  "liveRuntimeAndLiveTestSourcesMatchCurrent": true,
+  "ciTestFixtureFollowUp": {
+    "verifiedAt": "2026-11-19T04:18:49.441059+00:00",
+    "changedSourceFiles": [
+      "frontend/tests/header.spec.js"
+    ],
+    "previousFixtureSha256": "1b602d7830b06b0f0742074c0149bb4275b3bb460571e12e64c6736cbd081b56",
+    "currentFixtureSha256": "a2492f2755c6315e18d26ba0378e229246cbd9c9c2466a7a853616405cde2977",
+    "runtimeChanged": false,
+    "primaryCiRun": "https://github.com/DTU-TEAM-2/smart-cafe-management/actions/runs/44456315680",
+    "primaryCiFrontend": {
+      "pass": 175,
+      "fail": 1
+    },
+    "primaryCiBackend": {
+      "tests": 315,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "controlledNegativeProbe": {
+      "failed": 2,
+      "passed": 0,
+      "artifact": "backend/target/dt2-28-ci-header-negative.log"
+    },
+    "rootCause": "Profile fixture read mutable current from a previous Home request and returned ADMIN data for a CUSTOMER bearer; real API denies CUSTOMER403. Controlled slow Home/auth responses reproduced the same missing CUSTOMER Header symptom.",
+    "fix": "Resolve Profile response from the captured request Authorization, allow only ADMIN/STAFF and return CUSTOMER403/anonymous401; retain out-of-order response timing and every existing UI assertion.",
+    "localRepeat": {
+      "expected": 20,
+      "unexpected": 0,
+      "projects": [
+        "desktop",
+        "mobile"
+      ],
+      "repeatEach": 10
+    },
+    "localAffectedRegression": {
+      "expected": 32,
+      "unexpected": 0,
+      "files": [
+        "account-ui.spec.js",
+        "header.spec.js",
+        "home.spec.js"
+      ]
+    },
+    "reuse": "Primary real browser8, Maven315 and Newman203/587+10SQL/Auth39/57 reused at primary revision; runtime, live E2E and Backend/API/DDL sources unchanged. Full final-head CI is verified on the PR after publication."
+  },
+  "ciAuth401FollowUp": {
+    "verifiedAt": "2026-11-19T04:30:47.557426+00:00",
+    "failedRevision": "9f9332d9817acf73513556ca455bc26b9fea72b9",
+    "failedRun": "https://github.com/DTU-TEAM-2/smart-cafe-management/actions/runs/44457650682",
+    "frontendResult": {
+      "pass": 175,
+      "fail": 1
+    },
+    "changedSourceFiles": [
+      "frontend/tests/account-lifecycle.spec.js"
+    ],
+    "runtimeChanged": false,
+    "previousLiveSpecSha256": "c283e48728286b55112ce57a1296fc45a3ad908906fb9de638c3cd6a60a8e5de",
+    "currentSpecSha256": "eb7dbc2a481735e057ba406bdc8f83d2fc3dd42cc295b8fd1d5150a4d1cfaddc",
+    "controlledNegativeProbe": {
+      "failed": 2,
+      "passed": 0,
+      "artifact": "backend/target/dt2-28-ci-auth401-negative.log"
+    },
+    "rootCause": "Test released held old401 while ready still belonged to pre-rotation session; controlled100ms password response showed replacementInstalled=false before release. It did not establish its after-password-replacement precondition.",
+    "fix": "Preserve slow password response and add expect.poll asserting replacement token installed before release; retain token assertion after old response and ready checks. No production changes, assertion removal, skip or timeout increase.",
+    "localRepeat": {
+      "expected": 20,
+      "unexpected": 0,
+      "repeatEach": 10,
+      "projects": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    "localAffectedRegression": {
+      "expected": 58,
+      "unexpected": 0,
+      "files": [
+        "account-lifecycle.spec.js",
+        "header.spec.js"
+      ]
+    },
+    "reuse": "Real browser8/Maven315/Newman evidence at primary reused with unchanged runtime/live E2E/Backend/API/DDL. Final full UI CI and Customer dispatch must be verified on new PR HEAD."
+  },
+  "postLiveAcceptanceChangedTestSpecs": [
+    "frontend/tests/account-lifecycle.spec.js",
+    "frontend/tests/header.spec.js"
+  ]
+}

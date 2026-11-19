@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useCustomer, formatVnd } from "./CustomerContext.jsx";
 import { fetchCategories, fetchMenuItems } from "./customerApi.js";
 import ItemDetailModal from "./ItemDetailModal.jsx";
@@ -14,6 +14,7 @@ export default function CustomerMenuView() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
+  const filterGeneration = useRef(0);
 
   const PAGE_SIZE = 20;
 
@@ -34,6 +35,7 @@ export default function CustomerMenuView() {
 
   // Load items (page 0) whenever category, keyword or available filter changes
   useEffect(() => {
+    filterGeneration.current += 1;
     let mounted = true;
     setLoading(true);
     setLoadingMore(false);
@@ -77,6 +79,7 @@ export default function CustomerMenuView() {
   const handleLoadMore = useCallback(() => {
     if (loadingMore || loading) return;
     const nextPage = Math.floor(items.length / PAGE_SIZE);
+    const requestGeneration = filterGeneration.current;
     setLoadingMore(true);
     setError(null);
     fetchMenuItems({
@@ -87,6 +90,7 @@ export default function CustomerMenuView() {
       size: PAGE_SIZE,
     })
       .then((data) => {
+        if (requestGeneration !== filterGeneration.current) return;
         const newContent = data.content || [];
         const total = typeof data.totalElements === "number" ? data.totalElements : newContent.length;
         setTotalElements(total);
@@ -98,6 +102,7 @@ export default function CustomerMenuView() {
         setLoadingMore(false);
       })
       .catch((err) => {
+        if (requestGeneration !== filterGeneration.current) return;
         setError(err.message || "Không thể tải thêm món. Vui lòng bấm thử lại.");
         setLoadingMore(false);
       });
@@ -244,9 +249,10 @@ export default function CustomerMenuView() {
                       e.stopPropagation();
                       addToCart(item, 1);
                     }}
-                    aria-label={`Thêm ${item.name} vào giỏ hàng`}
+                    aria-label={item.available === false ? `${item.name} tạm hết` : `Thêm ${item.name} vào giỏ hàng`}
+                    disabled={item.available === false}
                   >
-                    +
+                    {item.available === false ? "—" : "+"}
                   </button>
                 </div>
               </div>

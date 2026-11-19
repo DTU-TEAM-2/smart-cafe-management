@@ -15,13 +15,21 @@ function requireIdempotencyKey(key) {
   return key;
 }
 
-function normalizeOrder(data) {
+function normalizeOrder(data, response = null) {
+  const receivedAt = Date.now();
+  const serverDate = response?.headers?.get("Date");
+  const serverNow = serverDate ? Date.parse(serverDate) : Number.NaN;
+  const editableUntil = data.editableUntil ? Date.parse(data.editableUntil) : Number.NaN;
+  const editableClientDeadline = Number.isFinite(serverNow) && Number.isFinite(editableUntil)
+    ? receivedAt + Math.max(0, editableUntil - serverNow)
+    : null;
   return {
     id: String(data.id),
     sessionId: String(data.sessionId),
     totalAmount: String(data.totalAmount),
     sessionTotalAmount: String(data.sessionTotalAmount),
     editableUntil: data.editableUntil,
+    editableClientDeadline,
     message: data.message,
     items: Array.isArray(data.items)
       ? data.items.map((item) => ({
@@ -120,9 +128,14 @@ export async function createOrder({ sessionId, token, items, idempotencyKey, csr
 
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(data.detail || data.title || "Gửi đơn gọi món thất bại.");
+    const error = new Error(data.detail || data.title || "Gửi đơn gọi món thất bại.");
+    error.status = res.status;
+    // A received business 4xx proves the server rejected this payload. Network
+    // failures, 5xx and request-timeout responses can still hide a committed write.
+    error.outcomeCertain = res.status >= 400 && res.status < 500 && res.status !== 408;
+    throw error;
   }
-  return normalizeOrder(data);
+  return normalizeOrder(data, res);
 }
 
 export async function updateOrderItem({ sessionId, token, itemId, quantity, expectedVersion, csrf = null }) {
@@ -151,7 +164,7 @@ export async function updateOrderItem({ sessionId, token, itemId, quantity, expe
   if (!res.ok) {
     throw new Error(data.detail || data.title || "Không thể cập nhật số lượng món.");
   }
-  return normalizeOrder(data);
+  return normalizeOrder(data, res);
 }
 
 export async function cancelOrderItem({ sessionId, token, itemId, expectedVersion, csrf = null }) {
@@ -179,7 +192,7 @@ export async function cancelOrderItem({ sessionId, token, itemId, expectedVersio
   if (!res.ok) {
     throw new Error(data.detail || data.title || "Không thể hủy món.");
   }
-  return normalizeOrder(data);
+  return normalizeOrder(data, res);
 }
 
 export async function sendWaiterRequest({ sessionId, token, idempotencyKey, csrf = null }) {

@@ -21,9 +21,11 @@ export default function ActiveOrdersView({ onNavigateMenu }) {
 
   const hasOrders = orders.length > 0;
 
-  function getRemainingSeconds(editableUntil, createdAt) {
+  function getRemainingSeconds(editableUntil, createdAt, editableClientDeadline) {
     let targetTime = 0;
-    if (editableUntil) {
+    if (Number.isFinite(editableClientDeadline)) {
+      targetTime = editableClientDeadline;
+    } else if (editableUntil) {
       targetTime = new Date(editableUntil).getTime();
     } else if (createdAt) {
       targetTime = new Date(createdAt).getTime() + 180 * 1000;
@@ -125,7 +127,7 @@ export default function ActiveOrdersView({ onNavigateMenu }) {
         <div>
           {orders.map((batch, index) => {
             const batchId = batch.id || `Batch-${index + 1}`;
-            const remaining = getRemainingSeconds(batch.editableUntil, batch.createdAt);
+            const remaining = getRemainingSeconds(batch.editableUntil, batch.createdAt, batch.editableClientDeadline);
             const isEditable = remaining > 0;
 
             return (

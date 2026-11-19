@@ -543,7 +543,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     await page.getByRole("button", { name: "ĐÓNG" }).click();
 
     // While attempt 1 is unconfirmed, user adds Item 2 (Bạc xỉu Sài Gòn)
-    await page.getByRole("button", { name: "Thực đơn" }).click();
+    await page.getByRole("button", { name: "Thực đơn", exact: true }).click();
     await page.getByLabel("Thêm Bạc xỉu Sài Gòn vào giỏ hàng").click();
 
     // Navigate to Cart and click Retry
@@ -662,5 +662,163 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     await expect(page.getByRole("button", { name: /XEM THÊM MÓN/ })).toBeEnabled();
     await page.getByRole("button", { name: /XEM THÊM MÓN/ }).click();
     await expect(page.getByText("Hiển thị: 25/25 món")).toBeVisible();
+  });
+
+  test("12. Clears a rejected order attempt before submitting a different cart", async ({ page }) => {
+    const keys = [];
+    const payloads = [];
+    let calls = 0;
+    await page.route("**/api/v1/customer/sessions/10/orders", (route) => {
+      calls += 1;
+      keys.push(route.request().headers()["idempotency-key"]);
+      payloads.push(route.request().postDataJSON());
+      if (calls === 1) {
+        return route.fulfill({
+          status: 409,
+          contentType: "application/problem+json",
+          body: JSON.stringify({ detail: "Món đã ngừng phục vụ." }),
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: "1010",
+          sessionId: "10",
+          totalAmount: "35000",
+          sessionTotalAmount: "35000",
+          editableUntil: new Date(Date.now() + 180000).toISOString(),
+          items: [{ id: "item-10", menuItemId: "102", name: "Bạc xỉu Sài Gòn", unitPrice: "35000", lineTotal: "35000", quantity: 1, version: "0", status: "SUBMITTED" }],
+        }),
+      });
+    });
+
+    await page.goto("/#customer");
+    await page.getByLabel("Thêm Caramel Latte vào giỏ hàng").click();
+    await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+    await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+    await expect(page.locator(".c-result-detail")).toContainText("Món đã ngừng phục vụ");
+    await page.getByRole("button", { name: "ĐÓNG", exact: true }).click();
+    await page.getByLabel("Xóa Caramel Latte khỏi giỏ").click();
+    await page.getByRole("button", { name: "Thực đơn", exact: true }).click();
+    await page.getByLabel("Thêm Bạc xỉu Sài Gòn vào giỏ hàng").click();
+    await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+    await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+
+    await expect(page.locator(".c-result-title")).toHaveText("Đặt món thành công!");
+    expect(keys[1]).not.toBe(keys[0]);
+    expect(payloads[1].items).toEqual([{ menuItemId: 102, quantity: 1 }]);
+  });
+
+  test("13. Keeps unavailable menu items visible but impossible to add", async ({ page }) => {
+    await page.route(/\/api\/v1\/customer\/menu\/items(\?.*)?$/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          content: [{ id: "103", code: "CF03", name: "Cold Brew", price: "50000", available: false, categoryId: "1", categoryName: "Cà phê" }],
+          totalElements: 1,
+          page: 0,
+          size: 20,
+        }),
+      })
+    );
+
+    await page.goto("/#customer");
+    await page.getByLabel("Chỉ món có sẵn").uncheck();
+    const quickAdd = page.getByRole("button", { name: "Cold Brew tạm hết", exact: true });
+    await expect(quickAdd).toBeDisabled();
+    await page.getByText("Cold Brew", { exact: true }).click();
+    await expect(page.getByRole("button", { name: "MÓN TẠM HẾT" })).toBeDisabled();
+    await expect(page.locator(".c-dock-badge")).toHaveCount(0);
+  });
+
+  test("14. Uses the server clock for the three-minute edit window", async ({ page }) => {
+    await page.addInitScript(() => {
+      const actualNow = Date.now.bind(Date);
+      Date.now = () => actualNow() + 5 * 60 * 1000;
+    });
+    await page.route("**/api/v1/customer/sessions/10/orders", (route) => {
+      const serverNow = new Date();
+      return route.fulfill({
+        status: 200,
+        headers: { Date: serverNow.toUTCString() },
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: "1011",
+          sessionId: "10",
+          totalAmount: "45000",
+          sessionTotalAmount: "45000",
+          editableUntil: new Date(serverNow.getTime() + 180000).toISOString(),
+          items: [{ id: "item-11", menuItemId: "101", name: "Caramel Latte", unitPrice: "45000", lineTotal: "45000", quantity: 1, version: "0", status: "SUBMITTED" }],
+        }),
+      });
+    });
+
+    await page.goto("/#customer");
+    await page.getByLabel("Thêm Caramel Latte vào giỏ hàng").click();
+    await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+    await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+    await page.getByRole("button", { name: "XEM ĐƠN MÓN" }).click();
+    await expect(page.locator(".c-timer-badge")).toContainText(/Sửa\/hủy: 02:5\d/);
+    await expect(page.getByTitle("Sửa số lượng")).toBeVisible();
+  });
+
+  test("15. Formats DECIMAL(18,0) prices without Number precision loss", async ({ page }) => {
+    await page.route(/\/api\/v1\/customer\/menu\/items(\?.*)?$/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          content: [{ id: "104", code: "CF04", name: "Gói sự kiện", price: "999999999999999999", available: true, categoryId: "1", categoryName: "Cà phê" }],
+          totalElements: 1,
+          page: 0,
+          size: 20,
+        }),
+      })
+    );
+
+    await page.goto("/#customer");
+    await expect(page.getByText("999.999.999.999.999.999 đ")).toBeVisible();
+    await page.getByLabel("Thêm Gói sự kiện vào giỏ hàng").click();
+    await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+    await expect(page.locator(".c-cart-price")).toHaveText("999.999.999.999.999.999 đ");
+    await expect(page.locator(".c-summary-total-price")).toHaveText("999.999.999.999.999.999 đ");
+  });
+
+  test("16. Ignores a late load-more response from the previous filter", async ({ page }) => {
+    let releaseOldPage;
+    let oldPageStarted = false;
+    const oldPageGate = new Promise((resolve) => { releaseOldPage = resolve; });
+    const page0 = Array.from({ length: 20 }, (_, index) => ({
+      id: String(300 + index), code: `OLD${index}`, name: `Món cũ ${index + 1}`, price: "40000", available: true, categoryId: "1", categoryName: "Cà phê",
+    }));
+    const page1 = Array.from({ length: 5 }, (_, index) => ({
+      id: String(400 + index), code: `LATE${index}`, name: `Món phản hồi trễ ${index + 1}`, price: "41000", available: true, categoryId: "1", categoryName: "Cà phê",
+    }));
+    const tea = [{ id: "500", code: "TEA1", name: "Trà đúng bộ lọc", price: "30000", available: true, categoryId: "2", categoryName: "Trà & Trái cây" }];
+
+    await page.route(/\/api\/v1\/customer\/menu\/items(\?.*)?$/, async (route) => {
+      const url = new URL(route.request().url());
+      const categoryId = url.searchParams.get("categoryId");
+      const pageIndex = Number(url.searchParams.get("page") || "0");
+      if (!categoryId && pageIndex === 1) {
+        oldPageStarted = true;
+        await oldPageGate;
+        return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ content: page1, totalElements: 25, page: 1, size: 20 }) });
+      }
+      const content = categoryId === "2" ? tea : page0;
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ content, totalElements: categoryId === "2" ? 1 : 25, page: 0, size: 20 }) });
+    });
+
+    await page.goto("/#customer");
+    await page.getByRole("button", { name: /XEM THÊM MÓN/ }).click();
+    await expect.poll(() => oldPageStarted).toBe(true);
+    await page.getByRole("tab", { name: /Trà & Trái cây/ }).click();
+    await expect(page.getByText("Trà đúng bộ lọc")).toBeVisible();
+    releaseOldPage();
+    await page.waitForTimeout(100);
+    await expect(page.getByText("Món phản hồi trễ 1")).toHaveCount(0);
+    await expect(page.getByText("Trà đúng bộ lọc")).toBeVisible();
   });
 });

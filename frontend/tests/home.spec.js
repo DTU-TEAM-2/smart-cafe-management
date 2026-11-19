@@ -40,7 +40,7 @@ test("shows the Figma homepage structure and server-provided ranked lists", asyn
 
   await page.getByRole("link", { name: "Khám phá menu" }).click();
   await expect(page).toHaveURL(/#newest$/);
-  await page.getByRole("link", { name: "LECKER Về đầu trang" }).click();
+  await page.getByRole("link", { name: "LECKER Coffee Cafe Về đầu trang" }).click();
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(1);
 });
 

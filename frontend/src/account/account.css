@@ -1,0 +1,119 @@
+/* DT2-3 supplemental design, using the current LECKER desktop palette and local fonts. */
+.personnel-page { max-width: 1200px; min-height: 70vh; margin: 0 auto; padding: 30px 40px 64px; color: #f4ede2; font-family: var(--font-body, "Segoe UI", sans-serif); }
+.personnel-page h1, .personnel-page h2 { font-family: var(--serif); }
+.personnel-breadcrumb { display: flex; gap: 12px; color: var(--muted); font-size: 11px; margin-bottom: 30px; }
+.personnel-breadcrumb a { text-decoration: none; }
+.personnel-breadcrumb > span:last-child { color: var(--gold); }
+.personnel-heading { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 30px; }
+.personnel-heading .eyebrow { margin-bottom: 12px; }
+.personnel-heading h1 { font-size: clamp(28px, 3.2vw, 42px); font-weight: 400; line-height: 1.3; margin: 0; letter-spacing: -.03em; }
+.personnel-heading p:last-child { color: var(--muted); font-size: 13px; line-height: 1.7; margin: 12px 0 0; }
+.personnel-back { color: var(--muted); font-size: 12px; white-space: nowrap; text-decoration: none; padding: 10px 0; }
+.personnel-back:hover { color: var(--gold); }
+.personnel-grid { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 24px; align-items: start; }
+.personnel-identity, .personnel-card, .personnel-state { border: 1px solid #d9b57326; border-radius: 14px; background: var(--surface); box-shadow: 0 12px 32px #0002; }
+.personnel-identity { padding: 32px 24px 0; text-align: center; overflow: hidden; }
+.personnel-avatar { display: flex; justify-content: center; margin: 0 0 22px; }
+.personnel-avatar .avatar { width: 88px; height: 88px; font-size: 32px; background: linear-gradient(145deg, #4a3524, #2c2119); border: 1px solid #d9b57366; box-shadow: 0 0 0 7px #d9b57308; overflow: hidden; }
+.personnel-avatar .avatar img, .site-header .avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+.personnel-role { display: inline-block; color: var(--gold); background: #d9b57312; border: 1px solid #d9b5732b; border-radius: 30px; font-size: 10px; padding: 7px 12px; }
+.personnel-identity h2 { font-size: 22px; font-weight: 400; line-height: 1.45; margin: 18px 0 6px; overflow-wrap: anywhere; }
+.personnel-username { color: var(--muted); font-size: 12px; overflow-wrap: anywhere; margin: 0 0 30px; }
+.personnel-identity-note { border-top: 1px solid #d9b5731c; padding: 25px 0; text-align: left; display: flex; align-items: center; gap: 14px; }
+.personnel-seal { font: italic 28px var(--serif); color: var(--gold); }
+.personnel-identity-note p { font-size: 10px; line-height: 1.8; color: var(--muted); margin: 0; }
+.personnel-identity-note strong { font-weight: 400; color: #dfcfb6; }
+.personnel-card { overflow: hidden; min-width: 0; }
+.personnel-card-heading { padding: 25px 28px 22px; border-bottom: 1px solid #d9b57320; display: flex; align-items: start; justify-content: space-between; gap: 16px; }
+.personnel-kicker { color: var(--gold); text-transform: uppercase; letter-spacing: .16em; font-size: 9px; margin: 0 0 10px; }
+.personnel-card-heading h2 { font-weight: 400; font-size: 23px; margin: 0; line-height: 1.4; }
+.personnel-card-heading p:last-child { color: var(--muted); font-size: 11px; line-height: 1.7; margin: 8px 0 0; }
+.personnel-mode { color: var(--muted); font-size: 9px; white-space: nowrap; padding: 6px 9px; border: 1px solid #d9b57324; border-radius: 4px; }
+.personnel-fields { padding: 4px 28px 8px; margin: 0; display: grid; grid-template-columns: 1fr 1fr; column-gap: 30px; }
+.personnel-fields > div { padding: 20px 0; border-bottom: 1px solid #d9b57316; min-width: 0; }
+.personnel-fields dt { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-bottom: 9px; line-height: 1.5; }
+.personnel-fields dd { margin: 0; font-size: 14px; line-height: 1.7; min-height: 24px; overflow-wrap: anywhere; }
+.personnel-readonly { font-size: 9px; color: #b9aa98; border: 1px solid #d9b57318; border-radius: 3px; padding: 1px 5px; }
+.personnel-empty { color: var(--muted); font-style: italic; }
+.personnel-page input { width: 100%; min-width: 0; min-height: 44px; border: 1px solid #66503c; border-radius: 6px; background: #15110e; color: #f4ede2; font: inherit; font-size: 14px; padding: 11px 13px; }
+.personnel-page input:focus { border-color: var(--gold); }
+.personnel-page input[aria-invalid="true"] { border-color: #e6a58f; }
+.personnel-page input[readonly] { opacity: .75; }
+.personnel-page label span { color: var(--gold); }
+.account-field-error { display: block; color: #efb09c; font-size: 11px; margin-top: 7px; line-height: 1.6; }
+.personnel-form-actions { padding: 22px 28px; display: flex; align-items: center; justify-content: end; flex-wrap: wrap; gap: 12px; }
+.personnel-page .hero-cta, .personnel-dialog .hero-cta { border: 0; cursor: pointer; font-family: inherit; min-height: 44px; }
+.account-secondary { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; padding: 11px 18px; border: 1px solid #d9b57345; border-radius: 5px; color: #dfc391; background: transparent; font-family: inherit; font-size: 11px; font-weight: 600; text-decoration: none; cursor: pointer; }
+.account-secondary:hover { background: #d9b5730c; border-color: #d9b57388; }
+.personnel-page button:disabled { opacity: .55; cursor: wait; }
+.account-feedback { border-radius: 7px; padding: 16px 18px; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.account-feedback-error { background: #a14d3414; border: 1px solid #b9755d70; color: #f0baa6; }
+.account-feedback-error ul { margin: 6px 0 0; padding-inline-start: 18px; }
+.account-feedback-error a { text-underline-offset: 3px; }
+.personnel-card form > .account-feedback { margin: 22px 28px 0; }
+.account-feedback-success { display: flex; gap: 12px; align-items: center; color: #c0dcc3; border: 1px solid #759a6966; background: #648c4e12; margin-bottom: 24px; }
+.personnel-check { display: grid; place-items: center; background: #698b4f33; width: 26px; height: 26px; border-radius: 50%; flex: 0 0 26px; }
+.account-feedback-success button { margin-left: auto; border: 0; background: transparent; color: inherit; font-size: 22px; min-width: 44px; min-height: 44px; cursor: pointer; }
+.personnel-expiry { max-width: 1120px; margin: 24px auto 0; padding: 16px 20px; border: 1px solid #d9b57350; border-radius: 9px; background: #d9b5730c; display: flex; align-items: center; gap: 14px; font-family: var(--font-body, "Segoe UI", sans-serif); }
+.personnel-expiry-symbol { display: grid; place-items: center; width: 28px; height: 28px; flex: 0 0 28px; border: 1px solid #d9b57366; border-radius: 50%; color: var(--gold); font: 20px var(--serif); }
+.personnel-expiry strong { color: var(--gold); font-size: 12px; }
+.personnel-expiry p { font-size: 11px; color: var(--muted); line-height: 1.6; margin: 5px 0 0; }
+.personnel-expiry a { margin-left: auto; color: var(--gold); font-size: 11px; font-weight: 600; min-height: 44px; display: flex; align-items: center; gap: 14px; white-space: nowrap; }
+.personnel-password-form { padding: 24px 28px 0; max-width: 640px; }
+.personnel-card .personnel-password-form > .account-feedback { margin: 0 0 20px; }
+.personnel-password-hint { border-left: 2px solid #d9b57366; padding-left: 14px; margin-bottom: 25px; }
+.personnel-password-hint strong { color: #dfc391; font-size: 12px; font-weight: 500; }
+.personnel-password-hint p { color: var(--muted); line-height: 1.7; font-size: 11px; margin: 6px 0 0; }
+.personnel-password-field { margin-bottom: 20px; }
+.personnel-password-label { display: flex; gap: 5px; color: var(--muted); font-size: 11px; margin-bottom: 9px; }
+.personnel-password-label > span, .personnel-fields dt > span[aria-hidden] { color: var(--gold); }
+.personnel-password-input { display: flex; align-items: center; position: relative; }
+.personnel-password-input input { padding-right: 65px; }
+.personnel-password-input button { position: absolute; right: 4px; min-width: 48px; min-height: 40px; border: 0; background: transparent; color: var(--gold); font-size: 11px; cursor: pointer; }
+.personnel-password-form .personnel-form-actions { padding: 8px 0 0; }
+.personnel-security-note { color: var(--muted); border-top: 1px solid #d9b5731a; padding: 18px 0; margin: 24px 0 0; font-size: 10px; line-height: 1.8; }
+.personnel-state { padding: 50px 28px; min-height: 360px; text-align: center; }
+.personnel-state h2 { font-weight: 400; font-size: 24px; }
+.personnel-state p { color: var(--muted); font-size: 13px; line-height: 1.8; }
+.personnel-state .account-feedback { margin: 24px auto; max-width: 520px; }
+.personnel-skeleton { height: 140px; max-width: 500px; margin: 0 auto 24px; border-radius: 10px; background: linear-gradient(90deg, #d9b57308 20%, #d9b57315 50%, #d9b57308 80%); }
+.personnel-dialog { width: min(460px, calc(100vw - 32px)); padding: 28px; color: #f4ede2; border: 1px solid #d9b57355; border-radius: 12px; background: var(--surface); box-shadow: 0 24px 64px #0008; }
+.personnel-dialog::backdrop { background: #100c09b8; }
+.personnel-dialog h2 { font: 24px var(--serif); margin: 0 0 14px; }
+.personnel-dialog p { color: var(--muted); font-size: 13px; line-height: 1.8; }
+.personnel-dialog .personnel-form-actions { padding: 20px 0 0; }
+@media (max-width: 1200px) { .personnel-expiry { margin-inline: 40px; } }
+@media (max-width: 900px) {
+  .personnel-grid { grid-template-columns: 210px minmax(0, 1fr); gap: 18px; }
+  .personnel-identity { padding-inline: 18px; }
+  .personnel-fields { column-gap: 20px; }
+  .personnel-mode { display: none; }
+}
+@media (max-width: 700px) {
+  .personnel-page { padding: 24px 18px 40px; }
+  .personnel-heading { align-items: start; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+  .personnel-breadcrumb { margin-bottom: 24px; }
+  .personnel-grid { grid-template-columns: 1fr; }
+  .personnel-identity { display: grid; grid-template-columns: 72px 1fr; gap: 6px 20px; text-align: left; padding: 22px; align-items: center; }
+  .personnel-avatar { grid-column: 1; grid-row: 1 / 4; margin: 0; }
+  .personnel-avatar .avatar { width: 64px; height: 64px; font-size: 26px; }
+  .personnel-role { justify-self: start; padding: 5px 9px; }
+  .personnel-identity h2 { grid-column: 2; font-size: 20px; margin: 3px 0 0; }
+  .personnel-username { grid-column: 2; margin: 0; }
+  .personnel-identity-note { display: none; }
+  .personnel-card-heading { padding: 22px; }
+  .personnel-fields { padding-inline: 22px; }
+  .personnel-form-actions { padding: 22px; }
+  .personnel-expiry { margin: 20px 18px 0; gap: 12px; flex-wrap: wrap; }
+  .personnel-expiry > div { flex: 1; min-width: 180px; }
+  .personnel-expiry a { margin-left: 40px; }
+  .personnel-password-form { padding: 22px 22px 0; }
+  .personnel-card form > .account-feedback { margin-inline: 22px; }
+}
+@media (max-width: 440px) {
+  .personnel-fields { grid-template-columns: 1fr; }
+  .personnel-form-actions { flex-direction: column-reverse; align-items: stretch; }
+  .personnel-form-actions > * { width: 100%; white-space: nowrap; }
+  .personnel-form-actions .hero-cta { gap: 10px; justify-content: center; }
+  .personnel-heading h1 { font-size: 30px; }
+}

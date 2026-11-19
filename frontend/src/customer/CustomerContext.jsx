@@ -15,9 +15,13 @@ const CustomerContext = createContext(null);
 
 export function formatVnd(amount) {
   if (amount == null || amount === "") return "0 đ";
-  const num = typeof amount === "number" ? amount : parseInt(String(amount).replace(/\D/g, ""), 10);
-  if (isNaN(num)) return "0 đ";
-  return new Intl.NumberFormat("vi-VN").format(num) + " đ";
+  const normalized = typeof amount === "bigint" ? amount : String(amount).trim();
+  if (typeof normalized === "string" && !/^\d+$/.test(normalized)) return "0 đ";
+  try {
+    return new Intl.NumberFormat("vi-VN").format(BigInt(normalized)) + " đ";
+  } catch {
+    return "0 đ";
+  }
 }
 
 export function CustomerProvider({ children }) {
@@ -71,7 +75,7 @@ export function CustomerProvider({ children }) {
   }, [orders, session]);
 
   const addToCart = useCallback((item, quantity = 1) => {
-    if (!item || quantity <= 0) return;
+    if (!item || item.available === false || quantity <= 0) return;
     setCart((prev) => {
       const existingIndex = prev.findIndex((entry) => entry.item.id === item.id);
       if (existingIndex > -1) {
@@ -134,9 +138,10 @@ export function CustomerProvider({ children }) {
 
   const cartTotal = useMemo(() => {
     return cart.reduce((sum, entry) => {
-      const price = parseInt(String(entry.item.price).replace(/\D/g, ""), 10) || 0;
-      return sum + price * entry.quantity;
-    }, 0);
+      const rawPrice = String(entry.item.price ?? "").trim();
+      const price = /^\d+$/.test(rawPrice) ? BigInt(rawPrice) : 0n;
+      return sum + price * BigInt(entry.quantity);
+    }, 0n);
   }, [cart]);
 
   const cartCount = useMemo(() => {
@@ -215,6 +220,9 @@ export function CustomerProvider({ children }) {
         detail: `Đơn #${batchResult.id} đã được gửi tới quầy pha chế. Bạn có thể chỉnh sửa hoặc hủy món trong vòng 3 phút tại mục Đơn món.`,
       });
     } catch (err) {
+      if (err.outcomeCertain) {
+        clearAttempt(session, "order");
+      }
       setOrderModalResult({
         status: "failure",
         title: "Đặt món thất bại",

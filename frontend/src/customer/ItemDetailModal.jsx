@@ -8,10 +8,13 @@ export default function ItemDetailModal({ item, onClose }) {
 
   if (!item) return null;
 
-  const unitPrice = parseInt(String(item.price).replace(/\D/g, ""), 10) || 0;
-  const totalPrice = unitPrice * quantity;
+  const rawPrice = String(item.price ?? "").trim();
+  const unitPrice = /^\d+$/.test(rawPrice) ? BigInt(rawPrice) : 0n;
+  const totalPrice = unitPrice * BigInt(quantity);
+  const isAvailable = item.available !== false;
 
   function handleAdd() {
+    if (!isAvailable) return;
     addToCart(item, quantity);
     setAdded(true);
     setTimeout(() => {
@@ -66,7 +69,7 @@ export default function ItemDetailModal({ item, onClose }) {
             className="c-stepper-btn"
             onClick={() => setQuantity((q) => Math.max(1, q - 1))}
             aria-label="Giảm số lượng"
-            disabled={quantity <= 1}
+            disabled={!isAvailable || quantity <= 1}
           >
             -
           </button>
@@ -76,6 +79,7 @@ export default function ItemDetailModal({ item, onClose }) {
             className="c-stepper-btn"
             onClick={() => setQuantity((q) => q + 1)}
             aria-label="Tăng số lượng"
+            disabled={!isAvailable}
           >
             +
           </button>
@@ -86,9 +90,9 @@ export default function ItemDetailModal({ item, onClose }) {
             type="button"
             className="c-btn-primary"
             onClick={handleAdd}
-            disabled={added}
+            disabled={added || !isAvailable}
           >
-            {added ? "✓ ĐÃ THÊM VÀO GIỎ" : `THÊM VÀO GIỎ • ${formatVnd(totalPrice)}`}
+            {!isAvailable ? "MÓN TẠM HẾT" : added ? "✓ ĐÃ THÊM VÀO GIỎ" : `THÊM VÀO GIỎ • ${formatVnd(totalPrice)}`}
           </button>
         </div>
       </div>
