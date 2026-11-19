@@ -64,3 +64,9 @@ Shared filter/matcher proposal sửa Profile401 và STAFF cross-account personne
 ### ADR-013 — CF/publication update18/11/2026
 
 Owner xác nhận **CF-04** cho DT2-3/DT2-27 và cho phép commit/push current feature branch, tạo **Draft PR vào develop**, title/commit theo [requirements](../handover/dt2-3-requirements.md). Ghi nhận không-publication/thiếu-CF15/11 được thay cho phạm vi publication này; không cấp merge/approve/JiraDone hoặc deployment. Backend/DDL/policy nghiệp vụ không đổi. Develop331c1e3 được fast-forward và restore local implementation không conflict; [checks và blockers mới](../reports/dt2-3-publication.md) tách khỏi rehearsal lịch sử.
+
+### ADR-013 — bổ sung thiết kế Frontend DT2-28 (18/11/2026)
+
+Owner xác nhận trong chat triển khai DT2-28 chưa tìm thấy prototype Profile/Update Profile/Change Password riêng và cho phép bổ sung thiết kế dựa trên design system LECKER đang chạy: nền nâu đen, vàng đồng, font/button/input/layout hiện hành; inline edit chỉ name/address/phone theo QA #8. Đổi password là luồng đã đăng nhập, thay bearer rồi trở về Profile, không áp bố cục hoặc kết thúc của Reset Password. Không đổi API/DDL/quyền/30 ngày của ADR-013. [Bàn giao Frontend](../handover/dt2-28-frontend.md) ghi nguồn, ảnh và giới hạn Figma; không tuyên bố pixel-perfect với frame chưa xác minh. Owner yêu cầu duyệt UI trước publication: **chưa push hoặc tạo PR Frontend**, không kế thừa quyền publication của nhánh Backend vào nhánh mới, không chỉnh Figma gốc.
+
+Cập nhật 19/11/2026: owner đã chấp nhận giao diện Frontend DT2-28 hiện tại và cấp quyền commit/push nhánh `feature/dt2-3_personal-account-frontend`, tạo PR vào `develop` sau fresh verification và self-review. Ready for review khi không còn blocker nghiêm trọng thuộc task; không cấp quyền tự approve, resolve, merge, deployment hoặc Jira Done. Quyền mới này thay trạng thái chờ duyệt UI ở đoạn trên, không thay yêu cầu hai approval độc lập của repository.

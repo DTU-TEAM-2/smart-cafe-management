@@ -2,6 +2,13 @@
  * Client API for authentication and password recovery
  */
 
+export function passwordStatusFrom(response) {
+  if (typeof response?.mustChangePassword !== "boolean"
+    || typeof response.passwordChangedAt !== "string" || typeof response.passwordExpiresAt !== "string") return null;
+  return { mustChangePassword: response.mustChangePassword,
+    passwordChangedAt: response.passwordChangedAt, passwordExpiresAt: response.passwordExpiresAt };
+}
+
 async function handleResponse(res) {
   const isJson = res.headers.get("content-type")?.includes("application");
   const data = isJson ? await res.json() : null;
@@ -30,11 +37,12 @@ export async function loginApi(username, password) {
   return handleResponse(res);
 }
 
-export async function getCurrentUserApi(token) {
+export async function getCurrentUserApi(token, signal) {
   const res = await fetch("/api/v1/auth/me", {
     headers: {
       Authorization: `Bearer ${token}`,
     },
+    signal,
   });
   return handleResponse(res);
 }
