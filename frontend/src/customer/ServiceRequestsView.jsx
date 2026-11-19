@@ -5,7 +5,7 @@ import { clearAttempt, getOrCreateAttempt } from "./customerSession.js";
 import OrderResultModal from "./OrderResultModal.jsx";
 
 export default function ServiceRequestsView({ onNavigateFeedback }) {
-  const { session, orders } = useCustomer();
+  const { session } = useCustomer();
   const [loadingType, setLoadingType] = useState(null); // 'waiter' | 'bill' | null
   const [resultModal, setResultModal] = useState(null); // { status, title, detail }
 
@@ -57,15 +57,6 @@ export default function ServiceRequestsView({ onNavigateFeedback }) {
         status: "failure",
         title: "Chưa xác thực bàn",
         detail: "Vui lòng quét mã QR tại bàn để xác nhận phiên phục vụ trước khi yêu cầu thanh toán.",
-      });
-      return;
-    }
-
-    if (!orders || orders.length === 0) {
-      setResultModal({
-        status: "failure",
-        title: "Chưa có đơn món",
-        detail: "Bàn chưa có đơn món nào được gửi. Vui lòng đặt món trước khi yêu cầu thanh toán.",
       });
       return;
     }

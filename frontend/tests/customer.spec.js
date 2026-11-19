@@ -346,7 +346,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     await expect(page.getByRole("heading", { name: "Chưa có đơn món" })).toBeVisible();
   });
 
-  test("7. Service Requests: calls waiter and requests bill", async ({ page }) => {
+  test("7. Service Requests: calls waiter and allows client B without local orders to request bill", async ({ page }) => {
     let waiterCalled = false;
     let billRequested = false;
 
@@ -368,22 +368,11 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
       });
     });
 
-    // Provide an existing order in session so bill request is enabled
+    // Client B at the same table (session 10) has no local orders (orders were placed by Client A)
     await page.addInitScript(() => {
       sessionStorage.setItem(
         "lecker_customer_session",
-        JSON.stringify({ sessionId: "10", token: "mock-token-abc", tableNumber: "04", clientStorageId: "client-a" })
-      );
-      sessionStorage.setItem(
-        "lecker_customer_orders:10:client-a",
-        JSON.stringify([
-          {
-            id: "1001",
-            sessionId: "10",
-            totalAmount: "45000",
-            items: [{ id: "item-1", name: "Latte", unitPrice: "45000", quantity: 1, status: "SUBMITTED" }],
-          },
-        ])
+        JSON.stringify({ sessionId: "10", token: "mock-token-client-b", tableNumber: "04", clientStorageId: "client-b" })
       );
     });
 
@@ -401,13 +390,40 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     // Close modal
     await page.getByRole("button", { name: "ĐÓNG", exact: true }).click();
 
-    // Request bill
+    // Request bill: Client B without local orders can still request bill, server accepts because session has items
     await page.getByRole("button", { name: "YÊU CẦU HÓA ĐƠN" }).click();
     await expect(page.locator(".c-result-title")).toHaveText("Đã yêu cầu thanh toán!");
     expect(billRequested).toBe(true);
   });
 
-  test("8. Customer feedback form requires identity fields and submits feedback", async ({ page }) => {
+  test("8. Multi-client session: displays server 400 error when table session truly has no orders", async ({ page }) => {
+    await page.route("**/api/v1/customer/sessions/10/bill-requests", (route) => {
+      return route.fulfill({
+        status: 400,
+        contentType: "application/problem+json",
+        body: JSON.stringify({
+          title: "Yêu cầu không hợp lệ",
+          status: 400,
+          detail: "Bàn chưa có món nào được đặt để yêu cầu thanh toán.",
+        }),
+      });
+    });
+
+    await page.addInitScript(() => {
+      sessionStorage.setItem(
+        "lecker_customer_session",
+        JSON.stringify({ sessionId: "10", token: "mock-token-client-b", tableNumber: "04", clientStorageId: "client-b" })
+      );
+    });
+
+    await page.goto("/#customer");
+    await page.getByRole("button", { name: "Phục vụ" }).click();
+    await page.getByRole("button", { name: "YÊU CẦU HÓA ĐƠN" }).click();
+    await expect(page.locator(".c-result-title")).toHaveText("Yêu cầu thanh toán thất bại");
+    await expect(page.locator(".c-result-detail")).toContainText("Bàn chưa có món nào được đặt để yêu cầu thanh toán.");
+  });
+
+  test("9. Customer feedback form requires identity fields and submits feedback", async ({ page }) => {
     let submittedBody = null;
     await page.route("**/api/v1/customer/feedback", (route) => {
       submittedBody = route.request().postDataJSON();
