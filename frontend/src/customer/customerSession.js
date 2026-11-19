@@ -84,18 +84,46 @@ export function writeSessionOrders(session, orders) {
   writeJson(scopedKey(ORDERS_STORAGE_PREFIX, session), orders);
 }
 
-export function getOrCreateAttempt(session, operation, payload) {
+export function getOrCreateOrderAttempt(session, newPayload) {
+  const key = scopedKey(`${ATTEMPT_STORAGE_PREFIX}:order`, session);
+  if (!key) throw new Error("Chưa có phiên khách hàng hợp lệ.");
+
+  const saved = readJson(key, null);
+  // If an unresolved attempt already exists (e.g. from a prior network drop/failure),
+  // reuse the EXACT immutable payload & idempotencyKey so retries never duplicate or mix new items!
+  if (saved?.idempotencyKey && Array.isArray(saved.payload) && saved.payload.length > 0) {
+    return {
+      idempotencyKey: saved.idempotencyKey,
+      payload: saved.payload,
+      isRetry: true,
+    };
+  }
+
+  const idempotencyKey = randomId();
+  writeJson(key, { idempotencyKey, payload: newPayload });
+  return {
+    idempotencyKey,
+    payload: newPayload,
+    isRetry: false,
+  };
+}
+
+export function readOrderAttempt(session) {
+  const key = scopedKey(`${ATTEMPT_STORAGE_PREFIX}:order`, session);
+  return readJson(key, null);
+}
+
+export function getOrCreateAttempt(session, operation, payload = null) {
   const key = scopedKey(`${ATTEMPT_STORAGE_PREFIX}:${operation}`, session);
   if (!key) throw new Error("Chưa có phiên khách hàng hợp lệ.");
 
-  const fingerprint = JSON.stringify(payload);
   const saved = readJson(key, null);
-  if (saved?.idempotencyKey && saved.fingerprint === fingerprint) {
+  if (saved?.idempotencyKey) {
     return saved.idempotencyKey;
   }
 
   const idempotencyKey = randomId();
-  writeJson(key, { idempotencyKey, fingerprint });
+  writeJson(key, { idempotencyKey, payload });
   return idempotencyKey;
 }
 

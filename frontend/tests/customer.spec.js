@@ -461,31 +461,68 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     expect(submittedBody.name).toBe("Nguyễn Văn A");
   });
 
-  test("10. Preserves unsubmitted cart items when modifying cart during pending order submission", async ({ page }) => {
-    let orderSubmittedPayload = null;
-    let finishOrderResponse = null;
+  test("10. Preserves unsubmitted cart items across retry with immutable attempt and separate batch for new items", async ({ page }) => {
+    let orderCallCount = 0;
+    const recordedKeys = [];
+    const recordedPayloads = [];
 
     await page.route("**/api/v1/customer/sessions/10/orders", async (route) => {
-      orderSubmittedPayload = route.request().postDataJSON();
-      // Delay response to allow concurrent tab switch & cart modification
-      await new Promise((resolve) => {
-        finishOrderResponse = resolve;
-      });
+      orderCallCount += 1;
+      const key = route.request().headers()["idempotency-key"];
+      const payload = route.request().postDataJSON();
+      recordedKeys.push(key);
+      recordedPayloads.push(payload);
+
+      if (orderCallCount === 1) {
+        // First attempt fails with network/server drop (500)
+        return route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({ detail: "Mạng chập chờn, kết nối gián đoạn." }),
+        });
+      }
+
+      if (orderCallCount === 2) {
+        // Retry of attempt 1 succeeds for Item A
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            id: "1005",
+            sessionId: "10",
+            totalAmount: "45000",
+            sessionTotalAmount: "45000",
+            editableUntil: new Date(Date.now() + 180000).toISOString(),
+            items: [{
+              id: "item-5",
+              menuItemId: "101",
+              name: "Caramel Latte",
+              unitPrice: "45000",
+              lineTotal: "45000",
+              quantity: 1,
+              version: "0",
+              status: "SUBMITTED",
+            }],
+          }),
+        });
+      }
+
+      // Order call 3 is for separate Item B
       return route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
-          id: "1005",
+          id: "1006",
           sessionId: "10",
-          totalAmount: "45000",
-          sessionTotalAmount: "45000",
+          totalAmount: "35000",
+          sessionTotalAmount: "80000",
           editableUntil: new Date(Date.now() + 180000).toISOString(),
           items: [{
-            id: "item-5",
-            menuItemId: "101",
-            name: "Caramel Latte",
-            unitPrice: "45000",
-            lineTotal: "45000",
+            id: "item-6",
+            menuItemId: "102",
+            name: "Bạc xỉu Sài Gòn",
+            unitPrice: "35000",
+            lineTotal: "35000",
             quantity: 1,
             version: "0",
             status: "SUBMITTED",
@@ -500,37 +537,49 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     await page.getByLabel("Thêm Caramel Latte vào giỏ hàng").click();
     await page.getByRole("button", { name: /Giỏ hàng/ }).click();
 
-    // Click checkout
+    // Click checkout -> Attempt 1 (will fail)
     await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+    await expect(page.locator(".c-result-title")).toHaveText("Đặt món thất bại");
+    await page.getByRole("button", { name: "ĐÓNG" }).click();
 
-    // While submitting, verify stepper buttons in cart are disabled to prevent mutating the in-flight snapshot
-    await expect(page.getByLabel("Giảm số lượng")).toBeDisabled();
-    await expect(page.getByLabel("Tăng số lượng")).toBeDisabled();
-    await expect(page.getByLabel("Xóa Caramel Latte khỏi giỏ")).toBeDisabled();
-
-    // Switch to Menu tab and add Item 2 (Bạc xỉu Sài Gòn) to cart while order 1 is in-flight
+    // While attempt 1 is unconfirmed, user adds Item 2 (Bạc xỉu Sài Gòn)
     await page.getByRole("button", { name: "Thực đơn" }).click();
     await page.getByLabel("Thêm Bạc xỉu Sài Gòn vào giỏ hàng").click();
 
-    // Finish server order submission
-    if (finishOrderResponse) finishOrderResponse();
+    // Navigate to Cart and click Retry
+    await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+    await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
 
-    // Close success modal
+    // Success modal appears for Item A!
     await expect(page.locator(".c-result-title")).toHaveText("Đặt món thành công!");
     await page.getByRole("button", { name: "TIẾP TỤC CHỌN MÓN" }).click();
 
-    // Verify order payload only had Item 1
-    expect(orderSubmittedPayload.items).toHaveLength(1);
-    expect(orderSubmittedPayload.items[0].menuItemId).toBe(101);
+    // Verify Attempt 1 and Retry 2 had the EXACT SAME idempotency key and payload (only Item A!)
+    expect(recordedKeys[0]).toBeDefined();
+    expect(recordedKeys[1]).toBe(recordedKeys[0]); // SAME IDEMPOTENCY KEY
+    expect(recordedPayloads[1].items).toHaveLength(1);
+    expect(recordedPayloads[1].items[0].menuItemId).toBe(101); // ONLY ITEM A, B not mixed!
 
-    // Verify cart still preserves Item 2 (Bạc xỉu) and did NOT get wiped!
+    // Verify cart still preserves Item B (Bạc xỉu Sài Gòn)
     await page.getByRole("button", { name: /Giỏ hàng/ }).click();
     await expect(page.getByText("Bạc xỉu Sài Gòn")).toBeVisible();
-    await expect(page.getByText("Tạm tính")).toBeVisible();
     await expect(page.getByRole("button", { name: /Giỏ hàng/ }).locator(".c-dock-badge")).toHaveText("1");
+
+    // Now submit Item B as its own separate batch
+    await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+    await expect(page.locator(".c-result-title")).toHaveText("Đặt món thành công!");
+    await page.getByRole("button", { name: "TIẾP TỤC CHỌN MÓN" }).click();
+
+    // Verify Attempt 3 had a NEW idempotency key and only Item B
+    expect(recordedKeys[2]).not.toBe(recordedKeys[0]); // NEW IDEMPOTENCY KEY
+    expect(recordedPayloads[2].items[0].menuItemId).toBe(102);
+
+    // Cart is now empty
+    await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+    await expect(page.getByText("Giỏ hàng trống")).toBeVisible();
   });
 
-  test("11. Menu pagination: loads items beyond 50 with load-more and resets page on filter change", async ({ page }) => {
+  test("11. Menu pagination: handles 503 retry without skipping pages and preserves filter switch", async ({ page }) => {
     // Generate 55 mock items
     const all55Items = Array.from({ length: 55 }, (_, i) => ({
       id: String(200 + i),
@@ -542,11 +591,23 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
       categoryName: i < 30 ? "Cà phê" : "Trà & Trái cây",
     }));
 
+    let page1Attempts = 0;
+
     await page.route(/\/api\/v1\/customer\/menu\/items(\?.*)?$/, (route) => {
       const url = new URL(route.request().url());
       const pageIndex = Number(url.searchParams.get("page") || "0");
       const pageSize = Number(url.searchParams.get("size") || "20");
       const categoryId = url.searchParams.get("categoryId");
+
+      // Simulate temporary 503 on first try of page 1
+      if (pageIndex === 1 && categoryId === null && page1Attempts === 0) {
+        page1Attempts += 1;
+        return route.fulfill({
+          status: 503,
+          contentType: "application/json",
+          body: JSON.stringify({ detail: "Dịch vụ tạm thời bận. Vui lòng thử lại." }),
+        });
+      }
 
       let filtered = all55Items;
       if (categoryId) {
@@ -573,25 +634,33 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     // Page 0: Displays 20 of 55 items
     await expect(page.getByText("Hiển thị: 20/55 món")).toBeVisible();
     await expect(page.getByText("Món cà phê số 1", { exact: true })).toBeVisible();
-    await expect(page.getByText("Món cà phê số 51")).toHaveCount(0);
 
-    // Click load more -> loads page 1 (items 21-40)
+    // Click load more -> page 1 fails with 503
+    await page.getByRole("button", { name: /XEM THÊM MÓN/ }).click();
+    await expect(page.getByText(/Không thể tải thêm món/)).toBeVisible();
+
+    // Click load more AGAIN to retry page 1 -> succeeds!
     await page.getByRole("button", { name: /XEM THÊM MÓN/ }).click();
     await expect(page.getByText("Hiển thị: 40/55 món")).toBeVisible();
+    // Confirms items 21-40 were NOT skipped:
+    await expect(page.getByText("Món cà phê số 21")).toBeVisible();
 
     // Click load more -> loads page 2 (items 41-55)
     await page.getByRole("button", { name: /XEM THÊM MÓN/ }).click();
     await expect(page.getByText("Hiển thị: 55/55 món")).toBeVisible();
-
-    // Item 51 is now visible!
     await expect(page.getByText("Món cà phê số 51")).toBeVisible();
 
     // Button disappears when all 55 items are loaded
     await expect(page.getByRole("button", { name: /XEM THÊM MÓN/ })).toHaveCount(0);
 
-    // Filter change resets page to 0
+    // Switch category filter to Trà & Trái cây (25 items)
     await page.getByRole("tab", { name: /Trà & Trái cây/ }).click();
     await expect(page.getByText("Hiển thị: 20/25 món")).toBeVisible();
     await expect(page.getByText("Món cà phê số 31")).toBeVisible();
+
+    // Load more button for new category is NOT locked
+    await expect(page.getByRole("button", { name: /XEM THÊM MÓN/ })).toBeEnabled();
+    await page.getByRole("button", { name: /XEM THÊM MÓN/ }).click();
+    await expect(page.getByText("Hiển thị: 25/25 món")).toBeVisible();
   });
 });

@@ -33,18 +33,18 @@ Toàn bộ giao diện được xây dựng bám sát bảng thiết kế chính
 
 | STT | Màn hình / Component | Figma Frame / Node ID | Thành phần Frontend tương ứng | Trạng thái đối chiếu |
 |---|---|---|---|---|
-| 1 | Header & Table Badge | Frame `Header` (`node-id=3:2`) | `CustomerLayout.jsx` (`.c-header`, `.c-brand`, `.c-table-badge`) | Khớp 100% Logo LECKER hoa và Badge số bàn viền vàng |
-| 2 | Danh mục món (Categories) | Frame `Category Tabs` | `CustomerMenuView.jsx` (`.c-category-pills`, `.c-category-pill`) | Khớp 100% Pill buttons trượt ngang, active highlight gold |
-| 3 | Thẻ món ăn (Menu Item Card) | Frame `Item Card Grid` | `CustomerMenuView.jsx` (`.c-item-card`, `.c-item-thumb`, `.c-btn-add`) | Khớp 100% Ảnh bo góc 12px, giá vàng `#d5a953`, nút `+` nhanh |
-| 4 | Chi tiết món (Item Modal) | Frame `Item Detail Modal` | `ItemDetailModal.jsx` (`.c-modal-dialog`, `.c-stepper`) | Khớp 100% Ảnh lớn, bộ tăng giảm số lượng, nút thêm giỏ |
-| 5 | Giỏ hàng (Cart View) | Frame `Cart Sheet` | `CustomerCartView.jsx` (`.c-cart-item`, `.c-cart-summary`) | Khớp 100% Tạm tính, phí dịch vụ miễn phí, nút gửi đơn lớn |
-| 6 | Giỏ hàng trống (Empty State) | Frame `Cart Empty` | `CustomerCartView.jsx` (`.c-empty-state`, `.c-empty-icon`) | Khớp 100% Icon giỏ hàng nét mỏng, thông điệp rỗng và CTA |
-| 7 | Kết quả gửi đơn (Success Modal)| Frame `Order Success Dialog`| `OrderResultModal.jsx` (`.c-result-box`, `.c-result-icon`) | Khớp 100% Icon tick xanh, mã đơn, nút Xem đơn / Tiếp tục |
-| 8 | Đơn đã đặt (Active Orders) | Frame `Order Tracking List`| `ActiveOrdersView.jsx` (`.c-order-batch`, `.c-timer-badge`)| Khớp 100% Live countdown 180s nhấp nháy, nút sửa/hủy món |
-| 9 | Gọi phục vụ (Waiter Request) | Frame `Service - Call Waiter`| `ServiceRequestsView.jsx` (`.c-service-card`, `type=WAITER`)| Khớp 100% Icon chuông phục vụ, xác nhận gửi yêu cầu bàn |
-| 10| Yêu cầu tính tiền (Bill) | Frame `Service - Request Bill`| `ServiceRequestsView.jsx` (`.c-service-card`, `type=BILL`)| Khớp 100% Icon hóa đơn, tổng tiền dự kiến, ghi chú gửi |
-| 11| Đánh giá (Feedback Form) | Frame `Feedback Sheet` | `FeedbackView.jsx` (`.c-star-rating`, `.c-upload-box`)| Khớp 100% 5 sao vàng, đính kèm 1-3 ảnh thu nhỏ |
-| 12| Thanh điều hướng dưới (Dock) | Frame `Bottom Nav Dock` | `CustomerDock.jsx` (`.c-dock`, `.c-dock-btn`, `.c-dock-badge`)| Khớp 100% 5 tab icon + badge số lượng món trong giỏ |
+| 1 | Header & Table Badge | Frame `Header` (`node-id=3:2`) | `CustomerLayout.jsx` (`.c-header`, `.c-brand`, `.c-table-badge`) | Bám sát thiết kế: Logo LECKER hoa và Badge số bàn viền vàng |
+| 2 | Danh mục món (Categories) | Frame `Category Tabs` | `CustomerMenuView.jsx` (`.c-category-pills`, `.c-category-pill`) | Bám sát thiết kế: Pill buttons trượt ngang, active highlight gold |
+| 3 | Thẻ món ăn (Menu Item Card) | Frame `Item Card Grid` | `CustomerMenuView.jsx` (`.c-item-card`, `.c-item-thumb`, `.c-btn-add`) | Bám sát thiết kế: Ảnh bo góc 12px, giá vàng `#d5a953`, nút `+` nhanh |
+| 4 | Chi tiết món (Item Modal) | Frame `Item Detail Modal` | `ItemDetailModal.jsx` (`.c-modal-dialog`, `.c-stepper`) | Bám sát thiết kế: Ảnh lớn, bộ tăng giảm số lượng, nút thêm giỏ |
+| 5 | Giỏ hàng (Cart View) | Frame `Cart Sheet` | `CustomerCartView.jsx` (`.c-cart-item`, `.c-cart-summary`) | Bám sát thiết kế: Tạm tính, phí dịch vụ miễn phí, nút gửi đơn lớn |
+| 6 | Giỏ hàng trống (Empty State) | Frame `Cart Empty` | `CustomerCartView.jsx` (`.c-empty-state`, `.c-empty-icon`) | Bám sát thiết kế: Icon giỏ hàng nét mỏng, thông điệp rỗng và CTA |
+| 7 | Kết quả gửi đơn (Success Modal)| Frame `Order Success Dialog`| `OrderResultModal.jsx` (`.c-result-box`, `.c-result-icon`) | Bám sát thiết kế: Icon tick xanh, mã đơn, nút Xem đơn / Tiếp tục |
+| 8 | Đơn đã đặt (Active Orders) | Frame `Order Tracking List`| `ActiveOrdersView.jsx` (`.c-order-batch`, `.c-timer-badge`)| Bám sát thiết kế: Live countdown 180s nhấp nháy, nút sửa/hủy món |
+| 9 | Gọi phục vụ (Waiter Request) | Frame `Service - Call Waiter`| `ServiceRequestsView.jsx` (`.c-service-card`, `type=WAITER`)| Bám sát thiết kế: Icon chuông phục vụ, xác nhận gửi yêu cầu bàn |
+| 10| Yêu cầu tính tiền (Bill) | Frame `Service - Request Bill`| `ServiceRequestsView.jsx` (`.c-service-card`, `type=BILL`)| Bám sát thiết kế: Icon hóa đơn, tổng tiền dự kiến |
+| 11| Đánh giá (Feedback Form) | Frame `Feedback Sheet` | `FeedbackView.jsx` (`.c-star-rating`, `.c-upload-box`)| Bám sát thiết kế: 5 sao vàng, đính kèm 1-3 ảnh thu nhỏ |
+| 12| Thanh điều hướng dưới (Dock) | Frame `Bottom Nav Dock` | `CustomerDock.jsx` (`.c-dock`, `.c-dock-btn`, `.c-dock-badge`)| Bám sát thiết kế: 5 tab icon + badge số lượng món trong giỏ |
 
 ---
 
@@ -61,15 +61,15 @@ Frontend kết nối trực tiếp với các endpoint Backend chính thức c�
 | Gửi đơn đặt món | `POST /api/v1/customer/sessions/{sessionId}/orders` | Body: `{ items: [{ menuItemId, quantity }] }`<br>Header: `Idempotency-Key` | `CustomerOrderService.Order`: `id, sessionId, totalAmount, editableUntil, items[]` | `createOrder()` với chống gửi trùng và trừ giỏ chính xác |
 | Sửa số lượng món | `PATCH /api/v1/customer/sessions/{sessionId}/order-items/{itemId}` | Body: `{ quantity, expectedVersion }` | `CustomerOrderService.Order` (full updated order) | `updateOrderItemQuantity()` cập nhật batch trong 180s |
 | Hủy món ăn | `DELETE /api/v1/customer/sessions/{sessionId}/order-items/{itemId}` | Body: `{ expectedVersion }` | `CustomerOrderService.Order` (full updated order) | `cancelOrderItem()` đánh dấu `CANCELLED` trong 180s |
-| Gọi phục vụ bàn | `POST /api/v1/customer/sessions/{sessionId}/waiter-requests` | Body: `{ note }`<br>Header: `Idempotency-Key` | `ServiceRequestResponse`: `id, type: "WAITER", status` | `createWaiterRequest()` gửi chuông phục vụ |
-| Yêu cầu hóa đơn | `POST /api/v1/customer/sessions/{sessionId}/bill-requests` | Body: `{ paymentMethod, note }`<br>Header: `Idempotency-Key`| `ServiceRequestResponse`: `id, type: "BILL", status` | `createBillRequest()` hỗ trợ multi-client A/B |
-| Gửi đánh giá feedback| `POST /api/v1/customer/feedback` | Body: `{ rating, name, email, content, photoUrls[] }` | `CustomerFeedbackResponse`: `id, rating, createdAt` | `submitFeedback()` validate form và gửi nhận xét |
+| Gọi phục vụ bàn | `POST /api/v1/customer/sessions/{sessionId}/waiter-requests` | Path: `sessionId`<br>Headers: `Authorization`, `Idempotency-Key`<br>*(Không body)* | `CustomerRequestService.Request`: `id, type: "WAITER", status, message` | `createWaiterRequest()` gửi chuông phục vụ |
+| Yêu cầu hóa đơn | `POST /api/v1/customer/sessions/{sessionId}/bill-requests` | Path: `sessionId`<br>Headers: `Authorization`, `Idempotency-Key`<br>*(Không body)* | `CustomerRequestService.Request`: `id, type: "BILL", status, message` | `createBillRequest()` hỗ trợ multi-client A/B |
+| Gửi đánh giá feedback| `POST /api/v1/customer/feedback` | Body JSON `Command`: `{ name, email, content, rating }`<br>hoặc multipart kèm files `images` | `CustomerFeedbackController.Submitted`: `id, message` | `submitFeedback()` validate form và gửi nhận xét |
 
 ---
 
 ## 4. DANH SÁCH 15 HÌNH ẢNH MINH CHỨNG GIAO DIỆN THỰC TẾ
 
-Toàn bộ 15 hình ảnh minh chứng được xuất tự động từ Playwright E2E Test Suite chạy trên giao diện thực tế và lưu trữ tại thư mục `docs/reports/dt2-4-frontend/`:
+Toàn bộ 15 hình ảnh minh chứng được xuất tự động từ Playwright E2E Test Suite chạy trên giao diện thực tế với hợp đồng Backend DT2-4 (contract mock API) và lưu trữ tại thư mục `docs/reports/dt2-4-frontend/`:
 
 | STT | Tên file hình ảnh | Mô tả màn hình minh chứng thực tế |
 |---|---|---|
@@ -102,19 +102,20 @@ Trong quá trình review PR #20, nhóm phát triển đã tiếp nhận và xử
 5. **[P2 Versioning / Optimistic Locking]:** Nhận diện full response từ PATCH/DELETE để cập nhật batch version mới nhất, tránh lỗi `409 Conflict`.
 6. **[P2 Feedback Validation]:** Yêu cầu bắt buộc trường họ tên và email, kiểm tra regex định dạng email trước khi cho phép bấm gửi.
 7. **[P2 Multi-client Bill Request]:** Bỏ guard local `orders.length === 0` tại `ServiceRequestsView.jsx`, cho phép khách B cùng bàn yêu cầu thanh toán khi khách A đã đặt món.
-8. **[P2 Pending Order Snapshot & Cart Preservation]:** Quản lý pending snapshot tại `CustomerContext.jsx`, khóa nút sửa/xóa các món in-flight và chỉ trừ số lượng món đã gửi khi thành công, bảo toàn 100% món mới thêm vào giỏ.
-9. **[P2 Menu Pagination]:** Phân trang động `PAGE_SIZE = 20`, đọc `totalElements`, hiển thị nút `XEM THÊM MÓN` và reset trang khi thay đổi nhóm hoặc từ khóa tìm kiếm.
+8. **[P1 Idempotency / Immutable Order Attempt across Retry]:** Quản lý attempt bất biến `{ idempotencyKey, payload }` tại `customerSession.js` và `CustomerContext.jsx`. Khi request đầu gặp sự cố mạng, các lần retry tiếp theo sử dụng đúng key và payload gốc ban đầu, không trộn món mới thêm vào batch cũ; sau khi retry thành công chỉ trừ món đã xác nhận, giữ nguyên món mới trong giỏ để gửi ở batch độc lập tiếp theo.
+9. **[P2 Menu Pagination / Failure & Filter Handling]:** Phân trang động `PAGE_SIZE = 20`, không tăng `page` trước request mà tính `nextPage = Math.floor(items.length / PAGE_SIZE)`. Khi tải trang 1 bị lỗi (ví dụ 503), lần bấm Xem thêm tiếp theo sẽ retry đúng trang 1 (không bỏ qua món 21–40); khi đổi filter trong lúc đang chờ thì luôn reset `loadingMore = false` và tải trang 0 của nhóm mới, không làm khóa nút.
 
 ---
 
 ## 6. KẾT QUẢ KIỂM THỬ TỔNG THỂ & CI STATUS
 
 * **Frontend Linter:** `npm run lint` (`oxlint --deny-warnings`) đạt **0 errors, 0 warnings** trên toàn bộ 52 files.
-* **Frontend Build:** `npm run build` (`vite build`) tạo production bundle tối ưu thành công (331.57 kB).
-* **Playwright E2E Tests:** **124/124 tests PASS** trên cả 2 môi trường Desktop Chrome và iPhone 13 Mobile.
+* **Frontend Build:** `npm run build` (`vite build`) tạo production bundle tối ưu thành công.
+* **Playwright E2E Tests:** **124/124 tests PASS** trên cả 2 môi trường Desktop Chrome và iPhone 13 Mobile (với hợp đồng API mô phỏng chính xác Backend DT2-4).
 * **GitHub Actions CI (5/5 Required Checks PASS):**
   -  `CI / Git Flow`
   -  `CI / PR title`
   -  `CI / Governance`
   -  `CI / Frontend UI`
   -  `CI / Backend MySQL`
+* **Giới hạn bàn giao:** Môi trường sản xuất thực tế với hạ tầng quét QR camera cấp phiên và bucket Firebase Storage lưu trữ ảnh nhận xét thuộc phạm vi triển khai hạ tầng production riêng.

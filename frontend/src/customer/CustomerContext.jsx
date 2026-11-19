@@ -6,7 +6,8 @@ import {
   writeSessionCart,
   writeSessionOrders,
   clearAttempt,
-  getOrCreateAttempt,
+  getOrCreateOrderAttempt,
+  readOrderAttempt,
 } from "./customerSession.js";
 import { createOrder, fetchCsrfToken } from "./customerApi.js";
 
@@ -155,7 +156,7 @@ export function CustomerProvider({ children }) {
   }, []);
 
   const submitOrder = useCallback(async () => {
-    if (cart.length === 0 || isSubmittingOrder) return;
+    if (isSubmittingOrder) return;
 
     if (!session || !session.sessionId || !session.token) {
       setOrderModalResult({
@@ -166,18 +167,31 @@ export function CustomerProvider({ children }) {
       return;
     }
 
-    const orderPayload = cart
-      .map((entry) => ({
-        menuItemId: Number(entry.item.id),
-        quantity: Number(entry.quantity),
-      }))
-      .sort((a, b) => a.menuItemId - b.menuItemId);
+    // Reuse existing unconfirmed attempt (payload + idempotencyKey) if prior request failed/dropped
+    const existingAttempt = readOrderAttempt(session);
+    let orderPayload;
+    let idempotencyKey;
+
+    if (existingAttempt?.idempotencyKey && Array.isArray(existingAttempt.payload) && existingAttempt.payload.length > 0) {
+      orderPayload = existingAttempt.payload;
+      idempotencyKey = existingAttempt.idempotencyKey;
+    } else {
+      if (cart.length === 0) return;
+      const initialPayload = cart
+        .map((entry) => ({
+          menuItemId: Number(entry.item.id),
+          quantity: Number(entry.quantity),
+        }))
+        .sort((a, b) => a.menuItemId - b.menuItemId);
+      const attempt = getOrCreateOrderAttempt(session, initialPayload);
+      orderPayload = attempt.payload;
+      idempotencyKey = attempt.idempotencyKey;
+    }
 
     setIsSubmittingOrder(true);
     setPendingOrderSnapshot(orderPayload);
 
     try {
-      const idempotencyKey = getOrCreateAttempt(session, "order", orderPayload);
       const csrf = await fetchCsrfToken();
 
       const batchResult = await createOrder({

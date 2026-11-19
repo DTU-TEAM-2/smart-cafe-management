@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useCustomer, formatVnd } from "./CustomerContext.jsx";
 import { fetchCategories, fetchMenuItems } from "./customerApi.js";
 import ItemDetailModal from "./ItemDetailModal.jsx";
@@ -10,7 +10,6 @@ export default function CustomerMenuView() {
   const [activeCategoryId, setActiveCategoryId] = useState(null);
   const [keyword, setKeyword] = useState("");
   const [availableOnly, setAvailableOnly] = useState(true);
-  const [page, setPage] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -33,14 +32,11 @@ export default function CustomerMenuView() {
     };
   }, []);
 
-  // Load items with pagination support
+  // Load items (page 0) whenever category, keyword or available filter changes
   useEffect(() => {
     let mounted = true;
-    if (page === 0) {
-      setLoading(true);
-    } else {
-      setLoadingMore(true);
-    }
+    setLoading(true);
+    setLoadingMore(false);
     setError(null);
 
     const delay = keyword ? 150 : 0;
@@ -49,7 +45,7 @@ export default function CustomerMenuView() {
         categoryId: activeCategoryId,
         keyword: keyword.trim() || undefined,
         availableOnly,
-        page,
+        page: 0,
         size: PAGE_SIZE,
       })
         .then((data) => {
@@ -57,17 +53,9 @@ export default function CustomerMenuView() {
             const newContent = data.content || [];
             const total = typeof data.totalElements === "number" ? data.totalElements : newContent.length;
             setTotalElements(total);
-            if (page === 0) {
-              setItems(newContent);
-              setLoading(false);
-            } else {
-              setItems((prev) => {
-                const existingIds = new Set(prev.map((it) => it.id));
-                const nonDuplicates = newContent.filter((it) => !existingIds.has(it.id));
-                return [...prev, ...nonDuplicates];
-              });
-              setLoadingMore(false);
-            }
+            setItems(newContent);
+            setLoading(false);
+            setLoadingMore(false);
           }
         })
         .catch((err) => {
@@ -83,7 +71,37 @@ export default function CustomerMenuView() {
       mounted = false;
       clearTimeout(timer);
     };
-  }, [activeCategoryId, keyword, availableOnly, page]);
+  }, [activeCategoryId, keyword, availableOnly]);
+
+  // Load next page: only advance after success; retry exact failed page on error
+  const handleLoadMore = useCallback(() => {
+    if (loadingMore || loading) return;
+    const nextPage = Math.floor(items.length / PAGE_SIZE);
+    setLoadingMore(true);
+    setError(null);
+    fetchMenuItems({
+      categoryId: activeCategoryId,
+      keyword: keyword.trim() || undefined,
+      availableOnly,
+      page: nextPage,
+      size: PAGE_SIZE,
+    })
+      .then((data) => {
+        const newContent = data.content || [];
+        const total = typeof data.totalElements === "number" ? data.totalElements : newContent.length;
+        setTotalElements(total);
+        setItems((prev) => {
+          const existingIds = new Set(prev.map((it) => it.id));
+          const nonDuplicates = newContent.filter((it) => !existingIds.has(it.id));
+          return [...prev, ...nonDuplicates];
+        });
+        setLoadingMore(false);
+      })
+      .catch((err) => {
+        setError(err.message || "Không thể tải thêm món. Vui lòng bấm thử lại.");
+        setLoadingMore(false);
+      });
+  }, [loadingMore, loading, items.length, activeCategoryId, keyword, availableOnly]);
 
   return (
     <div className="c-content">
@@ -102,10 +120,7 @@ export default function CustomerMenuView() {
           className="c-search-input"
           placeholder="Tìm kiếm cà phê, trà, bánh..."
           value={keyword}
-          onChange={(e) => {
-            setKeyword(e.target.value);
-            setPage(0);
-          }}
+          onChange={(e) => setKeyword(e.target.value)}
           aria-label="Tìm kiếm món"
         />
       </div>
@@ -117,10 +132,7 @@ export default function CustomerMenuView() {
           role="tab"
           aria-selected={activeCategoryId === null}
           className={`c-category-pill ${activeCategoryId === null ? "active" : ""}`}
-          onClick={() => {
-            setActiveCategoryId(null);
-            setPage(0);
-          }}
+          onClick={() => setActiveCategoryId(null)}
         >
           Tất cả
         </button>
@@ -131,10 +143,7 @@ export default function CustomerMenuView() {
             role="tab"
             aria-selected={activeCategoryId === String(cat.id)}
             className={`c-category-pill ${activeCategoryId === String(cat.id) ? "active" : ""}`}
-            onClick={() => {
-              setActiveCategoryId(String(cat.id));
-              setPage(0);
-            }}
+            onClick={() => setActiveCategoryId(String(cat.id))}
           >
             {cat.name} {cat.activeItemCount ? `(${cat.activeItemCount})` : ""}
           </button>
@@ -150,10 +159,7 @@ export default function CustomerMenuView() {
           <input
             type="checkbox"
             checked={availableOnly}
-            onChange={(e) => {
-              setAvailableOnly(e.target.checked);
-              setPage(0);
-            }}
+            onChange={(e) => setAvailableOnly(e.target.checked)}
             style={{ accentColor: "#d5a953" }}
           />
           Chỉ món có sẵn
@@ -263,7 +269,7 @@ export default function CustomerMenuView() {
               fontSize: "13px",
               letterSpacing: "0.05em",
             }}
-            onClick={() => setPage((p) => p + 1)}
+            onClick={handleLoadMore}
             disabled={loadingMore}
           >
             {loadingMore ? "ĐANG TẢI THÊM MÓN..." : `XEM THÊM MÓN (${items.length}/${totalElements})`}
