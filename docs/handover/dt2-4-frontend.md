@@ -42,3 +42,11 @@ Tài liệu này mô tả phần đã triển khai và kiểm thử, không thay
 ### Xác nhận giá trước Order — review bổ sung
 
 Thông báo “Giá món đã thay đổi” dùng action `reviewPrices`: nút **XEM LẠI GIỎ** chỉ đóng modal và chuyển về giỏ, không gọi POST. Khách kiểm tra tổng mới rồi bấm nút gửi đơn trong giỏ để xác nhận. Modal lỗi mạng vẫn có **THỬ LẠI**, giữ nguyên attempt/key/payload chưa rõ kết quả. Test Customer #22 bấm trực tiếp CTA đổi giá và kiểm 0 POST, sau đó xác nhận gửi và retry mạng cùng key/payload. Ảnh mobile mới: `docs/handover/evidence/dt2-4/screenshots/08-fe-price-consent.png` (API mock).
+
+### Deep re-review — giá, ảnh và retry trang0
+
+- Bỏ GET/price-write lúc mount CustomerCartView. Chỉ preflight của submitOrder cập nhật giá trước lần gửi mới; không còn request nền có thể về muộn ghi đè giá mới. Retry outcome chưa rõ vẫn giữ key/payload, không đổi cơ chế idempotency.
+- FE kiểm metadata JPEG/PNG trước decode/preview: dữ liệu thật khớp MIME, >0 và ≤5MiB, width/height1–4096 và width×height≤4,000,000, sau đó kiểm ảnh đọc được. Chặn gửi trong lúc kiểm tra; revoke object URL khi đổi ảnh/unmount. Không tự resize/crop hoặc nới giới hạn backend.
+- Trang0 menu lỗi giữ error state, có THỬ LẠI THỰC ĐƠN cho cùng filter/page0; empty chỉ xuất hiện khi response thành công nhưng content rỗng. Load-more giữ retry riêng như cũ.
+- Regression #18 kiểm 0 GET từ mount, preflight cập nhật giá mới và không tạo stale writer; #23 kiểm503→retry cùngquery→200; #24 kiểmJPEG4032×3024 dưới5MiB, PNG2001×2000/4097×1 bị từ chối và PNG2000×2000 được gửi multipart. Ảnh mobile #09/#10 dùng mock API.
+- Lượt cuối: lint/build PASS, unit5/5 và toàn bộ Playwright **226/226 PASS**, Customer **48/48 PASS** (24 kịch bản × desktop/mobile). Không sửa Backend/schema/Firebase trong lượt này; CI Backend kiểm riêng sau push. Kết quả222/222 phía trên là mốc lịch sử trước hai regression mới.

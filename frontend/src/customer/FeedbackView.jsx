@@ -1,6 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { submitFeedback, fetchCsrfToken } from "./customerApi.js";
 import OrderResultModal from "./OrderResultModal.jsx";
+import { validateFeedbackImage } from "./feedbackImages.js";
 
 export default function FeedbackView({ onNavigateMenu }) {
   const [rating, setRating] = useState(5);
@@ -11,39 +12,27 @@ export default function FeedbackView({ onNavigateMenu }) {
   const [submitting, setSubmitting] = useState(false);
   const [modalResult, setModalResult] = useState(null);
   const fileInputRef = useRef(null);
+  const imageGeneration = useRef(0);
+  const [validatingImages, setValidatingImages] = useState(false);
+  useEffect(() => () => { imageGeneration.current++; }, []);
 
-  function handleImageChange(e) {
+  async function handleImageChange(e) {
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
 
-    const validImages = [];
-    for (const f of files) {
-      if (!["image/jpeg", "image/png"].includes(f.type)) {
-        setModalResult({
-          status: "failure",
-          title: "Định dạng không hỗ trợ",
-          detail: `File ${f.name} không phải JPEG hoặc PNG.`,
-        });
-        return;
+    const generation = ++imageGeneration.current;
+    setValidatingImages(true);
+    try {
+      if (images.length + files.length > 3) throw new Error("Vui lòng chọn tối đa 3 ảnh.");
+      for (const file of files) await validateFeedbackImage(file);
+      if (generation === imageGeneration.current) setImages(prev => [...prev, ...files]);
+    } catch (error) {
+      if (generation === imageGeneration.current) setModalResult({ status: "failure", title: "Ảnh không hợp lệ", detail: error.message });
+    } finally {
+      if (generation === imageGeneration.current) {
+        setValidatingImages(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
       }
-      if (f.size > 5 * 1024 * 1024) {
-        setModalResult({
-          status: "failure",
-          title: "Ảnh vượt quá 5MB",
-          detail: `Ảnh ${f.name} có dung lượng vượt quá 5MB.`,
-        });
-        return;
-      }
-      validImages.push(f);
-    }
-
-    setImages((prev) => {
-      const merged = [...prev, ...validImages].slice(0, 3);
-      return merged;
-    });
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
     }
   }
 
@@ -53,6 +42,7 @@ export default function FeedbackView({ onNavigateMenu }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (validatingImages || submitting) return;
     if (!name.trim() || !email.trim() || !content.trim()) {
       setModalResult({
         status: "failure",
@@ -196,28 +186,29 @@ export default function FeedbackView({ onNavigateMenu }) {
               gap: "8px",
             }}
             onClick={() => fileInputRef.current?.click()}
-            disabled={images.length >= 3}
+            disabled={images.length >= 3 || validatingImages || submitting}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
               <circle cx="8.5" cy="8.5" r="1.5" />
               <polyline points="21 15 16 10 5 21" />
             </svg>
-            {images.length >= 3 ? "Đã chọn tối đa 3 ảnh" : "Chọn ảnh từ thiết bị (JPEG/PNG ≤ 5MB)"}
+            {validatingImages ? "Đang kiểm tra ảnh…" : images.length >= 3 ? "Đã chọn tối đa 3 ảnh" : "Chọn ảnh từ thiết bị (JPEG/PNG ≤ 5MB)"}
           </button>
+          <p style={{ color: "#b9aa98", fontSize: "12px" }}>Mỗi ảnh tối đa 4096 × 4096 và 4 triệu điểm ảnh. Ảnh lớn cần giảm kích thước trước khi chọn.</p>
 
           {images.length > 0 && (
             <div className="c-image-upload-preview">
               {images.map((file, idx) => {
-                const url = URL.createObjectURL(file);
                 return (
                   <div key={idx} className="c-image-thumb-box">
-                    <img src={url} alt={`Ảnh ${idx + 1}`} onLoad={() => URL.revokeObjectURL(url)} />
+                    <ImagePreview file={file} index={idx} />
                     <button
                       type="button"
                       className="c-btn-remove-img"
                       onClick={() => removeImage(idx)}
                       aria-label="Xóa ảnh"
+                      disabled={validatingImages || submitting}
                     >
                       ×
                     </button>
@@ -233,7 +224,7 @@ export default function FeedbackView({ onNavigateMenu }) {
           <button
             type="submit"
             className="c-btn-primary"
-            disabled={submitting || !name.trim() || !email.trim() || !content.trim()}
+            disabled={submitting || validatingImages || !name.trim() || !email.trim() || !content.trim()}
           >
             {submitting ? "ĐANG GỬI PHẢN HỒI..." : "GỬI PHẢN HỒI NGAY"}
           </button>
@@ -253,4 +244,14 @@ export default function FeedbackView({ onNavigateMenu }) {
       )}
     </div>
   );
+}
+
+function ImagePreview({ file, index }) {
+  const [url, setUrl] = useState(null);
+  useEffect(() => {
+    const objectUrl = URL.createObjectURL(file);
+    setUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
+  return <img src={url || undefined} alt={`Ảnh ${index + 1}`} />;
 }

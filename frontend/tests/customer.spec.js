@@ -885,9 +885,11 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     expect(orderRequests[0].body).toEqual(orderRequests[1].body);
   });
 
-  test("18. Revalidates cart item prices when viewing cart and reflects latest menu price", async ({ page }) => {
+  test("18. Cart mount cannot start a stale price writer while submit checks current prices", async ({ page }) => {
     let priceCurrent = "45000";
+    let reads = 0;
     await page.route(/\/api\/v1\/customer\/menu\/items\/101$/, (route) => {
+      reads++;
       route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -910,9 +912,14 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     priceCurrent = "50000";
 
     await page.getByRole("button", { name: /Giỏ hàng/ }).click();
-    await expect(page.locator(".c-badge")).toContainText(/Giá món đã được cập nhật theo thực đơn mới nhất/);
+    await expect(page.getByRole("heading", { name: "Giỏ hàng của bạn" })).toBeVisible();
+    expect(reads).toBe(0);
+    await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+    await expect(page.getByText("Giá món đã thay đổi", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "XEM LẠI GIỎ", exact: true }).click();
     await expect(page.locator(".c-cart-price")).toHaveText("50.000 đ");
     await expect(page.locator(".c-summary-total-price")).toHaveText("50.000 đ");
+    expect(reads).toBe(1);
   });
 
   test("19. Menu filter switch clears previous items so failure does not render stale items", async ({ page }) => {
@@ -1020,6 +1027,62 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     await page.getByRole("button", { name: "THỬ LẠI", exact: true }).click();
     await expect.poll(() => posts).toBe(2);
     expect(attempts[1]).toEqual(attempts[0]);
+  });
+
+  test("23. First-page failure is an error, retries the same filter and then renders items", async ({ page }, info) => {
+    const queries = [];
+    let ready = false;
+    await page.route(/\/api\/v1\/customer\/menu\/items(\?.*)?$/, route => {
+      queries.push(new URL(route.request().url()).search);
+      return route.fulfill(ready ? { json: mockMenuItems } : { status: 503, json: { detail: "Thực đơn tạm gián đoạn." } });
+    });
+    await page.goto("/#customer");
+    await expect(page.getByText("Thực đơn tạm gián đoạn.", { exact: true })).toBeVisible();
+    await expect(page.getByText("Không tìm thấy món", { exact: true })).toHaveCount(0);
+    if (info.project.name === "mobile") await page.screenshot({ path: "../docs/handover/evidence/dt2-4/screenshots/09-fe-menu-retry.png" });
+    const first = queries.at(-1);
+    ready = true;
+    await page.getByRole("button", { name: "THỬ LẠI THỰC ĐƠN", exact: true }).click();
+    await expect(page.getByText("Caramel Latte", { exact: true })).toBeVisible();
+    expect(queries.at(-1)).toBe(first);
+    expect(new URLSearchParams(queries.at(-1)).get("page")).toBe("0");
+  });
+
+  test("24. Feedback validates raw dimensions and pixel budget before accepting images", async ({ page }, info) => {
+    let posts = 0;
+    let multipart = false;
+    await page.route("**/api/v1/customer/feedback", route => {
+      posts++;
+      multipart = route.request().headers()["content-type"].includes("multipart/form-data");
+      return route.fulfill({ status: 201, json: { id: "image-feedback", message: "Đã gửi" } });
+    });
+    await page.goto("/#customer");
+    await page.getByRole("button", { name: "Đánh giá", exact: true }).click();
+    const file = async (width, height, type) => {
+      const encoded = await page.evaluate(({ width, height, type }) => {
+        const canvas = document.createElement("canvas"); canvas.width = width; canvas.height = height;
+        return canvas.toDataURL(type).split(",")[1];
+      }, { width, height, type });
+      const buffer = Buffer.from(encoded, "base64");
+      expect(buffer.length).toBeLessThan(5 * 1024 * 1024);
+      return { name: "feedback-image." + (type === "image/png" ? "png" : "jpg"), mimeType: type, buffer };
+    };
+    for (const [width, height, type, error] of [[4032, 3024, "image/jpeg", "4 triệu điểm ảnh"], [2001, 2000, "image/png", "4 triệu điểm ảnh"], [4097, 1, "image/png", "4096"]]) {
+      await page.locator('input[type="file"]').setInputFiles(await file(width, height, type));
+      await expect(page.locator(".c-result-detail")).toContainText(error);
+      if (info.project.name === "mobile" && type === "image/jpeg") await page.screenshot({ path: "../docs/handover/evidence/dt2-4/screenshots/10-fe-image-pixel-limit.png" });
+      await expect(page.locator(".c-image-upload-preview img")).toHaveCount(0);
+      expect(posts).toBe(0);
+      await page.getByRole("button", { name: "ĐÓNG", exact: true }).click();
+    }
+    await page.locator('input[type="file"]').setInputFiles(await file(2000, 2000, "image/png"));
+    await expect(page.locator(".c-image-upload-preview img")).toHaveCount(1);
+    await page.locator("#feedback-name").fill("Khách kiểm thử");
+    await page.locator("#feedback-email").fill("image@example.invalid");
+    await page.locator("#feedback-content").fill("Ảnh trong giới hạn.");
+    await page.getByRole("button", { name: "GỬI PHẢN HỒI NGAY", exact: true }).click();
+    await expect(page.getByText("Cảm ơn bạn!", { exact: true })).toBeVisible();
+    expect(posts).toBe(1); expect(multipart).toBe(true);
   });
 
   test("20. Preserves large BigInt menuItemId in order payload without Number precision loss", async ({ page }) => {

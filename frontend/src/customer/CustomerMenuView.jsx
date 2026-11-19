@@ -14,6 +14,7 @@ export default function CustomerMenuView() {
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
+  const [firstPageAttempt, setFirstPageAttempt] = useState(0);
   const filterGeneration = useRef(0);
 
   const PAGE_SIZE = 20;
@@ -75,7 +76,7 @@ export default function CustomerMenuView() {
       mounted = false;
       clearTimeout(timer);
     };
-  }, [activeCategoryId, keyword, availableOnly]);
+  }, [activeCategoryId, keyword, availableOnly, firstPageAttempt]);
 
   // Load next page: only advance after success; retry exact failed page on error
   const handleLoadMore = useCallback(() => {
@@ -175,8 +176,10 @@ export default function CustomerMenuView() {
 
       {/* Error state */}
       {error && (
-        <div style={{ background: "rgba(220, 53, 69, 0.15)", border: "1px solid #dc3545", borderRadius: "10px", padding: "12px", marginBottom: "16px", color: "#ff8b8b", fontSize: "13px" }}>
-          {error}
+        <div role="alert" style={{ background: "rgba(220, 53, 69, 0.15)", border: "1px solid #dc3545", borderRadius: "10px", padding: "12px", marginBottom: "16px", color: "#ff8b8b", fontSize: "13px" }}>
+          <p>{error}</p>
+          {!loading && items.length === 0 && <button type="button" className="c-btn-primary"
+            onClick={() => setFirstPageAttempt(value => value + 1)}>THỬ LẠI THỰC ĐƠN</button>}
         </div>
       )}
 
@@ -198,7 +201,7 @@ export default function CustomerMenuView() {
       )}
 
       {/* Empty State */}
-      {!loading && items.length === 0 && (
+      {!loading && !error && items.length === 0 && (
         <div className="c-empty-state">
           <svg className="c-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <circle cx="12" cy="12" r="10" />
