@@ -1,0 +1,12 @@
+{
+  "browserChecks": 14,
+  "browsers": [
+    "Chromium desktop",
+    "Chromium mobile viewport"
+  ],
+  "backend": "Spring Boot real HTTP",
+  "database": "isolated MySQL *_test fixture",
+  "newman": "9 requests, passed",
+  "firebase": "not configured/not exercised",
+  "apiMocks": false
+}
