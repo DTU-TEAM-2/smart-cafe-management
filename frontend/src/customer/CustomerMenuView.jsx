@@ -265,7 +265,6 @@ export default function CustomerMenuView() {
             }}
             onClick={() => setPage((p) => p + 1)}
             disabled={loadingMore}
-            aria-label="Tải thêm món"
           >
             {loadingMore ? "ĐANG TẢI THÊM MÓN..." : `XEM THÊM MÓN (${items.length}/${totalElements})`}
           </button>

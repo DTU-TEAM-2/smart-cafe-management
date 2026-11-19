@@ -527,7 +527,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     await page.getByRole("button", { name: /Giỏ hàng/ }).click();
     await expect(page.getByText("Bạc xỉu Sài Gòn")).toBeVisible();
     await expect(page.getByText("Tạm tính")).toBeVisible();
-    await expect(page.locator(".c-dock-badge")).toHaveText("1");
+    await expect(page.getByRole("button", { name: /Giỏ hàng/ }).locator(".c-dock-badge")).toHaveText("1");
   });
 
   test("11. Menu pagination: loads items beyond 50 with load-more and resets page on filter change", async ({ page }) => {
