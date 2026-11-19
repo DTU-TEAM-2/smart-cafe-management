@@ -4,7 +4,7 @@ import { updateOrderItem, cancelOrderItem, fetchCsrfToken } from "./customerApi.
 import OrderResultModal from "./OrderResultModal.jsx";
 
 export default function ActiveOrdersView({ onNavigateMenu }) {
-  const { orders, session, updateBatchItem, markBatchItemCancelled } = useCustomer();
+  const { orders, session, replacePlacedBatch } = useCustomer();
   const [now, setNow] = useState(Date.now());
   const [editingItem, setEditingItem] = useState(null); // { batchId, item, newQuantity }
   const [cancellingItem, setCancellingItem] = useState(null); // { batchId, item }
@@ -55,12 +55,7 @@ export default function ActiveOrdersView({ onNavigateMenu }) {
         csrf,
       });
 
-      updateBatchItem(
-        editingItem.batchId,
-        editingItem.item.id || editingItem.item.menuItemId,
-        editingItem.newQuantity,
-        updated.version
-      );
+      replacePlacedBatch(updated);
       setEditingItem(null);
     } catch (err) {
       setActionError(err.message || "Không thể cập nhật số lượng món.");
@@ -76,7 +71,7 @@ export default function ActiveOrdersView({ onNavigateMenu }) {
 
     try {
       const csrf = await fetchCsrfToken();
-      await cancelOrderItem({
+      const updated = await cancelOrderItem({
         sessionId: session.sessionId,
         token: session.token,
         itemId: cancellingItem.item.id || cancellingItem.item.menuItemId,
@@ -84,10 +79,7 @@ export default function ActiveOrdersView({ onNavigateMenu }) {
         csrf,
       });
 
-      markBatchItemCancelled(
-        cancellingItem.batchId,
-        cancellingItem.item.id || cancellingItem.item.menuItemId
-      );
+      replacePlacedBatch(updated);
       setCancellingItem(null);
     } catch (err) {
       setActionError(err.message || "Không thể hủy món.");
@@ -132,7 +124,7 @@ export default function ActiveOrdersView({ onNavigateMenu }) {
       {hasOrders && (
         <div>
           {orders.map((batch, index) => {
-            const batchId = batch.batchId || batch.id || `Batch-${index + 1}`;
+            const batchId = batch.id || `Batch-${index + 1}`;
             const remaining = getRemainingSeconds(batch.editableUntil, batch.createdAt);
             const isEditable = remaining > 0;
 
@@ -142,7 +134,7 @@ export default function ActiveOrdersView({ onNavigateMenu }) {
                   <div>
                     <span className="c-batch-id">Đơn #{batchId}</span>
                     <div style={{ fontSize: "11px", color: "#8c7e70", marginTop: "2px" }}>
-                      Tổng: <strong style={{ color: "#f1bf77" }}>{formatVnd(batch.totalVnd)}</strong>
+                      Tổng: <strong style={{ color: "#f1bf77" }}>{formatVnd(batch.totalAmount)}</strong>
                     </div>
                   </div>
 
@@ -174,7 +166,7 @@ export default function ActiveOrdersView({ onNavigateMenu }) {
                             {it.name || `Món #${it.menuItemId}`}
                           </div>
                           <div style={{ fontSize: "12px", color: "#b9aa98" }}>
-                            Số lượng: <strong>{it.quantity}</strong> • {formatVnd(it.price)}
+                            Số lượng: <strong>{it.quantity}</strong> • {formatVnd(it.unitPrice)}
                           </div>
                         </div>
 
@@ -254,6 +246,7 @@ export default function ActiveOrdersView({ onNavigateMenu }) {
               <button
                 type="button"
                 className="c-stepper-btn"
+                aria-label="Giảm số lượng"
                 onClick={() =>
                   setEditingItem((prev) => ({
                     ...prev,
@@ -268,6 +261,7 @@ export default function ActiveOrdersView({ onNavigateMenu }) {
               <button
                 type="button"
                 className="c-stepper-btn"
+                aria-label="Tăng số lượng"
                 onClick={() =>
                   setEditingItem((prev) => ({
                     ...prev,

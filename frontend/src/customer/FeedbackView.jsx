@@ -53,11 +53,11 @@ export default function FeedbackView({ onNavigateMenu }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!content.trim()) {
+    if (!name.trim() || !email.trim() || !content.trim()) {
       setModalResult({
         status: "failure",
         title: "Thiếu thông tin",
-        detail: "Vui lòng nhập nội dung đánh giá của bạn.",
+        detail: "Vui lòng nhập họ tên, email và nội dung đánh giá của bạn.",
       });
       return;
     }
@@ -126,9 +126,9 @@ export default function FeedbackView({ onNavigateMenu }) {
           </div>
         </div>
 
-        {/* Name (Optional) */}
+        {/* Name (Required by the backend contract) */}
         <div className="c-input-group">
-          <label className="c-label" htmlFor="feedback-name">Họ và tên (Tùy chọn)</label>
+          <label className="c-label" htmlFor="feedback-name">Họ và tên <span style={{ color: "#d5a953" }}>*</span></label>
           <input
             id="feedback-name"
             type="text"
@@ -137,12 +137,13 @@ export default function FeedbackView({ onNavigateMenu }) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             maxLength={160}
+            required
           />
         </div>
 
-        {/* Email (Optional) */}
+        {/* Email (Required by the backend contract) */}
         <div className="c-input-group">
-          <label className="c-label" htmlFor="feedback-email">Email liên hệ (Tùy chọn)</label>
+          <label className="c-label" htmlFor="feedback-email">Email liên hệ <span style={{ color: "#d5a953" }}>*</span></label>
           <input
             id="feedback-email"
             type="email"
@@ -151,6 +152,7 @@ export default function FeedbackView({ onNavigateMenu }) {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             maxLength={255}
+            required
           />
         </div>
 
@@ -231,7 +233,7 @@ export default function FeedbackView({ onNavigateMenu }) {
           <button
             type="submit"
             className="c-btn-primary"
-            disabled={submitting || !content.trim()}
+            disabled={submitting || !name.trim() || !email.trim() || !content.trim()}
           >
             {submitting ? "ĐANG GỬI PHẢN HỒI..." : "GỬI PHẢN HỒI NGAY"}
           </button>

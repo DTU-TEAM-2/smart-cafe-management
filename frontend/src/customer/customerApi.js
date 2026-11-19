@@ -10,15 +10,32 @@
  * - /api/v1/customer/feedback
  */
 
-function generateUuid() {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-    const r = (Math.random() * 16) | 0;
-    const v = c === "x" ? r : (r & 0x3) | 0x8;
-    return v.toString(16);
-  });
+function requireIdempotencyKey(key) {
+  if (!key) throw new Error("Thiếu mã chống gửi trùng cho thao tác này.");
+  return key;
+}
+
+function normalizeOrder(data) {
+  return {
+    id: String(data.id),
+    sessionId: String(data.sessionId),
+    totalAmount: String(data.totalAmount),
+    sessionTotalAmount: String(data.sessionTotalAmount),
+    editableUntil: data.editableUntil,
+    message: data.message,
+    items: Array.isArray(data.items)
+      ? data.items.map((item) => ({
+          id: String(item.id),
+          menuItemId: String(item.menuItemId),
+          name: item.name,
+          unitPrice: String(item.unitPrice),
+          quantity: Number(item.quantity),
+          lineTotal: String(item.lineTotal),
+          status: item.status,
+          version: String(item.version),
+        }))
+      : [],
+  };
 }
 
 export async function fetchCsrfToken(url = "/api/v1/customer/csrf") {
@@ -76,11 +93,11 @@ export async function fetchMenuItem(itemId) {
   return res.json();
 }
 
-export async function createOrder({ sessionId, token, items, idempotencyKey = generateUuid(), csrf = null }) {
+export async function createOrder({ sessionId, token, items, idempotencyKey, csrf = null }) {
   const headers = {
     "Content-Type": "application/json",
     Accept: "application/json",
-    "Idempotency-Key": idempotencyKey,
+    "Idempotency-Key": requireIdempotencyKey(idempotencyKey),
   };
   if (token) {
     headers.Authorization = `Bearer ${token}`;
@@ -105,7 +122,7 @@ export async function createOrder({ sessionId, token, items, idempotencyKey = ge
   if (!res.ok) {
     throw new Error(data.detail || data.title || "Gửi đơn gọi món thất bại.");
   }
-  return data;
+  return normalizeOrder(data);
 }
 
 export async function updateOrderItem({ sessionId, token, itemId, quantity, expectedVersion, csrf = null }) {
@@ -134,7 +151,7 @@ export async function updateOrderItem({ sessionId, token, itemId, quantity, expe
   if (!res.ok) {
     throw new Error(data.detail || data.title || "Không thể cập nhật số lượng món.");
   }
-  return data;
+  return normalizeOrder(data);
 }
 
 export async function cancelOrderItem({ sessionId, token, itemId, expectedVersion, csrf = null }) {
@@ -162,13 +179,13 @@ export async function cancelOrderItem({ sessionId, token, itemId, expectedVersio
   if (!res.ok) {
     throw new Error(data.detail || data.title || "Không thể hủy món.");
   }
-  return data;
+  return normalizeOrder(data);
 }
 
-export async function sendWaiterRequest({ sessionId, token, idempotencyKey = generateUuid(), csrf = null }) {
+export async function sendWaiterRequest({ sessionId, token, idempotencyKey, csrf = null }) {
   const headers = {
     Accept: "application/json",
-    "Idempotency-Key": idempotencyKey,
+    "Idempotency-Key": requireIdempotencyKey(idempotencyKey),
   };
   if (token) {
     headers.Authorization = `Bearer ${token}`;
@@ -190,10 +207,10 @@ export async function sendWaiterRequest({ sessionId, token, idempotencyKey = gen
   return data;
 }
 
-export async function sendBillRequest({ sessionId, token, idempotencyKey = generateUuid(), csrf = null }) {
+export async function sendBillRequest({ sessionId, token, idempotencyKey, csrf = null }) {
   const headers = {
     Accept: "application/json",
-    "Idempotency-Key": idempotencyKey,
+    "Idempotency-Key": requireIdempotencyKey(idempotencyKey),
   };
   if (token) {
     headers.Authorization = `Bearer ${token}`;

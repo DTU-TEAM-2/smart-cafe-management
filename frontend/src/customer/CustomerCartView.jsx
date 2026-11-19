@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useCustomer, formatVnd } from "./CustomerContext.jsx";
 import { createOrder, fetchCsrfToken } from "./customerApi.js";
+import { clearAttempt, getOrCreateAttempt } from "./customerSession.js";
 import OrderResultModal from "./OrderResultModal.jsx";
 
 export default function CustomerCartView({ onNavigateMenu, onNavigateOrders }) {
@@ -25,6 +26,14 @@ export default function CustomerCartView({ onNavigateMenu, onNavigateOrders }) {
     setSubmitting(true);
 
     try {
+      const orderPayload = cart
+        .map((entry) => ({
+          menuItemId: Number(entry.item.id),
+          quantity: Number(entry.quantity),
+        }))
+        .sort((a, b) => a.menuItemId - b.menuItemId);
+      const idempotencyKey = getOrCreateAttempt(session, "order", orderPayload);
+
       // 1. Fetch CSRF token
       const csrf = await fetchCsrfToken();
 
@@ -32,12 +41,8 @@ export default function CustomerCartView({ onNavigateMenu, onNavigateOrders }) {
       const batchResult = await createOrder({
         sessionId: session.sessionId,
         token: session.token,
-        items: cart.map((entry) => ({
-          menuItemId: entry.item.id,
-          quantity: entry.quantity,
-          name: entry.item.name,
-          price: entry.item.price,
-        })),
+        items: orderPayload,
+        idempotencyKey,
         csrf,
       });
 
@@ -47,11 +52,12 @@ export default function CustomerCartView({ onNavigateMenu, onNavigateOrders }) {
         createdAt: new Date().toISOString(),
       });
       clearCart();
+      clearAttempt(session, "order");
 
       setModalResult({
         status: "success",
         title: "Đặt món thành công!",
-        detail: `Đơn #${batchResult.batchId || "Mới"} đã được gửi tới quầy pha chế. Bạn có thể chỉnh sửa hoặc hủy món trong vòng 3 phút tại mục Đơn món.`,
+        detail: `Đơn #${batchResult.id} đã được gửi tới quầy pha chế. Bạn có thể chỉnh sửa hoặc hủy món trong vòng 3 phút tại mục Đơn món.`,
       });
     } catch (err) {
       setModalResult({

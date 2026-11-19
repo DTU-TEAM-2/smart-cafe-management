@@ -35,6 +35,20 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
   };
 
   test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      if (!sessionStorage.getItem("lecker_customer_session")) {
+        sessionStorage.setItem(
+          "lecker_customer_session",
+          JSON.stringify({
+            sessionId: "10",
+            token: "mock-token-abc",
+            tableNumber: "04",
+            clientStorageId: "client-a",
+          })
+        );
+      }
+    });
+
     // Mock menu endpoints
     await page.route("**/api/v1/customer/menu/categories", (route) =>
       route.fulfill({
@@ -70,7 +84,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
   });
 
   test("1. Renders customer layout with table badge and loads menu items", async ({ page }) => {
-    await page.goto("/#customer?sessionId=10&token=mock-token-abc&table=04");
+    await page.goto("/#customer?sessionId=10&token=legacy-token-that-must-not-remain&table=04");
 
     // Header assertions
     await expect(page.locator(".c-brand-logo")).toContainText("LECKER");
@@ -84,10 +98,12 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     await expect(page.getByText("Caramel Latte")).toBeVisible();
     await expect(page.getByText("45.000 đ")).toBeVisible();
     await expect(page.getByText("Bạc xỉu Sài Gòn")).toBeVisible();
+    expect(page.url()).not.toContain("token=");
+    expect(page.url()).toMatch(/#customer$/);
   });
 
   test("2. Adds item to cart via item detail modal and verifies cart badge", async ({ page }) => {
-    await page.goto("/#customer?sessionId=10&token=mock-token-abc&table=04");
+    await page.goto("/#customer");
 
     // Click on item to open modal
     await page.getByText("Caramel Latte").click();
@@ -115,18 +131,20 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
-          batchId: "B1001",
+          id: "1001",
           sessionId: "10",
-          totalVnd: "90000",
+          totalAmount: "45000",
+          sessionTotalAmount: "45000",
           editableUntil: new Date(Date.now() + 180000).toISOString(),
           items: [
             {
               id: "item-1",
               menuItemId: "101",
               name: "Caramel Latte",
-              price: "45000",
-              quantity: 2,
-              version: 0,
+              unitPrice: "45000",
+              lineTotal: "45000",
+              quantity: 1,
+              version: "0",
               status: "SUBMITTED",
             },
           ],
@@ -134,7 +152,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
       });
     });
 
-    await page.goto("/#customer?sessionId=10&token=mock-token-abc&table=04");
+    await page.goto("/#customer");
 
     // Add item directly
     await page.getByLabel("Thêm Caramel Latte vào giỏ hàng").click();
@@ -159,24 +177,26 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
       const futureTime = new Date(Date.now() + 175000).toISOString();
       sessionStorage.setItem(
         "lecker_customer_session",
-        JSON.stringify({ sessionId: "10", token: "mock-token-abc", tableNumber: "04" })
+        JSON.stringify({ sessionId: "10", token: "mock-token-abc", tableNumber: "04", clientStorageId: "client-a" })
       );
       sessionStorage.setItem(
-        "lecker_customer_orders",
+        "lecker_customer_orders:10:client-a",
         JSON.stringify([
           {
-            batchId: "B1001",
+            id: "1001",
             sessionId: "10",
-            totalVnd: "45000",
+            totalAmount: "45000",
+            sessionTotalAmount: "45000",
             editableUntil: futureTime,
             items: [
               {
                 id: "item-1",
                 menuItemId: "101",
                 name: "Caramel Latte",
-                price: "45000",
+                unitPrice: "45000",
+                lineTotal: "45000",
                 quantity: 1,
-                version: 0,
+                version: "0",
                 status: "SUBMITTED",
               },
             ],
@@ -185,26 +205,54 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
       );
     });
 
-    // Mock update item
+    let currentVersion = 0;
+    let currentQuantity = 1;
+    let currentStatus = "SUBMITTED";
+    const expectedVersions = [];
+    const response = () => ({
+      id: "1001",
+      sessionId: "10",
+      totalAmount: String(45000 * (currentStatus === "CANCELLED" ? 0 : currentQuantity)),
+      sessionTotalAmount: String(45000 * (currentStatus === "CANCELLED" ? 0 : currentQuantity)),
+      editableUntil: new Date(Date.now() + 175000).toISOString(),
+      items: [{
+        id: "item-1",
+        menuItemId: "101",
+        name: "Caramel Latte",
+        unitPrice: "45000",
+        lineTotal: String(45000 * currentQuantity),
+        quantity: currentQuantity,
+        version: String(currentVersion),
+        status: currentStatus,
+      }],
+    });
+
+    // Mock the real backend response: PATCH/DELETE both return the full Order.
     await page.route("**/api/v1/customer/sessions/10/order-items/item-1", (route) => {
+      const body = route.request().postDataJSON();
+      expectedVersions.push(body.expectedVersion);
       if (route.request().method() === "PATCH") {
+        currentQuantity = body.quantity;
+        currentVersion += 1;
         return route.fulfill({
           status: 200,
           contentType: "application/json",
-          body: JSON.stringify({ version: 1, quantity: 3 }),
+          body: JSON.stringify(response()),
         });
       }
       if (route.request().method() === "DELETE") {
+        currentStatus = "CANCELLED";
+        currentVersion += 1;
         return route.fulfill({
           status: 200,
           contentType: "application/json",
-          body: JSON.stringify({ status: "CANCELLED" }),
+          body: JSON.stringify(response()),
         });
       }
       return route.continue();
     });
 
-    await page.goto("/#customer?sessionId=10&token=mock-token-abc&table=04");
+    await page.goto("/#customer");
 
     // Navigate to Orders
     await page.getByRole("button", { name: "Đơn món" }).click();
@@ -213,10 +261,13 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     // Verify timer badge is visible
     await expect(page.locator(".c-timer-badge")).toContainText("Sửa/hủy:");
 
-    // Edit item
-    await page.getByTitle("Sửa số lượng").click();
-    await expect(page.getByRole("heading", { name: "Chỉnh sửa số lượng" })).toBeVisible();
-    await page.getByRole("button", { name: "CẬP NHẬT" }).click();
+    // Three consecutive edits must use versions 0, 1 and 2 from server responses.
+    for (let update = 0; update < 3; update += 1) {
+      await page.getByTitle("Sửa số lượng").click();
+      await expect(page.getByRole("heading", { name: "Chỉnh sửa số lượng" })).toBeVisible();
+      await page.getByRole("button", { name: "Tăng số lượng" }).click();
+      await page.getByRole("button", { name: "CẬP NHẬT" }).click();
+    }
 
     // Cancel item
     await page.getByTitle("Hủy món").click();
@@ -225,9 +276,77 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
 
     // Verify status updated to "ĐÃ HỦY"
     await expect(page.locator(".c-item-status-badge")).toHaveText("Đã hủy");
+    expect(expectedVersions).toEqual([0, 1, 2, 3]);
   });
 
-  test("5. Service Requests: calls waiter and requests bill", async ({ page }) => {
+  test("5. Retries an uncertain order with the same Idempotency-Key", async ({ page }) => {
+    const keys = [];
+    let calls = 0;
+    await page.route("**/api/v1/customer/sessions/10/orders", (route) => {
+      calls += 1;
+      keys.push(route.request().headers()["idempotency-key"]);
+      if (calls === 1) return route.abort("connectionfailed");
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: "1002",
+          sessionId: "10",
+          totalAmount: "45000",
+          sessionTotalAmount: "45000",
+          editableUntil: new Date(Date.now() + 180000).toISOString(),
+          items: [{
+            id: "item-2",
+            menuItemId: "101",
+            name: "Caramel Latte",
+            unitPrice: "45000",
+            lineTotal: "45000",
+            quantity: 1,
+            version: "0",
+            status: "SUBMITTED",
+          }],
+        }),
+      });
+    });
+
+    await page.goto("/#customer");
+    await page.getByLabel("Thêm Caramel Latte vào giỏ hàng").click();
+    await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+    await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+    await expect(page.locator(".c-result-title")).toHaveText("Đặt món thất bại");
+    await page.getByRole("button", { name: "THỬ LẠI" }).click();
+    await expect(page.locator(".c-result-title")).toHaveText("Đặt món thành công!");
+    expect(keys).toHaveLength(2);
+    expect(keys[1]).toBe(keys[0]);
+  });
+
+  test("6. Isolates cart and orders when the customer session changes", async ({ page }) => {
+    await page.goto("/#customer");
+    await page.getByLabel("Thêm Caramel Latte vào giỏ hàng").click();
+    await expect(page.locator(".c-dock-badge")).toHaveText("1");
+
+    await page.evaluate(() => {
+      sessionStorage.setItem(
+        "lecker_customer_session",
+        JSON.stringify({
+          sessionId: "20",
+          token: "different-server-token",
+          tableNumber: "08",
+          clientStorageId: "client-b",
+        })
+      );
+    });
+    await page.reload();
+
+    await expect(page.locator(".c-table-badge")).toContainText("BÀN 08");
+    await expect(page.locator(".c-dock-badge")).toHaveCount(0);
+    await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+    await expect(page.getByRole("heading", { name: "Giỏ hàng trống" })).toBeVisible();
+    await page.getByRole("button", { name: "Đơn món" }).click();
+    await expect(page.getByRole("heading", { name: "Chưa có đơn món" })).toBeVisible();
+  });
+
+  test("7. Service Requests: calls waiter and requests bill", async ({ page }) => {
     let waiterCalled = false;
     let billRequested = false;
 
@@ -253,22 +372,22 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     await page.addInitScript(() => {
       sessionStorage.setItem(
         "lecker_customer_session",
-        JSON.stringify({ sessionId: "10", token: "mock-token-abc", tableNumber: "04" })
+        JSON.stringify({ sessionId: "10", token: "mock-token-abc", tableNumber: "04", clientStorageId: "client-a" })
       );
       sessionStorage.setItem(
-        "lecker_customer_orders",
+        "lecker_customer_orders:10:client-a",
         JSON.stringify([
           {
-            batchId: "B1001",
+            id: "1001",
             sessionId: "10",
-            totalVnd: "45000",
-            items: [{ id: "item-1", name: "Latte", price: "45000", quantity: 1, status: "SUBMITTED" }],
+            totalAmount: "45000",
+            items: [{ id: "item-1", name: "Latte", unitPrice: "45000", quantity: 1, status: "SUBMITTED" }],
           },
         ])
       );
     });
 
-    await page.goto("/#customer?sessionId=10&token=mock-token-abc&table=04");
+    await page.goto("/#customer");
 
     // Navigate to Service tab
     await page.getByRole("button", { name: "Phục vụ" }).click();
@@ -288,7 +407,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     expect(billRequested).toBe(true);
   });
 
-  test("6. Customer feedback form validates and submits feedback", async ({ page }) => {
+  test("8. Customer feedback form requires identity fields and submits feedback", async ({ page }) => {
     let submittedBody = null;
     await page.route("**/api/v1/customer/feedback", (route) => {
       submittedBody = route.request().postDataJSON();
@@ -299,11 +418,14 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
       });
     });
 
-    await page.goto("/#customer?sessionId=10&token=mock-token-abc&table=04");
+    await page.goto("/#customer");
 
     // Navigate to Feedback tab
     await page.getByRole("button", { name: "Đánh giá" }).click();
     await expect(page.getByRole("heading", { name: "Đánh giá trải nghiệm" })).toBeVisible();
+
+    await page.locator("#feedback-content").fill("Nội dung hợp lệ nhưng còn thiếu người gửi.");
+    await expect(page.getByRole("button", { name: "GỬI PHẢN HỒI NGAY" })).toBeDisabled();
 
     // Fill form
     await page.locator("#feedback-name").fill("Nguyễn Văn A");

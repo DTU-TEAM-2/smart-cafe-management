@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useCustomer } from "./CustomerContext.jsx";
 import { sendWaiterRequest, sendBillRequest, fetchCsrfToken } from "./customerApi.js";
+import { clearAttempt, getOrCreateAttempt } from "./customerSession.js";
 import OrderResultModal from "./OrderResultModal.jsx";
 
 export default function ServiceRequestsView({ onNavigateFeedback }) {
@@ -22,11 +23,14 @@ export default function ServiceRequestsView({ onNavigateFeedback }) {
     setLoadingType("waiter");
     try {
       const csrf = await fetchCsrfToken();
+      const idempotencyKey = getOrCreateAttempt(session, "waiter", { type: "WAITER" });
       await sendWaiterRequest({
         sessionId: session.sessionId,
         token: session.token,
+        idempotencyKey,
         csrf,
       });
+      clearAttempt(session, "waiter");
 
       // 12-waiter-success.png
       setResultModal({
@@ -69,11 +73,14 @@ export default function ServiceRequestsView({ onNavigateFeedback }) {
     setLoadingType("bill");
     try {
       const csrf = await fetchCsrfToken();
+      const idempotencyKey = getOrCreateAttempt(session, "bill", { type: "BILL" });
       await sendBillRequest({
         sessionId: session.sessionId,
         token: session.token,
+        idempotencyKey,
         csrf,
       });
+      clearAttempt(session, "bill");
 
       // 14-bill-request-success.png
       setResultModal({

@@ -1,10 +1,13 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
+import {
+  readCustomerSession,
+  readSessionCart,
+  readSessionOrders,
+  writeSessionCart,
+  writeSessionOrders,
+} from "./customerSession.js";
 
 const CustomerContext = createContext(null);
-
-const CART_STORAGE_KEY = "lecker_customer_cart";
-const SESSION_STORAGE_KEY = "lecker_customer_session";
-const ORDERS_STORAGE_KEY = "lecker_customer_orders";
 
 export function formatVnd(amount) {
   if (amount == null || amount === "") return "0 đ";
@@ -14,44 +17,23 @@ export function formatVnd(amount) {
 }
 
 export function CustomerProvider({ children }) {
-  // Parse session from URL parameters (e.g., #customer?sessionId=1&token=abc&table=4)
-  const [session, setSession] = useState(() => {
-    try {
-      const hash = window.location.hash;
-      const qIndex = hash.indexOf("?");
-      if (qIndex !== -1) {
-        const params = new URLSearchParams(hash.slice(qIndex));
-        const sessionId = params.get("sessionId");
-        const token = params.get("token");
-        const tableNumber = params.get("table") || params.get("tableNumber") || "01";
-        if (sessionId && token) {
-          const s = { sessionId, token, tableNumber };
-          sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(s));
-          return s;
-        }
-      }
-      const saved = sessionStorage.getItem(SESSION_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
+  // The QR/session module must save the server-issued credential with
+  // saveCustomerSession(). Credentials are deliberately never read from URLs.
+  const [session] = useState(readCustomerSession);
 
   // Cart: [{ item: { id, name, price, imageUrl, ... }, quantity: 1 }]
   const [cart, setCart] = useState(() => {
     try {
-      const saved = sessionStorage.getItem(CART_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
+      return readSessionCart(session);
     } catch {
       return [];
     }
   });
 
-  // Placed orders history: [{ batchId, sessionId, totalVnd, editableUntil, items: [...] }]
+  // Placed orders use the exact CustomerOrderService.Order response contract.
   const [orders, setOrders] = useState(() => {
     try {
-      const saved = sessionStorage.getItem(ORDERS_STORAGE_KEY);
-      return saved ? JSON.parse(saved) : [];
+      return readSessionOrders(session);
     } catch {
       return [];
     }
@@ -64,20 +46,20 @@ export function CustomerProvider({ children }) {
   // Sync cart to sessionStorage
   useEffect(() => {
     try {
-      sessionStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+      writeSessionCart(session, cart);
     } catch {
       // ignore
     }
-  }, [cart]);
+  }, [cart, session]);
 
   // Sync orders to sessionStorage
   useEffect(() => {
     try {
-      sessionStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
+      writeSessionOrders(session, orders);
     } catch {
       // ignore
     }
-  }, [orders]);
+  }, [orders, session]);
 
   const addToCart = useCallback((item, quantity = 1) => {
     if (!item || quantity <= 0) return;
@@ -130,47 +112,16 @@ export function CustomerProvider({ children }) {
     setOrders((prev) => [batch, ...prev]);
   }, []);
 
-  const updateBatchItem = useCallback((batchId, itemId, newQuantity, newVersion) => {
+  const replacePlacedBatch = useCallback((updatedBatch) => {
+    if (!updatedBatch?.id) return;
     setOrders((prev) =>
-      prev.map((batch) => {
-        if (batch.batchId !== batchId && batch.id !== batchId) return batch;
-        return {
-          ...batch,
-          items: batch.items.map((it) => {
-            if (it.id !== itemId && it.menuItemId !== itemId) return it;
-            return {
-              ...it,
-              quantity: newQuantity,
-              version: newVersion !== undefined ? newVersion : (it.version || 0) + 1,
-            };
-          }),
-        };
-      })
-    );
-  }, []);
-
-  const markBatchItemCancelled = useCallback((batchId, itemId) => {
-    setOrders((prev) =>
-      prev.map((batch) => {
-        if (batch.batchId !== batchId && batch.id !== batchId) return batch;
-        return {
-          ...batch,
-          items: batch.items.map((it) => {
-            if (it.id !== itemId && it.menuItemId !== itemId) return it;
-            return {
-              ...it,
-              status: "CANCELLED",
-            };
-          }),
-        };
-      })
+      prev.map((batch) => (String(batch.id) === String(updatedBatch.id) ? updatedBatch : batch))
     );
   }, []);
 
   const value = useMemo(
     () => ({
       session,
-      setSession,
       cart,
       addToCart,
       updateCartQuantity,
@@ -180,8 +131,7 @@ export function CustomerProvider({ children }) {
       cartCount,
       orders,
       addPlacedBatch,
-      updateBatchItem,
-      markBatchItemCancelled,
+      replacePlacedBatch,
       currentTab,
       setCurrentTab,
       selectedItemForDetail,
@@ -198,8 +148,7 @@ export function CustomerProvider({ children }) {
       cartCount,
       orders,
       addPlacedBatch,
-      updateBatchItem,
-      markBatchItemCancelled,
+      replacePlacedBatch,
       currentTab,
       selectedItemForDetail,
     ]
