@@ -20,19 +20,27 @@ test("account route shares one layout; polling deduplicates notices and logout c
   let current = null;
   let notices = [{ id: "order:1", message: "Bàn 01 vừa gọi món" }];
   await page.route("**/api/v1/home/highlights", route => route.fulfill({ json: { newest: [], mostOrdered: [] } }));
-  await page.route("**/api/v1/home/account", route => {
+  await page.route("**/api/v1/home/account", async route => {
     const header = route.request().headers().authorization;
+    // Keep CUSTOMER identity reads slower than Profile to exercise out-of-order responses.
+    if (header === "Bearer test-customer-token") await new Promise(resolve => setTimeout(resolve, 100));
     if (!header) return route.fulfill({ status: 403, json: {} });
     current = header === "Bearer test-staff-token" ? staff
       : header === "Bearer test-admin-token" ? admin : customer;
     return route.fulfill({ json: current });
   });
-  await page.route("**/api/v1/auth/me", route => {
+  await page.route("**/api/v1/auth/me", async route => {
     const token = route.request().headers().authorization;
+    if (token === "Bearer test-customer-token") await new Promise(resolve => setTimeout(resolve, 100));
     const account = token === "Bearer test-staff-token" ? staff : token === "Bearer test-admin-token" ? admin : customer;
     return route.fulfill({ json: { ...account, fullName: account.name } });
   });
-  await page.route("**/api/v1/profiles/me", route => route.fulfill({ json: current }));
+  await page.route("**/api/v1/profiles/me", route => {
+    const token = route.request().headers().authorization;
+    const account = token === "Bearer test-staff-token" ? staff : token === "Bearer test-admin-token" ? admin : null;
+    return account ? route.fulfill({ json: account })
+      : route.fulfill({ status: token ? 403 : 401, json: { code: token ? "FORBIDDEN" : "UNAUTHORIZED" } });
+  });
   await page.route("**/api/v1/home/notifications", route => route.fulfill({
     json: { recipientId: current.id, items: [...notices, ...notices] },
   }));

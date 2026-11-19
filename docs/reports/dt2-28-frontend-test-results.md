@@ -6,7 +6,7 @@ Owner đã chấp nhận UI và cho phép commit/push/PR. Nhánh `feature/dt2-3_
 | --- | --- |
 | npm ci / lint / build | PASS; 0 lint warnings; 47 modules, JS309.79kB/gzip92.13kB; không đổi dependency/lockfile |
 | Unit validation | **4/4 PASS** |
-| Full Playwright, 2 workers | **176/176 PASS**, exit0, 0 skip/flaky: existing100 + lifecycle54 + product22, desktop/mobile |
+| Primary local Full Playwright, 2 workers | **176/176 PASS**, exit0, 0 skip/flaky: existing100 + lifecycle54 + product22, desktop/mobile |
 | Probe session switch | FAIL trước fix: login cũ ghi đè token phiên mới; thêm snapshot guard, regression nằm trong full176 desktop/mobile |
 | Real full-stack browser | **8/8 PASS**, Chromium/Vite → Spring Boot → MySQL8.0.45; **0 endpoint mock**, 0 skip/flaky |
 | Backend/MySQL | **315/315 Maven verify PASS**, 0 failure/error/skip; isolated schema theo fixture CI |
@@ -17,8 +17,16 @@ Owner đã chấp nhận UI và cho phép commit/push/PR. Nhánh `feature/dt2-3_
 | Governance | Registry17/routes16/inherited169; 17/17 script tests PASS; local feature→develop/title validation PASS |
 | npm audit | **0 vulnerabilities** trong lượt mới; audit18/11 từng báo5high là lịch sử. Không audit fix/force hoặc đổi package |
 | Whitespace/secret patterns/internal links | PASS trên danh sách DT2-28; private raw logs/config không stage |
-| GitHub Actions | Chạy sau publication; xác minh final HEAD trên PR, không dùng local làm CI PASS |
+| GitHub Actions | Primary có1Header fixture FAIL như phần follow-up; final HEAD xác minh trên PR, không dùng local/primary CI làm final CI PASS |
 | SonarQube/production rollout/UAT | NOT RUN |
+
+## CI follow-up — Header fixture (19/11/2026)
+
+Primary acceptance ở commit `eb9ff625141d2b1de448301db819bb4aaed0124b`. [CI primary](https://github.com/DTU-TEAM-2/smart-cafe-management/actions/runs/44456315680) có Backend315/315 PASS, Frontend175/176 PASS và1FAIL Header khi chuyển ADMIN→anonymous→CUSTOMER. Governance/Git Flow/title PASS; [Customer HTTP riêng](https://github.com/DTU-TEAM-2/smart-cafe-management/actions/runs/44456338452) PASS Menu16/31,QR9/16,Feedback16/25,Actions19/28. Không coi CI primary là toàn bộ SUCCESS.
+
+Probe làm chậm riêng Home/auth CUSTOMER100ms tái hiện **2/2 FAIL đúng triệu chứng**; log fixture xác nhận bearer CUSTOMER nhận profile role ADMIN từ biến current của request Home trước. Đây là HTTP fixture sai contract, khác API thật đã kiểm CUSTOMER403. Sửa route fixture Profile chọn principal bằng Authorization của chính request, trả ADMIN/STAFF đúng dữ liệu, CUSTOMER403/anonymous401. Giữ độ trễ có kiểm soát để bắt out-of-order responses, giữ nguyên toàn bộ assertion UI và không sửa production AuthContext/API.
+
+Sau fix: **20/20 repeat PASS** (10lần × desktop/mobile), **32/32 affected product UI/Header/Home PASS**, unit4 PASS và lint PASS. Không skip test, tăng timeout assertion hoặc giảm expectation. Tagged instrumentation bị loại khỏi source; bản probe và log FAIL giữ ngoài Git/ignored target. Đây là follow-up chỉ sửa fixture test và evidence, không đổi runtime/live E2E/Backend/DDL. Tái sử dụng đúng bằng chứng real8/Maven315/Newman ở primary source; machine evidence giữ hash live cũ, hash fixture mới và giải thích ngoại lệ test-only. Final HEAD Actions được chạy lại sau push, không dùng check xanh của primary thay thế.
 
 ## Lệnh và revision
 

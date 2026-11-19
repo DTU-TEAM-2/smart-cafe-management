@@ -58,7 +58,7 @@
     },
     "ownedSchemaRemoved": true
   },
-  "liveSourceManifestMatchesCurrent": true,
+  "liveSourceManifestMatchesCurrent": false,
   "sourceSha256": {
     "frontend/src/App.jsx": "a33200bc4022c65093a7ccc22b0d0b188daadcfb41872ac9cda9c5c6fbd49205",
     "frontend/src/fonts.css": "4f720a0b68b8f905753017e0041ff6500cfa20b255130c9964277069902d1e3a",
@@ -713,7 +713,7 @@
     "frontend/tests/auth-figma.spec.js": "0dfff4f66eb7676348095d91a67229173928930c8edabe0a248a62844d9c5810",
     "frontend/tests/auth-regression.spec.js": "e6334399c082cb09c78122d48fb5088f5125af4ed66bee9495c5c34f7826ceb8",
     "frontend/tests/auth.spec.js": "bee12ad3609336f7e915fd3eb9d0bca88b872a69477345e35b5ee4f65a89c68f",
-    "frontend/tests/header.spec.js": "1b602d7830b06b0f0742074c0149bb4275b3bb460571e12e64c6736cbd081b56",
+    "frontend/tests/header.spec.js": "a2492f2755c6315e18d26ba0378e229246cbd9c9c2466a7a853616405cde2977",
     "frontend/tests/home.spec.js": "015a82c1fed99bd0e82733297cc5ef1256a39a7b7c5cb74b4624dc7a59c2e16a",
     "frontend/tests/layout-harness.html": "c7b16c599fa07ed9e113a809a653d50f1b6ee88b3fdf1b35dad21f853d863db1",
     "frontend/tests/layout-harness.jsx": "a76aac8298c2c3624c3a635fbd26b9634de521703979fc0e3db9d1641206069d",
@@ -731,5 +731,53 @@
   "unchangedBaseSourcesWithCRLFWorkingCopies": [
     "frontend/src/home/HomePage.jsx"
   ],
-  "gitCanonicalSourceComparison": "PASS: authored source bytes match live; unchanged baseline CRLF working copies normalize to exact develop/index LF bytes"
+  "gitCanonicalSourceComparison": "PASS: runtime/live-test content unchanged; Header HTTP fixture has a separately verified test-only follow-up. Baseline HomePage CRLF working copy normalizes to exact develop/index LF bytes.",
+  "primaryAcceptanceRevision": "eb9ff625141d2b1de448301db819bb4aaed0124b",
+  "liveRuntimeAndLiveTestSourcesMatchCurrent": true,
+  "ciTestFixtureFollowUp": {
+    "verifiedAt": "2026-11-19T04:18:49.441059+00:00",
+    "changedSourceFiles": [
+      "frontend/tests/header.spec.js"
+    ],
+    "previousFixtureSha256": "1b602d7830b06b0f0742074c0149bb4275b3bb460571e12e64c6736cbd081b56",
+    "currentFixtureSha256": "a2492f2755c6315e18d26ba0378e229246cbd9c9c2466a7a853616405cde2977",
+    "runtimeChanged": false,
+    "primaryCiRun": "https://github.com/DTU-TEAM-2/smart-cafe-management/actions/runs/44456315680",
+    "primaryCiFrontend": {
+      "pass": 175,
+      "fail": 1
+    },
+    "primaryCiBackend": {
+      "tests": 315,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0
+    },
+    "controlledNegativeProbe": {
+      "failed": 2,
+      "passed": 0,
+      "artifact": "backend/target/dt2-28-ci-header-negative.log"
+    },
+    "rootCause": "Profile fixture read mutable current from a previous Home request and returned ADMIN data for a CUSTOMER bearer; real API denies CUSTOMER403. Controlled slow Home/auth responses reproduced the same missing CUSTOMER Header symptom.",
+    "fix": "Resolve Profile response from the captured request Authorization, allow only ADMIN/STAFF and return CUSTOMER403/anonymous401; retain out-of-order response timing and every existing UI assertion.",
+    "localRepeat": {
+      "expected": 20,
+      "unexpected": 0,
+      "projects": [
+        "desktop",
+        "mobile"
+      ],
+      "repeatEach": 10
+    },
+    "localAffectedRegression": {
+      "expected": 32,
+      "unexpected": 0,
+      "files": [
+        "account-ui.spec.js",
+        "header.spec.js",
+        "home.spec.js"
+      ]
+    },
+    "reuse": "Primary real browser8, Maven315 and Newman203/587+10SQL/Auth39/57 reused at primary revision; runtime, live E2E and Backend/API/DDL sources unchanged. Full final-head CI is verified on the PR after publication."
+  }
 }
