@@ -71,6 +71,15 @@ public class CustomerOrderService {
         return read(batch, sessionId);
     }
 
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public Order readOwned(long sessionId, long batch, String authorization) {
+        var client = access.lock(sessionId, authorization);
+        if (jdbc.queryForObject("SELECT COUNT(*) FROM order_batches WHERE id=? AND session_id=? AND submitted_by_client_id=?",
+                Long.class, batch, sessionId, client.id()) != 1)
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy lần gọi món của bạn.");
+        return read(batch, sessionId);
+    }
+
     Order read(long batch, long sessionId) {
         var items = jdbc.query("SELECT * FROM order_items WHERE session_id=? AND order_batch_id=? ORDER BY id", (r, n) ->
                 new Item(r.getString("id"), r.getString("menu_item_id"), r.getString("item_name"), r.getBigDecimal("unit_price").toPlainString(),

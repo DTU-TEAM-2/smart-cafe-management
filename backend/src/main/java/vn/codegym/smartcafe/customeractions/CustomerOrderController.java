@@ -17,6 +17,12 @@ public class CustomerOrderController {
             @NotNull @Min(1) @Max(2147483647) @Digits(integer = 10, fraction = 0) BigDecimal quantity) { }
     public record Command(@NotNull @Size(min = 1, max = 100) List<@NotNull @Valid Line> items) { }
 
+    @GetMapping("/{batchId}")
+    ResponseEntity<CustomerOrderService.Order> read(@PathVariable long sessionId, @PathVariable long batchId,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(orders.readOwned(sessionId, batchId, authorization));
+    }
+
     @PostMapping
     ResponseEntity<CustomerOrderService.Order> submit(@PathVariable long sessionId,
             @RequestHeader(value = "Authorization", required = false) String authorization,

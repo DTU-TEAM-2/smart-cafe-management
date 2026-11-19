@@ -1,15 +1,59 @@
+import { useState, useEffect, useRef } from "react";
 import { useCustomer, formatVnd } from "./CustomerContext.jsx";
+import { fetchMenuItem } from "./customerApi.js";
 
 export default function CustomerCartView({ onNavigateMenu }) {
   const {
     cart,
     updateCartQuantity,
+    updateCartItemPrice,
     removeFromCart,
     cartTotal,
     isSubmittingOrder,
     pendingOrderSnapshot,
     submitOrder,
   } = useCustomer();
+
+  const [priceNotice, setPriceNotice] = useState(null);
+  const revalidatedRef = useRef(false);
+
+  useEffect(() => {
+    if (cart.length === 0 || revalidatedRef.current) return;
+    revalidatedRef.current = true;
+    let mounted = true;
+
+    (async () => {
+      const changes = [];
+      for (const entry of cart) {
+        try {
+          const fresh = await fetchMenuItem(entry.item.id);
+          if (fresh && fresh.price != null && String(fresh.price) !== String(entry.item.price)) {
+            changes.push({
+              name: entry.item.name,
+              oldPrice: entry.item.price,
+              newPrice: fresh.price,
+            });
+            if (mounted) {
+              updateCartItemPrice(entry.item.id, fresh.price);
+            }
+          }
+        } catch {
+          // Keep cached price on network failure
+        }
+      }
+      if (mounted && changes.length > 0) {
+        setPriceNotice(
+          `Giá món đã được cập nhật theo thực đơn mới nhất: ${changes
+            .map((c) => `${c.name} (${formatVnd(c.oldPrice)} → ${formatVnd(c.newPrice)})`)
+            .join(", ")}.`
+        );
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [cart, updateCartItemPrice]);
 
   const isEmpty = cart.length === 0;
 
@@ -24,6 +68,12 @@ export default function CustomerCartView({ onNavigateMenu }) {
       <p className="c-subtitle">
         {isEmpty ? "Chưa có món nào được chọn" : `Bạn đang chọn ${cart.length} món`}
       </p>
+
+      {priceNotice && (
+        <div className="c-badge" style={{ backgroundColor: "#eff6ff", color: "#1d4ed8", padding: "8px 12px", borderRadius: "6px", marginBottom: "12px", display: "block" }}>
+          {priceNotice}
+        </div>
+      )}
 
       {/* Empty Cart (08-cart-empty.png) */}
       {isEmpty && (

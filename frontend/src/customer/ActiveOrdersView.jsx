@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useCustomer, formatVnd } from "./CustomerContext.jsx";
-import { updateOrderItem, cancelOrderItem, fetchCsrfToken } from "./customerApi.js";
+import { updateOrderItem, cancelOrderItem, fetchCsrfToken, fetchOrder } from "./customerApi.js";
 import OrderResultModal from "./OrderResultModal.jsx";
 
 export default function ActiveOrdersView({ onNavigateMenu }) {
@@ -10,6 +10,50 @@ export default function ActiveOrdersView({ onNavigateMenu }) {
   const [cancellingItem, setCancellingItem] = useState(null); // { batchId, item }
   const [actionError, setActionError] = useState(null);
   const [submittingAction, setSubmittingAction] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const batchIds = orders.map((batch) => batch.id).join(",");
+  useEffect(() => {
+    if (!batchIds || !session?.token) return;
+    let active = true;
+    setRefreshing(true);
+    Promise.all(batchIds.split(",").map(async (batchId) => {
+      const fresh = await fetchOrder({ ...session, batchId });
+      if (active) replacePlacedBatch(fresh);
+    })).catch((err) => {
+      if (active) setActionError(err.message);
+    }).finally(() => {
+      if (active) setRefreshing(false);
+    });
+    return () => { active = false; };
+  }, [batchIds, session, replacePlacedBatch]);
+
+  async function refreshOrders() {
+    setRefreshing(true);
+    setActionError(null);
+    try {
+      await Promise.all(orders.map(async (batch) => {
+        replacePlacedBatch(await fetchOrder({ ...session, batchId: batch.id }));
+      }));
+      setEditingItem(null);
+      setCancellingItem(null);
+    } catch (err) {
+      setActionError(err.message);
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  async function recoverBatch(batchId, error) {
+    try {
+      replacePlacedBatch(await fetchOrder({ ...session, batchId }));
+      setEditingItem(null);
+      setCancellingItem(null);
+      setActionError("Đã tải trạng thái mới nhất. Vui lòng kiểm tra đơn trước khi thao tác tiếp.");
+    } catch {
+      setActionError(`${error.message} Chưa thể xác minh kết quả. Hãy tải lại đơn khi có kết nối.`);
+    }
+  }
 
   // Live timer tick every 1000ms
   useEffect(() => {
@@ -60,7 +104,7 @@ export default function ActiveOrdersView({ onNavigateMenu }) {
       replacePlacedBatch(updated);
       setEditingItem(null);
     } catch (err) {
-      setActionError(err.message || "Không thể cập nhật số lượng món.");
+      await recoverBatch(editingItem.batchId, err);
     } finally {
       setSubmittingAction(false);
     }
@@ -84,7 +128,7 @@ export default function ActiveOrdersView({ onNavigateMenu }) {
       replacePlacedBatch(updated);
       setCancellingItem(null);
     } catch (err) {
-      setActionError(err.message || "Không thể hủy món.");
+      await recoverBatch(cancellingItem.batchId, err);
     } finally {
       setSubmittingAction(false);
     }
@@ -98,6 +142,9 @@ export default function ActiveOrdersView({ onNavigateMenu }) {
           ? "Danh sách các món đã gửi tới quầy bar trong phiên phục vụ này"
           : "Chưa có đơn món nào được gửi"}
       </p>
+      {hasOrders && <button type="button" className="c-btn-icon" onClick={refreshOrders} disabled={refreshing || submittingAction}>
+        {refreshing ? "ĐANG TẢI LẠI..." : "TẢI LẠI ĐƠN"}
+      </button>}
 
       {/* Empty State */}
       {!hasOrders && (
@@ -183,7 +230,7 @@ export default function ActiveOrdersView({ onNavigateMenu }) {
                               : status}
                           </span>
 
-                          {isItemEditable && (
+                          {isItemEditable && !refreshing && (
                             <>
                               <button
                                 type="button"

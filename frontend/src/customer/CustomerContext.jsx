@@ -101,6 +101,16 @@ export function CustomerProvider({ children }) {
     });
   }, []);
 
+  const updateCartItemPrice = useCallback((itemId, newPrice) => {
+    setCart((prev) =>
+      prev.map((entry) =>
+        String(entry.item.id) === String(itemId)
+          ? { ...entry, item: { ...entry.item, price: String(newPrice) } }
+          : entry
+      )
+    );
+  }, []);
+
   const removeFromCart = useCallback((itemId) => {
     setCart((prev) => prev.filter((entry) => entry.item.id !== itemId));
   }, []);
@@ -184,10 +194,10 @@ export function CustomerProvider({ children }) {
       if (cart.length === 0) return;
       const initialPayload = cart
         .map((entry) => ({
-          menuItemId: Number(entry.item.id),
+          menuItemId: String(entry.item.id),
           quantity: Number(entry.quantity),
         }))
-        .sort((a, b) => a.menuItemId - b.menuItemId);
+        .sort((a, b) => BigInt(a.menuItemId) < BigInt(b.menuItemId) ? -1 : BigInt(a.menuItemId) > BigInt(b.menuItemId) ? 1 : 0);
       const attempt = getOrCreateOrderAttempt(session, initialPayload);
       orderPayload = attempt.payload;
       idempotencyKey = attempt.idempotencyKey;
@@ -240,6 +250,7 @@ export function CustomerProvider({ children }) {
       cart,
       addToCart,
       updateCartQuantity,
+      updateCartItemPrice,
       removeFromCart,
       clearCart,
       subtractFromCart,
@@ -263,6 +274,7 @@ export function CustomerProvider({ children }) {
       cart,
       addToCart,
       updateCartQuantity,
+      updateCartItemPrice,
       removeFromCart,
       clearCart,
       subtractFromCart,

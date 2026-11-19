@@ -821,4 +821,149 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     await expect(page.getByText("Món phản hồi trễ 1")).toHaveCount(0);
     await expect(page.getByText("Trà đúng bộ lọc")).toBeVisible();
   });
+
+  test("17. Reuses attempt and idempotency key even when sessionStorage throws quota error", async ({ page }) => {
+    let orderRequests = [];
+    await page.route(/\/api\/v1\/customer\/sessions\/10\/orders$/, async (route) => {
+      const body = JSON.parse(route.request().postData());
+      const key = route.request().headers()["idempotency-key"];
+      orderRequests.push({ key, body });
+      if (orderRequests.length === 1) {
+        return route.abort("failed");
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: 88,
+          sessionId: 10,
+          totalAmount: "45000",
+          sessionTotalAmount: "45000",
+          editableUntil: new Date(Date.now() + 180000).toISOString(),
+          items: [{ id: "item-88", menuItemId: "101", name: "Caramel Latte", unitPrice: "45000", lineTotal: "45000", quantity: 1, version: "0", status: "SUBMITTED" }],
+        }),
+      });
+    });
+
+    await page.addInitScript(() => {
+      const origSetItem = sessionStorage.setItem.bind(sessionStorage);
+      sessionStorage.setItem = (k, v) => {
+        if (typeof k === "string" && k.includes("attempt")) {
+          throw new DOMException("QuotaExceededError", "QuotaExceededError");
+        }
+        return origSetItem(k, v);
+      };
+    });
+
+    await page.goto("/#customer");
+    await page.getByLabel("Thêm Caramel Latte vào giỏ hàng").click();
+    await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+    await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+
+    await expect(page.getByText(/Đặt món thất bại/)).toBeVisible();
+    await page.getByRole("button", { name: "ĐÃ HIỂU" }).click();
+
+    // Retry sending order
+    await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+    await expect(page.getByText(/Đặt món thành công/)).toBeVisible();
+
+    expect(orderRequests).toHaveLength(2);
+    expect(orderRequests[0].key).toBe(orderRequests[1].key);
+    expect(orderRequests[0].body).toEqual(orderRequests[1].body);
+  });
+
+  test("18. Revalidates cart item prices when viewing cart and reflects latest menu price", async ({ page }) => {
+    let priceCurrent = "45000";
+    await page.route(/\/api\/v1\/customer\/menu\/101$/, (route) => {
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: "101",
+          code: "CF01",
+          name: "Caramel Latte",
+          price: priceCurrent,
+          available: true,
+          categoryId: "1",
+          categoryName: "Cà phê",
+        }),
+      });
+    });
+
+    await page.goto("/#customer");
+    await page.getByLabel("Thêm Caramel Latte vào giỏ hàng").click();
+
+    // Price updates on backend
+    priceCurrent = "50000";
+
+    await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+    await expect(page.locator(".c-badge")).toContainText(/Giá món đã được cập nhật theo thực đơn mới nhất/);
+    await expect(page.locator(".c-cart-price")).toHaveText("50.000 đ");
+    await expect(page.locator(".c-summary-total-price")).toHaveText("50.000 đ");
+  });
+
+  test("19. Menu filter switch clears previous items so failure does not render stale items", async ({ page }) => {
+    await page.route(/\/api\/v1\/customer\/menu\/items(\?.*)?$/, (route) => {
+      const url = new URL(route.request().url());
+      if (url.searchParams.get("categoryId") === "2") {
+        return route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ detail: "Lỗi kết nối cơ sở dữ liệu." }) });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          content: [{ id: "101", code: "CF01", name: "Caramel Latte", price: "45000", available: true, categoryId: "1", categoryName: "Cà phê" }],
+          totalElements: 1,
+          page: 0,
+          size: 20,
+        }),
+      });
+    });
+
+    await page.goto("/#customer");
+    await expect(page.getByText("Caramel Latte")).toBeVisible();
+    await page.getByRole("tab", { name: /Trà & Trái cây/ }).click();
+    await expect(page.getByText("Lỗi kết nối cơ sở dữ liệu.")).toBeVisible();
+    await expect(page.getByText("Caramel Latte")).toHaveCount(0);
+  });
+
+  test("20. Preserves large BigInt menuItemId in order payload without Number precision loss", async ({ page }) => {
+    let capturedPayload = null;
+    await page.route(/\/api\/v1\/customer\/menu\/items(\?.*)?$/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          content: [{ id: "9007199254740993", code: "CF99", name: "Món BigInt ID", price: "50000", available: true, categoryId: "1", categoryName: "Cà phê" }],
+          totalElements: 1,
+          page: 0,
+          size: 20,
+        }),
+      })
+    );
+
+    await page.route(/\/api\/v1\/customer\/sessions\/10\/orders$/, async (route) => {
+      capturedPayload = JSON.parse(route.request().postData());
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: 99,
+          sessionId: 10,
+          totalAmount: "50000",
+          sessionTotalAmount: "50000",
+          editableUntil: new Date(Date.now() + 180000).toISOString(),
+          items: [{ id: "item-99", menuItemId: "9007199254740993", name: "Món BigInt ID", unitPrice: "50000", lineTotal: "50000", quantity: 1, version: "0", status: "SUBMITTED" }],
+        }),
+      });
+    });
+
+    await page.goto("/#customer");
+    await page.getByLabel("Thêm Món BigInt ID vào giỏ hàng").click();
+    await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+    await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+    await expect(page.getByText(/Đặt món thành công/)).toBeVisible();
+
+    expect(capturedPayload.items[0].menuItemId).toBe("9007199254740993");
+  });
 });

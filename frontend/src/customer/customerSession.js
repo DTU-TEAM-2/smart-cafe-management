@@ -127,27 +127,38 @@ export function getOrCreateAttempt(session, operation, payload = null) {
   return idempotencyKey;
 }
 
-export function clearAttempt(session, operation) {
-  const key = scopedKey(`${ATTEMPT_STORAGE_PREFIX}:${operation}`, session);
-  if (key) sessionStorage.removeItem(key);
-}
+const memoryFallback = new Map();
 
 function readJson(key, fallback) {
   if (!key) return fallback;
   try {
     const value = sessionStorage.getItem(key);
-    return value ? JSON.parse(value) : fallback;
+    if (value) return JSON.parse(value);
   } catch {
-    return fallback;
+    // Fall back to in-memory store
   }
+  return memoryFallback.has(key) ? memoryFallback.get(key) : fallback;
 }
 
 function writeJson(key, value) {
   if (!key) return;
+  memoryFallback.set(key, value);
   try {
     sessionStorage.setItem(key, JSON.stringify(value));
   } catch {
-    // Storage can be unavailable in privacy mode; the current in-memory state
-    // still works, but the caller must not treat persistence as guaranteed.
+    // Storage can be unavailable in privacy mode or fail on quota;
+    // in-memory fallback guarantees attempt idempotency persists across retries in the current session.
+  }
+}
+
+export function clearAttempt(session, operation) {
+  const key = scopedKey(`${ATTEMPT_STORAGE_PREFIX}:${operation}`, session);
+  if (key) {
+    memoryFallback.delete(key);
+    try {
+      sessionStorage.removeItem(key);
+    } catch {
+      // ignore
+    }
   }
 }

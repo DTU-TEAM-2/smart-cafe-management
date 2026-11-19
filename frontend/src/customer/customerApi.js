@@ -101,6 +101,17 @@ export async function fetchMenuItem(itemId) {
   return res.json();
 }
 
+export async function fetchOrder({ sessionId, token, batchId }) {
+  const res = await fetch(`/api/v1/customer/sessions/${encodeURIComponent(sessionId)}/orders/${encodeURIComponent(batchId)}`, {
+    headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+    credentials: "same-origin",
+    cache: "no-store",
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || "Không thể tải lại đơn món. Vui lòng thử lại.");
+  return normalizeOrder(data, res);
+}
+
 export async function createOrder({ sessionId, token, items, idempotencyKey, csrf = null }) {
   const headers = {
     "Content-Type": "application/json",
@@ -120,7 +131,7 @@ export async function createOrder({ sessionId, token, items, idempotencyKey, csr
     credentials: "same-origin",
     body: JSON.stringify({
       items: items.map((it) => ({
-        menuItemId: Number(it.menuItemId || it.id),
+        menuItemId: String(it.menuItemId ?? it.id),
         quantity: Number(it.quantity),
       })),
     }),

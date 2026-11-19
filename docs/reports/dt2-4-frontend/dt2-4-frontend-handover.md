@@ -104,6 +104,10 @@ Trong quá trình review PR #20, nhóm phát triển đã tiếp nhận và xử
 7. **[P2 Multi-client Bill Request]:** Bỏ guard local `orders.length === 0` tại `ServiceRequestsView.jsx`, cho phép khách B cùng bàn yêu cầu thanh toán khi khách A đã đặt món.
 8. **[P1 Idempotency / Immutable Order Attempt across Retry]:** Quản lý attempt bất biến `{ idempotencyKey, payload }` tại `customerSession.js` và `CustomerContext.jsx`. Khi request đầu gặp sự cố mạng, các lần retry tiếp theo sử dụng đúng key và payload gốc ban đầu, không trộn món mới thêm vào batch cũ; sau khi retry thành công chỉ trừ món đã xác nhận, giữ nguyên món mới trong giỏ để gửi ở batch độc lập tiếp theo.
 9. **[P2 Menu Pagination / Failure & Filter Handling]:** Phân trang động `PAGE_SIZE = 20`, không tăng `page` trước request mà tính `nextPage = Math.floor(items.length / PAGE_SIZE)`. Khi tải trang 1 bị lỗi (ví dụ 503), lần bấm Xem thêm tiếp theo sẽ retry đúng trang 1 (không bỏ qua món 21–40); khi đổi filter trong lúc đang chờ thì luôn reset `loadingMore = false` và tải trang 0 của nhóm mới, không làm khóa nút.
+10. **[P1 Idempotency Storage Failure Fallback]:** Thêm cơ chế in-memory fallback tại `customerSession.js` dự phòng trường hợp `sessionStorage.setItem` ném ngoại lệ (do quota/privacy mode), đảm bảo chu kỳ sống của phiên hiện tại luôn duy trì đúng attempt và `Idempotency-Key` khi retry, không sinh đơn trùng.
+11. **[P2 Cart Price Revalidation]:** Tự động kiểm tra và đồng bộ lại đơn giá các món trong giỏ hàng theo giá thực đơn mới nhất từ backend, hiển thị thông báo giá cập nhật và phản ánh đúng tổng tiền trước khi gửi đơn.
+12. **[P2 Menu Filter Stale Items Reset]:** Dọn dẹp danh sách món và tổng số lượng ngay khi người dùng chuyển tab phân loại hoặc từ khóa, ngăn hiển thị món cũ nếu trang 0 của bộ lọc mới gặp sự cố mạng.
+13. **[P2 BigInt menuItemId Precision]:** Giữ `menuItemId` dưới dạng chuỗi và so sánh bằng BigInt, ngăn chặn hiện tượng làm tròn mất độ chính xác khi ID MySQL BIGINT vượt ngưỡng `Number.MAX_SAFE_INTEGER`.
 
 ---
 

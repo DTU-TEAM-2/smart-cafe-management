@@ -38,6 +38,8 @@ export default function CustomerMenuView() {
     filterGeneration.current += 1;
     let mounted = true;
     setLoading(true);
+    setItems([]);
+    setTotalElements(0);
     setLoadingMore(false);
     setError(null);
 
