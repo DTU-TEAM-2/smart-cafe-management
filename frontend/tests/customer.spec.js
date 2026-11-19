@@ -720,7 +720,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
 
     await expect(page.locator(".c-result-title")).toHaveText("Đặt món thành công!");
     expect(keys[1]).not.toBe(keys[0]);
-    expect(payloads[1].items).toEqual([{ menuItemId: "102", quantity: 1 }]);
+    expect(payloads[1].items).toEqual([{ menuItemId: "102", quantity: 1, expectedUnitPrice: "35000" }]);
   });
 
   test("13. Keeps unavailable menu items visible but impossible to add", async ({ page }) => {
@@ -1083,6 +1083,81 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     await page.getByRole("button", { name: "GỬI PHẢN HỒI NGAY", exact: true }).click();
     await expect(page.getByText("Cảm ơn bạn!", { exact: true })).toBeVisible();
     expect(posts).toBe(1); expect(multipart).toBe(true);
+  });
+
+  test("25. Locks cart mutations throughout delayed price preflight and POST", async ({ page }, info) => {
+    await page.route(/\/api\/v1\/customer\/menu\/items(\?.*)?$/, route => route.fulfill({
+      json: { ...mockMenuItems, content: mockMenuItems.content.map(item => ({ ...item, imageUrl: null })) },
+    }));
+    let releasePrice;
+    let releasePost;
+    const priceGate = new Promise(resolve => { releasePrice = resolve; });
+    const postGate = new Promise(resolve => { releasePost = resolve; });
+    let priceStarted = false;
+    let payload;
+    await page.route("**/api/v1/customer/menu/items/101", async route => {
+      priceStarted = true;
+      await priceGate;
+      await route.fulfill({ json: mockMenuItems.content[0] });
+    });
+    await page.route("**/api/v1/customer/sessions/10/orders", async route => {
+      payload = route.request().postDataJSON();
+      await postGate;
+      await route.abort();
+    });
+    await page.goto("/#customer");
+    await page.getByLabel("Thêm Caramel Latte vào giỏ hàng").click();
+    await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+    await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+    await expect.poll(() => priceStarted).toBe(true);
+    await expect(page.getByLabel("Tăng số lượng", { exact: true })).toBeDisabled();
+    await expect(page.getByLabel("Giảm số lượng", { exact: true })).toBeDisabled();
+    await expect(page.getByLabel("Xóa Caramel Latte khỏi giỏ")).toBeDisabled();
+    await expect(page.locator(".c-stepper-value")).toHaveText("1");
+    if (info.project.name === "mobile") {
+      await page.screenshot({ path: "../docs/handover/evidence/dt2-4/screenshots/11-fe-cart-preflight-lock.png" });
+    }
+    await page.getByRole("button", { name: /Thực đơn/ }).click();
+    await expect(page.getByLabel("Thêm Bạc xỉu Sài Gòn vào giỏ hàng")).toBeDisabled();
+    await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+    releasePrice();
+    await expect.poll(() => payload).toBeTruthy();
+    expect(payload.items).toEqual([{ menuItemId: "101", quantity: 1, expectedUnitPrice: "45000" }]);
+    await expect(page.getByLabel("Tăng số lượng", { exact: true })).toBeDisabled();
+    releasePost();
+    await expect(page.getByText("Đặt món thất bại", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "ĐÓNG", exact: true }).click();
+    await expect(page.getByLabel("Tăng số lượng", { exact: true })).toBeEnabled();
+  });
+
+  test("26. Rejects a price race then requires review and new consent before another POST", async ({ page }, info) => {
+    let price = "45000";
+    const attempts = [];
+    await page.route("**/api/v1/customer/menu/items/101", route => route.fulfill({ json: { ...mockMenuItems.content[0], price } }));
+    await page.route("**/api/v1/customer/sessions/10/orders", route => {
+      attempts.push({ key: route.request().headers()["idempotency-key"], body: route.request().postDataJSON() });
+      price = "50000";
+      return route.fulfill({ status: 409, json: { status: 409, detail: "Giá món đã thay đổi. Vui lòng tải lại giá, kiểm tra tổng tiền và xác nhận trước khi gửi đơn mới." } });
+    });
+    await page.goto("/#customer");
+    await page.getByLabel("Thêm Caramel Latte vào giỏ hàng").click();
+    await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+    await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+    await expect(page.getByText("Đặt món thất bại", { exact: true })).toBeVisible();
+    expect(attempts[0].body.items[0].expectedUnitPrice).toBe("45000");
+    await page.getByRole("button", { name: "THỬ LẠI", exact: true }).click();
+    await expect(page.getByText("Giá món đã thay đổi", { exact: true })).toBeVisible();
+    expect(attempts).toHaveLength(1);
+    if (info.project.name === "mobile") {
+      await page.screenshot({ path: "../docs/handover/evidence/dt2-4/screenshots/12-fe-price-race-consent.png" });
+    }
+    await page.getByRole("button", { name: "XEM LẠI GIỎ", exact: true }).click();
+    await expect(page.locator(".c-summary-total-price")).toHaveText("50.000 đ");
+    expect(attempts).toHaveLength(1);
+    await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+    await expect.poll(() => attempts.length).toBe(2);
+    expect(attempts[1].key).not.toBe(attempts[0].key);
+    expect(attempts[1].body.items[0].expectedUnitPrice).toBe("50000");
   });
 
   test("20. Preserves large BigInt menuItemId in order payload without Number precision loss", async ({ page }) => {

@@ -4,7 +4,7 @@ import { fetchCategories, fetchMenuItems } from "./customerApi.js";
 import ItemDetailModal from "./ItemDetailModal.jsx";
 
 export default function CustomerMenuView() {
-  const { addToCart, selectedItemForDetail, setSelectedItemForDetail } = useCustomer();
+  const { addToCart, selectedItemForDetail, setSelectedItemForDetail, isSubmittingOrder } = useCustomer();
   const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
   const [activeCategoryId, setActiveCategoryId] = useState(null);
@@ -255,7 +255,7 @@ export default function CustomerMenuView() {
                       addToCart(item, 1);
                     }}
                     aria-label={item.available === false ? `${item.name} tạm hết` : `Thêm ${item.name} vào giỏ hàng`}
-                    disabled={item.available === false}
+                    disabled={item.available === false || isSubmittingOrder}
                   >
                     {item.available === false ? "—" : "+"}
                   </button>

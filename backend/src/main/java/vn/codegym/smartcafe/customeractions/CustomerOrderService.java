@@ -32,7 +32,9 @@ public class CustomerOrderService {
         var lines = command.items().stream().sorted(Comparator.comparing(CustomerOrderController.Line::menuItemId)).toList();
         if (lines.stream().map(CustomerOrderController.Line::menuItemId).distinct().count() != lines.size())
             throw bad("Mỗi món chỉ được xuất hiện một lần trong lần gửi đơn.");
-        String hash = CustomerAccess.hash(client.id() + ":" + lines.stream().map(l -> l.menuItemId() + "=" + l.quantity().intValueExact()).toList());
+        // Preserve legacy hashes when the optional price precondition is absent.
+        String hash = CustomerAccess.hash(client.id() + ":" + lines.stream().map(l -> l.menuItemId() + "=" + l.quantity().intValueExact()
+                + (l.expectedUnitPrice() == null ? "" : "@" + l.expectedUnitPrice().stripTrailingZeros().toPlainString())).toList());
         var prior = jdbc.queryForList("SELECT id,request_hash FROM order_batches WHERE session_id=? AND idempotency_key=?", sessionId, key);
         if (!prior.isEmpty()) {
             if (!hash.equals(prior.getFirst().get("request_hash"))) throw conflict("Mã gửi lại đã được dùng cho nội dung khác.");
@@ -48,6 +50,9 @@ public class CustomerOrderService {
                     """, line.menuItemId());
             if (menu.isEmpty()) throw conflict("Món đã ngừng phục vụ hoặc không còn tồn tại.");
             var row = menu.getFirst();
+            // This locked server price stays stable until the order transaction commits.
+            if (line.expectedUnitPrice() != null && ((BigDecimal) row.get("price")).compareTo(line.expectedUnitPrice()) != 0)
+                throw conflict("Giá món đã thay đổi. Vui lòng tải lại giá, kiểm tra tổng tiền và xác nhận trước khi gửi đơn mới.");
             BigDecimal amount = ((BigDecimal) row.get("price")).multiply(line.quantity());
             total = total.add(amount);
             if (amount.compareTo(new BigDecimal("999999999999999999")) > 0 || total.compareTo(new BigDecimal("999999999999999999")) > 0)

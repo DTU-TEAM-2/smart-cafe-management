@@ -13,7 +13,7 @@ Các thao tác ghi khóa theo thứ tự bàn → phiên → client; cùng thứ
 | Method / route | Payload / header | Kết quả |
 | --- | --- | --- |
 | GET `/api/v1/customer/sessions/{id}/orders/{batchId}` | Bearer của client đã gửi batch; không cần CSRF | 200 snapshot/version/tổng hiện tại, no-store; 401 token/scope/hạn không hợp lệ, 404 batch không thuộc client. Đọc được trong CHECKOUT để phục hồi kết quả; không mở quyền ghi. |
-| POST `/api/v1/customer/sessions/{id}/orders` | `Idempotency-Key`, `{"items":[{"menuItemId":12,"quantity":2}]}` | 200, batch và các dòng snapshot, tổng VND dạng chuỗi, editableUntil; 400 rỗng/sai, 409 món ngừng phục vụ/mã gửi lại khác payload. |
+| POST `/api/v1/customer/sessions/{id}/orders` | `Idempotency-Key`, `{"items":[{"menuItemId":"12","quantity":2,"expectedUnitPrice":"45000"}]}` | 200, batch và các dòng snapshot, tổng VND dạng chuỗi, editableUntil; 400 rỗng/sai, 409 món ngừng phục vụ/giá khác giá đã xác nhận/mã gửi lại khác payload. |
 | PATCH `/api/v1/customer/sessions/{id}/order-items/{itemId}` | `{"quantity":3,"expectedVersion":0}` | 200 batch hiện tại, tăng version; 404 không phải người gửi; 409 hết hạn, đã chuẩn bị, phiên bản cũ hoặc đã lập bill. |
 | DELETE `/api/v1/customer/sessions/{id}/order-items/{itemId}` | `{"expectedVersion":1}` | 200, đánh dấu CANCELLED cùng mốc thời gian/lý do, giữ lịch sử; không DELETE vật lý. |
 | POST `/api/v1/customer/sessions/{id}/waiter-requests` | `Idempotency-Key`, không cần body | 200, yêu cầu WAITER đúng phiên. |
@@ -22,6 +22,14 @@ Các thao tác ghi khóa theo thứ tự bàn → phiên → client; cùng thứ
 Chỉ gửi **các món mới chưa Order** trong payload batch. Gửi lại cùng thao tác phải giữ nguyên Idempotency-Key (1–64 ASCII không có khoảng trắng); cùng key/payload trả lại batch hiện tại, không tăng quantity. Đổi key biểu thị một lần Order mới có chủ ý, kể cả gọi thêm cùng món. Không gửi toàn bộ giỏ tích lũy hoặc tạo key mới khi retry mạng. Một request tối đa 100 món phân biệt; số lượng nguyên dương không vượt int MySQL, kiểm tổng theo DECIMAL(18,0).
 
 Danh sách món được sắp theo ID trước khi băm payload và khóa; batch chỉ ghi khi tất cả món/danh mục active và available. Server không lấy giá/tên/tổng từ client. Snapshot không đổi khi menu đổi giá. Giới hạn sửa/hủy là 180 giây và trạng thái SUBMITTED theo xác nhận QA-03 ngày 13/11/2026; tại đúng editableUntil đã hết hạn. Chỉ client đã gửi batch được sửa/hủy, không mở quyền sửa đơn của thiết bị khác.
+
+### Giá đã xác nhận và retry Order
+
+FE gửi `expectedUnitPrice` cho mỗi món mới: chuỗi số nguyên VND dương, tối đa 18 chữ số (đúng constraint giá menu), không làm tròn qua JavaScript Number. Đây là điều kiện so sánh, không phải giá có thẩm quyền. Server vẫn lấy `menu_items.price` và tạo snapshot từ MySQL; so sánh dưới khóa `FOR SHARE` trong cùng transaction trước mọi INSERT. Khác giá trả 409 Problem Details tiếng Việt, không tạo batch/item và không lưu khóa lần gửi bị từ chối. FE tải lại giá, hiển thị tổng mới và yêu cầu khách xem lại giỏ rồi chủ động gửi lại; không tự đặt theo giá mới.
+
+Giá kỳ vọng được ràng buộc trong request hash. Replay cùng khóa/payload của batch đã commit được đọc trước kiểm giá menu hiện tại, nên mất response rồi menu đổi giá vẫn trả batch cũ, không tạo đơn trùng. Retry chưa rõ kết quả giữ nguyên khóa và payload, kể cả giá kỳ vọng.
+
+Trường này bổ sung tương thích: client cũ/attempt đã lưu không có `expectedUnitPrice` vẫn dùng giá server như hợp đồng trước; không tuyên bố bảo đảm xác nhận giá cho client bỏ trường. Không đổi schema hoặc giá lịch sử. FE khóa thêm/xóa/đổi số lượng ngay từ khi bắt đầu preflight đến khi POST kết thúc, kể cả đổi tab.
 
 Service request dùng ràng buộc duy nhất hiện có `(session_id,idempotency_key)` và `active_request_key`. Gửi lại khóa đã lưu với cùng loại trả HTTP 200 cùng ID và trạng thái hiện tại, kể cả khi yêu cầu đã kết thúc. Dùng khóa đã lưu cho loại khác trả 409.
 

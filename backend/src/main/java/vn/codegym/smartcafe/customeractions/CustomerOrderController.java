@@ -14,7 +14,10 @@ public class CustomerOrderController {
     private final CustomerOrderService orders;
     public CustomerOrderController(CustomerOrderService orders) { this.orders = orders; }
     public record Line(@NotNull @Positive Long menuItemId,
-            @NotNull @Min(1) @Max(2147483647) @Digits(integer = 10, fraction = 0) BigDecimal quantity) { }
+            @NotNull @Min(1) @Max(2147483647) @Digits(integer = 10, fraction = 0) BigDecimal quantity,
+            @DecimalMin("1") @Digits(integer = 18, fraction = 0) BigDecimal expectedUnitPrice) {
+        public Line(Long menuItemId, BigDecimal quantity) { this(menuItemId, quantity, null); }
+    }
     public record Command(@NotNull @Size(min = 1, max = 100) List<@NotNull @Valid Line> items) { }
 
     @GetMapping("/{batchId}")

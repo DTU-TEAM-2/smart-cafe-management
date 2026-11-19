@@ -133,6 +133,7 @@ export async function createOrder({ sessionId, token, items, idempotencyKey, csr
       items: items.map((it) => ({
         menuItemId: String(it.menuItemId ?? it.id),
         quantity: Number(it.quantity),
+        ...(it.expectedUnitPrice != null ? { expectedUnitPrice: String(it.expectedUnitPrice) } : {}),
       })),
     }),
   });

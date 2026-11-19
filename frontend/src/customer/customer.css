@@ -74,7 +74,7 @@
   transition: all 0.2s ease;
 }
 
-.c-btn-icon:hover {
+.c-btn-icon:hover:not(:disabled) {
   background: rgba(213, 169, 83, 0.1);
   color: #d5a953;
 }
@@ -325,7 +325,7 @@
   transition: all 0.15s;
 }
 
-.c-stepper-btn:hover {
+.c-stepper-btn:hover:not(:disabled) {
   background: #d5a953;
   color: #100e0c;
 }
@@ -336,6 +336,13 @@
   color: #f4ede2;
   min-width: 32px;
   text-align: center;
+}
+
+.c-stepper-btn:disabled,
+.c-btn-icon:disabled,
+.c-btn-add:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
 }
 
 /* Primary CTA Button */

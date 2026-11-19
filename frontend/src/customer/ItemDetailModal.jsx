@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useCustomer, formatVnd } from "./CustomerContext.jsx";
 
 export default function ItemDetailModal({ item, onClose }) {
-  const { addToCart } = useCustomer();
+  const { addToCart, isSubmittingOrder } = useCustomer();
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
 
@@ -14,7 +14,7 @@ export default function ItemDetailModal({ item, onClose }) {
   const isAvailable = item.available !== false;
 
   function handleAdd() {
-    if (!isAvailable) return;
+    if (!isAvailable || isSubmittingOrder) return;
     addToCart(item, quantity);
     setAdded(true);
     setTimeout(() => {
@@ -69,7 +69,7 @@ export default function ItemDetailModal({ item, onClose }) {
             className="c-stepper-btn"
             onClick={() => setQuantity((q) => Math.max(1, q - 1))}
             aria-label="Giảm số lượng"
-            disabled={!isAvailable || quantity <= 1}
+            disabled={!isAvailable || quantity <= 1 || isSubmittingOrder}
           >
             -
           </button>
@@ -79,7 +79,7 @@ export default function ItemDetailModal({ item, onClose }) {
             className="c-stepper-btn"
             onClick={() => setQuantity((q) => q + 1)}
             aria-label="Tăng số lượng"
-            disabled={!isAvailable}
+            disabled={!isAvailable || isSubmittingOrder}
           >
             +
           </button>
@@ -90,7 +90,7 @@ export default function ItemDetailModal({ item, onClose }) {
             type="button"
             className="c-btn-primary"
             onClick={handleAdd}
-            disabled={added || !isAvailable}
+            disabled={added || !isAvailable || isSubmittingOrder}
           >
             {!isAvailable ? "MÓN TẠM HẾT" : added ? "✓ ĐÃ THÊM VÀO GIỎ" : `THÊM VÀO GIỎ • ${formatVnd(totalPrice)}`}
           </button>

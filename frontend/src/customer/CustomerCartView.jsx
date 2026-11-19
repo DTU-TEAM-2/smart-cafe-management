@@ -7,16 +7,10 @@ export default function CustomerCartView({ onNavigateMenu }) {
     removeFromCart,
     cartTotal,
     isSubmittingOrder,
-    pendingOrderSnapshot,
     submitOrder,
   } = useCustomer();
 
   const isEmpty = cart.length === 0;
-
-  const isItemPending = (itemId) => {
-    if (!isSubmittingOrder || !pendingOrderSnapshot) return false;
-    return pendingOrderSnapshot.some((p) => String(p.menuItemId) === String(itemId));
-  };
 
   return (
     <div className="c-content">
@@ -75,7 +69,7 @@ export default function CustomerCartView({ onNavigateMenu }) {
                       style={{ width: "30px", height: "30px", fontSize: "14px" }}
                       onClick={() => updateCartQuantity(item.id, quantity - 1)}
                       aria-label="Giảm số lượng"
-                      disabled={isSubmittingOrder && isItemPending(item.id)}
+                      disabled={isSubmittingOrder}
                     >
                       -
                     </button>
@@ -88,7 +82,7 @@ export default function CustomerCartView({ onNavigateMenu }) {
                       style={{ width: "30px", height: "30px", fontSize: "14px" }}
                       onClick={() => updateCartQuantity(item.id, quantity + 1)}
                       aria-label="Tăng số lượng"
-                      disabled={isSubmittingOrder && isItemPending(item.id)}
+                      disabled={isSubmittingOrder}
                     >
                       +
                     </button>
@@ -100,7 +94,7 @@ export default function CustomerCartView({ onNavigateMenu }) {
                     onClick={() => removeFromCart(item.id)}
                     aria-label={`Xóa ${item.name} khỏi giỏ`}
                     style={{ color: "#ff6b6b", marginLeft: "4px" }}
-                    disabled={isSubmittingOrder && isItemPending(item.id)}
+                    disabled={isSubmittingOrder}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <polyline points="3 6 5 6 21 6" />

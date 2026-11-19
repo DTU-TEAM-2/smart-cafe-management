@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
   readCustomerSession,
   readSessionCart,
@@ -53,7 +53,7 @@ export function CustomerProvider({ children }) {
 
   // In-flight order submission state (preserves state across tab switches)
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
-  const [pendingOrderSnapshot, setPendingOrderSnapshot] = useState(null);
+  const submittingOrderRef = useRef(false);
   const [orderModalResult, setOrderModalResult] = useState(null);
 
   // Sync cart to sessionStorage
@@ -75,6 +75,7 @@ export function CustomerProvider({ children }) {
   }, [orders, session]);
 
   const addToCart = useCallback((item, quantity = 1) => {
+    if (submittingOrderRef.current) return;
     if (!item || item.available === false || quantity <= 0) return;
     setCart((prev) => {
       const existingIndex = prev.findIndex((entry) => entry.item.id === item.id);
@@ -91,6 +92,7 @@ export function CustomerProvider({ children }) {
   }, []);
 
   const updateCartQuantity = useCallback((itemId, newQuantity) => {
+    if (submittingOrderRef.current) return;
     setCart((prev) => {
       if (newQuantity <= 0) {
         return prev.filter((entry) => entry.item.id !== itemId);
@@ -112,10 +114,12 @@ export function CustomerProvider({ children }) {
   }, []);
 
   const removeFromCart = useCallback((itemId) => {
+    if (submittingOrderRef.current) return;
     setCart((prev) => prev.filter((entry) => entry.item.id !== itemId));
   }, []);
 
   const clearCart = useCallback(() => {
+    if (submittingOrderRef.current) return;
     setCart([]);
   }, []);
 
@@ -171,7 +175,7 @@ export function CustomerProvider({ children }) {
   }, []);
 
   const submitOrder = useCallback(async () => {
-    if (isSubmittingOrder) return;
+    if (submittingOrderRef.current) return;
 
     if (!session || !session.sessionId || !session.token) {
       setOrderModalResult({
@@ -182,48 +186,45 @@ export function CustomerProvider({ children }) {
       return;
     }
 
-    // Reuse existing unconfirmed attempt (payload + idempotencyKey) if prior request failed/dropped
-    const existingAttempt = readOrderAttempt(session);
-    let orderPayload;
-    let idempotencyKey;
+    submittingOrderRef.current = true;
+    setIsSubmittingOrder(true);
+    try {
+      // Reuse existing unconfirmed attempt if a prior response failed/dropped.
+      const existingAttempt = readOrderAttempt(session);
+      let orderPayload;
+      let idempotencyKey;
 
-    if (existingAttempt?.idempotencyKey && Array.isArray(existingAttempt.payload) && existingAttempt.payload.length > 0) {
-      orderPayload = existingAttempt.payload;
-      idempotencyKey = existingAttempt.idempotencyKey;
-    } else {
-      if (cart.length === 0) return;
-      setIsSubmittingOrder(true);
-      try {
-        const freshItems = await Promise.all(cart.map((entry) => fetchMenuItem(entry.item.id)));
-        const changes = freshItems.filter((item, index) => String(item.price) !== String(cart[index].item.price));
-        freshItems.forEach((item) => updateCartItemPrice(item.id, item.price));
-        if (changes.length) {
-          setOrderModalResult({ status: "failure", action: "reviewPrices", title: "Giá món đã thay đổi",
-            detail: "Đã cập nhật giá thực đơn. Vui lòng kiểm tra tổng tiền rồi bấm gửi lại để xác nhận." });
+      if (existingAttempt?.idempotencyKey && Array.isArray(existingAttempt.payload) && existingAttempt.payload.length > 0) {
+        orderPayload = existingAttempt.payload;
+        idempotencyKey = existingAttempt.idempotencyKey;
+      } else {
+        if (cart.length === 0) return;
+        try {
+          const freshItems = await Promise.all(cart.map((entry) => fetchMenuItem(entry.item.id)));
+          const changes = freshItems.filter((item, index) => String(item.price) !== String(cart[index].item.price));
+          freshItems.forEach((item) => updateCartItemPrice(item.id, item.price));
+          if (changes.length) {
+            setOrderModalResult({ status: "failure", action: "reviewPrices", title: "Giá món đã thay đổi",
+              detail: "Đã cập nhật giá thực đơn. Vui lòng kiểm tra tổng tiền rồi bấm gửi lại để xác nhận." });
+            return;
+          }
+        } catch {
+          setOrderModalResult({ status: "failure", title: "Chưa xác minh được giá",
+            detail: "Không thể tải giá thực đơn hiện tại. Vui lòng kiểm tra kết nối và thử lại." });
           return;
         }
-      } catch {
-        setOrderModalResult({ status: "failure", title: "Chưa xác minh được giá",
-          detail: "Không thể tải giá thực đơn hiện tại. Vui lòng kiểm tra kết nối và thử lại." });
-        return;
-      } finally {
-        setIsSubmittingOrder(false);
+        const initialPayload = cart
+          .map((entry) => ({
+            menuItemId: String(entry.item.id),
+            quantity: Number(entry.quantity),
+            expectedUnitPrice: String(entry.item.price),
+          }))
+          .sort((a, b) => BigInt(a.menuItemId) < BigInt(b.menuItemId) ? -1 : BigInt(a.menuItemId) > BigInt(b.menuItemId) ? 1 : 0);
+        const attempt = getOrCreateOrderAttempt(session, initialPayload);
+        orderPayload = attempt.payload;
+        idempotencyKey = attempt.idempotencyKey;
       }
-      const initialPayload = cart
-        .map((entry) => ({
-          menuItemId: String(entry.item.id),
-          quantity: Number(entry.quantity),
-        }))
-        .sort((a, b) => BigInt(a.menuItemId) < BigInt(b.menuItemId) ? -1 : BigInt(a.menuItemId) > BigInt(b.menuItemId) ? 1 : 0);
-      const attempt = getOrCreateOrderAttempt(session, initialPayload);
-      orderPayload = attempt.payload;
-      idempotencyKey = attempt.idempotencyKey;
-    }
 
-    setIsSubmittingOrder(true);
-    setPendingOrderSnapshot(orderPayload);
-
-    try {
       const csrf = await fetchCsrfToken();
 
       const batchResult = await createOrder({
@@ -256,10 +257,10 @@ export function CustomerProvider({ children }) {
         detail: err.message || "Không thể gửi đơn đặt món. Vui lòng kiểm tra lại kết nối.",
       });
     } finally {
+      submittingOrderRef.current = false;
       setIsSubmittingOrder(false);
-      setPendingOrderSnapshot(null);
     }
-  }, [cart, isSubmittingOrder, session, addPlacedBatch, subtractFromCart, updateCartItemPrice]);
+  }, [cart, session, addPlacedBatch, subtractFromCart, updateCartItemPrice]);
 
   const value = useMemo(
     () => ({
@@ -281,7 +282,6 @@ export function CustomerProvider({ children }) {
       selectedItemForDetail,
       setSelectedItemForDetail,
       isSubmittingOrder,
-      pendingOrderSnapshot,
       orderModalResult,
       setOrderModalResult,
       submitOrder,
@@ -303,7 +303,6 @@ export function CustomerProvider({ children }) {
       currentTab,
       selectedItemForDetail,
       isSubmittingOrder,
-      pendingOrderSnapshot,
       orderModalResult,
       submitOrder,
     ]
