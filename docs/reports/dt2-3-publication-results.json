@@ -1,0 +1,607 @@
+{
+  "task": "CF-04 / DT2-3 / DT2-27",
+  "title": "feat(account): CF-04 implement DT2-3 account profile and password management backend",
+  "verifiedOn": "2026-11-18",
+  "baseRevision": "331c1e329dac40780c56b75aaf32403c4acddadf",
+  "implementationDirtyDuringTests": true,
+  "sync": {
+    "method": "protected stash + fast-forward develop + stash apply",
+    "mergeConflicts": [],
+    "oldBase": "ffa4d9527e7924dd0bc9815fefb3034463d03156"
+  },
+  "runtimeJarSha256": "7e1fca9a1138b02912700b2f7004508732e2e9361da359e8b39cf71b5e3f2b12",
+  "ddlVersion": "20261113.1",
+  "ddlSha256": "84cb9f2e99073ea73b117e828dc7f144928052a8f8345cde6f903b82280e4b5e",
+  "primary": {
+    "maven": {
+      "tests": 260,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "status": "PASS",
+      "command": "./test-be.ps1 -> backend/mvnw verify, fresh owned MySQL schema"
+    },
+    "postman": {
+      "requests": 203,
+      "assertions": 587,
+      "status": "PASS",
+      "databaseChecks": 10,
+      "negativeControl": "1request/3assertions/1failure; expected CLIexit1 excluded acceptance",
+      "evidence": "dt2-3-postman/results.json",
+      "sha256": "b04332dc7d22651dd20a273cbbacc602acf1e05d8bdb7cadaa1b23f4019198d8"
+    },
+    "auth": {
+      "requests": 39,
+      "assertions": 57,
+      "status": "PASS",
+      "negativeControls": 4,
+      "evidence": "dt2-3-postman/auth-regression.json"
+    },
+    "frontend": {
+      "lint": "PASS",
+      "build": "PASS",
+      "playwrightPassed": 100,
+      "failures": 0,
+      "note": "Current develop frontend; existing mocked UI coverage is not live Profile UI E2E"
+    },
+    "governance": {
+      "skills": "PASS17skills16routes169inheritedfiles",
+      "gitFlowAndSkillsTestsPassed": 17
+    },
+    "authLauncherTests": "prior24PASS plus current Auth real HTTP pass; final script check recorded separately"
+  },
+  "candidate": {
+    "kind": "Unapproved selective Staff/Customer/News/Bills composition; no production module import",
+    "testedRefs": {
+      "base": "331c1e329dac40780c56b75aaf32403c4acddadf",
+      "staff": "b74a365c742eecc900d097ab040bd131bb1f6c97",
+      "news": "c2343edecd3b71e57ee3ce6605db4dc5a03bc6cc",
+      "customer": "057531c26b68073354801c2394236ed76c7680e7",
+      "bills": "86b70e2d5540f96b3e32d1e92afcff611ec5ccf8"
+    },
+    "latestCustomerEquivalence": {
+      "testedRef": "057531c26b68073354801c2394236ed76c7680e7",
+      "latestRef": "a41152da02fc8c76d180bdf17a0b64722ee579b3",
+      "domainAndTestTreesIdentical": [
+        {
+          "path": "backend/src/main/java/vn/codegym/smartcafe/customeractions",
+          "gitTree": "486ae5bb432985048721fa9673ea52ed0f08f210"
+        },
+        {
+          "path": "backend/src/main/java/vn/codegym/smartcafe/customerfeedback",
+          "gitTree": "53fa3f8745611d0154f2e2026cebb8dc47f6ec02"
+        },
+        {
+          "path": "backend/src/test/java/vn/codegym/smartcafe/customeractions",
+          "gitTree": "0a4e57b566fc6edcaafc6854ddf36db023da27e4"
+        },
+        {
+          "path": "backend/src/test/java/vn/codegym/smartcafe/customerfeedback",
+          "gitTree": "fbf02f68a36eb551fc0402276276e9ccaff5d826"
+        }
+      ],
+      "latestAuthAndVerifiedResourceDeletionsAgainstDevelop": [],
+      "scope": "Candidate keeps explicit Staff/News/Profile/guest matcher union; latest Customer standalone full chain not substituted wholesale."
+    },
+    "baselineBeforeNewsConsumerProposal": {
+      "tests": 11,
+      "failures": 6,
+      "errors": 0,
+      "skipped": 0,
+      "classification": "Profile401expected200 plus5Staff writer concurrency failures; Staff-other403 test passed"
+    },
+    "onlyAppliedProposal": "news-profile-consumer-latest.patch, one existing consumer resource; no Staff version proposal",
+    "full": {
+      "tests": 428,
+      "failures": 17,
+      "errors": 0,
+      "skipped": 0,
+      "status": "FAIL",
+      "finishedAt": "2026-11-18T09:54:03+07:00",
+      "classes": [
+        {
+          "name": "vn.codegym.smartcafe.auth.AuthConfigurationTest",
+          "tests": 5,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.AuthIntegrationTest",
+          "tests": 12,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.FlywayUpgradeRegressionTest",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.OtpIntegrationTest",
+          "tests": 19,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.OtpPoolIntegrationTest",
+          "tests": 7,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.OtpRetryLifecycleIntegrationTest",
+          "tests": 18,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.OtpServiceTest",
+          "tests": 12,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.OtpVerifyResendRaceIntegrationTest",
+          "tests": 18,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.PasswordExpirationTest",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.PasswordPolicyTest",
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.SmtpEmailServiceTest",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.TokenServiceTest",
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.auth.UnconfiguredSmtpIntegrationTest",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.billing.BillMySqlIntegrationTest",
+          "tests": 14,
+          "failures": 12,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": [
+            "searchBillByCreatedDate",
+            "filterBillByStatus",
+            "listBillsWithDefaultPaginationAndSort",
+            "searchBillByCodeExactAndPartial",
+            "statisticsCalculatesRevenueFromPaidAtNotCreatedAt",
+            "statisticsFillsMissingDaysWithZero",
+            "wildcardCharactersInBillSearchAreLiteral",
+            "billDetailRetainsHistoricalSnapshotEvenIfCurrentMenuOrTableChanges",
+            "staffCanReadBillsButCannotReadRevenue",
+            "getBillDetailReturnsCompleteSnapshot",
+            "billDetailReturnsNotFoundForNonExistentId",
+            "paymentBreakdownReconcilesWithPaidRevenueAcrossMethods"
+          ]
+        },
+        {
+          "name": "vn.codegym.smartcafe.config.HeaderTokenFilterCompatibilityTest",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.config.HeaderTokenFilterMySqlTest",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.customeractions.CustomerActionsMySqlTest",
+          "tests": 13,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.customerfeedback.CustomerFeedbackMySqlTest",
+          "tests": 5,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.customerfeedback.CustomerFeedbackUnavailableTest",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.customerfeedback.FeedbackAdmissionTest",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.customerfeedback.FeedbackImageMySqlTest",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.customerfeedback.FeedbackImagesTest",
+          "tests": 5,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.customermenu.CustomerMenuControllerTest",
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.customermenu.CustomerMenuMySqlTest",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.customersession.CustomerTableControllerTest",
+          "tests": 4,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.customersession.CustomerTableMySqlTest",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.database.CurrentSharedDdlHttpTest",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.database.DatabaseMigrationSafetyTest",
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.database.DatabaseTemporalCompatibilityTest",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.database.ForbiddenProblemHttpTest",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.database.ProfileMySqlTest",
+          "tests": 22,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.database.StaffProfileConcurrencyTest",
+          "tests": 9,
+          "failures": 5,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": [
+            "sameFieldCompetitionRequiresConflictAndOneVersionIncrement",
+            "bothModulesFollowUsersThenPersonnelLockOrderWithoutDeadlock",
+            "staffSelfEditAndAdminEditCannotSilentlyOverwriteSameName",
+            "profileStaleVersionAfterStaffUpdateMustBeRejected",
+            "adminNameEditMustNotRestoreStaleAddressFromFullPayload"
+          ]
+        },
+        {
+          "name": "vn.codegym.smartcafe.database.VerifiedDatabaseMigrationTest",
+          "tests": 24,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.home.HeaderMySqlTest",
+          "tests": 5,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.home.HomeHighlightsMySqlTest",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.home.HomeUnavailableTest",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.income.IncomeWindowTest",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.menu.MenuHttpReportTest",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.menu.MenuImagesTest",
+          "tests": 8,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.menu.MenuIntegrationTest",
+          "tests": 13,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.news.FirebaseEmulatorNewsImageStorageTest",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.news.FirebaseNewsImageStorageTest",
+          "tests": 3,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.news.NewsAudienceMySqlTest",
+          "tests": 6,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.news.NewsImageMySqlTest",
+          "tests": 22,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.news.NewsImageTransactionTest",
+          "tests": 5,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.news.NewsMySqlTest",
+          "tests": 15,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.news.NewsReviewMySqlTest",
+          "tests": 19,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.news.NewsSocketBudgetTest",
+          "tests": 11,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.profile.ProfileFailureTest",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.profile.ProfileValidationTest",
+          "tests": 19,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.sales.SalesMySqlTest",
+          "tests": 18,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.staff.StaffControllerTest",
+          "tests": 16,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.staff.StaffHttpReportTest",
+          "tests": 1,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.staff.StaffImageServiceTest",
+          "tests": 7,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        },
+        {
+          "name": "vn.codegym.smartcafe.staff.StaffPasswordPolicyTest",
+          "tests": 2,
+          "failures": 0,
+          "errors": 0,
+          "skipped": 0,
+          "failedCases": []
+        }
+      ],
+      "classification": {
+        "staffConcurrencyFailures": 5,
+        "billsFixtureAuthFailures": 12,
+        "notes": "Bills test mints id:username:ANY:expiry four-field token; current News consumer delegates versioned Auth parser and rejects it before business controller. Assertions not reduced or skipped."
+      }
+    },
+    "fullSourceManifestSha256": "2460cba47cea846d981275c2c4e0ae69e6cf56c415bfb09573b42ec590af9822",
+    "sourcePropertiesCount": 195,
+    "candidateJar": "NOT BUILT by failed verify; tests boot compiled classes",
+    "billRealLoginDiagnostic": {
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "status": "PASS",
+      "finishedAt": "2026-11-18T09:57:23+07:00",
+      "httpAssertions": [
+        "STAFF GET bills200",
+        "ADMIN GET statistics/revenue200",
+        "STAFF GET statistics/revenue403",
+        "CUSTOMER GET bills403"
+      ],
+      "sourceMethod": "    @Test void billsAndStatisticsAcceptRealLoginTokenInComposedCandidate() throws Exception {\n        String staff = login(2), admin = login(1), customer = login(3);\n        assertThat(call(\"GET\", \"/bills\", staff, null).statusCode()).isEqualTo(200);\n        assertThat(call(\"GET\", \"/statistics/revenue\", admin, null).statusCode()).isEqualTo(200);\n        assertThat(call(\"GET\", \"/statistics/revenue\", staff, null).statusCode()).isEqualTo(403);\n        assertThat(call(\"GET\", \"/bills\", customer, null).statusCode()).isEqualTo(403);\n    }\n\n",
+      "scope": "New focused diagnostic after full suite; empty synthetic billing data and actual Login bearer. Does not make the12original failures pass or certify billing business cases."
+    }
+  },
+  "historicalCandidate": {
+    "date": "2026-11-15",
+    "tests": 396,
+    "failures": 2,
+    "errors": 0,
+    "skipped": 0,
+    "status": "FAIL",
+    "evidence": "dt2-3-integration-results.json",
+    "classification": "Two Staff success requests lacked version required by unaccepted proposal; not baseline Staff failure"
+  },
+  "remaining": [
+    "Staff shared writer version/CAS and auth_version transition contract",
+    "News Profile consumer adoption and shared matcher reconciliation",
+    "Bills/Auth test bearer contract migration",
+    "Owner Auth/Gateway policy, DBA target/rollout, approved Sonar environment",
+    "Independent reviews and required GitHub checks before merge"
+  ],
+  "sonar": "NOT RUN: no approved server/token/scanner",
+  "githubChecks": "Recorded live in Draft PR after push, not claimed by local test evidence"
+}

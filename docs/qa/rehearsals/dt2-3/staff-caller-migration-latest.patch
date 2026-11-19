@@ -1,0 +1,117 @@
+--- a/backend/src/test/java/vn/codegym/smartcafe/staff/StaffControllerTest.java
++++ b/backend/src/test/java/vn/codegym/smartcafe/staff/StaffControllerTest.java
+@@ -182,6 +182,7 @@
+     void updateStaffPreservesUsernameAndUpdatesProfile() throws Exception {
+         String updateJson = """
+                 {
++                    "version": "0",
+                     "fullName": "Nguyen Updated Name",
+                     "email": "updated@smartcafe.vn",
+                     "phone": "0988776655",
+@@ -246,6 +247,7 @@
+     void adminCannotSelfDemoteToStaff() throws Exception {
+         String demoteJson = """
+                 {
++                    "version": "0",
+                     "fullName": "Test Admin",
+                     "email": "admin@test.vn",
+                     "phone": "0901111111",
+@@ -475,6 +477,7 @@
+         // 4. UPDATE with non-existent avatarMediaId -> 400 Bad Request
+         String updateNonExistentJson = """
+                 {
++                    "version": "0",
+                     "fullName": "Staff Updated Name",
+                     "email": "staff@test.vn",
+                     "phone": "0902222222",
+@@ -505,10 +508,52 @@
+                 .andExpect(jsonPath("$.avatarUrl", is("https://example.com/active.png")));
+
+         // 7. UPDATE with null avatarMediaId -> 200 OK
+-        String updateNullJson = updateNonExistentJson.replace("\"avatarMediaId\": 999999", "\"avatarMediaId\": null");
++        String currentVersion = com.jayway.jsonpath.JsonPath.read(
++                mvc.perform(get("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")))
++                        .andExpect(status().isOk()).andReturn().getResponse().getContentAsString(), "$.version");
++        String updateNullJson = updateNonExistentJson.replace("\"avatarMediaId\": 999999", "\"avatarMediaId\": null")
++                .replace("\"version\": \"0\"", "\"version\": \"" + currentVersion + "\"");
+         mvc.perform(put("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")).with(csrf())
+                         .contentType(MediaType.APPLICATION_JSON)
+                         .content(updateNullJson))
+                 .andExpect(status().isOk());
+     }
++    @Test
++    void updateRequiresExpectedVersionAndRejectsStaleVersionWithoutOverwriting() throws Exception {
++        String body = """
++                {"fullName":"Nguyen Version Test","email":"staff@test.vn","phone":"0902222222",
++                 "address":"Da Nang","role":"STAFF","salary":7000000,"version":"0"}
++                """;
++        for (String invalid : new String[]{"null", "\"-1\"", "\"01\"", "\"9223372036854775808\""}) {
++            mvc.perform(put("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")).with(csrf())
++                    .contentType(MediaType.APPLICATION_JSON).content(body.replace("\"0\"", invalid)))
++                    .andExpect(status().isBadRequest());
++        }
++        mvc.perform(put("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")).with(csrf())
++                .contentType(MediaType.APPLICATION_JSON).content(body.replace(",\"version\":\"0\"", "")))
++                .andExpect(status().isBadRequest());
++        mvc.perform(put("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")).with(csrf())
++                .contentType(MediaType.APPLICATION_JSON).content(body))
++                .andExpect(status().isOk()).andExpect(jsonPath("$.version", is("1")));
++        mvc.perform(put("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")).with(csrf())
++                .contentType(MediaType.APPLICATION_JSON).content(body.replace("Nguyen Version Test", "Stale Overwrite")))
++                .andExpect(status().isConflict());
++        org.assertj.core.api.Assertions.assertThat(jdbc.queryForObject(
++                "SELECT full_name FROM users WHERE id=?", String.class, testStaffId)).isEqualTo("Nguyen Version Test");
++    }
++
++    @Test
++    void roleTransitionIncrementsAuthVersionAsWellAsProfileVersion() throws Exception {
++        long before = jdbc.queryForObject("SELECT auth_version FROM users WHERE id=?", Long.class, testStaffId);
++        String body = """
++                {"fullName":"Nguyen Promoted Staff","email":"staff@test.vn","phone":"0902222222",
++                 "address":"Da Nang","role":"ADMIN","salary":7000000,"version":"0"}
++                """;
++        mvc.perform(put("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")).with(csrf())
++                .contentType(MediaType.APPLICATION_JSON).content(body))
++                .andExpect(status().isOk()).andExpect(jsonPath("$.version", is("1")));
++        org.assertj.core.api.Assertions.assertThat(jdbc.queryForObject(
++                "SELECT auth_version FROM users WHERE id=?", Long.class, testStaffId)).isEqualTo(before + 1);
++    }
++
+ }
+--- a/backend/src/test/java/vn/codegym/smartcafe/staff/StaffHttpReportTest.java
++++ b/backend/src/test/java/vn/codegym/smartcafe/staff/StaffHttpReportTest.java
+@@ -352,6 +352,7 @@
+             run(17, "Admin cập nhật thông tin nhân viên thành công", () -> {
+                 String updatePayload = """
+                         {
++                            "version": "0",
+                             "fullName": "Nguyen Van Test Updated",
+                             "email": "%s_upd@cafe.vn",
+                             "phone": "0999999999",
+@@ -401,6 +402,7 @@
+             run(22, "Quản trị viên tự hạ quyền thành STAFF bị hệ thống từ chối (400 Bad Request)", () -> {
+                 String demotePayload = """
+                         {
++                            "version": "0",
+                             "fullName": "Quản trị viên Hệ thống",
+                             "email": "%s@cafe.vn",
+                             "phone": "0901111111",
+@@ -461,6 +463,7 @@
+                 Long adm2Id = jdbc.queryForObject("SELECT id FROM users WHERE username=?", Long.class, "adm2_" + suffix);
+                 String demoteBPayload = """
+                         {
++                            "version": "0",
+                             "fullName": "Quản trị viên thứ hai",
+                             "email": "adm2_%s@cafe.vn",
+                             "phone": "0909999991",
+--- a/backend/src/test/java/vn/codegym/smartcafe/database/StaffProfileConcurrencyTest.java
++++ b/backend/src/test/java/vn/codegym/smartcafe/database/StaffProfileConcurrencyTest.java
+@@ -72,7 +72,7 @@
+     }
+     @AfterAll static void cleanup(){SCHEMA.close();}
+     StaffModels.UpdateStaffRequest request(String name,String address) {
+-        return new StaffModels.UpdateStaffRequest(name,"rehearsal_staff@example.test","0900000002",address,null,null,"STAFF",new BigDecimal("10000000"),null);
++        return new StaffModels.UpdateStaffRequest(name,"rehearsal_staff@example.test","0900000002",address,null,null,"STAFF",new BigDecimal("10000000"),null,"0");
+     }
+     ProfileModels.Patch patch(String field,String value){return new ProfileModels.Patch(Map.of("version","0",field,value));}
+     ProfileModels.PasswordChange password(){return new ProfileModels.PasswordChange(Map.of("currentPassword",currentPassword,"newPassword",nextPassword,"confirmNewPassword",nextPassword));}

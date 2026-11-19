@@ -8,7 +8,7 @@ const { once } = require('node:events');
 const newman = require(process.env.NEWMAN_MODULE || 'newman');
 const collection = require('../docs/api/Smart_Cafe_DT2-2_Auth.postman_collection.json');
 const profile = process.env.AUTH_TEST_PROFILE || 'auth-http-test';
-assert.ok(['auth-http-test', 'dev', 'prod'].includes(profile));
+assert.ok(['auth-http-test', 'dev', 'prod', 'verified-db'].includes(profile));
 
 const db = new URL((process.env.TEST_DB_URL || '').replace(/^jdbc:/, ''));
 assert.equal(db.protocol, 'mysql:');
@@ -127,7 +127,8 @@ async function main() {
     baseUrl = `http://127.0.0.1:${port}`;
     child = spawn('java', ['-jar', path.resolve(__dirname, '../backend/target/smart-cafe-0.0.1-SNAPSHOT.jar'),
       `--server.port=${port}`, '--server.address=127.0.0.1', `--spring.profiles.active=${profile}`,
-      `--spring.datasource.url=${process.env.TEST_DB_URL}`, '--spring.flyway.enabled=false', '--spring.sql.init.mode=never',
+      `--spring.datasource.url=${process.env.TEST_DB_URL}`,
+      ...(profile === 'verified-db' ? [] : ['--spring.flyway.enabled=false']), '--spring.sql.init.mode=never',
       '--spring.mail.host=127.0.0.1', `--spring.mail.port=${smtp.address().port}`, '--spring.mail.properties.mail.smtp.auth=false',
       '--spring.mail.properties.mail.smtp.starttls.enable=false', '--spring.mail.properties.mail.smtp.starttls.required=false',
       '--spring.mail.properties.mail.smtp.ssl.enable=false'], {
