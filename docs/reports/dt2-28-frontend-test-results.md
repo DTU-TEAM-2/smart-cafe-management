@@ -17,7 +17,7 @@ Owner đã chấp nhận UI và cho phép commit/push/PR. Nhánh `feature/dt2-3_
 | Governance | Registry17/routes16/inherited169; 17/17 script tests PASS; local feature→develop/title validation PASS |
 | npm audit | **0 vulnerabilities** trong lượt mới; audit18/11 từng báo5high là lịch sử. Không audit fix/force hoặc đổi package |
 | Whitespace/secret patterns/internal links | PASS trên danh sách DT2-28; private raw logs/config không stage |
-| GitHub Actions | Primary có1Header fixture FAIL như phần follow-up; final HEAD xác minh trên PR, không dùng local/primary CI làm final CI PASS |
+| GitHub Actions | Hai lượt CI có175/176 và1FAIL khác nhau (Header fixture, precondition old401), được ghi ở follow-ups; final HEAD xác minh trên PR |
 | SonarQube/production rollout/UAT | NOT RUN |
 
 ## CI follow-up — Header fixture (19/11/2026)
@@ -27,6 +27,14 @@ Primary acceptance ở commit `eb9ff625141d2b1de448301db819bb4aaed0124b`. [CI pr
 Probe làm chậm riêng Home/auth CUSTOMER100ms tái hiện **2/2 FAIL đúng triệu chứng**; log fixture xác nhận bearer CUSTOMER nhận profile role ADMIN từ biến current của request Home trước. Đây là HTTP fixture sai contract, khác API thật đã kiểm CUSTOMER403. Sửa route fixture Profile chọn principal bằng Authorization của chính request, trả ADMIN/STAFF đúng dữ liệu, CUSTOMER403/anonymous401. Giữ độ trễ có kiểm soát để bắt out-of-order responses, giữ nguyên toàn bộ assertion UI và không sửa production AuthContext/API.
 
 Sau fix: **20/20 repeat PASS** (10lần × desktop/mobile), **32/32 affected product UI/Header/Home PASS**, unit4 PASS và lint PASS. Không skip test, tăng timeout assertion hoặc giảm expectation. Tagged instrumentation bị loại khỏi source; bản probe và log FAIL giữ ngoài Git/ignored target. Đây là follow-up chỉ sửa fixture test và evidence, không đổi runtime/live E2E/Backend/DDL. Tái sử dụng đúng bằng chứng real8/Maven315/Newman ở primary source; machine evidence giữ hash live cũ, hash fixture mới và giải thích ngoại lệ test-only. Final HEAD Actions được chạy lại sau push, không dùng check xanh của primary thay thế.
+
+## CI follow-up — chờ replacement trước old401 (19/11/2026)
+
+[CI9f9332d](https://github.com/DTU-TEAM-2/smart-cafe-management/actions/runs/44457650682) đã qua Header case sau fix, nhưng Frontend còn **175/176 PASS +1FAIL** ở mobile late auth401; Backend/Governance/Git Flow/title và [Customer HTTP cùng SHA](https://github.com/DTU-TEAM-2/smart-cafe-management/actions/runs/44457653404) SUCCESS. Giữ failure này là FAIL, không dùng check của HEAD cũ làm bằng chứng HEAD mới.
+
+Probe chỉ làm password response chậm100ms tái hiện **2/2 FAIL**, log boolean xác nhận replacementInstalled=false lúc thả old401. Test cũ đợi status ready nhưng ready vẫn có thể là phiên cũ, nên chưa thiết lập điều kiện “sau replacement” của chính scenario. Bổ sung expect.poll xác nhận replacement token đã được cài trước khi thả response401 bị giữ; giữ nguyên assertion token sau response và ready. Giữ POST chậm để regression bắt đúng thứ tự. Không đổi production AuthContext, nới timeout, bỏ assertion hoặc skip.
+
+Sau sửa: **20/20 repeats PASS** (10×desktop/mobile), **58/58 lifecycle/Header PASS**, unit4 và lint PASS. Diagnostic logs/probe ngoài Git/ignored target, instrumentation loại khỏi source. Follow-up chỉ đổi một test spec và hai reports; runtime/live E2E/Backend/DDL cùng25ảnh giữ nguyên. Machine evidence giữ primary live hashes, đánh dấu riêng hai test specs đã sửa và current Git canonical hashes; reuse real8/Maven315/Newman đúng primary source. Final HEAD CI phải chạy lại trước Ready.
 
 ## Lệnh và revision
 

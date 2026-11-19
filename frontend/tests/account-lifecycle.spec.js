@@ -221,13 +221,18 @@ test("late auth verification 401 is canceled after password replacement", async 
       finish();
     } else await route.fulfill({ json: user });
   });
-  await page.route("**/api/v1/profiles/me/password", route => route.fulfill({ json: replacement }));
+  await page.route("**/api/v1/profiles/me/password", async route => {
+    // Make the old ready state observable until the replacement response arrives.
+    await new Promise(resolve => setTimeout(resolve, 100));
+    return route.fulfill({ json: replacement });
+  });
   await page.goto("/tests/account-harness.html");
   await signIn(page);
   await expect(page.getByTestId("status")).toHaveText("ready");
   await passwordForm(page);
   await page.getByRole("button", { name: "Save password", exact: true }).click();
   await expect(page.getByTestId("status")).toHaveText("ready");
+  await expect.poll(() => page.evaluate(expected => sessionStorage.getItem("smart_cafe_token") === expected, replacement.token)).toBe(true);
   release();
   await finished;
   expect(await page.evaluate(expected => sessionStorage.getItem("smart_cafe_token") === expected, replacement.token)).toBe(true);

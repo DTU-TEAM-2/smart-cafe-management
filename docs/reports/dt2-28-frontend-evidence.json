@@ -708,7 +708,7 @@
     "frontend/tests/account-fixtures.js": "62009f89742cc3e321592ee033b85fb6fabf38642b69ed0163cd9f4d114d523f",
     "frontend/tests/account-harness.html": "69df9a26535aa609aac09c56068219d30573ea6960b4390de3359200e0671a6b",
     "frontend/tests/account-harness.jsx": "2f322b8ddabe417dc4544e9cca64fcdce19e27b92d570bc2994ac7a9a296407d",
-    "frontend/tests/account-lifecycle.spec.js": "c283e48728286b55112ce57a1296fc45a3ad908906fb9de638c3cd6a60a8e5de",
+    "frontend/tests/account-lifecycle.spec.js": "eb7dbc2a481735e057ba406bdc8f83d2fc3dd42cc295b8fd1d5150a4d1cfaddc",
     "frontend/tests/account-ui.spec.js": "e93ae95da951fb785974a24348e1453cb63b687f6de246a515aa9ff82bc6d55f",
     "frontend/tests/auth-figma.spec.js": "0dfff4f66eb7676348095d91a67229173928930c8edabe0a248a62844d9c5810",
     "frontend/tests/auth-regression.spec.js": "e6334399c082cb09c78122d48fb5088f5125af4ed66bee9495c5c34f7826ceb8",
@@ -731,7 +731,7 @@
   "unchangedBaseSourcesWithCRLFWorkingCopies": [
     "frontend/src/home/HomePage.jsx"
   ],
-  "gitCanonicalSourceComparison": "PASS: runtime/live-test content unchanged; Header HTTP fixture has a separately verified test-only follow-up. Baseline HomePage CRLF working copy normalizes to exact develop/index LF bytes.",
+  "gitCanonicalSourceComparison": "PASS: runtime/live-test sources unchanged from primary; only Header/lifecycle UI HTTP test specs have independently verified follow-ups. Inherited HomePage CRLF normalizes to exact base/index LF.",
   "primaryAcceptanceRevision": "eb9ff625141d2b1de448301db819bb4aaed0124b",
   "liveRuntimeAndLiveTestSourcesMatchCurrent": true,
   "ciTestFixtureFollowUp": {
@@ -779,5 +779,49 @@
       ]
     },
     "reuse": "Primary real browser8, Maven315 and Newman203/587+10SQL/Auth39/57 reused at primary revision; runtime, live E2E and Backend/API/DDL sources unchanged. Full final-head CI is verified on the PR after publication."
-  }
+  },
+  "ciAuth401FollowUp": {
+    "verifiedAt": "2026-11-19T04:30:47.557426+00:00",
+    "failedRevision": "9f9332d9817acf73513556ca455bc26b9fea72b9",
+    "failedRun": "https://github.com/DTU-TEAM-2/smart-cafe-management/actions/runs/44457650682",
+    "frontendResult": {
+      "pass": 175,
+      "fail": 1
+    },
+    "changedSourceFiles": [
+      "frontend/tests/account-lifecycle.spec.js"
+    ],
+    "runtimeChanged": false,
+    "previousLiveSpecSha256": "c283e48728286b55112ce57a1296fc45a3ad908906fb9de638c3cd6a60a8e5de",
+    "currentSpecSha256": "eb7dbc2a481735e057ba406bdc8f83d2fc3dd42cc295b8fd1d5150a4d1cfaddc",
+    "controlledNegativeProbe": {
+      "failed": 2,
+      "passed": 0,
+      "artifact": "backend/target/dt2-28-ci-auth401-negative.log"
+    },
+    "rootCause": "Test released held old401 while ready still belonged to pre-rotation session; controlled100ms password response showed replacementInstalled=false before release. It did not establish its after-password-replacement precondition.",
+    "fix": "Preserve slow password response and add expect.poll asserting replacement token installed before release; retain token assertion after old response and ready checks. No production changes, assertion removal, skip or timeout increase.",
+    "localRepeat": {
+      "expected": 20,
+      "unexpected": 0,
+      "repeatEach": 10,
+      "projects": [
+        "desktop",
+        "mobile"
+      ]
+    },
+    "localAffectedRegression": {
+      "expected": 58,
+      "unexpected": 0,
+      "files": [
+        "account-lifecycle.spec.js",
+        "header.spec.js"
+      ]
+    },
+    "reuse": "Real browser8/Maven315/Newman evidence at primary reused with unchanged runtime/live E2E/Backend/API/DDL. Final full UI CI and Customer dispatch must be verified on new PR HEAD."
+  },
+  "postLiveAcceptanceChangedTestSpecs": [
+    "frontend/tests/account-lifecycle.spec.js",
+    "frontend/tests/header.spec.js"
+  ]
 }
