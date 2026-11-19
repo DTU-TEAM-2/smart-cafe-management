@@ -460,4 +460,138 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     expect(submittedBody.rating).toBe(5);
     expect(submittedBody.name).toBe("Nguyễn Văn A");
   });
+
+  test("10. Preserves unsubmitted cart items when modifying cart during pending order submission", async ({ page }) => {
+    let orderSubmittedPayload = null;
+    let finishOrderResponse = null;
+
+    await page.route("**/api/v1/customer/sessions/10/orders", async (route) => {
+      orderSubmittedPayload = route.request().postDataJSON();
+      // Delay response to allow concurrent tab switch & cart modification
+      await new Promise((resolve) => {
+        finishOrderResponse = resolve;
+      });
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          id: "1005",
+          sessionId: "10",
+          totalAmount: "45000",
+          sessionTotalAmount: "45000",
+          editableUntil: new Date(Date.now() + 180000).toISOString(),
+          items: [{
+            id: "item-5",
+            menuItemId: "101",
+            name: "Caramel Latte",
+            unitPrice: "45000",
+            lineTotal: "45000",
+            quantity: 1,
+            version: "0",
+            status: "SUBMITTED",
+          }],
+        }),
+      });
+    });
+
+    await page.goto("/#customer");
+
+    // Add Item 1 (Caramel Latte) to cart
+    await page.getByLabel("Thêm Caramel Latte vào giỏ hàng").click();
+    await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+
+    // Click checkout
+    await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+
+    // While submitting, verify stepper buttons in cart are disabled to prevent mutating the in-flight snapshot
+    await expect(page.getByLabel("Giảm số lượng")).toBeDisabled();
+    await expect(page.getByLabel("Tăng số lượng")).toBeDisabled();
+    await expect(page.getByLabel("Xóa Caramel Latte khỏi giỏ")).toBeDisabled();
+
+    // Switch to Menu tab and add Item 2 (Bạc xỉu Sài Gòn) to cart while order 1 is in-flight
+    await page.getByRole("button", { name: "Thực đơn" }).click();
+    await page.getByLabel("Thêm Bạc xỉu Sài Gòn vào giỏ hàng").click();
+
+    // Finish server order submission
+    if (finishOrderResponse) finishOrderResponse();
+
+    // Close success modal
+    await expect(page.locator(".c-result-title")).toHaveText("Đặt món thành công!");
+    await page.getByRole("button", { name: "TIẾP TỤC CHỌN MÓN" }).click();
+
+    // Verify order payload only had Item 1
+    expect(orderSubmittedPayload.items).toHaveLength(1);
+    expect(orderSubmittedPayload.items[0].menuItemId).toBe(101);
+
+    // Verify cart still preserves Item 2 (Bạc xỉu) and did NOT get wiped!
+    await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+    await expect(page.getByText("Bạc xỉu Sài Gòn")).toBeVisible();
+    await expect(page.getByText("Tạm tính")).toBeVisible();
+    await expect(page.locator(".c-dock-badge")).toHaveText("1");
+  });
+
+  test("11. Menu pagination: loads items beyond 50 with load-more and resets page on filter change", async ({ page }) => {
+    // Generate 55 mock items
+    const all55Items = Array.from({ length: 55 }, (_, i) => ({
+      id: String(200 + i),
+      code: `CF${i + 1}`,
+      name: `Món cà phê số ${i + 1}`,
+      price: "40000",
+      available: true,
+      categoryId: i < 30 ? "1" : "2",
+      categoryName: i < 30 ? "Cà phê" : "Trà & Trái cây",
+    }));
+
+    await page.route(/\/api\/v1\/customer\/menu\/items(\?.*)?$/, (route) => {
+      const url = new URL(route.request().url());
+      const pageIndex = Number(url.searchParams.get("page") || "0");
+      const pageSize = Number(url.searchParams.get("size") || "20");
+      const categoryId = url.searchParams.get("categoryId");
+
+      let filtered = all55Items;
+      if (categoryId) {
+        filtered = filtered.filter((it) => it.categoryId === categoryId);
+      }
+
+      const start = pageIndex * pageSize;
+      const slice = filtered.slice(start, start + pageSize);
+
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          content: slice,
+          totalElements: filtered.length,
+          page: pageIndex,
+          size: pageSize,
+        }),
+      });
+    });
+
+    await page.goto("/#customer");
+
+    // Page 0: Displays 20 of 55 items
+    await expect(page.getByText("Hiển thị: 20/55 món")).toBeVisible();
+    await expect(page.getByText("Món cà phê số 1", { exact: true })).toBeVisible();
+    await expect(page.getByText("Món cà phê số 51")).toHaveCount(0);
+
+    // Click load more -> loads page 1 (items 21-40)
+    await page.getByRole("button", { name: /XEM THÊM MÓN/ }).click();
+    await expect(page.getByText("Hiển thị: 40/55 món")).toBeVisible();
+
+    // Click load more -> loads page 2 (items 41-55)
+    await page.getByRole("button", { name: /XEM THÊM MÓN/ }).click();
+    await expect(page.getByText("Hiển thị: 55/55 món")).toBeVisible();
+
+    // Item 51 is now visible!
+    await expect(page.getByText("Món cà phê số 51")).toBeVisible();
+
+    // Button disappears when all 55 items are loaded
+    await expect(page.getByRole("button", { name: /XEM THÊM MÓN/ })).toHaveCount(0);
+
+    // Filter change resets page to 0
+    await page.getByRole("tab", { name: /Trà & Trái cây/ }).click();
+    await expect(page.getByText("Hiển thị: 20/25 món")).toBeVisible();
+    await expect(page.getByText("Món cà phê số 31")).toBeVisible();
+  });
 });

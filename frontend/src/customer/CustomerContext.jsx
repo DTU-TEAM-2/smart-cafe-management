@@ -5,7 +5,10 @@ import {
   readSessionOrders,
   writeSessionCart,
   writeSessionOrders,
+  clearAttempt,
+  getOrCreateAttempt,
 } from "./customerSession.js";
+import { createOrder, fetchCsrfToken } from "./customerApi.js";
 
 const CustomerContext = createContext(null);
 
@@ -42,6 +45,11 @@ export function CustomerProvider({ children }) {
   // Active view state
   const [currentTab, setCurrentTab] = useState("menu"); // 'menu' | 'cart' | 'orders' | 'service' | 'feedback'
   const [selectedItemForDetail, setSelectedItemForDetail] = useState(null);
+
+  // In-flight order submission state (preserves state across tab switches)
+  const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+  const [pendingOrderSnapshot, setPendingOrderSnapshot] = useState(null);
+  const [orderModalResult, setOrderModalResult] = useState(null);
 
   // Sync cart to sessionStorage
   useEffect(() => {
@@ -96,6 +104,33 @@ export function CustomerProvider({ children }) {
     setCart([]);
   }, []);
 
+  const subtractFromCart = useCallback((submittedItems) => {
+    if (!Array.isArray(submittedItems) || submittedItems.length === 0) return;
+    setCart((prev) => {
+      const subMap = new Map();
+      for (const it of submittedItems) {
+        const id = String(it.menuItemId ?? it.id);
+        const qty = Number(it.quantity) || 0;
+        subMap.set(id, (subMap.get(id) || 0) + qty);
+      }
+
+      const next = [];
+      for (const entry of prev) {
+        const id = String(entry.item.id);
+        const subQty = subMap.get(id) || 0;
+        if (subQty > 0) {
+          const remaining = entry.quantity - subQty;
+          if (remaining > 0) {
+            next.push({ ...entry, quantity: remaining });
+          }
+        } else {
+          next.push(entry);
+        }
+      }
+      return next;
+    });
+  }, []);
+
   const cartTotal = useMemo(() => {
     return cart.reduce((sum, entry) => {
       const price = parseInt(String(entry.item.price).replace(/\D/g, ""), 10) || 0;
@@ -119,6 +154,64 @@ export function CustomerProvider({ children }) {
     );
   }, []);
 
+  const submitOrder = useCallback(async () => {
+    if (cart.length === 0 || isSubmittingOrder) return;
+
+    if (!session || !session.sessionId || !session.token) {
+      setOrderModalResult({
+        status: "failure",
+        title: "Chưa xác thực bàn",
+        detail: "Vui lòng quét mã QR tại bàn để xác nhận phiên đặt món trước khi gửi đơn.",
+      });
+      return;
+    }
+
+    const orderPayload = cart
+      .map((entry) => ({
+        menuItemId: Number(entry.item.id),
+        quantity: Number(entry.quantity),
+      }))
+      .sort((a, b) => a.menuItemId - b.menuItemId);
+
+    setIsSubmittingOrder(true);
+    setPendingOrderSnapshot(orderPayload);
+
+    try {
+      const idempotencyKey = getOrCreateAttempt(session, "order", orderPayload);
+      const csrf = await fetchCsrfToken();
+
+      const batchResult = await createOrder({
+        sessionId: session.sessionId,
+        token: session.token,
+        items: orderPayload,
+        idempotencyKey,
+        csrf,
+      });
+
+      addPlacedBatch({
+        ...batchResult,
+        createdAt: new Date().toISOString(),
+      });
+      subtractFromCart(orderPayload);
+      clearAttempt(session, "order");
+
+      setOrderModalResult({
+        status: "success",
+        title: "Đặt món thành công!",
+        detail: `Đơn #${batchResult.id} đã được gửi tới quầy pha chế. Bạn có thể chỉnh sửa hoặc hủy món trong vòng 3 phút tại mục Đơn món.`,
+      });
+    } catch (err) {
+      setOrderModalResult({
+        status: "failure",
+        title: "Đặt món thất bại",
+        detail: err.message || "Không thể gửi đơn đặt món. Vui lòng kiểm tra lại kết nối.",
+      });
+    } finally {
+      setIsSubmittingOrder(false);
+      setPendingOrderSnapshot(null);
+    }
+  }, [cart, isSubmittingOrder, session, addPlacedBatch, subtractFromCart]);
+
   const value = useMemo(
     () => ({
       session,
@@ -127,6 +220,7 @@ export function CustomerProvider({ children }) {
       updateCartQuantity,
       removeFromCart,
       clearCart,
+      subtractFromCart,
       cartTotal,
       cartCount,
       orders,
@@ -136,6 +230,11 @@ export function CustomerProvider({ children }) {
       setCurrentTab,
       selectedItemForDetail,
       setSelectedItemForDetail,
+      isSubmittingOrder,
+      pendingOrderSnapshot,
+      orderModalResult,
+      setOrderModalResult,
+      submitOrder,
     }),
     [
       session,
@@ -144,6 +243,7 @@ export function CustomerProvider({ children }) {
       updateCartQuantity,
       removeFromCart,
       clearCart,
+      subtractFromCart,
       cartTotal,
       cartCount,
       orders,
@@ -151,6 +251,10 @@ export function CustomerProvider({ children }) {
       replacePlacedBatch,
       currentTab,
       selectedItemForDetail,
+      isSubmittingOrder,
+      pendingOrderSnapshot,
+      orderModalResult,
+      submitOrder,
     ]
   );
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useTransition } from "react";
+import { useState, useEffect } from "react";
 import { useCustomer, formatVnd } from "./CustomerContext.jsx";
 import { fetchCategories, fetchMenuItems } from "./customerApi.js";
 import ItemDetailModal from "./ItemDetailModal.jsx";
@@ -10,9 +10,13 @@ export default function CustomerMenuView() {
   const [activeCategoryId, setActiveCategoryId] = useState(null);
   const [keyword, setKeyword] = useState("");
   const [availableOnly, setAvailableOnly] = useState(true);
+  const [page, setPage] = useState(0);
+  const [totalElements, setTotalElements] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
-  const [, startTransition] = useTransition();
+
+  const PAGE_SIZE = 20;
 
   // Load categories
   useEffect(() => {
@@ -29,41 +33,57 @@ export default function CustomerMenuView() {
     };
   }, []);
 
-  // Load items
+  // Load items with pagination support
   useEffect(() => {
     let mounted = true;
-    setLoading(true);
+    if (page === 0) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
     setError(null);
 
+    const delay = keyword ? 150 : 0;
     const timer = setTimeout(() => {
       fetchMenuItems({
         categoryId: activeCategoryId,
-        keyword,
+        keyword: keyword.trim() || undefined,
         availableOnly,
-        page: 0,
-        size: 50,
+        page,
+        size: PAGE_SIZE,
       })
         .then((data) => {
           if (mounted) {
-            startTransition(() => {
-              setItems(data.content || []);
+            const newContent = data.content || [];
+            const total = typeof data.totalElements === "number" ? data.totalElements : newContent.length;
+            setTotalElements(total);
+            if (page === 0) {
+              setItems(newContent);
               setLoading(false);
-            });
+            } else {
+              setItems((prev) => {
+                const existingIds = new Set(prev.map((it) => it.id));
+                const nonDuplicates = newContent.filter((it) => !existingIds.has(it.id));
+                return [...prev, ...nonDuplicates];
+              });
+              setLoadingMore(false);
+            }
           }
         })
         .catch((err) => {
           if (mounted) {
             setError(err.message || "Không thể tải thực đơn. Vui lòng thử lại.");
             setLoading(false);
+            setLoadingMore(false);
           }
         });
-    }, 150);
+    }, delay);
 
     return () => {
       mounted = false;
       clearTimeout(timer);
     };
-  }, [activeCategoryId, keyword, availableOnly]);
+  }, [activeCategoryId, keyword, availableOnly, page]);
 
   return (
     <div className="c-content">
@@ -82,7 +102,10 @@ export default function CustomerMenuView() {
           className="c-search-input"
           placeholder="Tìm kiếm cà phê, trà, bánh..."
           value={keyword}
-          onChange={(e) => setKeyword(e.target.value)}
+          onChange={(e) => {
+            setKeyword(e.target.value);
+            setPage(0);
+          }}
           aria-label="Tìm kiếm món"
         />
       </div>
@@ -94,7 +117,10 @@ export default function CustomerMenuView() {
           role="tab"
           aria-selected={activeCategoryId === null}
           className={`c-category-pill ${activeCategoryId === null ? "active" : ""}`}
-          onClick={() => setActiveCategoryId(null)}
+          onClick={() => {
+            setActiveCategoryId(null);
+            setPage(0);
+          }}
         >
           Tất cả
         </button>
@@ -105,7 +131,10 @@ export default function CustomerMenuView() {
             role="tab"
             aria-selected={activeCategoryId === String(cat.id)}
             className={`c-category-pill ${activeCategoryId === String(cat.id) ? "active" : ""}`}
-            onClick={() => setActiveCategoryId(String(cat.id))}
+            onClick={() => {
+              setActiveCategoryId(String(cat.id));
+              setPage(0);
+            }}
           >
             {cat.name} {cat.activeItemCount ? `(${cat.activeItemCount})` : ""}
           </button>
@@ -115,13 +144,16 @@ export default function CustomerMenuView() {
       {/* Available Only Filter */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
         <span style={{ fontSize: "12px", color: "#b9aa98" }}>
-          Hiển thị: <strong>{items.length} món</strong>
+          Hiển thị: <strong>{totalElements > 20 ? `${items.length}/${totalElements}` : items.length} món</strong>
         </span>
         <label style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#b9aa98", cursor: "pointer" }}>
           <input
             type="checkbox"
             checked={availableOnly}
-            onChange={(e) => setAvailableOnly(e.target.checked)}
+            onChange={(e) => {
+              setAvailableOnly(e.target.checked);
+              setPage(0);
+            }}
             style={{ accentColor: "#d5a953" }}
           />
           Chỉ món có sẵn
@@ -214,6 +246,29 @@ export default function CustomerMenuView() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Load More Button */}
+      {!loading && items.length > 0 && items.length < totalElements && (
+        <div style={{ marginTop: "20px", marginBottom: "12px", textAlign: "center" }}>
+          <button
+            type="button"
+            className="c-btn-primary"
+            style={{
+              background: "transparent",
+              border: "1px solid #d5a953",
+              color: "#d5a953",
+              padding: "12px 20px",
+              fontSize: "13px",
+              letterSpacing: "0.05em",
+            }}
+            onClick={() => setPage((p) => p + 1)}
+            disabled={loadingMore}
+            aria-label="Tải thêm món"
+          >
+            {loadingMore ? "ĐANG TẢI THÊM MÓN..." : `XEM THÊM MÓN (${items.length}/${totalElements})`}
+          </button>
         </div>
       )}
 

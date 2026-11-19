@@ -5,10 +5,18 @@ import CustomerCartView from "./CustomerCartView.jsx";
 import ActiveOrdersView from "./ActiveOrdersView.jsx";
 import ServiceRequestsView from "./ServiceRequestsView.jsx";
 import FeedbackView from "./FeedbackView.jsx";
+import OrderResultModal from "./OrderResultModal.jsx";
 import "./customer.css";
 
 export default function CustomerLayout({ onNavigateHome }) {
-  const { currentTab, setCurrentTab, session } = useCustomer();
+  const {
+    currentTab,
+    setCurrentTab,
+    session,
+    orderModalResult,
+    setOrderModalResult,
+    submitOrder,
+  } = useCustomer();
 
   return (
     <div className="c-container">
@@ -81,6 +89,29 @@ export default function CustomerLayout({ onNavigateHome }) {
 
       {/* Bottom Dock */}
       <CustomerDock />
+
+      {/* Global Order Result Modal */}
+      {orderModalResult && (
+        <OrderResultModal
+          status={orderModalResult.status}
+          title={orderModalResult.title}
+          detail={orderModalResult.detail}
+          primaryText={orderModalResult.status === "success" ? "XEM ĐƠN MÓN" : "THỬ LẠI"}
+          secondaryText={orderModalResult.status === "success" ? "TIẾP TỤC CHỌN MÓN" : "ĐÓNG"}
+          onPrimaryAction={
+            orderModalResult.status === "success"
+              ? () => {
+                  setOrderModalResult(null);
+                  setCurrentTab("orders");
+                }
+              : () => {
+                  setOrderModalResult(null);
+                  submitOrder();
+                }
+          }
+          onClose={() => setOrderModalResult(null)}
+        />
+      )}
     </div>
   );
 }

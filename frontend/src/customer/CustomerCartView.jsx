@@ -1,74 +1,22 @@
-import { useState } from "react";
 import { useCustomer, formatVnd } from "./CustomerContext.jsx";
-import { createOrder, fetchCsrfToken } from "./customerApi.js";
-import { clearAttempt, getOrCreateAttempt } from "./customerSession.js";
-import OrderResultModal from "./OrderResultModal.jsx";
 
-export default function CustomerCartView({ onNavigateMenu, onNavigateOrders }) {
-  const { cart, updateCartQuantity, removeFromCart, clearCart, cartTotal, session, addPlacedBatch } = useCustomer();
-  const [submitting, setSubmitting] = useState(false);
-  const [modalResult, setModalResult] = useState(null); // { status: 'success'|'failure', title, detail }
+export default function CustomerCartView({ onNavigateMenu }) {
+  const {
+    cart,
+    updateCartQuantity,
+    removeFromCart,
+    cartTotal,
+    isSubmittingOrder,
+    pendingOrderSnapshot,
+    submitOrder,
+  } = useCustomer();
 
   const isEmpty = cart.length === 0;
 
-  async function handleCheckout() {
-    if (isEmpty || submitting) return;
-
-    if (!session || !session.sessionId || !session.token) {
-      setModalResult({
-        status: "failure",
-        title: "Chưa xác thực bàn",
-        detail: "Vui lòng quét mã QR tại bàn để xác nhận phiên đặt món trước khi gửi đơn.",
-      });
-      return;
-    }
-
-    setSubmitting(true);
-
-    try {
-      const orderPayload = cart
-        .map((entry) => ({
-          menuItemId: Number(entry.item.id),
-          quantity: Number(entry.quantity),
-        }))
-        .sort((a, b) => a.menuItemId - b.menuItemId);
-      const idempotencyKey = getOrCreateAttempt(session, "order", orderPayload);
-
-      // 1. Fetch CSRF token
-      const csrf = await fetchCsrfToken();
-
-      // 2. Submit order batch
-      const batchResult = await createOrder({
-        sessionId: session.sessionId,
-        token: session.token,
-        items: orderPayload,
-        idempotencyKey,
-        csrf,
-      });
-
-      // 3. Add to order history & clear cart
-      addPlacedBatch({
-        ...batchResult,
-        createdAt: new Date().toISOString(),
-      });
-      clearCart();
-      clearAttempt(session, "order");
-
-      setModalResult({
-        status: "success",
-        title: "Đặt món thành công!",
-        detail: `Đơn #${batchResult.id} đã được gửi tới quầy pha chế. Bạn có thể chỉnh sửa hoặc hủy món trong vòng 3 phút tại mục Đơn món.`,
-      });
-    } catch (err) {
-      setModalResult({
-        status: "failure",
-        title: "Đặt món thất bại",
-        detail: err.message || "Không thể gửi đơn đặt món. Vui lòng kiểm tra lại kết nối.",
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  }
+  const isItemPending = (itemId) => {
+    if (!isSubmittingOrder || !pendingOrderSnapshot) return false;
+    return pendingOrderSnapshot.some((p) => String(p.menuItemId) === String(itemId));
+  };
 
   return (
     <div className="c-content">
@@ -127,6 +75,7 @@ export default function CustomerCartView({ onNavigateMenu, onNavigateOrders }) {
                       style={{ width: "30px", height: "30px", fontSize: "14px" }}
                       onClick={() => updateCartQuantity(item.id, quantity - 1)}
                       aria-label="Giảm số lượng"
+                      disabled={isSubmittingOrder && isItemPending(item.id)}
                     >
                       -
                     </button>
@@ -139,6 +88,7 @@ export default function CustomerCartView({ onNavigateMenu, onNavigateOrders }) {
                       style={{ width: "30px", height: "30px", fontSize: "14px" }}
                       onClick={() => updateCartQuantity(item.id, quantity + 1)}
                       aria-label="Tăng số lượng"
+                      disabled={isSubmittingOrder && isItemPending(item.id)}
                     >
                       +
                     </button>
@@ -150,6 +100,7 @@ export default function CustomerCartView({ onNavigateMenu, onNavigateOrders }) {
                     onClick={() => removeFromCart(item.id)}
                     aria-label={`Xóa ${item.name} khỏi giỏ`}
                     style={{ color: "#ff6b6b", marginLeft: "4px" }}
+                    disabled={isSubmittingOrder && isItemPending(item.id)}
                   >
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                       <polyline points="3 6 5 6 21 6" />
@@ -181,10 +132,10 @@ export default function CustomerCartView({ onNavigateMenu, onNavigateOrders }) {
             <button
               type="button"
               className="c-btn-primary"
-              onClick={handleCheckout}
-              disabled={submitting}
+              onClick={submitOrder}
+              disabled={isSubmittingOrder || isEmpty}
             >
-              {submitting ? (
+              {isSubmittingOrder ? (
                 <>
                   <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⟳</span>
                   ĐANG GỬI ĐƠN ĐẶT MÓN...
@@ -195,24 +146,6 @@ export default function CustomerCartView({ onNavigateMenu, onNavigateOrders }) {
             </button>
           </div>
         </>
-      )}
-
-      {/* Result Modal */}
-      {modalResult && (
-        <OrderResultModal
-          status={modalResult.status}
-          title={modalResult.title}
-          detail={modalResult.detail}
-          primaryText={modalResult.status === "success" ? "XEM ĐƠN MÓN" : "THỬ LẠI"}
-          secondaryText={modalResult.status === "success" ? "TIẾP TỤC CHỌN MÓN" : "ĐÓNG"}
-          onPrimaryAction={modalResult.status === "success" ? onNavigateOrders : handleCheckout}
-          onClose={() => {
-            setModalResult(null);
-            if (modalResult.status === "success") {
-              onNavigateOrders();
-            }
-          }}
-        />
       )}
     </div>
   );
