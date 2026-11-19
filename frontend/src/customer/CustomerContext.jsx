@@ -198,7 +198,7 @@ export function CustomerProvider({ children }) {
         const changes = freshItems.filter((item, index) => String(item.price) !== String(cart[index].item.price));
         freshItems.forEach((item) => updateCartItemPrice(item.id, item.price));
         if (changes.length) {
-          setOrderModalResult({ status: "failure", title: "Giá món đã thay đổi",
+          setOrderModalResult({ status: "failure", action: "reviewPrices", title: "Giá món đã thay đổi",
             detail: "Đã cập nhật giá thực đơn. Vui lòng kiểm tra tổng tiền rồi bấm gửi lại để xác nhận." });
           return;
         }

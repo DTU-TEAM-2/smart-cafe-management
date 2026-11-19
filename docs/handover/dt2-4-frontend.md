@@ -38,3 +38,7 @@ Tài liệu này mô tả phần đã triển khai và kiểm thử, không thay
 - Giữ menuItemId dạng chuỗi, không đổi ID BIGINT qua Number; bộ lọc mới xóa món của bộ lọc cũ khi page 0 lỗi.
 - Lint/build PASS; unit 5/5; Playwright toàn repository **222/222 PASS**, Customer **44/44 PASS** (22 kịch bản × desktop/mobile), dùng API mock. Bảy ảnh trong `docs/handover/evidence/dt2-4/screenshots/` được tạo lại từ lượt này; đã kiểm trực tiếp ảnh giỏ và đơn món.
 - Skills: React best practices cho fetch/state; cafe-spring-api cho GET kiểm quyền; cafe-quality/cafe-review cho test lỗi mạng, giá, storage và tự kiểm diff. Self-review không thay review chéo.
+
+### Xác nhận giá trước Order — review bổ sung
+
+Thông báo “Giá món đã thay đổi” dùng action `reviewPrices`: nút **XEM LẠI GIỎ** chỉ đóng modal và chuyển về giỏ, không gọi POST. Khách kiểm tra tổng mới rồi bấm nút gửi đơn trong giỏ để xác nhận. Modal lỗi mạng vẫn có **THỬ LẠI**, giữ nguyên attempt/key/payload chưa rõ kết quả. Test Customer #22 bấm trực tiếp CTA đổi giá và kiểm 0 POST, sau đó xác nhận gửi và retry mạng cùng key/payload. Ảnh mobile mới: `docs/handover/evidence/dt2-4/screenshots/08-fe-price-consent.png` (API mock).

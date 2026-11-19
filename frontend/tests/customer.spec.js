@@ -982,12 +982,17 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     expect(versions).toEqual([0, 1]);
   });
 
-  test("22. Requires price confirmation and blocks submission when price lookup fails", async ({ page }) => {
+  test("22. Requires price confirmation and blocks submission when price lookup fails", async ({ page }, testInfo) => {
     let price = "45000";
     let unavailable = false;
     let posts = 0;
+    const attempts = [];
     await page.route("**/api/v1/customer/menu/items/101", (route) => unavailable ? route.abort() : route.fulfill({ json: { ...mockMenuItems.content[0], price } }));
-    await page.route("**/api/v1/customer/sessions/10/orders", (route) => { posts++; return route.abort(); });
+    await page.route("**/api/v1/customer/sessions/10/orders", (route) => {
+      posts++;
+      attempts.push({ key: route.request().headers()["idempotency-key"], payload: route.request().postDataJSON() });
+      return route.abort();
+    });
     await page.goto("/#customer");
     await page.getByLabel("Thêm Caramel Latte vào giỏ hàng").click();
     await page.getByRole("button", { name: /Giỏ hàng/ }).click();
@@ -995,9 +1000,14 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     price = "50000";
     await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
     await expect(page.getByText("Giá món đã thay đổi")).toBeVisible();
+    if (testInfo.project.name === "mobile") {
+      await page.screenshot({ path: "../docs/handover/evidence/dt2-4/screenshots/08-fe-price-consent.png" });
+    }
     expect(posts).toBe(0);
-    await page.getByRole("button", { name: "ĐÓNG", exact: true }).click();
+    await page.getByRole("button", { name: "XEM LẠI GIỎ", exact: true }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(page.locator(".c-summary-total-price")).toHaveText("50.000 đ");
+    expect(posts).toBe(0);
     unavailable = true;
     await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
     await expect(page.getByText("Chưa xác minh được giá")).toBeVisible();
@@ -1006,6 +1016,10 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     unavailable = false;
     await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
     await expect.poll(() => posts).toBe(1);
+    await expect(page.getByText("Đặt món thất bại", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "THỬ LẠI", exact: true }).click();
+    await expect.poll(() => posts).toBe(2);
+    expect(attempts[1]).toEqual(attempts[0]);
   });
 
   test("20. Preserves large BigInt menuItemId in order payload without Number precision loss", async ({ page }) => {

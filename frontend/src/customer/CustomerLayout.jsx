@@ -96,13 +96,18 @@ export default function CustomerLayout({ onNavigateHome }) {
           status={orderModalResult.status}
           title={orderModalResult.title}
           detail={orderModalResult.detail}
-          primaryText={orderModalResult.status === "success" ? "XEM ĐƠN MÓN" : "THỬ LẠI"}
+          primaryText={orderModalResult.status === "success" ? "XEM ĐƠN MÓN" : orderModalResult.action === "reviewPrices" ? "XEM LẠI GIỎ" : "THỬ LẠI"}
           secondaryText={orderModalResult.status === "success" ? "TIẾP TỤC CHỌN MÓN" : "ĐÓNG"}
           onPrimaryAction={
             orderModalResult.status === "success"
               ? () => {
                   setOrderModalResult(null);
                   setCurrentTab("orders");
+                }
+              : orderModalResult.action === "reviewPrices"
+              ? () => {
+                  setOrderModalResult(null);
+                  setCurrentTab("cart");
                 }
               : () => {
                   setOrderModalResult(null);
