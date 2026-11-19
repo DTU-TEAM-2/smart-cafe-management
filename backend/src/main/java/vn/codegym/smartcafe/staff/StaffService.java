@@ -5,6 +5,7 @@ import java.security.SecureRandom;
 import java.sql.Date;
 import java.sql.Statement;
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -76,59 +77,62 @@ public class StaffService {
 
     @Transactional(readOnly = true)
     public StaffModels.PageResponse<StaffModels.StaffSummary> getStaffList(String keyword, int page, int size) {
+        return getStaffList(keyword, null, null, null, page, size);
+    }
+
+    @Transactional(readOnly = true)
+    public StaffModels.PageResponse<StaffModels.StaffSummary> getStaffList(
+            String keyword, String username, String name, String phone, int page, int size) {
         int pageSize = (size <= 0) ? 10 : Math.min(size, 100);
         long pageNumber = Math.max(0, (long) page);
         long offset = pageNumber * (long) pageSize;
 
-        boolean hasKeyword = keyword != null && !keyword.trim().isEmpty();
-        String searchPattern = hasKeyword ? "%" + escapeLike(keyword.trim().toLowerCase(Locale.ROOT)) + "%" : "";
+        List<String> orClauses = new ArrayList<>();
+        List<Object> filterParams = new ArrayList<>();
 
-        String countSql;
-        String selectSql;
-
-        if (hasKeyword) {
-            countSql = """
-                    SELECT COUNT(*)
-                    FROM users u
-                    LEFT JOIN staff_profiles p ON p.user_id = u.id
-                    WHERE u.status = 'ACTIVE' AND u.role IN ('ADMIN', 'STAFF')
-                          AND (LOWER(CONVERT(u.username USING utf8mb4)) LIKE ? ESCAPE '!' OR LOWER(u.full_name) LIKE ? ESCAPE '!' OR u.phone LIKE ? ESCAPE '!')
-                    """;
-            selectSql = """
-                    SELECT u.id, u.username, u.full_name, u.email, u.phone,
-                           p.address, p.gender, p.birthday, u.role, p.salary, u.status,
-                           m.secure_url AS avatar_url
-                    FROM users u
-                    LEFT JOIN staff_profiles p ON p.user_id = u.id
-                    LEFT JOIN media_assets m ON m.id = u.avatar_media_id AND m.deleted_at IS NULL
-                    WHERE u.status = 'ACTIVE' AND u.role IN ('ADMIN', 'STAFF')
-                          AND (LOWER(CONVERT(u.username USING utf8mb4)) LIKE ? ESCAPE '!' OR LOWER(u.full_name) LIKE ? ESCAPE '!' OR u.phone LIKE ? ESCAPE '!')
-                    ORDER BY u.username ASC
-                    LIMIT ? OFFSET ?
-                    """;
-        } else {
-            countSql = """
-                    SELECT COUNT(*)
-                    FROM users u
-                    LEFT JOIN staff_profiles p ON p.user_id = u.id
-                    WHERE u.status = 'ACTIVE' AND u.role IN ('ADMIN', 'STAFF')
-                    """;
-            selectSql = """
-                    SELECT u.id, u.username, u.full_name, u.email, u.phone,
-                           p.address, p.gender, p.birthday, u.role, p.salary, u.status,
-                           m.secure_url AS avatar_url
-                    FROM users u
-                    LEFT JOIN staff_profiles p ON p.user_id = u.id
-                    LEFT JOIN media_assets m ON m.id = u.avatar_media_id AND m.deleted_at IS NULL
-                    WHERE u.status = 'ACTIVE' AND u.role IN ('ADMIN', 'STAFF')
-                    ORDER BY u.username ASC
-                    LIMIT ? OFFSET ?
-                    """;
+        if (username != null && !username.trim().isEmpty()) {
+            orClauses.add("LOWER(CONVERT(u.username USING utf8mb4)) LIKE ? ESCAPE '!'");
+            filterParams.add("%" + escapeLike(username.trim().toLowerCase(Locale.ROOT)) + "%");
+        }
+        if (name != null && !name.trim().isEmpty()) {
+            orClauses.add("LOWER(u.full_name) LIKE ? ESCAPE '!'");
+            filterParams.add("%" + escapeLike(name.trim().toLowerCase(Locale.ROOT)) + "%");
+        }
+        if (phone != null && !phone.trim().isEmpty()) {
+            orClauses.add("u.phone LIKE ? ESCAPE '!'");
+            filterParams.add("%" + escapeLike(phone.trim()) + "%");
+        }
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            orClauses.add("(LOWER(CONVERT(u.username USING utf8mb4)) LIKE ? ESCAPE '!' OR LOWER(u.full_name) LIKE ? ESCAPE '!' OR u.phone LIKE ? ESCAPE '!')");
+            String kwPattern = "%" + escapeLike(keyword.trim().toLowerCase(Locale.ROOT)) + "%";
+            filterParams.add(kwPattern);
+            filterParams.add(kwPattern);
+            filterParams.add(kwPattern);
         }
 
-        Long total = hasKeyword
-                ? jdbc.queryForObject(countSql, Long.class, searchPattern, searchPattern, searchPattern)
-                : jdbc.queryForObject(countSql, Long.class);
+        String searchClause = orClauses.isEmpty() ? "" : " AND (" + String.join(" OR ", orClauses) + ")";
+
+        String countSql = """
+                SELECT COUNT(*)
+                FROM users u
+                LEFT JOIN staff_profiles p ON p.user_id = u.id
+                WHERE u.status = 'ACTIVE' AND u.role IN ('ADMIN', 'STAFF')
+                """ + searchClause;
+
+        String selectSql = """
+                SELECT u.id, u.username, u.full_name, u.email, u.phone,
+                       p.address, p.gender, p.birthday, u.role, p.salary, u.status,
+                       m.secure_url AS avatar_url
+                FROM users u
+                LEFT JOIN staff_profiles p ON p.user_id = u.id
+                LEFT JOIN media_assets m ON m.id = u.avatar_media_id AND m.deleted_at IS NULL
+                WHERE u.status = 'ACTIVE' AND u.role IN ('ADMIN', 'STAFF')
+                """ + searchClause + """
+                ORDER BY u.username ASC
+                LIMIT ? OFFSET ?
+                """;
+
+        Long total = jdbc.queryForObject(countSql, Long.class, filterParams.toArray());
 
         long totalElements = total != null ? total : 0L;
         int totalPages = (int) Math.ceil((double) totalElements / pageSize);
@@ -137,43 +141,28 @@ public class StaffService {
             return new StaffModels.PageResponse<>(Collections.emptyList(), (int) pageNumber, pageSize, totalElements, totalPages);
         }
 
-        List<StaffModels.StaffSummary> items = hasKeyword
-                ? jdbc.query(selectSql, (rs, rowNum) -> {
-                    Date bDate = rs.getDate("birthday");
-                    LocalDate birthday = (bDate != null) ? bDate.toLocalDate() : null;
-                    return new StaffModels.StaffSummary(
-                            rs.getLong("id"),
-                            rs.getString("username"),
-                            rs.getString("full_name"),
-                            rs.getString("email"),
-                            rs.getString("phone"),
-                            rs.getString("address"),
-                            rs.getString("gender"),
-                            birthday,
-                            rs.getString("role"),
-                            rs.getBigDecimal("salary"),
-                            rs.getString("status"),
-                            rs.getString("avatar_url")
-                    );
-                }, searchPattern, searchPattern, searchPattern, pageSize, offset)
-                : jdbc.query(selectSql, (rs, rowNum) -> {
-                    Date bDate = rs.getDate("birthday");
-                    LocalDate birthday = (bDate != null) ? bDate.toLocalDate() : null;
-                    return new StaffModels.StaffSummary(
-                            rs.getLong("id"),
-                            rs.getString("username"),
-                            rs.getString("full_name"),
-                            rs.getString("email"),
-                            rs.getString("phone"),
-                            rs.getString("address"),
-                            rs.getString("gender"),
-                            birthday,
-                            rs.getString("role"),
-                            rs.getBigDecimal("salary"),
-                            rs.getString("status"),
-                            rs.getString("avatar_url")
-                    );
-                }, pageSize, offset);
+        List<Object> selectParams = new ArrayList<>(filterParams);
+        selectParams.add(pageSize);
+        selectParams.add(offset);
+
+        List<StaffModels.StaffSummary> items = jdbc.query(selectSql, (rs, rowNum) -> {
+            Date bDate = rs.getDate("birthday");
+            LocalDate birthday = (bDate != null) ? bDate.toLocalDate() : null;
+            return new StaffModels.StaffSummary(
+                    rs.getLong("id"),
+                    rs.getString("username"),
+                    rs.getString("full_name"),
+                    rs.getString("email"),
+                    rs.getString("phone"),
+                    rs.getString("address"),
+                    rs.getString("gender"),
+                    birthday,
+                    rs.getString("role"),
+                    rs.getBigDecimal("salary"),
+                    rs.getString("status"),
+                    rs.getString("avatar_url")
+            );
+        }, selectParams.toArray());
 
         return new StaffModels.PageResponse<>(items, (int) pageNumber, pageSize, totalElements, totalPages);
     }
@@ -327,7 +316,8 @@ public class StaffService {
         }
 
         String email = request.email().trim();
-        if (!Objects.equals(email, existing.email())) {
+        boolean emailChanged = !Objects.equals(email, existing.email());
+        if (emailChanged) {
             Integer emailCount = jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE email = ? AND id != ?", Integer.class, email, id);
             if (emailCount != null && emailCount > 0) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Email đã tồn tại trong hệ thống.");
@@ -343,14 +333,17 @@ public class StaffService {
         try {
             int changed = jdbc.update("""
                     UPDATE users
-                    SET auth_version = auth_version + CASE WHEN role <> ? THEN 1 ELSE 0 END,
+                    SET auth_version = auth_version + CASE WHEN role <> ? OR email <> ? THEN 1 ELSE 0 END,
                         version = version + 1,
                         full_name = ?, email = ?, phone = ?, role = ?, avatar_media_id = ?
                     WHERE id = ? AND version = ? AND status = 'ACTIVE'
-                    """, role, request.fullName().trim(), email, request.phone().trim(), role, request.avatarMediaId(),
+                    """, role, email, request.fullName().trim(), email, request.phone().trim(), role, request.avatarMediaId(),
                     id, Long.parseLong(request.version()));
             if (changed != 1) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT, "Profile changed; reload before editing.");
+            }
+            if (emailChanged) {
+                jdbc.update("UPDATE auth_otp_challenges SET used_at = CURRENT_TIMESTAMP(6) WHERE user_id = ? AND used_at IS NULL", id);
             }
         } catch (DuplicateKeyException ex) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email đã tồn tại trong hệ thống.");

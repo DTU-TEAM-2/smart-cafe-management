@@ -28,9 +28,12 @@ public class StaffController {
     @GetMapping
     public StaffModels.PageResponse<StaffModels.StaffSummary> getStaffList(
             @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String username,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String phone,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return staffService.getStaffList(keyword, page, size);
+        return staffService.getStaffList(keyword, username, name, phone, page, size);
     }
 
     @GetMapping("/{id}")

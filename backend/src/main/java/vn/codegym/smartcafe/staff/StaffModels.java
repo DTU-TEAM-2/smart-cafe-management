@@ -1,5 +1,6 @@
 package vn.codegym.smartcafe.staff;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
@@ -17,6 +18,7 @@ public final class StaffModels {
             String gender,
             LocalDate birthday,
             String role,
+            @JsonFormat(shape = JsonFormat.Shape.STRING)
             BigDecimal salary,
             String status,
             String avatarUrl
@@ -32,6 +34,7 @@ public final class StaffModels {
             String gender,
             LocalDate birthday,
             String role,
+            @JsonFormat(shape = JsonFormat.Shape.STRING)
             BigDecimal salary,
             String status,
             Long avatarMediaId,

@@ -79,14 +79,13 @@ Model đã theo sơ đồ mới do chủ repo cung cấp lại ngày 11/11. DB l
 
 Frame Figma 8:319 có Mô tả và nhãn WebP, nhưng API/ERD menu chưa có description và backend chỉ nhận PNG/JPEG. Reviewer nêu P3 cần PO/UX/BE chốt. **Chủ repo chọn ngày 13/11: giữ contract hiện tại, ghi rõ chênh lệch và chờ PO chốt Figma.** Không tự thêm schema/field/format; phần cập nhật thiết kế vẫn chờ PO. Xem [đối chiếu và quyết định](../handover/dt2-9-figma-contract-alignment.md).
 
-### QA-08 — DT2-10: Onboarding nhân viên và luồng gửi Email kích hoạt (13/11/2026)
+### QA-08 — DT2-10: Onboarding nhân viên và luồng kích hoạt tài khoản (Cập nhật 18/11/2026)
 
 - **Mã issue / Dependency:** `DT2-2` (Module Authentication & Account Onboarding / Email Service).
-- **Owner:** Nhóm phụ trách module Auth (`DT2-2`).
-- **Blocker tích hợp:** Auth đã có SMTP cho khôi phục mật khẩu. Còn nối luồng phát hành email kích hoạt khi Admin tạo nhân viên.
-- **Tiêu chí E2E Acceptance:** Khi module Auth hoàn thiện: Admin tạo nhân viên (`POST /api/v1/staff`) -> Backend lưu `must_change_password=1` và mật khẩu ngẫu nhiên an toàn -> Auth Module phát hành email kèm activation/reset token một lần -> Nhân viên truy cập link xác thực, tự đặt mật khẩu mới -> Đăng nhập thành công lần đầu.
-- **Trạng thái:** Backend User & Security State của Staff hoàn tất; đang chờ module Auth (DT2-2) kết nối luồng gửi email và trang đặt mật khẩu.
-- **Lưu ý SecurityConfig khi Merge với PR #7:** Cần bảo đảm giữ nguyên quy tắc phân quyền `/api/v1/staff/**` chỉ cho phép `ROLE_ADMIN` (như cấu hình trong PR #11); không nhận cấu hình `hasAnyRole("ADMIN", "STAFF")` từ PR #7.
+- **Owner:** Nhóm phụ trách module Auth (`DT2-2`) và Staff (`DT2-10`).
+- **Quyết định nghiệm thu backend-only (Phương án B):** Nhóm và PO đã thống nhất chốt **Phương án (B)** cho PR #11: nghiệm thu quy trình onboarding thủ công qua tính năng Quên mật khẩu đã merge của DT2-2 (`POST /api/v1/staff` -> Admin thông báo -> Nhân viên tự xin OTP qua `/api/v1/auth/forgot-password` -> Đặt mật khẩu mới qua `/api/v1/auth/reset-password`). Không tự claim tính năng auto email invitation.
+- **Tiêu chí Release / Integration Gate:** Luồng tự động phát hành email lời mời kích hoạt (Option A) cùng token dùng 1 lần (TTL, challenge an toàn) được chuyển thành tiêu chí kiểm thử tích hợp E2E của giai đoạn release/tích hợp tiếp theo; không làm blocker nghiệm thu riêng của PR #11 backend-only.
+- **Bảo toàn phân quyền SecurityConfig:** Đã bảo đảm giữ nguyên quy tắc phân quyền `/api/v1/staff/**` chỉ cho phép `ROLE_ADMIN` (như cấu hình trong PR #11); GET `/api/v1/staff/dashboard` cho phép `ROLE_ADMIN` và `ROLE_STAFF`.
 
 ### DT2-2 — received DDL handoff, remaining owner/DBA decisions (2026-11-13)
 

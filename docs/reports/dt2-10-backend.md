@@ -44,7 +44,7 @@
      - Chặn xóa tài khoản Quản trị viên (ADMIN) qua Staff API (`400 Bad Request`) và kiểm tra Concurrency: Hai request xóa chéo Admin A↔B đồng thời đều bị từ chối, bảo đảm bất biến hệ thống luôn duy trì ít nhất 1 ADMIN ACTIVE.
    - Báo cáo HTML trực quan xuất ra tại: [`docs/reports/dt2-10-api/report.html`](dt2-10-api/report.html).
 2. **Bộ kiểm thử MockMvc ([`StaffControllerTest.java`](../../backend/src/test/java/vn/codegym/smartcafe/staff/StaffControllerTest.java)):**
-   - Kết quả CI HEAD `f5226c8`: **`18 / 18 PASS`** (tìm kiếm literal `%`, `_`, `!`; avatarMediaId; version CAS/409; auth_version khi đổi role).
+   - Kết quả: **`21 / 21 PASS`** (tìm kiếm literal `%`, `_`, `!`; tìm kiếm độc lập username/name/phone kết hợp OR; avatarMediaId; version CAS/409; auth_version khi đổi role và đổi email, thu hồi OTP challenge; salary serialize JSON string).
 3. **Bộ kiểm thử Policy Mật khẩu & Wildcard ([`StaffPasswordPolicyTest.java`](../../backend/src/test/java/vn/codegym/smartcafe/staff/StaffPasswordPolicyTest.java)):**
    - Kết quả: **`2 / 2 PASS`** (kiểm chứng 1.000 lần sinh mật khẩu ngẫu nhiên đều thỏa mãn đầy đủ hoa/thường/số/ký tự đặc biệt và hàm escape LIKE).
 4. **Bộ kiểm thử Upload Avatar ([`StaffImageServiceTest.java`](../../backend/src/test/java/vn/codegym/smartcafe/staff/StaffImageServiceTest.java)):**

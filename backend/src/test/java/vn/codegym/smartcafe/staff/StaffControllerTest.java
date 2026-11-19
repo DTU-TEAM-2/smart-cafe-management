@@ -41,6 +41,7 @@ class StaffControllerTest {
     @BeforeEach
     void setUp() {
         jdbc.update("DELETE FROM staff_profiles");
+        jdbc.update("DELETE FROM auth_otp_challenges");
         jdbc.update("DELETE FROM users");
         jdbc.update("DELETE FROM media_assets");
 
@@ -140,7 +141,7 @@ class StaffControllerTest {
                         .content(validJson))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.username", is("staff_valid1")))
-                .andExpect(jsonPath("$.salary", is(6500000)));
+                .andExpect(jsonPath("$.salary", is("6500000")));
 
         // Username <= 6 chars -> 400
         String shortUserJson = validJson.replace("staff_valid1", "user1");
@@ -200,7 +201,7 @@ class StaffControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.username", is("test_staff"))) // Username immutable!
                 .andExpect(jsonPath("$.fullName", is("Nguyen Updated Name")))
-                .andExpect(jsonPath("$.salary", is(8000000)));
+                .andExpect(jsonPath("$.salary", is("8000000")));
     }
 
     @Test
@@ -555,5 +556,130 @@ class StaffControllerTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.version", is("1")));
         org.assertj.core.api.Assertions.assertThat(jdbc.queryForObject(
                 "SELECT auth_version FROM users WHERE id=?", Long.class, testStaffId)).isEqualTo(before + 1);
+    }
+
+    @Test
+    void emailChangeIncrementsAuthVersionAndRevokesPendingOtpChallenges() throws Exception {
+        // Insert active OTP challenge for test staff
+        jdbc.update("""
+                INSERT INTO auth_otp_challenges(id, user_id, email, purpose, code_hash, expires_at, next_send_at)
+                VALUES ('ch-test-email-revocation', ?, 'staff@test.vn', 'RESET', 'dummy_hash_12345',
+                        DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 10 MINUTE), DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 1 MINUTE))
+                """, testStaffId);
+
+        long beforeAuthVersion = jdbc.queryForObject("SELECT auth_version FROM users WHERE id=?", Long.class, testStaffId);
+
+        // Update staff email
+        String body = """
+                {"fullName":"Nguyen Email Test","email":"staff-updated@test.vn","phone":"0902222222",
+                 "address":"Da Nang","role":"STAFF","salary":6000000,"version":"0"}
+                """;
+        mvc.perform(put("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email", is("staff-updated@test.vn")))
+                .andExpect(jsonPath("$.version", is("1")));
+
+        // Verify auth_version incremented
+        long afterAuthVersion = jdbc.queryForObject("SELECT auth_version FROM users WHERE id=?", Long.class, testStaffId);
+        org.assertj.core.api.Assertions.assertThat(afterAuthVersion).isEqualTo(beforeAuthVersion + 1);
+
+        // Verify pending OTP challenge was invalidated (used_at is not null)
+        java.sql.Timestamp usedAt = jdbc.queryForObject(
+                "SELECT used_at FROM auth_otp_challenges WHERE id = 'ch-test-email-revocation'", java.sql.Timestamp.class);
+        org.assertj.core.api.Assertions.assertThat(usedAt).isNotNull();
+
+        // Updating regular field without changing email does NOT bump auth_version further
+        String updateNameBody = """
+                {"fullName":"Nguyen Email Test Modified Name","email":"staff-updated@test.vn","phone":"0902222222",
+                 "address":"Da Nang","role":"STAFF","salary":6000000,"version":"1"}
+                """;
+        mvc.perform(put("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(updateNameBody))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.version", is("2")));
+
+        long finalAuthVersion = jdbc.queryForObject("SELECT auth_version FROM users WHERE id=?", Long.class, testStaffId);
+        org.assertj.core.api.Assertions.assertThat(finalAuthVersion).isEqualTo(afterAuthVersion);
+    }
+
+    @Test
+    void searchSupportsIndependentFiltersWithOrCombination() throws Exception {
+        // Insert additional test users
+        jdbc.update("""
+                INSERT INTO users(username, password_hash, full_name, email, phone, role, status)
+                VALUES ('user_search_alpha', 'hash', 'Tran Alpha User', 'alpha@test.vn', '0988111222', 'STAFF', 'ACTIVE')
+                """);
+        Long alphaId = jdbc.queryForObject("SELECT id FROM users WHERE username = 'user_search_alpha'", Long.class);
+        jdbc.update("INSERT INTO staff_profiles(user_id, address, gender, salary) VALUES (?, 'HN', 'MALE', 8000000)", alphaId);
+
+        jdbc.update("""
+                INSERT INTO users(username, password_hash, full_name, email, phone, role, status)
+                VALUES ('user_search_beta', 'hash', 'Le Beta Member', 'beta@test.vn', '0977333444', 'STAFF', 'ACTIVE')
+                """);
+        Long betaId = jdbc.queryForObject("SELECT id FROM users WHERE username = 'user_search_beta'", Long.class);
+        jdbc.update("INSERT INTO staff_profiles(user_id, address, gender, salary) VALUES (?, 'HCM', 'FEMALE', 9000000)", betaId);
+
+        // Independent search by username
+        mvc.perform(get("/api/v1/staff?username=alpha").with(user("test_admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements", is(1)))
+                .andExpect(jsonPath("$.content[0].username", is("user_search_alpha")));
+
+        // Independent search by name
+        mvc.perform(get("/api/v1/staff?name=Beta").with(user("test_admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements", is(1)))
+                .andExpect(jsonPath("$.content[0].username", is("user_search_beta")));
+
+        // Independent search by phone
+        mvc.perform(get("/api/v1/staff?phone=0988111222").with(user("test_admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements", is(1)))
+                .andExpect(jsonPath("$.content[0].username", is("user_search_alpha")));
+
+        // Combination with OR: matching username "alpha" OR phone "0977333444" -> returns 2 items
+        mvc.perform(get("/api/v1/staff?username=alpha&phone=0977333444").with(user("test_admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements", is(2)));
+
+        // Backward compatibility: keyword still works
+        mvc.perform(get("/api/v1/staff?keyword=alpha").with(user("test_admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements", is(1)))
+                .andExpect(jsonPath("$.content[0].username", is("user_search_alpha")));
+    }
+
+    @Test
+    void salaryIsFormattedAsJsonStringPreservingHighPrecision() throws Exception {
+        BigDecimal largeSalary = new BigDecimal("999999999999900000"); // > Number.MAX_SAFE_INTEGER
+        String createBody = """
+                {
+                    "username": "user_large_salary",
+                    "fullName": "High Earner Staff",
+                    "email": "earner@test.vn",
+                    "phone": "0912345678",
+                    "address": "Da Nang",
+                    "role": "STAFF",
+                    "salary": 999999999999900000
+                }
+                """;
+
+        mvc.perform(post("/api/v1/staff").with(user("test_admin").roles("ADMIN")).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(createBody))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.salary", is("999999999999900000")));
+
+        Long createdId = jdbc.queryForObject("SELECT id FROM users WHERE username = 'user_large_salary'", Long.class);
+
+        // GET detail returns salary as String
+        mvc.perform(get("/api/v1/staff/" + createdId).with(user("test_admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.salary", is("999999999999900000")));
+
+        // GET summary list also returns salary as String
+        mvc.perform(get("/api/v1/staff?username=user_large_salary").with(user("test_admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].salary", is("999999999999900000")));
     }
 }
