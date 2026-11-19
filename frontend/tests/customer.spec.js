@@ -637,7 +637,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
 
     // Click load more -> page 1 fails with 503
     await page.getByRole("button", { name: /XEM THÊM MÓN/ }).click();
-    await expect(page.getByText(/Không thể tải thêm món/)).toBeVisible();
+    await expect(page.getByText(/Dịch vụ tạm thời bận/)).toBeVisible();
 
     // Click load more AGAIN to retry page 1 -> succeeds!
     await page.getByRole("button", { name: /XEM THÊM MÓN/ }).click();
