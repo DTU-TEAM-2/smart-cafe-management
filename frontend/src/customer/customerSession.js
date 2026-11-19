@@ -131,6 +131,7 @@ const memoryFallback = new Map();
 
 function readJson(key, fallback) {
   if (!key) return fallback;
+  if (memoryFallback.has(key)) return memoryFallback.get(key) ?? fallback;
   try {
     const value = sessionStorage.getItem(key);
     if (value) return JSON.parse(value);
@@ -154,7 +155,7 @@ function writeJson(key, value) {
 export function clearAttempt(session, operation) {
   const key = scopedKey(`${ATTEMPT_STORAGE_PREFIX}:${operation}`, session);
   if (key) {
-    memoryFallback.delete(key);
+    memoryFallback.set(key, null);
     try {
       sessionStorage.removeItem(key);
     } catch {

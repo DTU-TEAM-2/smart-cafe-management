@@ -93,7 +93,7 @@ Toàn bộ 15 hình ảnh minh chứng được xuất tự động từ Playwri
 
 ## 5. LỊCH SỬ XỬ LÝ VÀ GIẢI TRÌNH REVIEW FINDINGS
 
-Trong quá trình review PR #20, nhóm phát triển đã tiếp nhận và xử lý triệt để 9 ý kiến đánh giá từ các Reviewer:
+Các bản sửa đã triển khai trong quá trình review PR #20 được liệt kê dưới đây. Reviewer vẫn cần xác nhận trên revision cuối; danh sách này không thay approval hoặc nghiệm thu tích hợp:
 
 1. **[P1 Security - Bearer Token URL]:** Không nhận bearer token trực tiếp qua query params `#customer?token=...`. Chuyển sang đọc phiên an toàn thông qua `customerSession.js` và `sessionStorage`.
 2. **[P1 Session Isolation]:** Độc lập giỏ hàng và danh sách đơn của từng bàn theo namespace `lecker_customer_cart:{sessionId}:{clientStorageId}`.
@@ -115,11 +115,19 @@ Trong quá trình review PR #20, nhóm phát triển đã tiếp nhận và xử
 
 * **Frontend Linter:** `npm run lint` (`oxlint --deny-warnings`) đạt **0 errors, 0 warnings** trên toàn bộ 52 files.
 * **Frontend Build:** `npm run build` (`vite build`) tạo production bundle tối ưu thành công.
-* **Playwright E2E Tests:** **124/124 tests PASS** trên cả 2 môi trường Desktop Chrome và iPhone 13 Mobile (với hợp đồng API mô phỏng chính xác Backend DT2-4).
-* **GitHub Actions CI (5/5 Required Checks PASS):**
+* **Mốc Playwright lịch sử:** 124/124 trên desktop và mobile dùng API mock; không dùng số liệu này làm bằng chứng HEAD hiện tại. Kết quả mới được cập nhật ở phần review bên dưới.
+* **Các job GitHub Actions cần kiểm tra ở revision hiện tại:**
   -  `CI / Git Flow`
   -  `CI / PR title`
   -  `CI / Governance`
   -  `CI / Frontend UI`
   -  `CI / Backend MySQL`
 * **Giới hạn bàn giao:** Môi trường sản xuất thực tế với hạ tầng quét QR camera cấp phiên và bucket Firebase Storage lưu trữ ảnh nhận xét thuộc phạm vi triển khai hạ tầng production riêng.
+
+## 7. Cập nhật review ngày 19/11/2026
+
+Kết quả hiện tại: lint/build PASS, unit 5/5 và Playwright **222/222 PASS**, trong đó Customer **44/44 PASS** (22 kịch bản × desktop/mobile, API mock). Các số 124/124 ở trên là lịch sử. Báo cáo chi tiết bản sửa và giới hạn tại [handoff cập nhật](../../handover/dt2-4-frontend.md#cập-nhật-review-ngày-19112026).
+
+Đã bổ sung kiểm tra giá trước POST, xác nhận giá thay đổi, memory fallback có ưu tiên/tombstone, phục hồi snapshot/version Order qua GET có xác thực quyền. Bộ lọc mới không render món cũ khi page 0 lỗi, ID BIGINT giữ nguyên chuỗi. GET đọc đơn chỉ dùng bảng/cột DDL hiện có, không thay schema.
+
+Ảnh giỏ và đơn món đã được tạo lại tại `docs/handover/evidence/dt2-4/screenshots/03-fe-cart.png` và `05-fe-active-orders.png`; giỏ ghi rõ tổng tạm tính và đơn có nút tải lại. 15 ảnh ở phần trước là bộ minh chứng giao diện lịch sử; các ảnh thay đổi được cập nhật trong PR. Không dùng ảnh mock để chứng minh tích hợp Firebase/QR thật.

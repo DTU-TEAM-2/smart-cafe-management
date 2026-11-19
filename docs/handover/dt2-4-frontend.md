@@ -18,8 +18,7 @@ Tài liệu này mô tả phần đã triển khai và kiểm thử, không thay
 
 ## Bằng chứng kiểm thử
 
-- `frontend/tests/customer.spec.js`: 8 kịch bản chạy trên desktop và mobile, tổng **16/16 PASS**. Bao gồm token không còn trong URL, cô lập A→B theo session/client, retry Order giữ nguyên Idempotency-Key, response shape thật, ba lần PATCH liên tiếp và validation Feedback.
-- Toàn bộ Playwright repository: **118/118 PASS**.
+- Mốc kiểm thử ban đầu: Customer 16/16 và toàn bộ Playwright 118/118. Đây là kết quả lịch sử, không dùng để chứng minh HEAD hiện tại; xem bản cập nhật review phía dưới.
 - `npm run lint`: PASS.
 - `npm run build`: PASS.
 - Governance: registry **17 skills / 16 routes / 169 files**, routing tests **9/9**, Git Flow tests **8/8** PASS.
@@ -30,3 +29,12 @@ Tài liệu này mô tả phần đã triển khai và kiểm thử, không thay
 - Luồng QR → mở/join phiên → cấp bearer token chưa nằm trong PR #20. Module đó phải gọi `saveCustomerSession()` bằng credential do server cấp; không truyền token qua URL.
 - Chưa chạy browser end-to-end với Backend/MySQL/Firebase thật trong lượt này. Backend PR #14 đã ở `develop`; Firebase cloud vẫn cần cấu hình nhóm và kiểm thử riêng.
 - PR cần CI mới sau khi push, các discussion được reviewer xác nhận resolve và đủ hai approval độc lập trước khi maintainer xem xét merge.
+
+## Cập nhật review ngày 19/11/2026
+
+- Retry Order/WAITER/BILL giữ attempt trong bộ nhớ khi sessionStorage lỗi. Bộ nhớ được ưu tiên để dữ liệu storage cũ không ghi đè attempt mới; clear có tombstone nếu removeItem lỗi. Bảo đảm này có hiệu lực trong vòng đời trang hiện tại; không cam kết sống qua reload khi trình duyệt từ chối lưu trữ.
+- Trước một Order mới, tải giá chi tiết hiện tại cho từng món. Giá đổi thì cập nhật tổng và yêu cầu khách xác nhận bằng lần bấm gửi tiếp theo; GET lỗi thì chặn POST. Retry chưa rõ kết quả vẫn giữ nguyên key/payload. Backend tiếp tục chốt giá và tổng tại thời điểm ghi.
+- GET `/api/v1/customer/sessions/{id}/orders/{batchId}` xác thực token, phiên và chủ sở hữu batch, trả snapshot/version mới nhất với no-store. FE đọc lại khi mở tab đơn, reload hoặc mất phản hồi PATCH/DELETE; khóa sửa/hủy khi chưa xác minh được kết quả và có nút tải lại.
+- Giữ menuItemId dạng chuỗi, không đổi ID BIGINT qua Number; bộ lọc mới xóa món của bộ lọc cũ khi page 0 lỗi.
+- Lint/build PASS; unit 5/5; Playwright toàn repository **222/222 PASS**, Customer **44/44 PASS** (22 kịch bản × desktop/mobile), dùng API mock. Bảy ảnh trong `docs/handover/evidence/dt2-4/screenshots/` được tạo lại từ lượt này; đã kiểm trực tiếp ảnh giỏ và đơn món.
+- Skills: React best practices cho fetch/state; cafe-spring-api cho GET kiểm quyền; cafe-quality/cafe-review cho test lỗi mạng, giá, storage và tự kiểm diff. Self-review không thay review chéo.

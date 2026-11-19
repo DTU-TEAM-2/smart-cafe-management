@@ -72,6 +72,26 @@ class CustomerActionsMySqlTest {
     }
     private CustomerOrderService.Order order() { return orders.submit(ID,AUTH,"order-test",command(2)); }
 
+    @Test void readOrderRecoversCommittedEditsAndEnforcesOwnership() throws Exception {
+        var batch = order();
+        var item = batch.items().getFirst();
+        edits.edit(ID, Long.parseLong(item.id()), AUTH, 0, 3);
+        mvc.perform(get(BASE+"/orders/"+batch.id()).header("Authorization", AUTH))
+                .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.items[0].quantity").value(3)).andExpect(jsonPath("$.items[0].version").value("1"));
+        edits.edit(ID, Long.parseLong(item.id()), AUTH, 1, null);
+        mvc.perform(get(BASE+"/orders/"+batch.id()).header("Authorization", AUTH))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].status").value("CANCELLED"));
+        mvc.perform(get(BASE+"/orders/"+batch.id())).andExpect(status().isUnauthorized());
+        mvc.perform(get(BASE+"/orders/9223372036854775807").header("Authorization", AUTH)).andExpect(status().isNotFound());
+        jdbc.update("INSERT INTO session_clients(id,session_id,access_token_hash,joined_at,expires_at) VALUES(93002,93001,?,?,?)",
+                CustomerAccess.hash("R".repeat(43)), Timestamp.from(NOW), Timestamp.from(NOW.plusSeconds(3600)));
+        mvc.perform(get(BASE+"/orders/"+batch.id()).header("Authorization", "Bearer "+"R".repeat(43))).andExpect(status().isNotFound());
+        mvc.perform(get("/api/v1/customer/sessions/93002/orders/"+batch.id()).header("Authorization", AUTH)).andExpect(status().isUnauthorized());
+        jdbc.update("UPDATE session_clients SET revoked_at=? WHERE id=93001", Timestamp.from(NOW));
+        mvc.perform(get(BASE+"/orders/"+batch.id()).header("Authorization", AUTH)).andExpect(status().isUnauthorized());
+    }
+
     @Test void orderUsesDatabasePricesSnapshotsAndSafeReplay() {
         var first = order();
         assertThat(first.totalAmount()).isEqualTo("50000");

@@ -9,7 +9,7 @@ import {
   getOrCreateOrderAttempt,
   readOrderAttempt,
 } from "./customerSession.js";
-import { createOrder, fetchCsrfToken } from "./customerApi.js";
+import { createOrder, fetchCsrfToken, fetchMenuItem } from "./customerApi.js";
 
 const CustomerContext = createContext(null);
 
@@ -192,6 +192,23 @@ export function CustomerProvider({ children }) {
       idempotencyKey = existingAttempt.idempotencyKey;
     } else {
       if (cart.length === 0) return;
+      setIsSubmittingOrder(true);
+      try {
+        const freshItems = await Promise.all(cart.map((entry) => fetchMenuItem(entry.item.id)));
+        const changes = freshItems.filter((item, index) => String(item.price) !== String(cart[index].item.price));
+        freshItems.forEach((item) => updateCartItemPrice(item.id, item.price));
+        if (changes.length) {
+          setOrderModalResult({ status: "failure", title: "Giá món đã thay đổi",
+            detail: "Đã cập nhật giá thực đơn. Vui lòng kiểm tra tổng tiền rồi bấm gửi lại để xác nhận." });
+          return;
+        }
+      } catch {
+        setOrderModalResult({ status: "failure", title: "Chưa xác minh được giá",
+          detail: "Không thể tải giá thực đơn hiện tại. Vui lòng kiểm tra kết nối và thử lại." });
+        return;
+      } finally {
+        setIsSubmittingOrder(false);
+      }
       const initialPayload = cart
         .map((entry) => ({
           menuItemId: String(entry.item.id),
@@ -242,7 +259,7 @@ export function CustomerProvider({ children }) {
       setIsSubmittingOrder(false);
       setPendingOrderSnapshot(null);
     }
-  }, [cart, isSubmittingOrder, session, addPlacedBatch, subtractFromCart]);
+  }, [cart, isSubmittingOrder, session, addPlacedBatch, subtractFromCart, updateCartItemPrice]);
 
   const value = useMemo(
     () => ({

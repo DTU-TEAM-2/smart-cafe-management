@@ -11,15 +11,20 @@ export default function ActiveOrdersView({ onNavigateMenu }) {
   const [actionError, setActionError] = useState(null);
   const [submittingAction, setSubmittingAction] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [unverifiedBatches, setUnverifiedBatches] = useState([]);
 
   const batchIds = orders.map((batch) => batch.id).join(",");
   useEffect(() => {
     if (!batchIds || !session?.token) return;
     let active = true;
     setRefreshing(true);
+    setUnverifiedBatches(batchIds.split(","));
     Promise.all(batchIds.split(",").map(async (batchId) => {
       const fresh = await fetchOrder({ ...session, batchId });
-      if (active) replacePlacedBatch(fresh);
+      if (active) {
+        replacePlacedBatch(fresh);
+        setUnverifiedBatches((prev) => prev.filter((id) => id !== batchId));
+      }
     })).catch((err) => {
       if (active) setActionError(err.message);
     }).finally(() => {
@@ -37,6 +42,7 @@ export default function ActiveOrdersView({ onNavigateMenu }) {
       }));
       setEditingItem(null);
       setCancellingItem(null);
+      setUnverifiedBatches([]);
     } catch (err) {
       setActionError(err.message);
     } finally {
@@ -51,6 +57,9 @@ export default function ActiveOrdersView({ onNavigateMenu }) {
       setCancellingItem(null);
       setActionError("Đã tải trạng thái mới nhất. Vui lòng kiểm tra đơn trước khi thao tác tiếp.");
     } catch {
+      setUnverifiedBatches((prev) => [...new Set([...prev, String(batchId)])]);
+      setEditingItem(null);
+      setCancellingItem(null);
       setActionError(`${error.message} Chưa thể xác minh kết quả. Hãy tải lại đơn khi có kết nối.`);
     }
   }
@@ -230,7 +239,7 @@ export default function ActiveOrdersView({ onNavigateMenu }) {
                               : status}
                           </span>
 
-                          {isItemEditable && !refreshing && (
+                          {isItemEditable && !refreshing && !unverifiedBatches.includes(String(batchId)) && (
                             <>
                               <button
                                 type="button"

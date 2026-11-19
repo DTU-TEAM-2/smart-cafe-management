@@ -12,6 +12,7 @@ Các thao tác ghi khóa theo thứ tự bàn → phiên → client; cùng thứ
 
 | Method / route | Payload / header | Kết quả |
 | --- | --- | --- |
+| GET `/api/v1/customer/sessions/{id}/orders/{batchId}` | Bearer của client đã gửi batch; không cần CSRF | 200 snapshot/version/tổng hiện tại, no-store; 401 token/scope/hạn không hợp lệ, 404 batch không thuộc client. Đọc được trong CHECKOUT để phục hồi kết quả; không mở quyền ghi. |
 | POST `/api/v1/customer/sessions/{id}/orders` | `Idempotency-Key`, `{"items":[{"menuItemId":12,"quantity":2}]}` | 200, batch và các dòng snapshot, tổng VND dạng chuỗi, editableUntil; 400 rỗng/sai, 409 món ngừng phục vụ/mã gửi lại khác payload. |
 | PATCH `/api/v1/customer/sessions/{id}/order-items/{itemId}` | `{"quantity":3,"expectedVersion":0}` | 200 batch hiện tại, tăng version; 404 không phải người gửi; 409 hết hạn, đã chuẩn bị, phiên bản cũ hoặc đã lập bill. |
 | DELETE `/api/v1/customer/sessions/{id}/order-items/{itemId}` | `{"expectedVersion":1}` | 200, đánh dấu CANCELLED cùng mốc thời gian/lý do, giữ lịch sử; không DELETE vật lý. |

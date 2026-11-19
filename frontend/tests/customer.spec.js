@@ -67,6 +67,19 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     );
 
     // Mock CSRF
+    await page.route(/\/api\/v1\/customer\/menu\/items\/[^/?]+$/, async (route) => {
+      const id = route.request().url().split("/").pop();
+      const item = await page.evaluate((itemId) => {
+        const cart = JSON.parse(sessionStorage.getItem("lecker_customer_cart:10:client-a") || "[]");
+        return cart.find((entry) => String(entry.item.id) === itemId)?.item;
+      }, id);
+      return route.fulfill({ json: item || mockMenuItems.content.find((it) => it.id === id) });
+    });
+    await page.route(/\/api\/v1\/customer\/sessions\/10\/orders\/[^/?]+$/, async (route) => {
+      const id = route.request().url().split("/").pop();
+      const order = await page.evaluate((batchId) => JSON.parse(sessionStorage.getItem("lecker_customer_orders:10:client-a") || "[]").find((batch) => batch.id === batchId), id);
+      return route.fulfill({ json: order, headers: { Date: new Date().toUTCString() } });
+    });
     await page.route("**/api/v1/customer/csrf", (route) =>
       route.fulfill({
         status: 200,
@@ -160,7 +173,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     // Navigate to Cart
     await page.getByRole("button", { name: /Giỏ hàng/ }).click();
     await expect(page.getByRole("heading", { name: "Giỏ hàng của bạn" })).toBeVisible();
-    await expect(page.getByText("Tạm tính")).toBeVisible();
+    await expect(page.getByText("Tạm tính", { exact: true })).toBeVisible();
 
     // Click checkout
     await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
@@ -168,7 +181,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     // Verify success modal
     await expect(page.locator(".c-result-title")).toHaveText("Đặt món thành công!");
     expect(orderPayload).not.toBeNull();
-    expect(orderPayload.items[0].menuItemId).toBe(101);
+    expect(orderPayload.items[0].menuItemId).toBe("101");
   });
 
   test("4. Active orders tab shows placed order with 180s live timer and edit/cancel actions", async ({ page }) => {
@@ -558,7 +571,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     expect(recordedKeys[0]).toBeDefined();
     expect(recordedKeys[1]).toBe(recordedKeys[0]); // SAME IDEMPOTENCY KEY
     expect(recordedPayloads[1].items).toHaveLength(1);
-    expect(recordedPayloads[1].items[0].menuItemId).toBe(101); // ONLY ITEM A, B not mixed!
+    expect(recordedPayloads[1].items[0].menuItemId).toBe("101"); // ONLY ITEM A, B not mixed!
 
     // Verify cart still preserves Item B (Bạc xỉu Sài Gòn)
     await page.getByRole("button", { name: /Giỏ hàng/ }).click();
@@ -572,7 +585,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
 
     // Verify Attempt 3 had a NEW idempotency key and only Item B
     expect(recordedKeys[2]).not.toBe(recordedKeys[0]); // NEW IDEMPOTENCY KEY
-    expect(recordedPayloads[2].items[0].menuItemId).toBe(102);
+    expect(recordedPayloads[2].items[0].menuItemId).toBe("102");
 
     // Cart is now empty
     await page.getByRole("button", { name: /Giỏ hàng/ }).click();
@@ -707,7 +720,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
 
     await expect(page.locator(".c-result-title")).toHaveText("Đặt món thành công!");
     expect(keys[1]).not.toBe(keys[0]);
-    expect(payloads[1].items).toEqual([{ menuItemId: 102, quantity: 1 }]);
+    expect(payloads[1].items).toEqual([{ menuItemId: "102", quantity: 1 }]);
   });
 
   test("13. Keeps unavailable menu items visible but impossible to add", async ({ page }) => {
@@ -861,7 +874,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
 
     await expect(page.getByText(/Đặt món thất bại/)).toBeVisible();
-    await page.getByRole("button", { name: "ĐÃ HIỂU" }).click();
+    await page.getByRole("button", { name: "ĐÓNG", exact: true }).click();
 
     // Retry sending order
     await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
@@ -874,7 +887,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
 
   test("18. Revalidates cart item prices when viewing cart and reflects latest menu price", async ({ page }) => {
     let priceCurrent = "45000";
-    await page.route(/\/api\/v1\/customer\/menu\/101$/, (route) => {
+    await page.route(/\/api\/v1\/customer\/menu\/items\/101$/, (route) => {
       route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -925,6 +938,74 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     await page.getByRole("tab", { name: /Trà & Trái cây/ }).click();
     await expect(page.getByText("Lỗi kết nối cơ sở dữ liệu.")).toBeVisible();
     await expect(page.getByText("Caramel Latte")).toHaveCount(0);
+  });
+
+  test("21. Recovers committed edit and cancel after dropped responses and reload", async ({ page }) => {
+    const order = { id: "1001", sessionId: "10", totalAmount: "45000", sessionTotalAmount: "45000",
+      editableUntil: new Date(Date.now() + 180000).toISOString(),
+      items: [{ id: "item-1", menuItemId: "101", name: "Caramel Latte", unitPrice: "45000", lineTotal: "45000", quantity: 1, version: "0", status: "SUBMITTED" }] };
+    await page.addInitScript((batch) => {
+      if (!sessionStorage.getItem("lecker_customer_orders:10:client-a")) sessionStorage.setItem("lecker_customer_orders:10:client-a", JSON.stringify([batch]));
+    }, order);
+    let failRecovery = false;
+    await page.route("**/api/v1/customer/sessions/10/orders/1001", (route) => failRecovery ? route.abort() : route.fulfill({ json: order }));
+    const versions = [];
+    await page.route("**/api/v1/customer/sessions/10/order-items/item-1", (route) => {
+      const body = route.request().postDataJSON();
+      versions.push(body.expectedVersion);
+      order.items[0].version = String(Number(order.items[0].version) + 1);
+      if (route.request().method() === "PATCH") order.items[0].quantity = body.quantity;
+      else order.items[0].status = "CANCELLED";
+      order.totalAmount = order.items[0].status === "CANCELLED" ? "0" : String(45000 * order.items[0].quantity);
+      order.items[0].lineTotal = order.totalAmount;
+      failRecovery = true;
+      return route.abort();
+    });
+    await page.goto("/#customer");
+    await page.getByRole("button", { name: "Đơn món" }).click();
+    await page.getByTitle("Sửa số lượng").click();
+    await page.getByRole("button", { name: "Tăng số lượng" }).click();
+    await page.getByRole("button", { name: "CẬP NHẬT" }).click();
+    await expect(page.getByText(/Chưa thể xác minh kết quả/)).toBeVisible();
+    failRecovery = false;
+    await page.reload();
+    await page.getByRole("button", { name: "Đơn món" }).click();
+    await expect(page.locator(".c-order-item-row")).toContainText("Số lượng: 2");
+    await page.getByTitle("Hủy món").click();
+    await page.getByRole("button", { name: "XÁC NHẬN HỦY" }).click();
+    await expect(page.getByText(/Chưa thể xác minh kết quả/)).toBeVisible();
+    failRecovery = false;
+    await page.getByRole("button", { name: "ĐÓNG", exact: true }).click();
+    await page.getByRole("button", { name: "TẢI LẠI ĐƠN", exact: true }).click();
+    await expect(page.locator(".c-item-status-badge")).toHaveText("Đã hủy");
+    await expect(page.getByTitle("Hủy món")).toHaveCount(0);
+    expect(versions).toEqual([0, 1]);
+  });
+
+  test("22. Requires price confirmation and blocks submission when price lookup fails", async ({ page }) => {
+    let price = "45000";
+    let unavailable = false;
+    let posts = 0;
+    await page.route("**/api/v1/customer/menu/items/101", (route) => unavailable ? route.abort() : route.fulfill({ json: { ...mockMenuItems.content[0], price } }));
+    await page.route("**/api/v1/customer/sessions/10/orders", (route) => { posts++; return route.abort(); });
+    await page.goto("/#customer");
+    await page.getByLabel("Thêm Caramel Latte vào giỏ hàng").click();
+    await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+    await expect(page.locator(".c-cart-price")).toHaveText("45.000 đ");
+    price = "50000";
+    await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+    await expect(page.getByText("Giá món đã thay đổi")).toBeVisible();
+    expect(posts).toBe(0);
+    await page.getByRole("button", { name: "ĐÓNG", exact: true }).click();
+    await expect(page.locator(".c-summary-total-price")).toHaveText("50.000 đ");
+    unavailable = true;
+    await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+    await expect(page.getByText("Chưa xác minh được giá")).toBeVisible();
+    expect(posts).toBe(0);
+    await page.getByRole("button", { name: "ĐÓNG", exact: true }).click();
+    unavailable = false;
+    await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+    await expect.poll(() => posts).toBe(1);
   });
 
   test("20. Preserves large BigInt menuItemId in order payload without Number precision loss", async ({ page }) => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useCustomer, formatVnd } from "./CustomerContext.jsx";
 import { fetchMenuItem } from "./customerApi.js";
 
@@ -15,16 +15,15 @@ export default function CustomerCartView({ onNavigateMenu }) {
   } = useCustomer();
 
   const [priceNotice, setPriceNotice] = useState(null);
-  const revalidatedRef = useRef(false);
+  const [initialCart] = useState(cart);
 
   useEffect(() => {
-    if (cart.length === 0 || revalidatedRef.current) return;
-    revalidatedRef.current = true;
+    if (initialCart.length === 0) return;
     let mounted = true;
 
     (async () => {
       const changes = [];
-      for (const entry of cart) {
+      for (const entry of initialCart) {
         try {
           const fresh = await fetchMenuItem(entry.item.id);
           if (fresh && fresh.price != null && String(fresh.price) !== String(entry.item.price)) {
@@ -53,7 +52,7 @@ export default function CustomerCartView({ onNavigateMenu }) {
     return () => {
       mounted = false;
     };
-  }, [cart, updateCartItemPrice]);
+  }, [initialCart, updateCartItemPrice]);
 
   const isEmpty = cart.length === 0;
 
@@ -173,7 +172,7 @@ export default function CustomerCartView({ onNavigateMenu }) {
               <span>Miễn phí</span>
             </div>
             <div className="c-summary-row total">
-              <span>Tổng cộng</span>
+              <span>Tổng cộng (tạm tính)</span>
               <span className="c-summary-total-price">{formatVnd(cartTotal)}</span>
             </div>
           </div>
