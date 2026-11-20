@@ -72,7 +72,24 @@
       ]
     },
     {
-      "name": "Order lấy giá từ server",
+      "name": "Từ chối giá chưa được khách xác nhận",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Authorization", "value": "Bearer {{guestToken}}" },
+          { "key": "X-CSRF-TOKEN", "value": "{{guestCsrf}}" },
+          { "key": "Idempotency-Key", "value": "price-conflict" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": "{{baseUrl}}/api/v1/customer/sessions/95001/orders",
+        "body": { "mode": "raw", "raw": "{\"items\":[{\"menuItemId\":\"95001\",\"quantity\":2,\"expectedUnitPrice\":\"24000\"}]}" }
+      },
+      "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+        "pm.test(\"Giá khác trả 409 Problem Details\",()=>{pm.response.to.have.status(409);pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json');pm.expect(pm.response.json().detail).to.include('Giá món đã thay đổi');});"
+      ] } }]
+    },
+    {
+      "name": "Order lấy giá từ server và kiểm tra giá khách xác nhận",
       "request": {
         "method": "POST",
         "header": [
@@ -96,7 +113,7 @@
         "url": "{{baseUrl}}/api/v1/customer/sessions/95001/orders",
         "body": {
           "mode": "raw",
-          "raw": "{\"items\":[{\"menuItemId\":95001,\"quantity\":2}],\"totalAmount\":1}"
+          "raw": "{\"items\":[{\"menuItemId\":95001,\"quantity\":2,\"expectedUnitPrice\":\"25000\"}],\"totalAmount\":1}"
         }
       },
       "event": [
@@ -137,7 +154,7 @@
         "url": "{{baseUrl}}/api/v1/customer/sessions/95001/orders",
         "body": {
           "mode": "raw",
-          "raw": "{\"items\":[{\"menuItemId\":95001,\"quantity\":2}]}"
+          "raw": "{\"items\":[{\"menuItemId\":95001,\"quantity\":2,\"expectedUnitPrice\":\"25000\"}]}"
         }
       },
       "event": [
