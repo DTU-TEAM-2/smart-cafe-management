@@ -15,7 +15,13 @@ function requireIdempotencyKey(key) {
   return key;
 }
 
-function normalizeOrder(data, response = null) {
+function normalizeOrder(data, response, sessionId, batchId = null) {
+  if (!data?.id || String(data.sessionId) !== String(sessionId)
+      || (batchId !== null && String(data.id) !== String(batchId))
+      || !Array.isArray(data.items) || !data.items.length
+      || data.totalAmount == null || data.sessionTotalAmount == null) {
+    throw new Error("Chưa xác minh được đơn món. Vui lòng thử lại.");
+  }
   const receivedAt = Date.now();
   const serverDate = response?.headers?.get("Date");
   const serverNow = serverDate ? Date.parse(serverDate) : Number.NaN;
@@ -109,7 +115,7 @@ export async function fetchOrder({ sessionId, token, batchId }) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || "Không thể tải lại đơn món. Vui lòng thử lại.");
-  return normalizeOrder(data, res);
+  return normalizeOrder(data, res, sessionId, batchId);
 }
 
 export async function createOrder({ sessionId, token, items, idempotencyKey, csrf = null }) {
@@ -147,7 +153,7 @@ export async function createOrder({ sessionId, token, items, idempotencyKey, csr
     error.outcomeCertain = res.status >= 400 && res.status < 500 && res.status !== 408;
     throw error;
   }
-  return normalizeOrder(data, res);
+  return normalizeOrder(data, res, sessionId);
 }
 
 export async function updateOrderItem({ sessionId, token, itemId, quantity, expectedVersion, csrf = null }) {
@@ -176,7 +182,7 @@ export async function updateOrderItem({ sessionId, token, itemId, quantity, expe
   if (!res.ok) {
     throw new Error(data.detail || data.title || "Không thể cập nhật số lượng món.");
   }
-  return normalizeOrder(data, res);
+  return normalizeOrder(data, res, sessionId);
 }
 
 export async function cancelOrderItem({ sessionId, token, itemId, expectedVersion, csrf = null }) {
@@ -204,7 +210,7 @@ export async function cancelOrderItem({ sessionId, token, itemId, expectedVersio
   if (!res.ok) {
     throw new Error(data.detail || data.title || "Không thể hủy món.");
   }
-  return normalizeOrder(data, res);
+  return normalizeOrder(data, res, sessionId);
 }
 
 export async function sendWaiterRequest({ sessionId, token, idempotencyKey, csrf = null }) {

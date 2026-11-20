@@ -53,8 +53,16 @@ export function CustomerProvider({ children }) {
 
   // In-flight order submission state (preserves state across tab switches)
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
+  const [hasPendingOrder, setHasPendingOrder] = useState(() => Boolean(readOrderAttempt(session)));
   const submittingOrderRef = useRef(false);
+  const orderLifecycle = useRef(null);
   const [orderModalResult, setOrderModalResult] = useState(null);
+
+  useEffect(() => {
+    const lifecycle = new AbortController();
+    orderLifecycle.current = lifecycle;
+    return () => lifecycle.abort();
+  }, []);
 
   // Sync cart to sessionStorage
   useEffect(() => {
@@ -175,7 +183,8 @@ export function CustomerProvider({ children }) {
   }, []);
 
   const submitOrder = useCallback(async () => {
-    if (submittingOrderRef.current) return;
+    const signal = orderLifecycle.current?.signal;
+    if (!signal || signal.aborted || submittingOrderRef.current) return;
 
     if (!session || !session.sessionId || !session.token) {
       setOrderModalResult({
@@ -194,13 +203,14 @@ export function CustomerProvider({ children }) {
       let orderPayload;
       let idempotencyKey;
 
-      if (existingAttempt?.idempotencyKey && Array.isArray(existingAttempt.payload) && existingAttempt.payload.length > 0) {
+      if (existingAttempt) {
         orderPayload = existingAttempt.payload;
         idempotencyKey = existingAttempt.idempotencyKey;
       } else {
         if (cart.length === 0) return;
         try {
           const freshItems = await Promise.all(cart.map((entry) => fetchMenuItem(entry.item.id)));
+          if (signal.aborted) return;
           const changes = freshItems.filter((item, index) => String(item.price) !== String(cart[index].item.price));
           freshItems.forEach((item) => updateCartItemPrice(item.id, item.price));
           if (changes.length) {
@@ -209,6 +219,7 @@ export function CustomerProvider({ children }) {
             return;
           }
         } catch {
+          if (signal.aborted) return;
           setOrderModalResult({ status: "failure", title: "Chưa xác minh được giá",
             detail: "Không thể tải giá thực đơn hiện tại. Vui lòng kiểm tra kết nối và thử lại." });
           return;
@@ -223,9 +234,11 @@ export function CustomerProvider({ children }) {
         const attempt = getOrCreateOrderAttempt(session, initialPayload);
         orderPayload = attempt.payload;
         idempotencyKey = attempt.idempotencyKey;
+        setHasPendingOrder(true);
       }
 
       const csrf = await fetchCsrfToken();
+      if (signal.aborted) return;
 
       const batchResult = await createOrder({
         sessionId: session.sessionId,
@@ -234,6 +247,8 @@ export function CustomerProvider({ children }) {
         idempotencyKey,
         csrf,
       });
+      // A new provider must reconcile the persisted attempt if this view has left.
+      if (signal.aborted) return;
 
       addPlacedBatch({
         ...batchResult,
@@ -241,6 +256,7 @@ export function CustomerProvider({ children }) {
       });
       subtractFromCart(orderPayload);
       clearAttempt(session, "order");
+      setHasPendingOrder(false);
 
       setOrderModalResult({
         status: "success",
@@ -248,8 +264,10 @@ export function CustomerProvider({ children }) {
         detail: `Đơn #${batchResult.id} đã được gửi tới quầy pha chế. Bạn có thể chỉnh sửa hoặc hủy món trong vòng 3 phút tại mục Đơn món.`,
       });
     } catch (err) {
+      if (signal.aborted) return;
       if (err.outcomeCertain) {
         clearAttempt(session, "order");
+        setHasPendingOrder(false);
       }
       setOrderModalResult({
         status: "failure",
@@ -258,7 +276,7 @@ export function CustomerProvider({ children }) {
       });
     } finally {
       submittingOrderRef.current = false;
-      setIsSubmittingOrder(false);
+      if (!signal.aborted) setIsSubmittingOrder(false);
     }
   }, [cart, session, addPlacedBatch, subtractFromCart, updateCartItemPrice]);
 
@@ -282,6 +300,7 @@ export function CustomerProvider({ children }) {
       selectedItemForDetail,
       setSelectedItemForDetail,
       isSubmittingOrder,
+      hasPendingOrder,
       orderModalResult,
       setOrderModalResult,
       submitOrder,
@@ -303,6 +322,7 @@ export function CustomerProvider({ children }) {
       currentTab,
       selectedItemForDetail,
       isSubmittingOrder,
+      hasPendingOrder,
       orderModalResult,
       submitOrder,
     ]
