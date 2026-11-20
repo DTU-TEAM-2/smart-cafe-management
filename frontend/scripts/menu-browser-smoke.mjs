@@ -1,5 +1,7 @@
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
+import { mkdir } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import { chromium, expect } from '@playwright/test';
 
 const live = process.env.MENU_BROWSER_LIVE === 'true';
@@ -24,6 +26,15 @@ try {
   });
   browser = await chromium.launch();
   const page = await browser.newPage();
+  const evidenceDirectory = resolve(process.env.MENU_EVIDENCE_DIR || '../backend/target/menu-evidence');
+  await mkdir(evidenceDirectory, { recursive: true });
+  async function capture(name) {
+    for (const [device, viewport] of [['desktop', { width: 1440, height: 1000 }], ['mobile', { width: 390, height: 844 }]]) {
+      await page.setViewportSize(viewport);
+      await page.screenshot({ path: resolve(evidenceDirectory, `${name}-${device}.png`), fullPage: true });
+    }
+    await page.setViewportSize({ width: 1280, height: 900 });
+  }
   const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=', 'base64');
   // Only image delivery is stubbed in fixture mode; all application APIs reach Spring/MySQL.
   if (!live) await page.route('https://res.cloudinary.com/menu-test/**', route => route.fulfill({ contentType: 'image/png', body: png }));
@@ -36,8 +47,10 @@ try {
   await page.getByRole('button', { name: 'THÊM NHÓM MÓN MỚI', exact: true }).click();
   await page.getByLabel('Mã nhóm món *').fill(category);
   await page.getByLabel('Tên nhóm món *').fill(category);
+  await capture('01-category-editor');
   await page.getByRole('button', { name: 'LƯU NHÓM MÓN', exact: true }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Đã lưu nhóm món.' })).toBeVisible();
+  await capture('02-category-list');
   await page.getByRole('button', { name: 'Món', exact: true }).click();
   await page.getByRole('button', { name: 'THÊM MÓN MỚI', exact: true }).click();
   await page.getByLabel('Mã món *').fill(code);
@@ -66,7 +79,9 @@ try {
     return item;
   }
   await chooseImage('red');
+  await capture('03-item-create');
   const created = await saveItem();
+  await capture('04-item-list');
   async function searchCustomerMenu() {
     await page.goto(origin + '/#customer');
     const loaded = page.waitForResponse(response => {
@@ -95,9 +110,11 @@ try {
   await expect(page.getByAltText('Xem trước ảnh món')).toHaveAttribute('src', created.imageUrl);
   await page.getByLabel('Đơn giá (đ) *').fill('48000');
   await chooseImage('blue');
+  await capture('05-item-edit');
   const updated = await saveItem();
   expect(updated.imageMediaId).not.toBe(created.imageMediaId);
   await checkCustomerImage(updated.imageUrl);
+  await capture('06-customer-menu');
   await page.screenshot({ path: '../backend/target/menu-browser-customer.png', fullPage: true });
   await page.goto(origin + '/#admin-menu');
   await page.getByRole('button', { name: 'Nhóm món', exact: true }).click();
@@ -105,6 +122,7 @@ try {
   await page.getByRole('button', { name: 'TÌM KIẾM', exact: true }).click();
   await page.getByRole('button', { name: 'Xóa ' + category, exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('1 món');
+  await capture('07-category-delete');
   await page.getByRole('button', { name: 'HỦY', exact: true }).click();
   await expect(page.getByRole('cell', { name: category, exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Xóa ' + category, exact: true }).click();
