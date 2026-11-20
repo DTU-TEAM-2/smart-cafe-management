@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-export default function DeleteDialog({ target, kind, itemCount, onClose, onConfirm }) {
+export default function DeleteDialog({ target, kind, itemCount, preview = true, pending, error, onClose, onConfirm }) {
   const dialog = useRef(null);
   useEffect(() => {
     const previous = document.activeElement;
@@ -17,12 +17,15 @@ export default function DeleteDialog({ target, kind, itemCount, onClose, onConfi
     const buttons = [...dialog.current.querySelectorAll('button:not(:disabled)')];
     const first = buttons[0];
     const last = buttons[buttons.length - 1];
+    if (!first) return;
     if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
     else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
   }
-  return <dialog ref={dialog} aria-labelledby="delete-title" aria-describedby="delete-description" onCancel={onClose} onKeyDown={keepFocus}>
+  return <dialog ref={dialog} aria-labelledby="delete-title" aria-describedby="delete-description" onCancel={event => { event.preventDefault(); if (!pending) onClose(); }} onKeyDown={keepFocus}>
     <h2 id="delete-title">Xác nhận xóa {kind === 'items' ? 'món' : 'nhóm món'}</h2>
-    <p id="delete-description">Bạn có chắc muốn ẩn <strong>{target.name}</strong> khỏi danh sách minh họa?{kind === 'categories' ? ` ${itemCount} món đang hoạt động thuộc nhóm cũng sẽ bị ẩn. Hủy để giữ nguyên nhóm và các món.` : ''}</p>
-    <div className="form-actions"><button autoFocus onClick={onClose}>HỦY</button><button className="danger" onClick={onConfirm}>XÁC NHẬN XÓA</button></div>
+    <p id="delete-description">Bạn có chắc muốn ẩn <strong>{target.name}</strong> khỏi {preview ? 'danh sách minh họa' : 'thực đơn'}?{kind === 'categories' ? ` ${itemCount} món đang hoạt động thuộc nhóm cũng sẽ bị ẩn. Hủy để giữ nguyên nhóm và các món.` : ''}</p>
+    {error ? <p className="error" role="alert">{error}</p> : null}
+    {pending ? <p role="status">Đang cập nhật thực đơn…</p> : null}
+    <div className="form-actions"><button autoFocus disabled={pending} onClick={onClose}>HỦY</button><button className="danger" disabled={pending} onClick={onConfirm}>XÁC NHẬN XÓA</button></div>
   </dialog>;
 }
