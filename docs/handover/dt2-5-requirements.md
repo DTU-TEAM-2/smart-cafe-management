@@ -30,3 +30,5 @@ Connector Jira được kiểm tra sau khi khả dụng: query chỉ đọc DT2-
 ## Git và điều kiện bàn giao
 
 Nhánh duy nhất: feature/dt2-5_feedback-management, từ develop@48bc136. PR #20 OPEN/chưa merged lúc kiểm tra bắt đầu. Không nhập PR #20, không sửa PR đó. Được code/test/commit/push, chưa tạo bất kỳ PR DT2-5 nào. Kể cả #20 merge vẫn chờ owner yêu cầu tạo PR; sau đó xác minh merge commit thuộc origin/develop, đồng bộ và chạy lại checks trước một PR chung BE+FE.
+
+Ngày20/11/2026 owner yêu cầu “hãy đưa pull request task 5 lên github”. Đã xác minh #20 MERGED, `origin/develop@9a88ba6` chứa merge commit chính xác; nhánh DT2-5 đồng bộ bằng merge4252dcf, không conflict. Cho phép tạo một PR BE+FE vào develop, không cho phép merge/approve/resolve hoặc triển khai. Tiêu đề đề xuất trong prompt chưa có mã CF mà CI yêu cầu; đã hỏi owner, không tự suy mã từ số Jira.

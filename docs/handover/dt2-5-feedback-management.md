@@ -1,9 +1,9 @@
-# DT2-5 — bàn giao giai đoạn A, 19/11/2026
+# DT2-5 — bàn giao BE + FE, cập nhật 20/11/2026
 
 - Owner: Nguyễn Xuân Lộc. Nhánh duy nhất: `feature/dt2-5_feedback-management`, tách `origin/develop@48bc136`.
-- Phase hiện tại: implementation/verification đã xong trong phạm vi có thể; chờ review nguồn/thiết kế và điều kiện tích hợp. Không tạo PR DT2-5.
-- PR #20 kiểm tra cuối lượt: OPEN, `merged=false`, HEAD f4b8eeb; không sửa nhánh/PR đó, không nhập code chưa merge.
-- Nguồn/AC/kiểm kê: [yêu cầu](dt2-5-requirements.md). Nội dung PR chỉ chuẩn bị tại [draft](dt2-5-pr-description.md), chưa publish.
+- Ngày 20/11/2026 owner yêu cầu đưa PR Task 5 lên GitHub. Đã xác minh #20 MERGED, merge commit `9a88ba6dfb82242b1c2f12fb1c4ebdd91b09a39b` thuộc origin/develop. Đồng bộ vào nhánh Task 5 bằng merge `4252dcf`, không conflict; không merge Task 5 vào develop/main.
+- Phase hiện tại: chuẩn bị một PR BE+FE vào develop theo yêu cầu owner. Diff so với develop chỉ chứa DT2-5; giữ routes Auth/Profile/Customer từ #20.
+- Nguồn/AC/kiểm kê: [yêu cầu](dt2-5-requirements.md). Nội dung PR và ảnh nhúng tại [mô tả PR](dt2-5-pr-description.md).
 
 ## Đã triển khai
 
@@ -26,7 +26,7 @@ API thực tế và contract: [GET list/detail](../api/dt2-5-feedback-management
 - QA: `scripts/qa/dt2-5-real.ps1`, fixture `docs/qa/dt2-5-http-fixture.sql`, collection/environment mẫu `docs/qa/postman/dt2-5-feedback-management*`.
 - Tài liệu: contract API, requirements/inventory, handoff/draft PR này, mục DT2-5 trong open-questions, ảnh/summary trong `docs/handover/evidence/dt2-5/`.
 
-## Kiểm thử đã chạy
+## Kiểm thử giai đoạn A — lịch sử trước đồng bộ #20
 
 | Check | Lệnh / môi trường | Kết quả |
 | --- | --- | --- |
@@ -54,11 +54,15 @@ Lượt HTTP đầu thất bại do mysql CLI diễn giải UTF-8 fixture bằng
 
 - Jira DT2-5/DT2-37–42, SRS v4.1 và Figma chưa truy cập đủ quyền. Figma session bị từ chối, Jira connector trả site chưa được cấp quyền. UI dùng bố cục Admin hiện có + prompt owner; chưa tuyên bố pixel-match hoặc nghiệm thu toàn bộ tài liệu nguồn.
 - Firebase/QR tạm dừng; metadata private không bảo đảm URL xem được. FE có fallback, chưa ký URL hay công khai bucket.
-- PR #20 phải MERGED vào develop và owner phải yêu cầu tiếp tục tạo PR. Khi đó kiểm commit ancestry, đồng bộ nhánh, kiểm Auth/Profile/Customer routes, chạy lại toàn bộ BE/FE và chỉ chuẩn bị/mở một PR chung theo ủy quyền. Không dùng kết quả hiện tại thay checks của merge candidate sau đồng bộ.
+- Điều kiện publication đã đáp ứng ngày20/11: #20 MERGED và owner yêu cầu tạo PR. Kết quả giai đoạn A phía trên là lịch sử; kiểm thử candidate sau đồng bộ được ghi riêng, không dùng CI #20 thay CI Task 5.
 - Chưa tự approve, resolve review thread, merge, thay quyền hoặc triển khai.
 
 ## Skills và tự review
 
 `cafe-requirements` / `cafe-workflow` (`.agents/skills/<identifier>/SKILL.md`) dùng để version hóa prompt, kiểm kê và giữ gate PR. `cafe-spring-api` giữ query/DTO/quyền server và không đổi schema. `vercel-react-best-practices` (`.agents/skills/react-best-practices/SKILL.md`) cùng `fixing-accessibility` dùng cho request hủy được, reset state/selection, bảng/form/keyboard và responsive. `cafe-quality` / `cafe-review` dùng để kiểm lỗi/quyền/date/race, phân biệt mock/HTTP thật và đọc diff trước handoff. Figma design-to-code đã đọc nhưng không áp dụng bản thiết kế vì quyền truy cập bị từ chối. Self-review không thay hai independent approvals.
 
-**Đã hoàn thành phần có thể triển khai của DT2-5. Chưa tạo Pull Request vì đang chờ PR #20 được merge vào develop.**
+## Kiểm thử candidate sau đồng bộ — 20/11/2026
+
+Lint/build PASS; FE unit6/6 PASS. Full Playwright local:259/260 PASS,1 lỗi ghi PNG của capture-evidence DT2-4 (Windows `UNKNOWN: unknown error, open ...07-fe-feedback.png`); chạy lại đúng ca mobile, workers1 đạt1/1. DT2-5 đạt30/30. Backend `mvnw -B -ntp -o verify -Dtest=FeedbackReadUrlTest` với Mockito javaagent đạt1/1, compile toàn bộ BE thành công. Full Maven đã thử nhưng dừng vì một số integration Auth vẫn cần MySQL kể cả khi không có TEST_DB_URL; Docker engine đã mở nhưng API `/info` và container/start trả500. MySQL/HTTP local chưa chạy lại, không coi DB unavailable hoặc test bị bỏ qua là PASS. Toàn bộ Backend MySQL/FE mới xem CI đúng HEAD Task5, không suy số206/323 lịch sử thành kết quả hiện tại. Mã CF cho tiêu đề chưa có trong nguồn Task5, đã hỏi owner, không tự gán mã hoặc sửa validator.
+
+Một PR chung BE+FE; không tự approve, resolve thảo luận, merge hoặc triển khai. Jira/SRS/Figma và Firebase thật giữ các giới hạn nêu trên.

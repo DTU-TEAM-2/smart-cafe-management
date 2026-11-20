@@ -2,6 +2,8 @@
 
 ## DT2-5 — owner cho tiếp tục ngày 19/11/2026
 
+Cập nhật20/11: owner đã yêu cầu tạo PR Task5; #20 xác minh MERGED vào develop@9a88ba6 và DT2-5 đã đồng bộ sạch. Điều kiện chờ publication dưới đây là lịch sử, không còn chặn việc tạo một PR BE+FE. Mã CF cho tiêu đề vẫn cần owner xác nhận; không tự gán hoặc thay validator. Không cấp quyền merge/approve/resolve/deploy.
+
 Owner cung cấp prompt triển khai BE+FE quản lý danh sách/chi tiết Feedback, tìm ngày, Show All và metadata ảnh. Xác nhận ADMIN và ngày Asia/Ho_Chi_Minh trước đây được giữ. Quyết định tạm dừng DT2-5 trong phần lịch sử bên dưới đã được thay bằng phạm vi này; Firebase/QR vẫn tạm dừng. Không sửa/xóa phản hồi hoặc tự đổi READ/UNREAD. Làm trên `feature/dt2-5_feedback-management`, chưa tạo PR (kể cả Draft); chờ #20 MERGED vào develop và owner yêu cầu tạo PR, rồi mới đồng bộ/test lại trước một PR BE+FE. Jira/SRS/Figma hiện chưa truy cập đủ quyền; tiếp tục theo prompt owner và ghi giới hạn tại [kiểm kê](../handover/dt2-5-requirements.md).
 
 ## DT2-3 / DT2-27 — trạng thái 15/11/2026

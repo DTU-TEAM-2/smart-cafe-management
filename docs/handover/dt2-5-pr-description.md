@@ -1,8 +1,8 @@
-# Nội dung PR chuẩn bị — CHƯA PUBLISH
+# DT2-5 — nội dung PR BE + FE
 
 Nhánh: `feature/dt2-5_feedback-management` → `develop`.
 
-Chỉ dùng nội dung này khi owner yêu cầu tạo PR sau khi xác minh #20 MERGED và merge commit đã thuộc origin/develop. Trước đó phải đồng bộ nhánh, chạy lại BE/FE trên candidate mới và cập nhật evidence/revision. Không tạo Draft PR để lách điều kiện.
+Owner yêu cầu tạo PR ngày20/11/2026. #20 đã MERGED vào develop@9a88ba6, nhánh này đồng bộ sạch bằng merge4252dcf. Một PR chung BE+FE vào develop; không merge vào nhánh chung.
 
 Tiêu đề owner đề xuất: `[DT2-5] Implement Feedback Management (Backend + Frontend)`. Khi đến bước mở PR cần đối chiếu convention/CF với repository; chưa tự gán CF hoặc sửa validator.
 
@@ -22,7 +22,7 @@ Admin có thể đọc Feedback thật từ MySQL, chọn phản hồi để xem
 
 | Chức năng | Backend | Frontend | Test | Trạng thái |
 | --- | --- | --- | --- | --- |
-| Danh sách Feedback | MySQL, preview, sort/date/id, phân trang | 5 cột, trạng thái tải/lỗi/rỗng | MySQL + Playwright | Đã triển khai; chờ tích hợp sau #20 |
+| Danh sách Feedback | MySQL, preview, sort/date/id, phân trang | 5 cột, trạng thái tải/lỗi/rỗng | MySQL + Playwright | Đã triển khai, đồng bộ develop chứa #20 |
 | Xem chi tiết | ID dạng chuỗi, TEXT đầy đủ, rating | Panel Feedback's Info, không giữ A khi chọn B/lỗi | MySQL + race/404 | Đã triển khai |
 | Search by Date | Khoảng UTC của ngày quán, half-open | Date input, thông báo đúng yêu cầu | Timezone boundaries + UI | Đã triển khai |
 | Show All | GET không date | Xóa date, trang0, reset selection | UI + pagination | Đã triển khai |
@@ -46,6 +46,8 @@ Các ảnh sau dùng API mock (fixture tổng hợp), không phải bằng chứ
 Trước khi publish, đổi link tương đối trong bảng thành URL ảnh trực tiếp theo branch/revision đúng; giữ ảnh nhúng, không chỉ đưa đường dẫn. Ảnh browser→Backend/MySQL thật được ghi riêng ở evidence/dt2-5/real nếu runner thực sự PASS.
 
 ## E. Kiểm thử và gate
+
+Kết quả206/323 bên dưới thuộc giai đoạn A ở1f80506, chưa có #20. Candidate sau đồng bộ: lint/build PASS, unit6/6 PASS; Playwright259/260 (DT2-5 30/30), ca capture PNG DT2-4 lỗi ghi file Windows chạy lại riêng1/1 PASS. Backend compile + FeedbackReadUrlTest1/1 PASS. Docker engine local trả500, chưa chạy lại MySQL/HTTP; kết quả Backend MySQL/FE đầy đủ mới xem CI đúng HEAD Task5. Không dùng kết quả lịch sử thay kiểm chứng mới. Mã CF cho tiêu đề cần owner xác nhận, không tự gán hay đổi CI validator.
 
 - Lint/build PASS; unit FE 5/5; Playwright toàn repository206/206, DT2-5 30/30 desktop/mobile (mock API, gồm axe).
 - Backend focused16/16; Maven verify **323/323 PASS**, 0 skip. Browser→Spring Boot→MySQL thật **14/14 checks**, Newman **9/9 requests, 9/9 assertions PASS**. Chi tiết môi trường/lệnh/recovery tại [handoff](dt2-5-feedback-management.md).
