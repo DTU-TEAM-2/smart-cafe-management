@@ -333,6 +333,75 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     expect(keys[1]).toBe(keys[0]);
   });
 
+  for (const firstResponse of ["invalid-body", "network-error"]) {
+    test(`recovers a pending order after ${firstResponse} and an empty cart`, async ({ page }) => {
+      const attempts = [];
+      await page.route("**/api/v1/customer/sessions/10/orders", (route) => {
+        attempts.push({
+          key: route.request().headers()["idempotency-key"],
+          payload: route.request().postDataJSON(),
+        });
+        if (attempts.length === 1) {
+          return firstResponse === "invalid-body" ? route.fulfill({ json: {} }) : route.abort("connectionfailed");
+        }
+        return route.fulfill({ json: {
+          id: "1002", sessionId: "10", totalAmount: "45000", sessionTotalAmount: "45000",
+          items: [{ id: "501", menuItemId: "101", name: "Caramel Latte", unitPrice: "45000",
+            lineTotal: "45000", quantity: 1, version: "0", status: "SUBMITTED" }],
+        } });
+      });
+
+      await page.goto("/#customer");
+      await page.getByLabel("Thêm Caramel Latte vào giỏ hàng").click();
+      await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+      await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+      await expect(page.locator(".c-result-title")).toHaveText("Đặt món thất bại", { timeout: 3000 });
+      await page.getByRole("button", { name: "ĐÓNG", exact: true }).click();
+      await page.getByRole("button", { name: "Xóa Caramel Latte khỏi giỏ" }).click();
+      await page.reload();
+      await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+      await expect(page.getByRole("heading", { name: "Giỏ hàng trống" })).toBeVisible();
+      await page.getByRole("button", { name: "GỬI LẠI ĐƠN CHỜ" }).click({ timeout: 3000 });
+      await expect(page.locator(".c-result-title")).toHaveText("Đặt món thành công!");
+      expect(attempts).toHaveLength(2);
+      expect(attempts[1]).toEqual(attempts[0]);
+    });
+  }
+
+  test("keeps the retry key when a write finishes after leaving the customer page", async ({ page }) => {
+    const keys = [];
+    let release;
+    const delayed = new Promise((resolve) => { release = resolve; });
+    await page.route("**/api/v1/customer/sessions/10/orders", async (route) => {
+      keys.push(route.request().headers()["idempotency-key"]);
+      if (keys.length === 1) await delayed;
+      return route.fulfill({ json: {
+        id: "1002", sessionId: "10", totalAmount: "45000", sessionTotalAmount: "45000",
+        items: [{ id: "501", menuItemId: "101", name: "Caramel Latte", unitPrice: "45000",
+          lineTotal: "45000", quantity: 1, version: "0", status: "SUBMITTED" }],
+      } });
+    });
+    await page.goto("/#customer");
+    await page.getByLabel("Thêm Caramel Latte vào giỏ hàng").click();
+    await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+    await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+    try {
+      await expect.poll(() => keys.length).toBe(1);
+      await page.getByRole("button", { name: "Về trang chủ" }).click();
+      await expect(page.locator(".c-container")).toHaveCount(0);
+    } finally {
+      const response = page.waitForResponse((result) => result.url().endsWith("/sessions/10/orders"), { timeout: 5000 });
+      release();
+      await (await response).finished();
+    }
+    // Reload the customer area as a new provider after the response has arrived.
+    await page.evaluate(() => { window.location.hash = "#customer"; });
+    await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+    await page.getByRole("button", { name: "GỬI LẠI ĐƠN CHỜ" }).click({ timeout: 3000 });
+    await expect(page.locator(".c-result-title")).toHaveText("Đặt món thành công!");
+    expect(keys).toEqual([keys[0], keys[0]]);
+  });
+
   test("6. Isolates cart and orders when the customer session changes", async ({ page }) => {
     await page.goto("/#customer");
     await page.getByLabel("Thêm Caramel Latte vào giỏ hàng").click();
@@ -561,7 +630,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
 
     // Navigate to Cart and click Retry
     await page.getByRole("button", { name: /Giỏ hàng/ }).click();
-    await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+    await page.getByRole("button", { name: "GỬI LẠI ĐƠN CHỜ" }).click();
 
     // Success modal appears for Item A!
     await expect(page.locator(".c-result-title")).toHaveText("Đặt món thành công!");
@@ -590,6 +659,25 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     // Cart is now empty
     await page.getByRole("button", { name: /Giỏ hàng/ }).click();
     await expect(page.getByText("Giỏ hàng trống")).toBeVisible();
+  });
+
+  test("advances menu pages even when a previous page contains overlapping items", async ({ page }) => {
+    const item = (id) => ({ ...mockMenuItems.content[0], id: String(id), name: `Món phân trang ${id}`, imageUrl: null });
+    const pages = [];
+    await page.route(/\/api\/v1\/customer\/menu\/items\?/, (route) => {
+      const pageNumber = Number(new URL(route.request().url()).searchParams.get("page"));
+      pages.push(pageNumber);
+      const content = pageNumber === 2 ? [item(40)]
+        : Array.from({ length: 20 }, (_, index) => item(index + (pageNumber === 0 ? 1 : 20)));
+      return route.fulfill({ json: { content, page: pageNumber, size: 20, totalElements: 41 } });
+    });
+    await page.goto("/#customer");
+    await page.getByRole("button", { name: /XEM THÊM MÓN/ }).click();
+    await expect(page.getByText("Món phân trang 39", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: /XEM THÊM MÓN/ }).click();
+    await expect(page.getByText("Món phân trang 40", { exact: true })).toBeVisible({ timeout: 3000 });
+    await expect(page.getByRole("button", { name: /XEM THÊM MÓN/ })).toHaveCount(0);
+    expect(pages).toEqual([0, 1, 2]);
   });
 
   test("11. Menu pagination: handles 503 retry without skipping pages and preserves filter switch", async ({ page }) => {
@@ -877,7 +965,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     await page.getByRole("button", { name: "ĐÓNG", exact: true }).click();
 
     // Retry sending order
-    await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+    await page.getByRole("button", { name: "GỬI LẠI ĐƠN CHỜ" }).click();
     await expect(page.getByText(/Đặt món thành công/)).toBeVisible();
 
     expect(orderRequests).toHaveLength(2);

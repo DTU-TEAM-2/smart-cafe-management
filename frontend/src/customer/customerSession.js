@@ -88,10 +88,10 @@ export function getOrCreateOrderAttempt(session, newPayload) {
   const key = scopedKey(`${ATTEMPT_STORAGE_PREFIX}:order`, session);
   if (!key) throw new Error("Chưa có phiên khách hàng hợp lệ.");
 
-  const saved = readJson(key, null);
+  const saved = readOrderAttempt(session);
   // If an unresolved attempt already exists (e.g. from a prior network drop/failure),
   // reuse the EXACT immutable payload & idempotencyKey so retries never duplicate or mix new items!
-  if (saved?.idempotencyKey && Array.isArray(saved.payload) && saved.payload.length > 0) {
+  if (saved) {
     return {
       idempotencyKey: saved.idempotencyKey,
       payload: saved.payload,
@@ -110,7 +110,8 @@ export function getOrCreateOrderAttempt(session, newPayload) {
 
 export function readOrderAttempt(session) {
   const key = scopedKey(`${ATTEMPT_STORAGE_PREFIX}:order`, session);
-  return readJson(key, null);
+  const saved = readJson(key, null);
+  return saved?.idempotencyKey && Array.isArray(saved.payload) && saved.payload.length > 0 ? saved : null;
 }
 
 export function getOrCreateAttempt(session, operation, payload = null) {

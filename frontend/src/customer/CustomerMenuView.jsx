@@ -11,6 +11,7 @@ export default function CustomerMenuView() {
   const [keyword, setKeyword] = useState("");
   const [availableOnly, setAvailableOnly] = useState(true);
   const [totalElements, setTotalElements] = useState(0);
+  const [nextPage, setNextPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
@@ -41,6 +42,7 @@ export default function CustomerMenuView() {
     setLoading(true);
     setItems([]);
     setTotalElements(0);
+    setNextPage(1);
     setLoadingMore(false);
     setError(null);
 
@@ -81,7 +83,6 @@ export default function CustomerMenuView() {
   // Load next page: only advance after success; retry exact failed page on error
   const handleLoadMore = useCallback(() => {
     if (loadingMore || loading) return;
-    const nextPage = Math.floor(items.length / PAGE_SIZE);
     const requestGeneration = filterGeneration.current;
     setLoadingMore(true);
     setError(null);
@@ -97,6 +98,7 @@ export default function CustomerMenuView() {
         const newContent = data.content || [];
         const total = typeof data.totalElements === "number" ? data.totalElements : newContent.length;
         setTotalElements(total);
+        setNextPage(nextPage + 1);
         setItems((prev) => {
           const existingIds = new Set(prev.map((it) => it.id));
           const nonDuplicates = newContent.filter((it) => !existingIds.has(it.id));
@@ -109,7 +111,7 @@ export default function CustomerMenuView() {
         setError(err.message || "Không thể tải thêm món. Vui lòng bấm thử lại.");
         setLoadingMore(false);
       });
-  }, [loadingMore, loading, items.length, activeCategoryId, keyword, availableOnly]);
+  }, [loadingMore, loading, nextPage, activeCategoryId, keyword, availableOnly]);
 
   return (
     <div className="c-content">
@@ -267,7 +269,7 @@ export default function CustomerMenuView() {
       )}
 
       {/* Load More Button */}
-      {!loading && items.length > 0 && items.length < totalElements && (
+      {!loading && items.length > 0 && nextPage * PAGE_SIZE < totalElements && (
         <div style={{ marginTop: "20px", marginBottom: "12px", textAlign: "center" }}>
           <button
             type="button"

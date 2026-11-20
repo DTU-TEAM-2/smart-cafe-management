@@ -7,6 +7,7 @@ export default function CustomerCartView({ onNavigateMenu }) {
     removeFromCart,
     cartTotal,
     isSubmittingOrder,
+    hasPendingOrder,
     submitOrder,
   } = useCustomer();
 
@@ -122,24 +123,19 @@ export default function CustomerCartView({ onNavigateMenu }) {
             </div>
           </div>
 
-          <div style={{ marginTop: "16px" }}>
-            <button
-              type="button"
-              className="c-btn-primary"
-              onClick={submitOrder}
-              disabled={isSubmittingOrder || isEmpty}
-            >
-              {isSubmittingOrder ? (
-                <>
-                  <span style={{ animation: "spin 1s linear infinite", display: "inline-block" }}>⟳</span>
-                  ĐANG GỬI ĐƠN ĐẶT MÓN...
-                </>
-              ) : (
-                `GỬI ĐƠN ĐẶT MÓN • ${formatVnd(cartTotal)}`
-              )}
-            </button>
-          </div>
         </>
+      )}
+      {(!isEmpty || hasPendingOrder) && (
+        <div style={{ marginTop: "16px" }}>
+          {hasPendingOrder && <p className="c-subtitle" id="pending-order-note">
+            Đơn trước chưa có kết quả. Gửi lại sẽ dùng đúng các món của lần gửi trước.
+          </p>}
+          <button type="button" className="c-btn-primary" onClick={submitOrder}
+            disabled={isSubmittingOrder} aria-describedby={hasPendingOrder ? "pending-order-note" : undefined}>
+            {isSubmittingOrder ? "ĐANG GỬI ĐƠN ĐẶT MÓN..."
+              : hasPendingOrder ? "GỬI LẠI ĐƠN CHỜ" : `GỬI ĐƠN ĐẶT MÓN • ${formatVnd(cartTotal)}`}
+          </button>
+        </div>
       )}
     </div>
   );
