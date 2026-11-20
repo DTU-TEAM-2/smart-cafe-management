@@ -72,6 +72,66 @@ class CustomerActionsMySqlTest {
     }
     private CustomerOrderService.Order order() { return orders.submit(ID,AUTH,"order-test",command(2)); }
 
+    @Test void confirmedPriceRejectsChangedMenuBeforeAnyWriteThenAcceptsNewConsent() throws Exception {
+        // Simulate the gap after the customer's price GET and before POST reaches the transaction.
+        jdbc.update("UPDATE menu_items SET price=50000 WHERE id=93001");
+        mvc.perform(post(BASE+"/orders").with(csrf()).header("Authorization",AUTH)
+                        .header("Idempotency-Key","price-race").contentType("application/json")
+                        .content("{\"items\":[{\"menuItemId\":\"93001\",\"quantity\":2,\"expectedUnitPrice\":\"25000\"}]}"))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.detail").value(
+                        "Giá món đã thay đổi. Vui lòng tải lại giá, kiểm tra tổng tiền và xác nhận trước khi gửi đơn mới."));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM order_batches WHERE session_id=93001",Integer.class)).isZero();
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM order_items WHERE session_id=93001",Integer.class)).isZero();
+        mvc.perform(post(BASE+"/orders").with(csrf()).header("Authorization",AUTH)
+                        .header("Idempotency-Key","price-confirmed").contentType("application/json")
+                        .content("{\"items\":[{\"menuItemId\":\"93001\",\"quantity\":2,\"expectedUnitPrice\":\"50000\"}]}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalAmount").value("100000"));
+    }
+
+    @Test void confirmedPriceIsBoundToAttemptButCommittedReplayIgnoresLaterMenuChanges() {
+        var confirmed = new CustomerOrderController.Command(List.of(new CustomerOrderController.Line(ID,BigDecimal.ONE,new BigDecimal("25000"))));
+        var first = orders.submit(ID,AUTH,"confirmed-replay",confirmed);
+        jdbc.update("UPDATE menu_items SET price=50000 WHERE id=93001");
+        assertThat(orders.submit(ID,AUTH,"confirmed-replay",confirmed)).isEqualTo(first);
+        var changed = new CustomerOrderController.Command(List.of(new CustomerOrderController.Line(ID,BigDecimal.ONE,new BigDecimal("50000"))));
+        assertThatThrownBy(()->orders.submit(ID,AUTH,"confirmed-replay",changed)).hasMessageContaining("409");
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM order_batches WHERE session_id=93001",Integer.class)).isEqualTo(1);
+    }
+
+    @Test void confirmedPriceValidationRejectsNonPositiveFractionOverflowAndAcceptsOneVnd() throws Exception {
+        for (String price : List.of("0","-1","1.5","1000000000000000000")) {
+            mvc.perform(post(BASE+"/orders").with(csrf()).header("Authorization",AUTH)
+                            .header("Idempotency-Key","invalid-price").contentType("application/json")
+                            .content("{\"items\":[{\"menuItemId\":93001,\"quantity\":1,\"expectedUnitPrice\":\""+price+"\"}]}"))
+                    .andExpect(status().isBadRequest());
+        }
+        jdbc.update("UPDATE menu_items SET price=1 WHERE id=93001");
+        mvc.perform(post(BASE+"/orders").with(csrf()).header("Authorization",AUTH)
+                        .header("Idempotency-Key","one-vnd-item").contentType("application/json")
+                        .content("{\"items\":[{\"menuItemId\":93001,\"quantity\":1,\"expectedUnitPrice\":\"1\"}]}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalAmount").value("1"));
+    }
+
+    @Test void readOrderRecoversCommittedEditsAndEnforcesOwnership() throws Exception {
+        var batch = order();
+        var item = batch.items().getFirst();
+        edits.edit(ID, Long.parseLong(item.id()), AUTH, 0, 3);
+        mvc.perform(get(BASE+"/orders/"+batch.id()).header("Authorization", AUTH))
+                .andExpect(status().isOk()).andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(jsonPath("$.items[0].quantity").value(3)).andExpect(jsonPath("$.items[0].version").value("1"));
+        edits.edit(ID, Long.parseLong(item.id()), AUTH, 1, null);
+        mvc.perform(get(BASE+"/orders/"+batch.id()).header("Authorization", AUTH))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.items[0].status").value("CANCELLED"));
+        mvc.perform(get(BASE+"/orders/"+batch.id())).andExpect(status().isUnauthorized());
+        mvc.perform(get(BASE+"/orders/9223372036854775807").header("Authorization", AUTH)).andExpect(status().isNotFound());
+        jdbc.update("INSERT INTO session_clients(id,session_id,access_token_hash,joined_at,expires_at) VALUES(93002,93001,?,?,?)",
+                CustomerAccess.hash("R".repeat(43)), Timestamp.from(NOW), Timestamp.from(NOW.plusSeconds(3600)));
+        mvc.perform(get(BASE+"/orders/"+batch.id()).header("Authorization", "Bearer "+"R".repeat(43))).andExpect(status().isNotFound());
+        mvc.perform(get("/api/v1/customer/sessions/93002/orders/"+batch.id()).header("Authorization", AUTH)).andExpect(status().isUnauthorized());
+        jdbc.update("UPDATE session_clients SET revoked_at=? WHERE id=93001", Timestamp.from(NOW));
+        mvc.perform(get(BASE+"/orders/"+batch.id()).header("Authorization", AUTH)).andExpect(status().isUnauthorized());
+    }
+
     @Test void orderUsesDatabasePricesSnapshotsAndSafeReplay() {
         var first = order();
         assertThat(first.totalAmount()).isEqualTo("50000");
