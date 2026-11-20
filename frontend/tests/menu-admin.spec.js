@@ -98,3 +98,55 @@ test('category confirmation preserves items on cancel and rejects a stale delete
   await dialog.getByRole('button', { name: 'HỦY', exact: true }).click();
   await expect(page.getByRole('cell', { name: 'Cà phê', exact: true })).toBeVisible();
 });
+
+test('upload failure retains draft and a rejected save reuses the uploaded media on explicit retry', async ({ page }) => {
+  await signIn(page, 'ADMIN');
+  let uploads = 0;
+  let writes = 0;
+  await page.route('**/api/v1/menu/**', async route => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (path.endsWith('/categories')) return route.fulfill({ json: { content: [{ code: 'CF', name: 'Coffee', version: 0 }], totalElements: 1 } });
+    if (path.endsWith('/csrf')) return route.fulfill({ json: { headerName: 'X-CSRF-TOKEN', token: 'fixture-csrf' } });
+    if (path.endsWith('/images')) {
+      uploads += 1;
+      expect(request.headers()['x-csrf-token']).toBe('fixture-csrf');
+      expect(request.headers()['content-type']).toContain('multipart/form-data');
+      return uploads === 1
+        ? route.fulfill({ status: 503, json: { detail: 'Dịch vụ ảnh chưa được cấu hình.' } })
+        : route.fulfill({ json: { mediaId: 42, imageUrl: 'https://res.cloudinary.com/menu-test/image/upload/new.png' } });
+    }
+    if (path.endsWith('/items') && request.method() === 'POST') {
+      writes += 1;
+      expect(request.postDataJSON()).toEqual({ code: 'TEST42', name: 'Coffee test', version: 0,
+        categoryCode: 'CF', price: '45000', available: true, imageMediaId: '42' });
+      if (writes === 1) return route.fulfill({ status: 409, json: { code: 'MENU_CONFLICT' } });
+      return route.fulfill({ status: 201, json: {} });
+    }
+    return route.fulfill({ json: { content: [], totalElements: 0 } });
+  });
+  await page.goto('http://127.0.0.1:15174/#admin-menu');
+  await page.getByRole('button', { name: 'THÊM MÓN MỚI', exact: true }).click();
+  await page.getByLabel('Mã món *').fill('TEST42');
+  await page.getByLabel('Tên món *').fill('Coffee test');
+  await page.getByLabel('Danh mục *').selectOption('CF');
+  await page.getByLabel('Đơn giá (đ) *').fill('45000');
+  const image = await page.evaluate(() => {
+    const canvas = document.createElement('canvas'); canvas.width = 2; canvas.height = 2;
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  await page.getByLabel('Ảnh sản phẩm', { exact: true }).setInputFiles({ name: 'menu.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') });
+  const save = page.getByRole('button', { name: 'LƯU MÓN', exact: true });
+  await expect(save).toBeEnabled();
+  await save.click();
+  await expect(page.getByRole('alert')).toContainText('Dịch vụ ảnh');
+  expect(writes).toBe(0);
+  await expect(page.getByLabel('Tên món *')).toHaveValue('Coffee test');
+  await save.click();
+  await expect(page.getByRole('alert')).toContainText('Dữ liệu đã thay đổi');
+  expect(uploads).toBe(2);
+  await save.click();
+  await expect(page.getByRole('status').filter({ hasText: 'Đã lưu món.' })).toBeVisible();
+  expect(uploads).toBe(2);
+  expect(writes).toBe(2);
+});

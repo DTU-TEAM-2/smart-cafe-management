@@ -30,7 +30,7 @@ export default function MenuEditor({ kind, value, categories, onSave, onCancel }
   }
 
   async function readImage(file) {
-    if (!file) return;
+    if (!file || saving) return;
     const request = ++imageRequest.current;
     reader.current?.abort();
     setReading(false);

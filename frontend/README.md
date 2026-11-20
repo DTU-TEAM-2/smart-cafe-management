@@ -17,3 +17,9 @@ Sửa local ngày 11/11/2026: tìm riêng mã/tên/giá/nhóm, thông báo khi t
 Kết quả và giới hạn: [rà soát frontend local](../docs/reports/dt2-9-frontend/local-fixes-2026-11-11.md), [bản tích hợp develop và ảnh PR ngày 13/11](../docs/reports/dt2-9-frontend/develop-integration-2026-11-13.md). Menu preview chưa nối API, auth, DB hoặc menu khách; kết quả UI fixture không thay nghiệm thu hệ thống đầy đủ.
 
 Nguồn và giới hạn nghiệp vụ: [yêu cầu FE](../docs/handover/dt2-9-frontend-request.md). Figma `8:292`, `8:319` là nguồn màu và bố cục; nhóm món mở rộng cùng style. Tham khảo luồng native dialog và cấu trúc React/Vite từ repo legacy; không nhập backend, dữ liệu nhân viên/khách hay trạng thái hoàn thành cũ.
+# Quản lý thực đơn qua API — DT2-64
+
+Sau đăng nhập ADMIN thật, mở **Quản lý Món & Menu → Mở quản lý thực đơn**, hoặc `/#admin-menu`. Màn này dùng API `/api/v1/menu/**`, Bearer/CSRF hiện có; CRUD được lưu tại backend/MySQL. Upload ảnh qua backend trả mediaId, gắn với món và menu khách `/#customer` đọc URL do server trả về. Cần backend/database đã provision đúng contract và cấu hình Cloudinary ở backend; không có dữ liệu seed hoặc tài khoản mặc định.
+
+`/preview/menu` bên dưới vẫn là bản xem thử dev độc lập. Kết quả, nguồn code CF-14 và cách chạy E2E/Cloudinary live: [bàn giao DT2-64](../docs/handover/dt2-64-menu-integration-2026-11-20.md).
+
