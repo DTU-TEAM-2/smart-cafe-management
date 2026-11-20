@@ -11,7 +11,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1/staff")
 @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
-public class StaffController {
+public class StaffDashboardController {
 
     @GetMapping("/dashboard")
     public ResponseEntity<Map<String, Object>> getStaffDashboard() {
