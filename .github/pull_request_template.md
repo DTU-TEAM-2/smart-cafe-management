@@ -1,6 +1,13 @@
 ## Vấn đề và kết quả
 
-Task CF/QA và link issue/Jira/Trello:
+Task Jira và link nguồn chính thức:
+
+- Mã Jira/DT2: `DT2-xx`
+- Link Jira: `https://duymanhdnvn20092005.atlassian.net/browse/DT2-xx`
+- Mã CF/QA dùng trong tiêu đề PR: `CF-xx` / `QA-xx`
+- Nguồn xác nhận mã CF/QA: link Jira, backlog hoặc tài liệu handoff
+
+Không tự đoán mã `CF/QA`. Nếu chưa có mã hoặc nguồn không khớp, để PR ở draft và hỏi owner.
 
 Nguồn yêu cầu / quyết định liên quan:
 

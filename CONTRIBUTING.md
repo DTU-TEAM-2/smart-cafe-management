@@ -32,7 +32,7 @@ Không tạo release cho mỗi feature. Chỉ tạo release từ develop khi nh�
 ## Trước PR và trước merge
 
 - Tự đọc diff, dùng AI review theo rule, dọn code/debug thừa và chạy kiểm chứng thích hợp. AI review không thay người review độc lập.
-- PR có title `type(scope): CF-xx mô tả`, link task thật, mục tiêu/kết quả, tests/ảnh, tác động/rủi ro và việc nhóm cần làm sau merge; assignee đúng người làm, reviewer đúng người cần xem.
+- PR có title `type(scope): CF-xx mô tả`, link Jira thật và ghi nguồn xác nhận mã `CF/QA` trong body. Lấy mã từ Jira/backlog hoặc handoff đã được chốt, không tự đoán mã. PR phải nêu mục tiêu/kết quả, tests/ảnh, tác động/rủi ro và việc nhóm cần làm sau merge; assignee đúng người làm, reviewer đúng người cần xem.
 - Nhờ người review duyệt sau khi CI/bot checks đạt. Hiện GitHub Actions có Git Flow, Governance, PR title, Backend MySQL, Frontend UI; không giả báo đã có bot AI review code riêng.
 - Mọi PR vào nhánh chung cần **2 reviewer khác tác giả approve**, không dùng nhiều tài khoản của một người để đủ số lượng. Commit mới yêu cầu review lại và hủy approval cũ.
 - Nếu đổi file CI/validator/policy được CODEOWNERS bảo vệ, một trong hai reviewer phải là NV-DuyManh hoặc haitan2408, khác tác giả. CODEOWNERS lấy từ base; PR bootstrap thêm file này cần owner review thủ công trước merge, không giả có enforcement khi file chưa vào base.
