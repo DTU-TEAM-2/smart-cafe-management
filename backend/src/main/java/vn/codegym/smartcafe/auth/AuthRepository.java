@@ -32,7 +32,8 @@ public class AuthRepository {
             rs.getString("status"),
             rs.getObject("avatar_media_id") != null ? rs.getLong("avatar_media_id") : null,
             rs.getLong("auth_version"),
-            toInstant(rs.getTimestamp("password_changed_at"))
+            toInstant(rs.getTimestamp("password_changed_at")),
+            rs.getBoolean("must_change_password")
     );
 
     private static final RowMapper<OtpChallengeRecord> OTP_ROW_MAPPER = (rs, rowNum) -> new OtpChallengeRecord(
@@ -59,7 +60,7 @@ public class AuthRepository {
     public Optional<UserRecord> findUserByUsername(String username) {
         String sql = """
             SELECT id, username, password_hash, full_name, email, phone, role, status,
-                   avatar_media_id, auth_version, password_changed_at
+                   avatar_media_id, auth_version, password_changed_at, must_change_password
             FROM users
             WHERE username = ?
             """;
@@ -73,7 +74,7 @@ public class AuthRepository {
     public Optional<UserRecord> findUserByEmail(String email) {
         String sql = """
             SELECT id, username, password_hash, full_name, email, phone, role, status,
-                   avatar_media_id, auth_version, password_changed_at
+                   avatar_media_id, auth_version, password_changed_at, must_change_password
             FROM users
             WHERE LOWER(email) = LOWER(?)
             """;
@@ -87,7 +88,7 @@ public class AuthRepository {
     public Optional<UserRecord> findUserById(Long id) {
         String sql = """
             SELECT id, username, password_hash, full_name, email, phone, role, status,
-                   avatar_media_id, auth_version, password_changed_at
+                   avatar_media_id, auth_version, password_changed_at, must_change_password
             FROM users
             WHERE id = ?
             """;
@@ -105,6 +106,7 @@ public class AuthRepository {
                 password_changed_at = CURRENT_TIMESTAMP(6),
                 auth_version = auth_version + 1,
                 must_change_password = 0,
+                version = version + 1,
                 updated_at = CURRENT_TIMESTAMP(6)
             WHERE id = ? AND auth_version = ? AND status = 'ACTIVE'
             """;
@@ -118,6 +120,7 @@ public class AuthRepository {
                 password_changed_at = CURRENT_TIMESTAMP(6),
                 auth_version = auth_version + 1,
                 must_change_password = 0,
+                version = version + 1,
                 updated_at = CURRENT_TIMESTAMP(6)
             WHERE id = ?
             """;

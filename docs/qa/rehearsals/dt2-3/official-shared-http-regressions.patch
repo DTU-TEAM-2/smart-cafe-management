@@ -1,0 +1,61 @@
+--- a/backend/src/test/java/vn/codegym/smartcafe/database/ProfileMySqlTest.java
++++ b/backend/src/test/java/vn/codegym/smartcafe/database/ProfileMySqlTest.java
+@@ -376,6 +376,58 @@
+         public boolean matches(CharSequence value, String hash) { delay(value, false); return delegate.matches(value, hash); }
+     }
+
++    @Test void staffCannotReadOtherEmployeePersonnelThroughManagementNamespace() throws Exception {
++        assertThat(call("GET", "/staff/1", login(2), null).statusCode()).isEqualTo(403);
++    }
++
++    @Test void officialStaffRoleChangeRevokesOldBearerAndCannotBeTriggeredByStaff() throws Exception {
++        SCHEMA.update("DELETE FROM staff_profiles WHERE user_id IN (4,5,6)");
++        SCHEMA.update("DELETE FROM users WHERE id IN (4,5,6)");
++        String staffBearer = login(2);
++        var protectedState = userState(1);
++        var body = Map.of("version", "0", "fullName", "Nguyen Role Change", "email", "profile_2@example.test",
++                "phone", "0900000002", "address", "Synthetic address", "role", "ADMIN", "salary", 10000000);
++        var denied = call("GET", "/staff/1", staffBearer, null);
++        assertThat(denied.statusCode()).isEqualTo(403);
++        assertThat(denied.body()).doesNotContain("salary", "Synthetic");
++        assertThat(management("PUT", "/staff/1", staffBearer, body).statusCode()).isEqualTo(403);
++        assertThat(userState(1)).isEqualTo(protectedState);
++        assertThat(management("PUT", "/staff/2", login(1), body).statusCode()).isEqualTo(200);
++        assertThat(call("GET", "/profiles/me", staffBearer, null).statusCode()).isEqualTo(401);
++        assertThat(call("GET", "/home/account", staffBearer, null).statusCode()).isEqualTo(403);
++        String current = login(2);
++        assertThat(value(call("GET", "/profiles/me", current, null), "$.role")).isEqualTo("ADMIN");
++    }
++
++    @Test void officialStaffDeactivationInvalidatesRealLoginBearer() throws Exception {
++        String staffBearer = login(2);
++        assertThat(management("DELETE", "/staff/2", login(1), null).statusCode()).isEqualTo(204);
++        assertThat(call("GET", "/profiles/me", staffBearer, null).statusCode()).isEqualTo(401);
++        assertThat(jdbc.queryForObject("SELECT auth_version FROM users WHERE id=2", Long.class)).isEqualTo(1L);
++        assertThat(jdbc.queryForObject("SELECT status FROM users WHERE id=2", String.class)).isEqualTo("INACTIVE");
++    }
++
++    @Test void unsupportedProfilePathsAndMethodsNeverGrantPersonnelAccess() throws Exception {
++        String token = login(2);
++        for (String path : List.of("/profiles", "/profiles-malicious/me", "/profiles/me/extra")) {
++            assertThat(call("GET", path, token, null).statusCode()).isEqualTo(403);
++        }
++        assertThat(call("POST", "/profiles/me", token, Map.of("version", "0", "name", "Denied")).statusCode()).isEqualTo(403);
++    }
++
++    private HttpResponse<String> management(String method, String path, String bearer, Object body) throws Exception {
++        var csrf = call("GET", "/staff/csrf", login(1), null);
++        assertThat(csrf.statusCode()).isEqualTo(200);
++        String cookie = csrf.headers().allValues("Set-Cookie").stream().map(v -> v.split(";", 2)[0])
++                .collect(java.util.stream.Collectors.joining("; "));
++        var request = HttpRequest.newBuilder(URI.create("http://127.0.0.1:" + port + "/api/v1" + path))
++                .timeout(Duration.ofSeconds(20)).header("Content-Type", "application/json")
++                .header("Authorization", "Bearer " + bearer).header("Cookie", cookie)
++                .header((String) value(csrf, "$.headerName"), (String) value(csrf, "$.token"));
++        return client.send(request.method(method, body == null ? HttpRequest.BodyPublishers.noBody()
++                : HttpRequest.BodyPublishers.ofString(JSON.writeValueAsString(body))).build(), HttpResponse.BodyHandlers.ofString());
++    }
++
+     private Map<String, Object> userState(int id) { return jdbc.queryForMap("SELECT password_hash,password_changed_at,must_change_password,auth_version,version,full_name,phone FROM users WHERE id=?", id); }
+     private String login(int id) throws Exception {
+         var result = call("POST", "/auth/login", "", Map.of("username", "profile_" + id, "password", password));

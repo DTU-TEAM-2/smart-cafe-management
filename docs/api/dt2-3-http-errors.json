@@ -1,0 +1,522 @@
+{
+  "source": "Actual2026-11-18 HTTP error run; whitelisted fields only",
+  "cases": [
+    {
+      "case": "Inactive account cannot login",
+      "httpStatus": 401,
+      "response": {
+        "type": "about:blank",
+        "title": "Xác thực không thành công",
+        "status": 401,
+        "detail": "Tài khoản hoặc mật khẩu không chính xác.",
+        "code": "UNAUTHORIZED"
+      }
+    },
+    {
+      "case": "Stale update conflicts",
+      "httpStatus": 409,
+      "response": {
+        "title": "Conflict",
+        "status": 409,
+        "detail": "Thông tin đã thay đổi. Vui lòng tải lại hồ sơ.",
+        "code": "PROFILE_CONFLICT",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "Missing personnel rolls back name",
+      "httpStatus": 409,
+      "response": {
+        "title": "Conflict",
+        "status": 409,
+        "detail": "Chưa có hồ sơ nhân sự. Liên hệ quản lý.",
+        "code": "PROFILE_INCOMPLETE",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "Customer denied GET",
+      "httpStatus": 403,
+      "response": {
+        "type": "about:blank",
+        "title": "Forbidden",
+        "status": 403,
+        "detail": "Bạn không có quyền truy cập chức năng này.",
+        "code": "FORBIDDEN"
+      }
+    },
+    {
+      "case": "Customer denied PATCH",
+      "httpStatus": 403,
+      "response": {
+        "type": "about:blank",
+        "title": "Forbidden",
+        "status": 403,
+        "detail": "Bạn không có quyền truy cập chức năng này.",
+        "code": "FORBIDDEN"
+      }
+    },
+    {
+      "case": "Customer denied POST",
+      "httpStatus": 403,
+      "response": {
+        "type": "about:blank",
+        "title": "Forbidden",
+        "status": 403,
+        "detail": "Bạn không có quyền truy cập chức năng này.",
+        "code": "FORBIDDEN"
+      }
+    },
+    {
+      "case": "staff cannot assign role",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "staff cannot assign salary",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "staff cannot assign status",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "staff cannot assign userId",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "staff cannot assign username",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "staff cannot assign passwordHash",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "staff cannot assign authVersion",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "staff cannot assign email",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "staff cannot assign avatarMediaId",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "staff cannot assign birthday",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "staff cannot assign gender",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "staff cannot assign unknown",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "admin cannot assign role",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "admin cannot assign salary",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "admin cannot assign status",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "admin cannot assign userId",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "admin cannot assign username",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "admin cannot assign passwordHash",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "admin cannot assign authVersion",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "admin cannot assign email",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "admin cannot assign avatarMediaId",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "admin cannot assign birthday",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "admin cannot assign gender",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "admin cannot assign unknown",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "Reject invalid name ",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "Reject invalid name    ",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "Reject invalid name aaaaaaaaaaaaaaa",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "Reject invalid address aaaaaaaaaaaaaaa",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "Reject invalid phone aaaaaaaaaaaaaaa",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "Reject invalid phone None",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "Reject invalid version 0",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me"
+      }
+    },
+    {
+      "case": "Wrong current",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Mật khẩu hiện tại không chính xác.",
+        "code": "CURRENT_PASSWORD_INCORRECT",
+        "instance": "/api/v1/profiles/me/password"
+      }
+    },
+    {
+      "case": "Long wrong current",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Mật khẩu hiện tại không chính xác.",
+        "code": "CURRENT_PASSWORD_INCORRECT",
+        "instance": "/api/v1/profiles/me/password"
+      }
+    },
+    {
+      "case": "Mismatch",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Xác nhận mật khẩu không khớp.",
+        "code": "PASSWORD_MISMATCH",
+        "instance": "/api/v1/profiles/me/password"
+      }
+    },
+    {
+      "case": "Weak",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Mật khẩu mới không đáp ứng chính sách mật khẩu.",
+        "code": "INVALID_PASSWORD",
+        "instance": "/api/v1/profiles/me/password"
+      }
+    },
+    {
+      "case": "Reused",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Mật khẩu mới không được trùng mật khẩu hiện tại.",
+        "code": "PASSWORD_REUSED",
+        "instance": "/api/v1/profiles/me/password"
+      }
+    },
+    {
+      "case": "UTF8 over 72 bytes",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Mật khẩu mới không đáp ứng chính sách mật khẩu.",
+        "code": "INVALID_PASSWORD",
+        "instance": "/api/v1/profiles/me/password"
+      }
+    },
+    {
+      "case": "Password rejects userId",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me/password"
+      }
+    },
+    {
+      "case": "Password rejects role",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me/password"
+      }
+    },
+    {
+      "case": "Password rejects authVersion",
+      "httpStatus": 400,
+      "response": {
+        "title": "Bad Request",
+        "status": 400,
+        "detail": "Dữ liệu yêu cầu không hợp lệ.",
+        "code": "INVALID_PROFILE_REQUEST",
+        "instance": "/api/v1/profiles/me/password"
+      }
+    },
+    {
+      "case": "Old password rejected",
+      "httpStatus": 401,
+      "response": {
+        "type": "about:blank",
+        "title": "Xác thực không thành công",
+        "status": 401,
+        "detail": "Tài khoản hoặc mật khẩu không chính xác.",
+        "code": "UNAUTHORIZED"
+      }
+    }
+  ]
+}

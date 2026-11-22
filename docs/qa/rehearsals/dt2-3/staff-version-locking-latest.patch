@@ -1,0 +1,105 @@
+--- a/backend/src/main/java/vn/codegym/smartcafe/staff/StaffModels.java
++++ b/backend/src/main/java/vn/codegym/smartcafe/staff/StaffModels.java
+@@ -35,7 +35,8 @@
+             BigDecimal salary,
+             String status,
+             Long avatarMediaId,
+-            String avatarUrl
++            String avatarUrl,
++            String version
+     ) {}
+
+     public record CreateStaffRequest(
+@@ -60,7 +61,8 @@
+             LocalDate birthday,
+             String role,
+             BigDecimal salary,
+-            Long avatarMediaId
++            Long avatarMediaId,
++            String version
+     ) {}
+
+     public record PageResponse<T>(
+--- a/backend/src/main/java/vn/codegym/smartcafe/staff/StaffService.java
++++ b/backend/src/main/java/vn/codegym/smartcafe/staff/StaffService.java
+@@ -183,7 +183,7 @@
+         String sql = """
+                 SELECT u.id, u.username, u.full_name, u.email, u.phone,
+                        p.address, p.gender, p.birthday, u.role, p.salary, u.status,
+-                       u.avatar_media_id, m.secure_url AS avatar_url
++                       u.avatar_media_id, u.version, m.secure_url AS avatar_url
+                 FROM users u
+                 LEFT JOIN staff_profiles p ON p.user_id = u.id
+                 LEFT JOIN media_assets m ON m.id = u.avatar_media_id AND m.deleted_at IS NULL
+@@ -207,7 +207,8 @@
+                     rs.getBigDecimal("salary"),
+                     rs.getString("status"),
+                     mediaId,
+-                    rs.getString("avatar_url")
++                    rs.getString("avatar_url"),
++                    rs.getString("version")
+             );
+         }, id);
+
+@@ -306,6 +307,7 @@
+     public StaffModels.StaffDetail updateStaff(Long id, StaffModels.UpdateStaffRequest request, String currentUsername) {
+         StaffValidation.validateUpdate(request);
+
++        lockUser(id);
+         StaffModels.StaffDetail existing = getStaffById(id);
+
+         if ("ADMIN".equalsIgnoreCase(existing.role())
+@@ -339,11 +341,15 @@
+                 : existing.role();
+
+         try {
+-            jdbc.update("""
++            int changed = jdbc.update("""
+                     UPDATE users
+-                    SET full_name = ?, email = ?, phone = ?, role = ?, avatar_media_id = ?
+-                    WHERE id = ?
+-                    """, request.fullName().trim(), email, request.phone().trim(), role, request.avatarMediaId(), id);
++                    SET auth_version = auth_version + CASE WHEN role <> ? THEN 1 ELSE 0 END,
++                        version = version + 1,
++                        full_name = ?, email = ?, phone = ?, role = ?, avatar_media_id = ?
++                    WHERE id = ? AND version = ? AND status = 'ACTIVE'
++                    """, role, request.fullName().trim(), email, request.phone().trim(), role, request.avatarMediaId(),
++                    id, Long.parseLong(request.version()));
++            if (changed != 1) throw new ResponseStatusException(HttpStatus.CONFLICT, "Profile changed; reload before editing.");
+         } catch (DuplicateKeyException ex) {
+             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email đã tồn tại trong hệ thống.");
+         } catch (DataIntegrityViolationException ex) {
+@@ -370,6 +376,7 @@
+
+     @Transactional
+     public void deleteStaff(Long id, String currentUsername) {
++        lockUser(id);
+         StaffModels.StaffDetail target = getStaffById(id);
+
+         if (currentUsername != null && currentUsername.equalsIgnoreCase(target.username())) {
+@@ -381,6 +388,10 @@
+         }
+
+         // Soft delete: chuyển trạng thái INACTIVE để bảo toàn tham chiếu hóa đơn / phiên bàn
+-        jdbc.update("UPDATE users SET status = 'INACTIVE' WHERE id = ?", id);
++        jdbc.update("UPDATE users SET status = 'INACTIVE', version=version+1, auth_version=auth_version+1 WHERE id = ?", id);
++    }
++    private void lockUser(Long id) {
++        var found = jdbc.queryForList("SELECT id FROM users WHERE id=? FOR UPDATE", Long.class, id);
++        if (found.isEmpty()) throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Staff not found.");
+     }
+ }
+--- a/backend/src/main/java/vn/codegym/smartcafe/staff/StaffValidation.java
++++ b/backend/src/main/java/vn/codegym/smartcafe/staff/StaffValidation.java
+@@ -27,6 +27,11 @@
+         if (request == null) {
+             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Dữ liệu yêu cầu không được rỗng.");
+         }
++        if (request.version() == null || !request.version().matches("0|[1-9][0-9]{0,18}")) {
++            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Expected version is required.");
++        }
++        try { Long.parseLong(request.version()); }
++        catch (NumberFormatException ex) { throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid version."); }
+         validateEmail(request.email());
+         validateCommonFields(request.fullName(), request.address(), request.phone(), request.gender(), request.role(), request.salary());
+     }

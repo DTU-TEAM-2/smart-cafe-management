@@ -2,30 +2,22 @@
 
 Ngày mở vòng mới: 06/11/2026.
 
+## DT2-4 — quyết định của chủ yêu cầu ngày 13/11/2026
+
+Giữ QR dừng tại `77ddb61`; các chức năng còn lại dùng chung nhánh riêng `feature/dt2-4_customer-workflows`, không tự merge. Cho xây dựng xác thực nghiệp vụ trên session_clients sẵn có, không thay bảng hoặc tạo actor giả. Xác nhận sửa/hủy trong 180 giây từ khi server nhận Order, chỉ trước chuẩn bị (SUBMITTED/BEFORE_PREPARATION), kiểm bằng server. Cho chuẩn bị Firebase qua env nhưng project/bucket/credential do thành viên khác cung cấp; không tạo project hay tuyên bố cloud PASS. DT2-5 tạm dừng theo yêu cầu mới nhất. Nguồn: các trả lời trực tiếp trong chat ngày 13/11; chi tiết/AC tại [bàn giao](../handover/dt2-4-remaining-backend.md). Các lựa chọn token format/upload limit trong API là thiết kế triển khai theo ủy quyền, không đổi schema hoặc thay quyền của chủ DB.
+
 | ID | Trạng thái | Nội dung |
 | --- | --- | --- |
 | ADR-001 | Theo yêu cầu chủ repo | Khởi tạo repo mới với main rỗng; rule/skill được review qua PR trước khi vào main. Không mang code/migration/lịch sử PR cũ sang. |
 | ADR-002 | Lịch sử; phần stack được thay bằng ADR-004 ngày 11/11/2026 | Ở PR nền tảng từng đề xuất đánh giá lại Spring/React/MySQL và chưa có application skeleton. Đây không còn là trạng thái stack chờ chốt hiện tại. |
 | ADR-003 | Lịch sử 06/11; approval/phạm vi cập nhật tại ADR-012 | NV-DuyManh hoặc haitan2408 quyết định merge qua PR. Approval từng tùy chọn; từ quyết định chủ repo 11/11 yêu cầu 2 người approve, giữ nguyên khi chuyển Git Flow 12/11. Cả nhóm có thể review. Căn cứ cũ [PR #2](https://github.com/DTU-TEAM-2/smart-cafe-management/pull/2); [cấu hình hiện hành](../engineering/github-settings.md). |
 | ADR-004 | Chủ repo yêu cầu áp dụng 11/11/2026 theo trao đổi mentor | **BE Spring Boot, FE ReactJS, database MySQL bắt buộc; còn lại tùy chọn.** Nguồn: [ảnh trao đổi Tân Hải do chủ repo cung cấp](../handover/evidence/technology-constraints-2026-11-11.png), chủ repo yêu cầu ghi rule và đồng bộ tài liệu. Áp dụng toàn dự án theo [rule công nghệ](../../.agents/rules/technology-constraints.md); không tự đổi stack, không biến công cụ tùy chọn hoặc version hiện tại thành yêu cầu mới của mentor. |
-| ADR-005 | Chủ repo duyệt 11/11/2026 | Q&A 19 yêu cầu chọn đối tượng nhận tin; Q&A 20 giới hạn thông báo nhân viên. Sau khi xem đề xuất và giải thích hai cột, chủ repo xác nhận trong chat “vậy duyệt”: bổ sung `news_posts.audience_staff` và `audience_customer` dạng TINYINT(1), NOT NULL DEFAULT 0 và CHECK 0/1. Hai lựa chọn độc lập, dữ liệu cũ 0/0 chỉ ADMIN thấy tới khi gán nhóm. Chấp thuận triển khai/test local, chưa ALTER DB hệ thống, chưa commit/push. Script SQL versioned ở `backend/database/migrations/V20261111_01__news_audiences.sql`, không tự chạy khi startup. Nguồn nghiệp vụ: [phản hồi Q&A](../handover/dt2-7-qa-replies-2026-11-11.md). |
-| ADR-006 | Chủ repo yêu cầu áp dụng DB hệ thống 11/11/2026 | Sau ADR-005, chủ repo chỉ thị rõ: cập nhật hai cột vào database hệ thống và kiểm tra API thực tế, chưa commit/push. Đã áp dụng nguyên script V20261111_01__news_audiences.sql lên MySQL local smart_cafe, xác minh hai cột/default/CHECK và các trường cũ không đổi. Không seed hoặc ghi row nghiệp vụ. BE hiện tại chạy kiểm tra ở loopback cổng 18080, giữ nguyên dịch vụ 8080. Chủ repo xác nhận chưa có phiên/token thật; chưa tuyên bố nghiệm thu HTTP có quyền thành công. Nhật ký migration, digest dữ liệu và kết quả API nằm ngoài repo trong hồ sơ review local. |
 
 DT2-1 triển khai Spring Boot/JDBC + React/Vite + MySQL. Stack ba thành phần chính đã được chốt tại ADR-004; JDBC/Vite là công cụ đang dùng, code và lựa chọn cụ thể vẫn qua review. Home chỉ đọc, không tự DDL/seed; CI dùng database test riêng. Quyết định stack không tự phê duyệt nghiệp vụ ranking hoặc auth. Xem [handoff](../handover/dt2-1-home-layout.md).
 
-## Cập nhật ngày 11/11/2026
-
-- **ADR-007 — Chủ repo yêu cầu ít nhất hai người approve trước merge.** Thay phần approval tùy chọn của ADR-003; vẫn giữ hai người được quyền thực hiện merge. Ruleset main đã bật yêu cầu 2 approval, dismiss stale approval khi có commit mới và không có bypass actor. Hai reviewer phải khác tác giả và là hai người độc lập; kiểm thử/self-review của agent không thay thế approval thứ hai. Chi tiết ở [thiết lập GitHub](../engineering/github-settings.md).
-- **ADR-008 — Chủ repo mở rộng full Task 7 và yêu cầu kiểm tra đăng nhập thật.** Form React được nối vào endpoint DT2-2 hiện có, xác minh qua consumer trước khi giữ token. Thay phạm vi chỉ chuẩn bị UI ngày 07/11; không tự thêm issuer, endpoint auth, account hệ thống hoặc cơ chế cấp role. [Handoff đăng nhập](../handover/dt2-1-login-ui.md) ghi ranh giới và bằng chứng.
-- **ADR-009 — Chủ repo yêu cầu Firebase chỉ dùng gói miễn phí, không thanh toán.** Project `smart-cafe-management-47578` giữ Spark. Console yêu cầu Blaze cho Storage nên không liên kết billing, không tạo key hoặc tuyên bố có bucket cloud. Kiểm thử ảnh local dùng emulator chính thức trên loopback và MySQL `_test`, tách rõ khỏi adapter cloud. Project trước `smart-cafe-management-1cf45` đã xóa theo chỉ thị riêng của chủ repo; không tác động project khác.
-- **ADR-010 — Chủ repo yêu cầu cấu hình Firebase dùng được sau clone, ngày 12/11/2026.** Bàn giao CLI/lockfile/config mẫu và launcher theo đường dẫn repo; `start-be.ps1 -EnvFile` đọc profile/endpoint, ảnh emulator export/import local qua các lần chạy. Không phụ thuộc Firebase login/key/ổ đĩa của tác giả, không đưa credential hoặc dữ liệu ảnh vào Git. Hướng dẫn phân biệt dữ liệu riêng từng máy với backend/bucket chung; cloud vẫn phụ thuộc bucket/IAM hợp lệ và giới hạn miễn phí tại ADR-009. Xem [cấu hình nhóm](../handover/dt2-7-firebase-setup.md).
-- **Bổ sung ADR-009 ngày 12/11/2026:** chủ repo nhắc “cấm tuyệt đối bật thanh toán, chỉ được sử dụng free”. Không liên kết thẻ, nâng Blaze hoặc dùng trial đòi thanh toán, không hỏi mở billing lại. Live Storage bị tắt mặc định trước tra ADC/call cloud; chỉ kiểm thử và bàn giao emulator miễn phí trong phạm vi này. Hướng dẫn cloud cũ đã gỡ khỏi quickstart để không dẫn thành viên tới luồng trả phí.
-
 Quyết định được chấp nhận phải có người chốt, ngày, căn cứ và hệ quả; không dùng bảng này để tự phê duyệt nghiệp vụ.
 
-## ADR-011 — tích hợp menu với mô hình DB và auth chung (11/11/2026)
-
-Đổi mã khi tích hợp main ngày 12/11 để tránh trùng ADR-005 về audience của Task 7. Nguồn main 8476ee3 gọi quyết định Menu này là ADR-005; giữ nguyên nội dung và ngày quyết định, chỉ phân biệt mã trong tài liệu hợp nhất.
+## ADR-005 — tích hợp menu với mô hình DB và auth chung (11/11/2026)
 
 Chủ repo cung cấp lại sơ đồ DB mới khi đối chiếu cho PR #8; mô hình đích và chênh lệch với DDL local được ghi tại [database contract](database-contract.md#dt2-9--đối-chiếu-ngày-11112026-cho-pr-8). Menu dùng category_id/image_media_id, giá decimal(18,0); URL là trường dẫn xuất, bỏ description không có trong mô hình. Không có migration runtime hay thay đổi DB local. Kiểm thử dùng fixture main nguyên trạng trong schema riêng.
 
@@ -46,10 +38,35 @@ Chủ repo yêu cầu áp dụng file git-flow.md vào dự án và luôn tuân 
 
 Quyết định: main dành release, develop tích hợp task; feature/bugfix từ develop vào develop; release từ develop vào main; hotfix production từ main/tag vào main. Sau release/hotfix mở PR main → develop để đồng bộ, tránh mất bản sửa khi head tự xóa. Chỉ release khi scope ổn định, không tạo release cho mỗi feature. Thay ví dụ TestFlight/AppStore bằng staging/production web; giữ 2 approval độc lập đã được chủ repo chốt trước đó, không hạ xuống 1 của nguồn. Không rename nhánh cũ của thành viên; tên mới dùng ticket_mô-tả, vẫn nhận các nhánh legacy.
 
-Cách thực thi: bootstrap develop từ main@8476ee3, retarget PR #7/#10/#11 vào develop, ruleset main/develop/release yêu cầu PR/2 approval/CI và merge bởi NV-DuyManh hoặc haitan2408. CI thêm Git Flow source/target check và regression tests. GitHub Actions kiểm quy trình/chất lượng, không giả báo đã cài bot AI code review. Tự review/AI review không thay hai người review. PR Git Flow #12 đã merge vào develop tại 5cc4132 ngày 13/11/2026; các task cần đồng bộ baseline này trước khi gửi review. Không thay app/database, không tag/deploy hoặc nhập công việc local task tin tức còn dở.
+Cách thực thi: bootstrap develop từ main@8476ee3, retarget PR #7/#10/#11 vào develop, ruleset main/develop/release yêu cầu PR/2 approval/CI và merge bởi NV-DuyManh hoặc haitan2408. CI thêm Git Flow source/target check và regression tests. GitHub Actions kiểm quy trình/chất lượng, không giả báo đã cài bot AI code review. Tự review/AI review không thay hai người review. PR Git Flow chưa merge; các PR cũ cần nhận baseline workflow mới sau review. Không thay app/database, không tag/deploy hoặc nhập công việc local task tin tức còn dở.
 
 Skills áp dụng cho thay đổi quy trình: cafe-workflow, cafe-review, cafe-quality tại .agents/skills; định tuyến workflow/verification/review, giữ attribution và ghi đúng giới hạn kiểm chứng. Cấu hình chi tiết và giới hạn thực thi nằm trong docs/engineering/github-settings.md.
 
-## Bàn giao Task 7 ngày 13/11/2026
+## ADR-013 — hồ sơ cá nhân và vòng đời mật khẩu DT2-3 (15/11/2026)
 
-Chủ repo cho phép sửa tích hợp, commit/push và mở PR Task 7 vào develop. Quyết định này thay phạm vi chưa commit/push tại ADR-005/006/008 và các hợp đồng local; không mở rộng schema, bật cloud/billing hoặc cho phép merge/deploy. Hai cột audience vẫn theo SQL đã duyệt; môi trường khác phải kiểm DDL và chạy migration thủ công đúng một lần, không chạy lại SQL trên database đã có cột.
+Trạng thái: **owner chấp thuận trực tiếp trong chat DT2-3 ngày 15/11/2026**. Nguồn, khác biệt SRS/Jira và AC được lưu tại [yêu cầu DT2-3](../handover/dt2-3-requirements.md).
+
+- Áp dụng QA #8 cho STAFF tự sửa đúng tên/địa chỉ/SĐT. ADMIN dùng cùng allowlist cá nhân; username/role/salary/status/auth/email/birthday/gender/avatar nằm ngoài endpoint này. CUSTOMER không có quyền hồ sơ nhân sự. Không thay module quản trị nhân viên.
+- `passwordExpiresAt = passwordChangedAt + Duration.ofDays(30)`; `now >= expiresAt` hoặc cờ DB bằng 1 làm `mustChangePassword=true`. Login/Profile trả thông tin này, **chưa cưỡng chế khóa API nghiệp vụ**. Dùng Clock UTC và JDBC session UTC, không thêm cột expiry.
+- PasswordPolicy/BCrypt/TokenService/AuthRepository được tái sử dụng. Từ chối password trùng hiện tại. Hash/timestamp/flag/auth_version/version đổi nguyên tử. Cấp bearer thay thế sau transaction commit, Frontend phải thay bearer cũ trước khi quay về hồ sơ. Reset grant gắn auth_version cũ bị thu hồi theo Auth hiện hữu.
+- Dùng một account projection cho Home/Profile; PATCH giữ omitted fields, cấm explicit null và field ngoài allowlist. `users.version` được kiểm và tăng; writers password reset/change cùng tăng version. Row lock trên users bảo vệ các cập nhật của task. Writer Staff PR #11 chưa tham gia hợp đồng version: chưa bảo đảm optimistic concurrency xuyên mọi module.
+- Chỉ hai mutation Profile chính xác dùng bearer-header stateless được miễn CSRF; không cookie login, không thêm CSRF bootstrap/session, không tắt CSRF chung. Menu/Sales giữ bảo vệ hiện hữu. Cơ chế này phù hợp API bearer hiện hữu; chuyển sang cookie auth phải đánh giá lại CSRF.
+- Không thêm rate limiter/cột/bảng/purpose OTP. Chưa có bảo vệ brute force current-password/login được phê duyệt để tái sử dụng; cần owner chốt gateway/quota trước production. Không tuyên bố có rate limiting chỉ vì OTP có quota.
+
+Không cấp quyền migrate database chung, deploy, push, tạo PR hoặc sửa ruleset. Thiếu CF vẫn chặn commit/title PR cuối cùng theo quyết định owner.
+
+### ADR-013 — verification bổ sung, không mở rộng quyết định (15/11/2026)
+
+Rehearsal với Staff#11 HEAD4c7b969 đã **tái hiện** lost update/stale version qua transaction MySQL đồng thời thật; đây không còn chỉ là rủi ro suy từ source. Hợp đồng lock users→staff_profiles, CAS expected-version/tăng version cho mọi writer và auth_version security transition được đóng gói thành [patch đề xuất cho owner Staff](../qa/rehearsals/dt2-3/README.md), chưa áp trên nhánh DT2-3 và chưa là quyết định API mới được owner module chấp thuận. Candidate sau patch9/9 không thay trạng thái full integrationFAIL.
+
+Shared filter/matcher proposal sửa Profile401 và STAFF cross-account personnel200 đã tái hiện ở candidate Auth/Staff/News; không thay authentication architecture hoặc tự nhập PR khác. Bounded Login/current-password probe không quan sát429; policy shared admission/body cap vẫn **NEEDS OWNER DECISION**, không được gọi đã brute-force protected. [Báo cáo hiện hành](../reports/dt2-3-hardening.md) phân biệt baseline failure, patch-only success, NOT RUN Sonar và DBA deployment blockers.
+
+### ADR-013 — CF/publication update18/11/2026
+
+Owner xác nhận **CF-04** cho DT2-3/DT2-27 và cho phép commit/push current feature branch, tạo **Draft PR vào develop**, title/commit theo [requirements](../handover/dt2-3-requirements.md). Ghi nhận không-publication/thiếu-CF15/11 được thay cho phạm vi publication này; không cấp merge/approve/JiraDone hoặc deployment. Backend/DDL/policy nghiệp vụ không đổi. Develop331c1e3 được fast-forward và restore local implementation không conflict; [checks và blockers mới](../reports/dt2-3-publication.md) tách khỏi rehearsal lịch sử.
+
+### ADR-013 — bổ sung thiết kế Frontend DT2-28 (18/11/2026)
+
+Owner xác nhận trong chat triển khai DT2-28 chưa tìm thấy prototype Profile/Update Profile/Change Password riêng và cho phép bổ sung thiết kế dựa trên design system LECKER đang chạy: nền nâu đen, vàng đồng, font/button/input/layout hiện hành; inline edit chỉ name/address/phone theo QA #8. Đổi password là luồng đã đăng nhập, thay bearer rồi trở về Profile, không áp bố cục hoặc kết thúc của Reset Password. Không đổi API/DDL/quyền/30 ngày của ADR-013. [Bàn giao Frontend](../handover/dt2-28-frontend.md) ghi nguồn, ảnh và giới hạn Figma; không tuyên bố pixel-perfect với frame chưa xác minh. Owner yêu cầu duyệt UI trước publication: **chưa push hoặc tạo PR Frontend**, không kế thừa quyền publication của nhánh Backend vào nhánh mới, không chỉnh Figma gốc.
+
+Cập nhật 19/11/2026: owner đã chấp nhận giao diện Frontend DT2-28 hiện tại và cấp quyền commit/push nhánh `feature/dt2-3_personal-account-frontend`, tạo PR vào `develop` sau fresh verification và self-review. Ready for review khi không còn blocker nghiêm trọng thuộc task; không cấp quyền tự approve, resolve, merge, deployment hoặc Jira Done. Quyền mới này thay trạng thái chờ duyệt UI ở đoạn trên, không thay yêu cầu hai approval độc lập của repository.

@@ -1,5 +1,14 @@
 # Các quyết định cần chốt lại
 
+## DT2-3 / DT2-27 — trạng thái 15/11/2026
+
+QA #8 và biên hết hạn/password reuse đã được owner chốt trong chat, ghi tại [ADR-013](../architecture/decisions.md#adr-013--hồ-sơ-cá-nhân-và-vòng-đời-mật-khẩu-dt2-3-15112026); không còn blocker quyền STAFF sửa ba trường. Các phần còn lại:
+
+- DT2-10 owner: PR #11 cập nhật users/staff_profiles chưa kiểm/tăng users.version, cần thống nhất expected version và khóa users trước đọc/ghi nhân sự; không thể tuyên bố Profile đã ngăn stale write của mọi module. Chưa nhập nhánh Staff để né dependency.
+- Auth/ops owner: current-password/login chưa có quota được phê duyệt để tái sử dụng. Quota/gateway chưa được kiểm chứng; giữ quyết định không tự thêm limiter ở hardening 12/11. Rủi ro thử mật khẩu nhiều lần còn tồn tại trước production.
+- DBA: instance workspace smart_cafe vẫn legacy 13 bảng, thiếu staff_profiles/media_assets; không đủ để rollout Profile. Không tự migrate; tiếp tục native rehearsal/test trên DDL verified riêng.
+- Leader: chưa xác minh được CF cho DT2-3. Owner yêu cầu giữ DT2-3/DT2-27, chưa commit cuối/push/PR và không thay validator PR title. Đây là blocker xuất bản, không chặn code/test.
+
 ## DT2-2 — phản hồi Database về baseline, 13/11/2026
 
 Phản hồi mới báo cáo một DB local20 bảng/4 view, News audience và chưa có history. Workspace đang kết nối môi trường13 bảng có history riêng. Cần xác nhận môi trường đích, quyết định xử lý legacy, DDL-only được duyệt cùng Git ref/checksum, migration location và marker/version/script/checksum. Cần bổ sung inventory các instance đã dùng Auth V001/V002 và legacy V001–V010. Chi tiết nguồn, quy trình đề xuất và kết quả186 Backend tests cùng rehearsal được ghi ở [bàn giao follow-up](../handover/dt2-2-flyway-baseline-followup.md). Runtime chấp nhận baseline và provision đầy đủ còn **BLOCKED** theo các đầu vào đó.
@@ -37,15 +46,13 @@ Concrete starting points for owner review, **not approved limits**: gateway logi
 
 Deployment remains **BLOCKED** until the DB owner/leader reconciles current DDL and migration lineage; see the dated database-contract audit. No full-suite result replaces deployment acceptance.
 
-Các mục nội bộ lịch sử bên dưới cần đối chiếu với Q&A hiện hành trước khi áp dụng. Phần DT2-7 đã được đối chiếu online ngày 11/11/2026 ở cuối tài liệu.
-
 Các quyết định liên quan DT2-6 được đối chiếu với [QA nhóm cung cấp](https://docs.google.com/spreadsheets/d/1m2vnTOdGWivwqokRiJYOpWmY2u3G_o-U/edit?gid=1741591823#gid=1741591823). Xem [bàn giao DT2-6](../handover/dt2-06-sales-income.md) để phân biệt phần đã trả lời và phần tích hợp còn thiếu.
 
 | ID | Câu hỏi | Trạng thái |
 | --- | --- | --- |
 | QA-01 | Phạm vi, người dùng, nguồn SRS/project plan và tiêu chí bàn giao của vòng mới? | Chờ nhóm xác nhận |
 | QA-02 | Ai kích hoạt/đóng phiên bàn, nhiều thiết bị tham gia thế nào? | QA No. 4: chỉ quản lý mở/reset. Thời điểm mở, nhiều thiết bị và reset chưa thu tiền còn cần chốt. |
-| QA-03 | Chỉnh/hủy món có thời hạn nào và tính từ mốc nào? | Chưa chốt |
+| QA-03 | Chỉnh/hủy món có thời hạn nào và tính từ mốc nào? | Chủ yêu cầu xác nhận trong chat 13/11/2026: 3 phút từ lúc server nhận Order, chỉ khi món chưa chuẩn bị (SUBMITTED); hết hạn hoặc đã chuẩn bị thì từ chối. Lưu BEFORE_PREPARATION, dùng Clock server; xem bàn giao DT2-4 còn lại. |
 | QA-04 | Phân biệt yêu cầu thanh toán, lập bill, nhận tiền, ghi doanh thu và reset? | QA No. 3/4/17: yêu cầu tính tiền riêng; quản lý xác nhận tiền trước khi in. Doanh thu đọc bill PAID theo view DB đã thống nhất; còn cần producer/giao kèo socket, chính sách void/hoàn tiền và xử lý món đến sau khi lập bill. |
 | QA-05 | Hành vi khi mất kết nối và cơ chế phục hồi? | QA No. 12: báo lỗi mất kết nối. Chưa chốt chế độ bán offline; UI hiện tại có thử lại. |
 | QA-06 | DT2-1: top gọi nhiều tính quantity hay số lần, trong khoảng thời gian nào; available=false có ẩn không? | Đang dùng view quantity loại CANCELLED toàn thời gian; chờ PO |
@@ -53,36 +60,11 @@ Các quyết định liên quan DT2-6 được đối chiếu với [QA nhóm cu
 
 Mỗi câu trả lời cần người chốt, ngày, nguồn bằng chứng và task bị ảnh hưởng. Đề xuất kỹ thuật chưa được duyệt vẫn là đề xuất.
 
-## DT2-7 — đối chiếu Q&A thật ngày 11/11/2026
+### DT2-4 — quyết định trong chat ngày 13/11/2026
 
-Nguồn online: [Q&A dự án](https://docs.google.com/spreadsheets/d/1m2vnTOdGWivwqokRiJYOpWmY2u3G_o-U/edit), No.4/5/10; [Project Plan](https://docs.google.com/spreadsheets/d/1nT1hxrsgVdBxTbORlTwohwzmbvujldYR/edit), Tasks_Sprint_1!B9/E9. Các số No. này thuộc file Q&A khách hàng, không đồng nhất với mã QA-01…QA-07 nội bộ phía trên.
+Chủ yêu cầu giữ QR tạm dừng, cho xây dựng nghiệp vụ dùng session_clients hiện có để kiểm tra token khách; không làm lại bảng hoặc tự mở phiên. TTL/issuer của luồng QR vẫn chưa chốt; API chỉ dùng expires_at/revoked_at đã lưu. Chấp thuận quy tắc QA-03 nêu ở bảng trên. Firebase project/bucket/credential thuộc thành viên khác: chỉ chuẩn bị env/adapter, chưa chạy cloud thật. DT2-5 đã được yêu cầu tạm dừng, dù đã ghi nhận dự kiến quyền ADMIN và ngày tìm kiếm theo Asia/Ho_Chi_Minh để dùng khi được cho tiếp tục. Xem [bàn giao phần còn lại](../handover/dt2-4-remaining-backend.md).
 
-- **Đã trả lời, No.4:** chỉ quyền quản lý làm các tác vụ được hỏi, bao gồm đăng/sửa/xóa tin tức. ADMIN quản lý là cách mapping hiện tại; không hỏi lại STAFF có được thao tác hay không.
-- **Đã trả lời, No.5:** tất cả trường hợp xóa dùng xóa mềm/logic. Không hỏi lại xóa cứng hay mềm. Dùng ARCHIVED sẵn có là lựa chọn hiện thực; không tự suy ra toàn bộ chính sách khôi phục/retention từ đáp án này.
-- **Đã trả lời, No.10:** nhóm tự suy nghĩ thiết kế tin tức, chốt ở phiên prototype. Không xin bổ sung lại toàn bộ layout/trường dữ liệu; đưa prototype cụ thể để xác nhận.
-
-Danh sách QA-08–QA-12 từng soạn local được thay bằng đối chiếu này vì có câu hỏi trùng đáp án. Giới hạn ảnh, kiểu editor và trạng thái cụ thể là đề xuất prototype, không phải điều khoản đã được nguồn yêu cầu xác nhận. Bucket/ADC là dependency cấu hình kỹ thuật riêng, không hỏi secret trong Q&A.
-
-## DT2-7 — Q&A 19–20 đã được trả lời
-
-[Ảnh phản hồi và cách triển khai](../handover/dt2-7-qa-replies-2026-11-11.md):
-
-| No. Q&A | Trạng thái | Trả lời | Kết quả triển khai BE |
-| --- | --- | --- | --- |
-| 19 | Answered | Thêm lựa chọn gửi tin đến Nhân viên, Khách hàng | audiences STAFF/CUSTOMER, lưu hai cột theo ADR-005 được chủ repo duyệt; người đọc chỉ thấy PUBLISHED đúng nhóm. |
-| 20 | Answered | Chỉ thông báo nhân viên | Socket chỉ STAFF; generic NEWS_CHANGED sau commit khi danh sách STAFF bị ảnh hưởng; CUSTOMER/ADMIN không nhận. |
-
-Không hỏi lại hai câu đã trả lời. Hai checkbox độc lập, mặc định bài cũ 0/0 và API bắt buộc chọn ít nhất một nhóm khi tạo là cách triển khai đã trình chủ repo trong phương án schema. Chủ repo đã duyệt “vậy duyệt” sau khi nghe giải thích. Theo chỉ thị riêng tiếp theo tại ADR-006, đã áp dụng schema vào smart_cafe local; không seed hoặc ghi dữ liệu thử, chưa commit/push.
-
-Phần chưa được phản hồi chốt: “khách hàng” có gồm người chưa đăng nhập/phiên QR không, chi tiết UI toast hay tự reload. Tiếp tục giới hạn đọc ở tài khoản CUSTOMER thật và để FE thiết kế prototype theo No.10; không tự giả auth hoặc mở public mọi tin. Không chặn việc triển khai hai câu đã được duyệt vì các chi tiết UI chưa thuộc BE.
-
-Hợp đồng: [DT2-7 backend](../handover/dt2-7-backend-contract.md). Firebase cloud không sử dụng do ràng buộc miễn phí; local dùng Storage Emulator, không đổi trạng thái Q&A 19–20 về chưa trả lời.
-
-### QA-02 — bổ sung yêu cầu DT2-4 ngày 11/11/2026
-
-Người dùng yêu cầu khách quét QR tại bàn, vào thẳng Menu không đăng nhập và hệ thống tự mở phiên. Jira DT2-33 vẫn ghi QA-02 chưa chốt; QA nhóm trước đó ghi chỉ quản lý mở/reset. Cần PO/chủ DB xác nhận thay đổi trong phạm vi thẩm quyền và cách lưu người mở khi `table_sessions.opened_by_user_id` hiện NOT NULL FK tới `users`.
-
-Các phương án cần quyết định: cho phép NULL để thể hiện khách vãng lai (cần duyệt schema), hoặc giữ schema và để người dùng nội bộ có thật mở phiên (không đáp ứng trải nghiệm tự mở hiện được yêu cầu). Không tạo tài khoản giả, gán ADMIN thay khách hoặc tắt FK. Thời hạn token, nhiều thiết bị và quét lại ở CHECKOUT chưa chốt. Xem [nguồn, phạm vi và blocker chức năng 2](../handover/dt2-4-table-session.md).
+Khách cũng đã yêu cầu QR tự mở phiên và vào Menu. QA-02, cách lưu người mở khi `opened_by_user_id` là NOT NULL, thời hạn token và nhiều thiết bị chưa được chốt với PO/chủ DB. PR #10 chỉ tra QR để xác định bàn, không mở phiên hoặc cấp token. Xem [bàn giao QR và phiên](../handover/dt2-4-table-session.md).
 
 
 ### DT2-9: DDL triển khai theo sơ đồ mới
@@ -110,3 +92,28 @@ The owner supplied `SmartCafe-DDL-handoff-20261113.zip`; verified SQL now suppor
 | Definers and rollout | Approve migration/application grants, definer account lifetime, secure backup/restore rehearsal, writer freeze and explicit baseline/deploy command/window. Local privileged MySQL success does not approve production grants. | DEPLOYMENT BLOCKED — DBA + release owner |
 
 No new limiter/retention/lockout/job, shared schema write, or business policy is approved here. QA-02 auto guest-session ownership and previous security proposals remain open.
+
+### DT2-3 — integration/security findings cần owner xử lý (15/11/2026)
+
+QA #8 STAFF self-edit và hợp đồng30×24h/replacement-token đã được owner chốt trong chat, được ghi tại [ADR-013](../architecture/decisions.md#adr-013--hồ-sơ-cá-nhân-và-vòng-đời-mật-khẩu-dt2-3-15112026); không hỏi lại hai quyết định này. Mã CF chưa có chỉ giữ commit/title/publication, không chặn implementation/test và không tự gán mã khác.
+
+| Việc còn cần quyết định/khắc phục | Bằng chứng và trách nhiệm |
+| --- | --- |
+| Shared users.version/auth_version/lock order cho DT2-10 | HEAD#11 `4c7b969`:9MySQLconcurrency tests có5failure, lost update/stale acceptance thực tế. Owner Staff xem [test/patch proposal](../qa/rehearsals/dt2-3/README.md), cập nhật caller expected-version và xác nhận contract; chưa tự áp lên PR. |
+| Auth/Staff/News integration ownership | Latest Staff/Customer revert Auth không compile nguyên trạng; bean collision; HeaderTokenFilter thiếu Profile, broad Staff matcher lộ personnel ở candidate. Owner tương ứng phải nhận shared consumer/matcher và hoàn thiện Staff caller version theo proposal (News fixture tại HEAD đã đúng); [full rehearsal chưaPASS](../reports/dt2-3-hardening.md). |
+| Login/current-password admission và body-cap policy |20localhost requests không429, không lockout; BCrypt cost10 vẫn chạy cho password sai. Cần owner Auth/gateway duyệt quota/backoff/trustedIP/global budget/JSON cap và test multi-instance; chưa limiter mới, không permanent account lock hay sửa OTP CHECK. Các số đề xuất trong report chưa là yêu cầu đã duyệt. |
+| Approved SonarQube environment | Chưa có server/token/scanner được duyệt; NOT RUN, không sửa CI/quality gate để thay thế. |
+| Deployment target | Legacy smart_cafe cấu hình local vẫn13tables/0views; DBA xác định instance/lineage/grants/DEFINER/rollout/backup trước triển khai. Giữ DDL20261113.1 nguyên byte. |
+
+Các finding là kết quả rehearsal theo revision, không phải lời nhắn/issue đã gửi cho thành viên. Local handoff/patch sẵn để owner review; chưa publish, merge hoặc Jira Done.
+
+DT2-3 final handoff: owner đã chấp nhận Backend local, không chấp nhận full integrationPASS. Shared rate/body policy được theo dõi là **AUTH-GATEWAY-01 — NEEDS OWNER DECISION, trước release**, chưa triển khai limiter/bảng/DDL. Owner Auth/Gateway phải duyệt topology/quota/recovery trước release; bounded localhost probe không là DoS/brute-force production proof. [Owner handoffs và gate publication/merge](../handover/dt2-3-final-handoff.md) là next actions; chưa gửi comment/request reviewer.
+
+### DT2-3 — cập nhật18/11/2026
+
+**Historical publication snapshot at Staffb74a365 (superseded by57ea6f1):** CF đã chốt **CF-04**, user đã authorize commit/push/Draft PR; thiếu-CF không còn blocker. Staffb74a365 khôi phục Auth/verified resources, rename dashboard và ADMIN management rules; version/CAS writer vẫn còn finding9test/5failure. Newsc2343ed có root/path matching mới nhưng thiếu Profile consumer, baselineHTTP401 expected200 vẫn tái hiện; preserving matcher Staff mới chặn other-personnel403 đúng. Customer#14 đã lêna41152d và khôi phục Auth/verified resources; domain/tests trùng Git tree với ref đã chạy. Lỗi Auth-revert trước đây không còn quy cho HEAD mới, nhưng shared-chain composition vẫn phải giữ đủ authority/routes. AUTH-GATEWAY-01/DBA/Sonar và fresh independent review/CI trước merge không tự được giải quyết bởi publication. [Trạng thái mới nhất](../reports/dt2-3-publication.md).
+
+
+## Current DT2-3 integration correction, 18/11/2026
+
+Staff57ea6f1 officially fixes version/CAS/auth_version/caller migration; source defect is FIXED, combined regression must use that HEAD. Staffb74 baseline5/9FAIL and proposal9/9PASS remain historical. News consumer c2343ed and Bills fixture86b70e2 still need owner adoption of pinned minimal fixes. Literal official CandidateA is blocked by merge conflicts, not silently replaced by selective CandidateB. See [current report](../reports/dt2-3-review-follow-up.md) and [finding matrix](../handover/dt2-3-review-matrix.md). AUTH-GATEWAY-01, DBA/production/Sonar release gates remain owner decisions; no new policy, table, limiter or shared DB write.

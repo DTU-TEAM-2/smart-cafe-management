@@ -1,5 +1,15 @@
 # Database hệ thống — nguồn chuẩn
 
+## DT2-3 — kiểm tra read-only 15/11/2026
+
+Đầu vào dùng nguyên byte DDL `20261113.1`, SHA-256 `84cb9f2e99073ea73b117e828dc7f144928052a8f8345cde6f903b82280e4b5e`; 10 checksum của ZIP local `SmartCafe-DDL-handoff-20261113.zip` khớp. File có hậu tố `(1)` trong yêu cầu không có trên máy; ZIP hiện có khớp SQL và ZIP đã đối chiếu ở handoff Auth. Đã đọc README/decision/manifest/gaps/evidence và xem ERD. Không sửa migration/manifest/contract fingerprint.
+
+Instance cấu hình workspace được kiểm read-only qua loopback TCP 3306, MySQL 8.0.45, catalog `smart_cafe`: 13 bảng gồm history, 0 view; history legacy V001–V008 như handoff trước. `users` tồn tại; `staff_profiles` và `media_assets` chưa tồn tại, nên GET Home/Profile không thể được nghiệm thu ở instance này. Nguồn metadata được lưu riêng ngoài Git; không đọc row nhân sự. Không đồng nhất instance này với Navicat `locall` của người bàn giao. Không ghi DB chung hoặc tự chuyển lineage.
+
+DT2-3 chỉ dùng `users`, `staff_profiles`, `media_assets` đúng DDL (password writer tăng version, không thay schema). Target triển khai thật vẫn cần DBA xác nhận instance/schema, inventory/history/grants và rollout của [handoff verified-db](../handover/dt2-2-verified-database-integration.md). Kiểm thử ghi chỉ ở schema riêng `_test`; native Flyway provision/validate/repeat và startup verified-db được kiểm riêng với fixture regression lịch sử.
+
+Hardening cùng ngày kiểm metadata read-only lại: MySQL8.0.45,13BASE TABLE/0VIEW, legacy history không đổi; không ghi DB chung. Profile/Newman và Staff concurrency dùng native verified20261113.1 trên schema test mình sở hữu. News audience đã có trong **official DDL** và fixture của HEAD#15; historical fixture của develop chưa có extension. Candidate đầu dùng nhầm fixture develop đã được sửa assembly bằng nguyên fixture#15 ở worktree riêng; không quy lỗi thiếu cột đó cho baseline News, không sửa official DDL/constraint/checksum. Kết quả và source manifest tại [hardening](../reports/dt2-3-hardening.md).
+
 **Cập nhật 13/11/2026:** đã nhận và kiểm chứng DDL bàn giao 20 bảng/4 view, gồm News audience. Xem [tích hợp và ma trận lineage mới](../handover/dt2-2-verified-database-integration.md). Profile opt-in `verified-db` phục vụ rehearsal/đích sau phê duyệt; mặc định giữ Auth-local. Quan sát legacy bên dưới vẫn thuộc môi trường riêng. Gói bàn giao không tự cấp quyền ghi database chung hoặc triển khai.
 
 **Bản chuẩn chủ repo cung cấp ngày 11/11/2026:** [sơ đồ database](../handover/evidence/system-database-reference-2026-11-11.jpg). Áp dụng cho toàn bộ dự án theo [rule database bắt buộc](../../.agents/rules/database-source-of-truth.md), không chỉ DT2-1. Runtime hiện được cấu hình dùng MySQL `smart_cafe`.
