@@ -1,5 +1,6 @@
 package vn.codegym.smartcafe.billing;
 
+import com.jayway.jsonpath.JsonPath;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.Clock;
@@ -7,6 +8,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Base64;
 import java.util.HexFormat;
+import java.util.List;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.BeforeEach;
@@ -19,12 +21,15 @@ import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.http.MediaType;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest(properties = {
@@ -41,6 +46,7 @@ class BillMySqlIntegrationTest {
 
     @Autowired JdbcTemplate jdbc;
     @Autowired MockMvc mvc;
+    @Autowired PasswordEncoder passwordEncoder;
 
     @TestConfiguration
     static class FixedClockConfig {
@@ -155,6 +161,32 @@ class BillMySqlIntegrationTest {
         mvc.perform(get("/api/v1/bills").header("Authorization", custAuth)).andExpect(status().isForbidden());
         mvc.perform(get("/api/v1/bills/1").header("Authorization", custAuth)).andExpect(status().isForbidden());
         mvc.perform(get("/api/v1/statistics/revenue").header("Authorization", custAuth)).andExpect(status().isForbidden());
+    }
+
+    @Test
+    void realLoginBearerRespectsBillingRolesAndRevocation() throws Exception {
+        jdbc.update("UPDATE users SET password_hash=? WHERE id IN (1,2,3)",
+                passwordEncoder.encode("Billing@123"));
+        for (String username : List.of("admin_u", "staff_u", "cust_u")) {
+            String response = mvc.perform(post("/api/v1/auth/login").contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"username\":\"" + username + "\",\"password\":\"Billing@123\"}"))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+            String auth = "Bearer " + JsonPath.<String>read(response, "$.token");
+            boolean staffOrAdmin = !username.equals("cust_u");
+            mvc.perform(get("/api/v1/auth/me").header("Authorization", auth)).andExpect(status().isOk());
+            mvc.perform(get("/api/v1/bills").header("Authorization", auth))
+                    .andExpect(staffOrAdmin ? status().isOk() : status().isForbidden());
+            mvc.perform(get("/api/v1/bills/1").header("Authorization", auth))
+                    .andExpect(staffOrAdmin ? status().isOk() : status().isForbidden());
+            mvc.perform(get("/api/v1/statistics/revenue").header("Authorization", auth))
+                    .andExpect(username.equals("admin_u") ? status().isOk() : status().isForbidden());
+            jdbc.update("UPDATE users SET auth_version=auth_version+1 WHERE username=?", username);
+            mvc.perform(get("/api/v1/bills").header("Authorization", auth)).andExpect(status().isForbidden());
+            mvc.perform(get("/api/v1/bills/1").header("Authorization", auth)).andExpect(status().isForbidden());
+            mvc.perform(get("/api/v1/statistics/revenue").header("Authorization", auth)).andExpect(status().isForbidden());
+            mvc.perform(get("/api/v1/auth/me").header("Authorization", auth))
+                    .andExpect(status().is4xxClientError());
+        }
     }
 
     // --- 2. Bill List & Search Tests ---

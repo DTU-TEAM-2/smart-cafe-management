@@ -1,4 +1,5 @@
 import { useId, useRef, useState } from "react";
+import AccountAvatar from "./AccountAvatar.jsx";
 
 const noticeTime = new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", timeZone: "Asia/Ho_Chi_Minh" });
 function formattedTime(value) {
@@ -40,7 +41,7 @@ function Icon({ name }) {
 }
 
 export default function SiteLayout({ children, account = null, notifications = null, links = {},
-  currentPage = "home", isAuthPage = false, notificationState = "ready", onRetryNotifications, onNotificationsOpen, management = false }) {
+  currentPage = "home", isAuthPage = false, notificationState = "ready", onRetryNotifications, onNotificationsOpen, onLogout, management = false }) {
   const [panel, setPanel] = useState(null);
   const regionId = useId();
   const menuButton = useRef(null);
@@ -62,17 +63,17 @@ export default function SiteLayout({ children, account = null, notifications = n
 
   return <>
     <div id="top" />
-    <a href="#main" className="skip-link" onClick={management ? event => {
+    <a href="#main" className="skip-link" onClick={event => {
       event.preventDefault();
       document.getElementById("main")?.focus();
-    } : undefined}>Bỏ qua điều hướng</a>
+    }}>Bỏ qua điều hướng</a>
     <header className={`site-header${management ? " billing-header" : ""}${isAuthPage ? " site-header-auth" : ""}`} onKeyDown={handleHeaderKey} onBlur={(event) => {
       if (!event.currentTarget.contains(event.relatedTarget)) setPanel(null);
     }}>
       <div className="header-inner">
         {management ? <strong className="billing-header-title">{account?.role === "ADMIN" ? "KHU VỰC QUẢN TRỊ" : "KHÔNG GIAN NHÂN VIÊN"}</strong> : <>
-        <a className="brand" href="#top" aria-label="LECKER Trang chủ">
-          <strong>LECKER</strong><span>Coffee Cafe</span>
+        <a className="brand" href="#top" aria-label="LECKER Coffee Cafe Trang chủ">
+          <strong>LECKER</strong>{" "}<span>Coffee Cafe</span>
         </a>
         <button ref={menuButton} type="button" className="icon-button mobile-toggle" aria-label="Điều hướng"
           aria-expanded={panel === "menu"} aria-controls={`${regionId}-nav`} onClick={() => toggle("menu")}>
@@ -119,7 +120,7 @@ export default function SiteLayout({ children, account = null, notifications = n
           {!account && localLink(links.login) ? <a href={links.login} className="header-login" aria-current={currentPage === "login" ? "page" : undefined}>Đăng nhập</a> : <div className="header-control">
             <button type="button" ref={accountButton} className="icon-button" aria-label={account ? `Tài khoản ${account.name}` : "Tài khoản"}
               aria-expanded={panel === "account"} aria-controls={`${regionId}-account`} onClick={() => toggle("account")}>
-              <span className="avatar" aria-hidden="true">{account?.name?.trim().slice(0, 1).toLocaleUpperCase("vi")}</span>
+              <AccountAvatar name={account?.name} url={account?.avatarUrl} />
               {management && <span className="billing-header-action-label">Tài khoản</span>}
             </button>
             <section className="header-panel" id={`${regionId}-account`} hidden={panel !== "account"} aria-label="Thông tin tài khoản">
@@ -128,6 +129,7 @@ export default function SiteLayout({ children, account = null, notifications = n
               {account && localLink(account.profileHref) ? <a href={account.profileHref} onClick={() => setPanel(null)}>Thông tin tài khoản</a>
                 : !account && localLink(links.login) ? <a href={links.login}>Đăng nhập</a>
                   : <p>{account ? "Chưa kết nối trang hồ sơ." : "Bạn chưa đăng nhập."}</p>}
+              {account && onLogout && <p><button type="button" onClick={() => { setPanel(null); onLogout(); }}>Đăng xuất</button></p>}
             </section>
           </div>}
         </div>
@@ -136,8 +138,8 @@ export default function SiteLayout({ children, account = null, notifications = n
     <main id="main" tabIndex={-1}>{children}</main>
     {!management && <footer className={`site-footer${isAuthPage ? " site-footer-auth" : ""}`}>
       <div className="footer-inner">
-        <a className="brand footer-brand" href="#top" aria-label="LECKER Về đầu trang">
-          <strong>LECKER</strong><span>COFFEE CAFE</span>
+        <a className="brand footer-brand" href="#top" aria-label="LECKER Coffee Cafe Về đầu trang">
+          <strong>LECKER</strong>{" "}<span>COFFEE CAFE</span>
         </a>
         <nav aria-label="Liên kết cuối trang">
           {footer.map(({ label, key }) => <SiteLink key={key} href={links[key]}>{label}</SiteLink>)}

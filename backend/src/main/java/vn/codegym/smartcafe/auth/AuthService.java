@@ -16,11 +16,14 @@ public class AuthService {
     private final AuthRepository authRepository;
     private final TokenService tokenService;
     private final PasswordEncoder passwordEncoder;
+    private final java.time.Clock clock;
 
-    public AuthService(AuthRepository authRepository, TokenService tokenService, PasswordEncoder passwordEncoder) {
+    public AuthService(AuthRepository authRepository, TokenService tokenService, PasswordEncoder passwordEncoder,
+            java.time.Clock clock) {
         this.authRepository = authRepository;
         this.tokenService = tokenService;
         this.passwordEncoder = passwordEncoder;
+        this.clock = clock;
     }
 
     public LoginResponse login(LoginRequest request) {
@@ -49,7 +52,9 @@ public class AuthService {
                 user.role()
         );
         log.info("Successful login for user '{}' with role '{}'", user.username(), user.role());
-        return new LoginResponse(token, userDto);
+        var expiration = PasswordExpiration.at(user.passwordChangedAt(), user.mustChangePassword(), clock.instant());
+        return new LoginResponse(token, userDto, expiration.passwordChangedAt(), expiration.passwordExpiresAt(),
+                expiration.mustChangePassword());
     }
 
     public UserDto getCurrentUser(Long userId) {

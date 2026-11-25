@@ -4,8 +4,10 @@ import BillDetailModal from "./BillDetailModal.jsx";
 import StatisticsView from "./StatisticsView.jsx";
 import SiteLayout from "../layout/SiteLayout.jsx";
 import "./billing.css";
+import useBillingAccess from "./useBillingAccess.js";
 
-export default function BillsWorkspace({ layout, authorization, credentials, statistics, isAdmin }) {
+export default function BillsWorkspace({ layout, authorization, credentials, statistics, isAdmin, expiryNotice }) {
+  const onDenied = useBillingAccess(authorization);
   return (
     <div className="billing-workspace">
       <aside className="billing-sidebar">
@@ -22,13 +24,14 @@ export default function BillsWorkspace({ layout, authorization, credentials, sta
       </aside>
       <div className="billing-main">
         <SiteLayout {...layout} management>
+          {expiryNotice}
           <section className="billing-content" aria-labelledby="billing-title">
             <div className="billing-page-heading">
               <h1 id="billing-title">{statistics ? "Thống kê doanh thu" : "Hóa đơn"}</h1>
               <p>LECKER Coffee Cafe • Smart Café Management System</p>
             </div>
-            {statistics ? <StatisticsView authorization={authorization} credentials={credentials} />
-              : <BillList authorization={authorization} credentials={credentials} isAdmin={isAdmin} />}
+            {statistics ? <StatisticsView authorization={authorization} credentials={credentials} onDenied={onDenied} />
+              : <BillList authorization={authorization} credentials={credentials} isAdmin={isAdmin} onDenied={onDenied} />}
           </section>
         </SiteLayout>
       </div>
@@ -38,7 +41,7 @@ export default function BillsWorkspace({ layout, authorization, credentials, sta
 
 const emptyPage = { content: [], totalElements: 0, totalPages: 0, page: 0 };
 
-function BillList({ authorization, credentials, isAdmin }) {
+function BillList({ authorization, credentials, isAdmin, onDenied }) {
   const [searchType, setSearchType] = useState("id");
   const [keyword, setKeyword] = useState("");
   const [query, setQuery] = useState({ status: "ALL", page: 0 });
@@ -56,7 +59,7 @@ function BillList({ authorization, credentials, isAdmin }) {
     const controller = new AbortController();
     async function loadBills() {
       try {
-        const result = await fetchBills({ ...query, authorization, credentials, signal: controller.signal });
+        const result = await fetchBills({ ...query, authorization, credentials, onDenied, signal: controller.signal });
         if (controller.signal.aborted) return;
         setData(result);
         if (result.totalElements === 0 && (query.code || query.from || query.status !== "ALL")) setSearchNotice("Not found!");
@@ -71,7 +74,7 @@ function BillList({ authorization, credentials, isAdmin }) {
     }
     void loadBills();
     return () => controller.abort();
-  }, [query, authorization, credentials]);
+  }, [query, authorization, credentials, onDenied]);
 
   useEffect(() => () => detailRequest.current?.abort(), []);
 
@@ -121,7 +124,7 @@ function BillList({ authorization, credentials, isAdmin }) {
     setDetailError("");
     setDetailLoading(true);
     try {
-      const detail = await fetchBillDetail(id, { authorization, credentials, signal: controller.signal });
+      const detail = await fetchBillDetail(id, { authorization, credentials, onDenied, signal: controller.signal });
       if (!controller.signal.aborted) setDetailModalBill(detail);
     } catch (error) {
       if (controller.signal.aborted) return;

@@ -61,7 +61,7 @@ export function fetchRevenueStatistics({ period, from, to, ...options }) {
   return readBilling(`/api/v1/statistics/revenue?${params}`, "số liệu thống kê", options);
 }
 
-async function readBilling(path, resource, { authorization, credentials = "same-origin", signal }) {
+async function readBilling(path, resource, { authorization, credentials = "same-origin", signal, onDenied }) {
   const timeout = AbortSignal.timeout(12000);
   const requestSignal = signal ? AbortSignal.any([signal, timeout]) : timeout;
   let response;
@@ -77,7 +77,12 @@ async function readBilling(path, resource, { authorization, credentials = "same-
     throw new Error("Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.");
   }
 
-  if (response.status === 401 || response.status === 403) throw new Error("UNAUTHORIZED");
+  if (response.status === 401 || response.status === 403) {
+    const error = new Error("UNAUTHORIZED");
+    error.status = response.status;
+    if (!signal?.aborted) onDenied?.();
+    throw error;
+  }
   if (response.status === 404) throw new Error("NOT_FOUND");
   if (response.status === 503) throw new Error("Dữ liệu tạm thời không khả dụng (HTTP 503).");
   if (!response.ok) throw new Error(`Lỗi tải ${resource} (HTTP ${response.status})`);

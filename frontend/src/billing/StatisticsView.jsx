@@ -69,7 +69,7 @@ function chartBuckets(days) {
   return [...months.values()];
 }
 
-export default function StatisticsView({ authorization, credentials }) {
+export default function StatisticsView({ authorization, credentials, onDenied }) {
   const [query, setQuery] = useState({ period: "in_month" });
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -82,7 +82,7 @@ export default function StatisticsView({ authorization, credentials }) {
     const controller = new AbortController();
     async function loadStats() {
       try {
-        const result = await fetchRevenueStatistics({ ...query, authorization, credentials, signal: controller.signal });
+        const result = await fetchRevenueStatistics({ ...query, authorization, credentials, onDenied, signal: controller.signal });
         if (!controller.signal.aborted) setData(result);
       } catch (error) {
         if (!controller.signal.aborted) setError(error.message === "UNAUTHORIZED"
@@ -94,7 +94,7 @@ export default function StatisticsView({ authorization, credentials }) {
     }
     void loadStats();
     return () => controller.abort();
-  }, [query, authorization, credentials]);
+  }, [query, authorization, credentials, onDenied]);
 
   function load(nextQuery) {
     setValidation("");

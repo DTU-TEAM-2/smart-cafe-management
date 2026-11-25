@@ -421,4 +421,69 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
     await expect(page.getByText("Chỉ Quản trị viên (ADMIN) được xem thống kê.")).toBeVisible();
     expect(revenueRequests).toBe(0);
   });
+
+  for (const [role, target] of [["ADMIN", "#statistics"], ["STAFF", "#bills"]]) {
+    test(`DT2-8 ${role} checks REST denial and expires only a revoked session`, async ({ page }) => {
+      let revoked = false;
+      let denied = false;
+      let authChecks = 0;
+      const token = role === "STAFF" ? "staff-token" : "admin-token";
+      await page.addInitScript(value => sessionStorage.setItem("smart_cafe_token", value), token);
+      await page.route("**/api/v1/auth/me", route => {
+        authChecks++;
+        return route.fulfill(revoked ? { status: 401, json: {} } : { json: { ...admin, role } });
+      });
+      await page.route("**/api/v1/home/account", route => route.request().headers().authorization
+        ? route.fulfill({ json: { ...admin, role } }) : route.fulfill({ status: 401, json: {} }));
+      const path = target === "#statistics" ? "**/api/v1/statistics/revenue?**" : "**/api/v1/bills?**";
+      const payload = target === "#statistics" ? mockStats : { content: mockBills, totalElements: 2, totalPages: 1, page: 0 };
+      await page.route(path, route => denied ? route.fulfill({ status: 403, json: {} }) : route.fulfill({ json: payload }));
+      await page.goto("/" + target);
+      await expect(page.locator(".billing-content")).toBeVisible();
+      await expect.poll(() => authChecks).toBeGreaterThan(0);
+      await expect(page.getByText(target === "#statistics" ? "275.000 ₫" : "BILL-2026-001", { exact: true })).toBeVisible();
+      denied = true;
+      const initial = authChecks;
+      if (target === "#statistics") await page.getByRole("radio", { name: "Năm nay (In Year)" }).check();
+      else await page.getByRole("button", { name: "Show List Bill" }).click();
+      await expect(page.getByRole("alert")).toContainText("Bạn không có quyền");
+      await expect.poll(() => authChecks).toBeGreaterThan(initial);
+      expect(await page.evaluate(() => sessionStorage.getItem("smart_cafe_token"))).toBe(token);
+      revoked = true;
+      await page.getByRole("button", { name: "Thử lại", exact: true }).click();
+      await expect(page.locator(".billing-content")).toHaveCount(0);
+      await expect.poll(() => page.evaluate(() => sessionStorage.getItem("smart_cafe_token"))).toBeNull();
+    });
+  }
+
+  test("A delayed Billing auth denial cannot clear a replacement token", async ({ page }) => {
+    await page.addInitScript(() => sessionStorage.setItem("smart_cafe_token", "admin-token"));
+    await page.route("**/api/v1/home/account", route => route.fulfill({ json: admin }));
+    let deny = false;
+    let oldCheck;
+    await page.route("**/api/v1/auth/me", route => {
+      if (deny && route.request().headers().authorization === "Bearer admin-token") {
+        oldCheck = route;
+        return;
+      }
+      return route.fulfill({ json: admin });
+    });
+    await page.route("**/api/v1/bills?**", route => {
+      if (deny && route.request().headers().authorization === "Bearer admin-token") return route.fulfill({ status: 403, json: {} });
+      return route.fulfill({ json: { content: mockBills, totalElements: 2, totalPages: 1, page: 0 } });
+    });
+    const initial = page.waitForResponse(response => response.url().endsWith("/api/v1/auth/me") && response.ok());
+    await page.goto("/#bills");
+    await initial;
+    await expect(page.getByText("BILL-2026-001", { exact: true })).toBeVisible();
+    deny = true;
+    await page.getByRole("button", { name: "Show List Bill" }).click();
+    await expect.poll(() => Boolean(oldCheck)).toBe(true);
+    await setToken(page, "replacement-token");
+    await expect(page.getByText("BILL-2026-001", { exact: true })).toBeVisible();
+    await oldCheck.fulfill({ status: 401, json: {} });
+    await expect(page.getByText("BILL-2026-001", { exact: true })).toBeVisible();
+    expect(await page.evaluate(() => sessionStorage.getItem("smart_cafe_token"))).toBe("replacement-token");
+  });
+
 });

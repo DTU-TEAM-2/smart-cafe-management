@@ -1,0 +1,14 @@
+--- a/scripts/profile-postman-live.py
++++ b/scripts/profile-postman-live.py
+@@ -252,6 +252,11 @@
+                 status = error.code
+                 error.read()
+             return {"status": status, "elapsedMs": round((time.monotonic() - begin) * 1000, 2)}
++        run_collection("13-cross-module", source=ROOT / "docs/qa/rehearsals/dt2-3/official-cross-module.postman_collection.json")
++        checked("official Staff CRUD persisted salary/version and soft deletion", sql("SELECT CONCAT(status,'|',version,'|',auth_version,'|',salary) FROM users JOIN staff_profiles p ON p.user_id=users.id WHERE username='nhanvien_moi'") == "INACTIVE|2|1|7000000")
++        checked("News authored and archived through real signed bearer", sql("SELECT COUNT(*) FROM news_posts WHERE title='Updated Integration News' AND status='ARCHIVED'") == "1")
++        checked("feedback JSON submissions persisted and oversize rejected without extra row", sql("SELECT COUNT(*) FROM feedback WHERE author_email='integration_feedback@example.test'") == "2")
++        checked("maximum MySQL TEXT accepted through bounded JSON wrapper", sql("SELECT COUNT(*) FROM feedback WHERE author_email='integration_feedback@example.test' AND OCTET_LENGTH(content)=65535") == "1")
+         before_security = snapshot()
+         wrong_login = [http("/api/v1/auth/login", {"username": "pm_profile_admin2", "password": "WrongSynthetic1!"}) for _ in range(8)]
+         wrong_current = {"currentPassword": "WrongSynthetic1!", "newPassword": new_password, "confirmNewPassword": new_password}
