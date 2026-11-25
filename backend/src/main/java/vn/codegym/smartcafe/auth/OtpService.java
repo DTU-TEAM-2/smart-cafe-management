@@ -199,69 +199,53 @@ public class OtpService {
         }
 
         return requiresNewTx.execute(status -> {
-            // Lock order: lock users first (if user_id present), then lock auth_otp_challenges
-            UserRecord lockedUser = null;
-            if (challenge.userId() != null) {
-                lockedUser = authRepository.findUserByIdForUpdate(challenge.userId())
-                        .orElseThrow(() -> new OtpException("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc."));
-                if (!"ACTIVE".equalsIgnoreCase(lockedUser.status()) || !lockedUser.email().equalsIgnoreCase(challenge.email())) {
-                    throw new OtpException("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc.");
-                }
-            }
-
-            // Lock challenge row
-            OtpChallengeRecord lockedChallenge = authRepository.findOtpChallengeByIdForUpdate(challengeId)
-                    .orElseThrow(() -> new OtpException("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc."));
-
-            if (lockedChallenge.usedAt() != null || !now.isBefore(lockedChallenge.expiresAt()) || lockedChallenge.attempts() >= MAX_ATTEMPTS) {
-                throw new OtpException("Yêu cầu xác minh không hợp lệ hoặc đã được sử dụng.");
-            }
-
             // Atomic conditional consume: only proceed if exactly 1 row was updated
-            int consumed = authRepository.markOtpUsedIfCurrent(challengeId, lockedChallenge.codeHash(), lockedChallenge.sends());
+            int consumed = authRepository.markOtpUsedIfCurrent(challengeId, challenge.codeHash(), challenge.sends());
             if (consumed != 1) {
                 throw new OtpException("Yêu cầu xác minh không hợp lệ hoặc đã được sử dụng.");
             }
 
-            if ("RESET".equalsIgnoreCase(lockedChallenge.purpose())) {
-                if (lockedChallenge.userId() == null || lockedUser == null) {
+            if ("RESET".equalsIgnoreCase(challenge.purpose())) {
+                if (challenge.userId() == null) {
+                    throw new OtpException("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc.");
+                }
+                UserRecord user = authRepository.findUserById(challenge.userId())
+                        .orElseThrow(() -> new OtpException("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc."));
+
+                if (!"ACTIVE".equalsIgnoreCase(user.status()) || !user.email().equalsIgnoreCase(challenge.email())) {
                     throw new OtpException("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc.");
                 }
 
                 String rawGrantToken = tokenService.generateResetGrantToken(
                         challengeId,
-                        lockedUser.id(),
-                        lockedUser.authVersion(),
+                        user.id(),
+                        user.authVersion(),
                         otpValiditySeconds
                 );
 
                 return new VerifyOtpResponse("RESET", rawGrantToken, "Xác minh OTP thành công. Vui lòng nhập mật khẩu mới.");
             }
 
-            return new VerifyOtpResponse(lockedChallenge.purpose(), null, "Xác minh OTP thành công.");
+            return new VerifyOtpResponse(challenge.purpose(), null, "Xác minh OTP thành công.");
         });
     }
 
     @Transactional
     public ForgotPasswordResponse resendOtp(String challengeId) {
-        OtpChallengeRecord initialChallenge = authRepository.findOtpChallengeById(challengeId)
+        OtpChallengeRecord challenge = authRepository.findOtpChallengeByIdForUpdate(challengeId)
                 .orElseThrow(() -> new OtpException("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc."));
 
-        if (initialChallenge.usedAt() != null) {
+        if (challenge.usedAt() != null) {
             throw new OtpException("Phiên xác minh này đã hoàn tất. Vui lòng tạo yêu cầu mới.");
         }
 
-        // Lock order: users first, then auth_otp_challenges
-        if (initialChallenge.userId() != null) {
-            UserRecord lockedUser = authRepository.findUserByIdForUpdate(initialChallenge.userId())
+        if (challenge.userId() != null) {
+            UserRecord user = authRepository.findUserById(challenge.userId())
                     .orElseThrow(() -> new OtpException("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc."));
-            if (!"ACTIVE".equalsIgnoreCase(lockedUser.status()) || !lockedUser.email().equalsIgnoreCase(initialChallenge.email())) {
+            if (!"ACTIVE".equalsIgnoreCase(user.status()) || !user.email().equalsIgnoreCase(challenge.email())) {
                 throw new OtpException("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc.");
             }
         }
-
-        OtpChallengeRecord challenge = authRepository.findOtpChallengeByIdForUpdate(challengeId)
-                .orElseThrow(() -> new OtpException("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc."));
 
         if (challenge.usedAt() != null) {
             throw new OtpException("Phiên xác minh này đã hoàn tất. Vui lòng tạo yêu cầu mới.");
@@ -374,16 +358,15 @@ public class OtpService {
             throw new InvalidTokenException("Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.");
         }
 
-        // Lock user by PK first to serialize with concurrent email/role changes
-        UserRecord user = authRepository.findUserByIdForUpdate(claims.userId())
-                .orElseThrow(() -> new InvalidTokenException("Không tìm thấy thông tin tài khoản hợp lệ."));
-
         OtpChallengeRecord challenge = authRepository.findOtpChallengeById(claims.challengeId())
                 .orElseThrow(() -> new InvalidTokenException("Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn."));
 
         if (challenge.usedAt() == null || !claims.userId().equals(challenge.userId())) {
             throw new InvalidTokenException("Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.");
         }
+
+        UserRecord user = authRepository.findUserById(claims.userId())
+                .orElseThrow(() -> new InvalidTokenException("Không tìm thấy thông tin tài khoản hợp lệ."));
 
         if (!"ACTIVE".equalsIgnoreCase(user.status())
                 || user.authVersion() != claims.authVersion()
