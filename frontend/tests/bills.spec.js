@@ -495,7 +495,7 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
       { orderItemId: "9007199254740994", itemName: mediumName, quantity: 7, unitPrice: "23456789", lineTotal: "164197523" },
       ...Array.from({ length: 150 }, (_, i) => ({
         orderItemId: String(i + 10), itemName: `PRINT-ROW-${String(i + 1).padStart(3, "0")}`,
-        quantity: 1, unitPrice: String(10000 + i), lineTotal: String(10000 + i),
+        quantity: i % 9 + 1, unitPrice: String(10000 + i), lineTotal: String((10000 + i) * (i % 9 + 1)),
       })),
     ];
     const totalAmount = items.reduce((sum, item) => sum + BigInt(item.lineTotal), 0n).toString();
@@ -533,6 +533,8 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
         for (const span of spans) {
           expect(span.transform[4], `PDF page ${n}: ${span.str} starts outside paper`).toBeGreaterThanOrEqual(-1);
           expect(span.transform[4] + span.width, `PDF page ${n}: ${span.str} ends outside paper`).toBeLessThanOrEqual(viewport.width + 1);
+          expect(span.transform[5], `PDF page ${n}: ${span.str} is below paper`).toBeGreaterThanOrEqual(-1);
+          expect(span.transform[5] + span.height, `PDF page ${n}: ${span.str} is above paper`).toBeLessThanOrEqual(viewport.height + 1);
         }
         const text = compact(spans.map(item => item.str).join(""));
         texts.push(text);
@@ -541,19 +543,143 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
         }
       }
       const full = texts.join("");
+      let previousPosition = -1;
       for (const item of items) {
-        expect(full, `Missing printed item ${item.orderItemId}`).toContain(item.itemName);
-        expect(full, `Missing exact price for ${item.orderItemId}`).toContain(money(item.unitPrice));
-        expect(full, `Missing exact line total for ${item.orderItemId}`).toContain(money(item.lineTotal));
+        const name = compact(item.itemName);
+        const row = name + item.quantity + money(item.unitPrice) + money(item.lineTotal);
+        expect(full.split(name).length - 1, `Printed name count for ${item.orderItemId}`).toBe(1);
+        expect(texts.filter(text => text.includes(row)).length, `Exact row on one page: ${item.orderItemId}`).toBe(1);
+        const position = full.indexOf(row);
+        expect(position, `Printed row order: ${item.orderItemId}`).toBeGreaterThan(previousPosition);
+        previousPosition = position;
       }
-      expect(full).toContain(`3${money(items[0].unitPrice)}${money(items[0].lineTotal)}`);
-      expect(full).toContain(`7${money(items[1].unitPrice)}${money(items[1].lineTotal)}`);
       expect(full).toContain(compact("Tổng cộng:") + money(totalAmount));
       for (const hidden of ["Search by ID", "Show List Bill", "KHU VỰC QUẢN TRỊ", "In hóa đơn"]) expect(full).not.toContain(compact(hidden));
       await testInfo.attach("Actual A4 invoice", { path, contentType: "application/pdf" });
     } finally {
       await loadingTask.destroy();
     }
+  });
+
+
+  for (const outcome of ["recover-first", "recover", "empty", "shrink-again", "network-error"]) {
+    test(`Billing recovers stale pagination: ${outcome}`, async ({ page }) => {
+      await page.route("**/api/v1/home/account", route => route.fulfill({ json: admin }));
+      const initialTotal = outcome === "recover-first" ? 11 : 21;
+      const rows = Array.from({ length: initialTotal }, (_, i) => ({
+        ...mockBills[0], id: String(i + 1), billCode: `PENDING-${i + 1}`, status: "PENDING",
+      }));
+      let shrinking = false;
+      let requests = [];
+      await page.route("**/api/v1/bills?**", route => {
+        const params = new URL(route.request().url()).searchParams;
+        const index = Number(params.get("page"));
+        if (params.get("status") !== "PENDING") return route.fulfill({ json: { content: [], totalElements: 0, totalPages: 0, page: 0 } });
+        if (!shrinking) return route.fulfill({ json: { content: rows.slice(index * 10, index * 10 + 10), totalElements: initialTotal, totalPages: Math.ceil(initialTotal / 10), page: index } });
+        requests.push(index);
+        expect(params.get("status")).toBe("PENDING");
+        const total = outcome === "empty" ? 0 : outcome === "recover-first" ? 10 : index === 2 ? 11 : outcome === "shrink-again" ? 10 : 11;
+        if (outcome === "network-error" && index === 1) return route.abort("failed");
+        return route.fulfill({ json: { content: rows.slice(index * 10, Math.min(total, index * 10 + 10)), totalElements: total, totalPages: Math.ceil(total / 10), page: index } });
+      });
+      await page.goto("/#bills");
+      await setToken(page, "admin-token");
+      await page.getByLabel("Lọc theo trạng thái").selectOption("PENDING");
+      await expect(page.getByRole("button", { name: "PENDING-1", exact: true })).toBeVisible();
+      if (outcome !== "recover-first") {
+        await page.getByRole("button", { name: "Trang tiếp theo" }).click();
+        await expect(page.getByRole("button", { name: "PENDING-11", exact: true })).toBeVisible();
+      }
+      await page.getByRole("button", { name: outcome === "recover-first" ? "PENDING-1" : "PENDING-11", exact: true }).click();
+      shrinking = true;
+      await page.getByRole("button", { name: "Trang tiếp theo" }).click();
+      const pagination = page.locator(".billing-pagination-controls");
+      if (outcome === "recover-first") {
+        await expect(page.getByRole("button", { name: "PENDING-1", exact: true })).toHaveAttribute("aria-pressed", "false");
+        await expect(page.getByRole("button", { name: "PENDING-10", exact: true })).toBeVisible();
+        await expect(pagination).toContainText("1 / 1");
+        await expect(page.getByRole("button", { name: "Trang trước" })).toBeDisabled();
+        await expect(page.getByRole("button", { name: "Trang tiếp theo" })).toBeDisabled();
+      } else if (outcome === "recover") {
+        await expect(page.getByRole("button", { name: "PENDING-11", exact: true })).toHaveAttribute("aria-pressed", "false");
+        await expect(pagination).toContainText("2 / 2");
+        await expect(page.getByRole("button", { name: "Trang tiếp theo" })).toBeDisabled();
+      } else if (outcome === "empty") {
+        await expect(page.getByText("Không có hóa đơn nào.")).toBeVisible();
+        await expect(pagination).toContainText("0 / 0");
+        await expect(page.getByRole("button", { name: "Trang trước" })).toBeDisabled();
+      } else {
+        await expect(page.getByRole("button", { name: "Thử lại", exact: true })).toBeVisible();
+        await expect(pagination).toContainText("0 / 0");
+        await expect(page.getByRole("button", { name: "PENDING-11", exact: true })).toHaveCount(0);
+      }
+      expect(requests).toEqual(outcome === "empty" ? [2] : outcome === "recover-first" ? [1, 0] : [2, 1]);
+      if (outcome === "shrink-again" || outcome === "network-error") {
+        shrinking = false;
+        await page.getByRole("button", { name: "Thử lại", exact: true }).click();
+        await expect(page.getByRole("button", { name: "PENDING-21", exact: true })).toBeVisible();
+        await expect(pagination).toContainText("3 / 3");
+      }
+      await page.getByRole("button", { name: "Xem chi tiết", exact: true }).click();
+      await expect(page.getByText("Vui lòng chọn hóa đơn cụ thể!")).toBeVisible();
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+    });
+  }
+
+  for (const [role, status] of [["STAFF", "PAID"], ["ADMIN", "PENDING"], ["ADMIN", "VOID"]]) {
+    test(`Dedicated receipt template excludes ${role} ${status}`, async ({ page }) => {
+      await page.route("**/api/v1/home/account", route => route.fulfill({ json: { ...admin, role } }));
+      const bill = { ...mockBillDetail1, status };
+      await page.route("**/api/v1/bills?**", route => route.fulfill({ json: { content: [{ ...mockBills[0], status }], totalElements: 1, totalPages: 1, page: 0 } }));
+      await page.route("**/api/v1/bills/1", route => route.fulfill({ json: bill }));
+      await page.goto("/#bills");
+      await setToken(page, role === "STAFF" ? "staff-token" : "admin-token");
+      await page.getByRole("button", { name: bill.billCode }).click();
+      await page.getByRole("button", { name: "Xem chi tiết", exact: true }).click();
+      const dialog = page.getByRole("dialog");
+      await expect(dialog).toBeVisible();
+      await expect(dialog.getByRole("button", { name: "In hóa đơn" })).toHaveCount(0);
+      await expect(dialog).not.toHaveAttribute("data-receipt-print", "");
+      await page.emulateMedia({ media: "print" });
+      await expect(dialog.locator(".billing-items-table")).toHaveCSS("table-layout", "auto");
+      expect(await page.locator("#root").evaluate(el => getComputedStyle(el).display)).not.toBe("none");
+      await page.emulateMedia({ media: "screen" });
+      await expect(dialog.getByText("Cà phê sữa đá")).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(dialog).toHaveCount(0);
+    });
+  }
+
+
+  test("A delayed page recovery cannot overwrite a newer status filter", async ({ page }) => {
+    await page.route("**/api/v1/home/account", route => route.fulfill({ json: admin }));
+    let recovering = false;
+    let deferred;
+    await page.route("**/api/v1/bills?**", route => {
+      const params = new URL(route.request().url()).searchParams;
+      const index = Number(params.get("page"));
+      if (params.get("status") === "PENDING") {
+        if (index === 1) {
+          recovering = true;
+          return route.fulfill({ json: { content: [], totalElements: 10, totalPages: 1, page: 1 } });
+        }
+        if (recovering) { deferred = route; return; }
+        return route.fulfill({ json: { content: [{ ...mockBills[0], status: "PENDING" }], totalElements: 11, totalPages: 2, page: 0 } });
+      }
+      return route.fulfill({ json: { content: [mockBills[1]], totalElements: 1, totalPages: 1, page: 0 } });
+    });
+    await page.goto("/#bills");
+    await setToken(page, "admin-token");
+    await page.getByLabel("Lọc theo trạng thái").selectOption("PENDING");
+    await expect(page.getByText("BILL-2026-001", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: "Trang tiếp theo" }).click();
+    await expect.poll(() => Boolean(deferred)).toBe(true);
+    await page.getByLabel("Lọc theo trạng thái").selectOption("PAID");
+    await expect(page.getByText("BILL-2026-002", { exact: true })).toBeVisible();
+    await deferred.fulfill({ json: { content: [{ ...mockBills[0], status: "PENDING" }], totalElements: 10, totalPages: 1, page: 0 } });
+    await expect(page.getByText("BILL-2026-002", { exact: true })).toBeVisible();
+    await expect(page.getByText("BILL-2026-001", { exact: true })).toHaveCount(0);
+    await expect(page.locator(".billing-pagination-controls")).toContainText("1 / 1");
   });
 
 });

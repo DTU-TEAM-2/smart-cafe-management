@@ -4,6 +4,7 @@ import { formatDateTime, vnd, billStatusLabels } from "./billingApi.js";
 
 export default function BillDetailModal({ bill, onClose, canPrint }) {
   const modalRef = useRef(null);
+  const receiptEligible = canPrint && bill.status === "PAID";
 
   useEffect(() => {
     const dialog = modalRef.current;
@@ -16,7 +17,7 @@ export default function BillDetailModal({ bill, onClose, canPrint }) {
   }, []);
 
   return createPortal(
-    <dialog ref={modalRef} className="billing-modal-content" aria-labelledby="bill-detail-title"
+    <dialog ref={modalRef} className="billing-modal-content" data-receipt-print={receiptEligible ? "" : undefined} aria-labelledby="bill-detail-title"
       onCancel={(event) => { event.preventDefault(); onClose(); }}>
         <div className="billing-modal-header">
           <div>
@@ -98,7 +99,7 @@ export default function BillDetailModal({ bill, onClose, canPrint }) {
             <strong>{vnd(bill.totalAmount)}</strong>
           </div>
           <div style={{ display: "flex", gap: "10px" }}>
-            {canPrint && bill.status === "PAID" && (
+            {receiptEligible && (
               <button type="button" className="billing-button secondary" onClick={() => window.print()}>
                 In hóa đơn
               </button>

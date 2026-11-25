@@ -59,8 +59,19 @@ function BillList({ authorization, credentials, isAdmin, onDenied }) {
     const controller = new AbortController();
     async function loadBills() {
       try {
-        const result = await fetchBills({ ...query, authorization, credentials, onDenied, signal: controller.signal });
+        const fetchPage = page => fetchBills({ ...query, page, authorization, credentials, onDenied, signal: controller.signal });
+        let result = await fetchPage(query.page);
         if (controller.signal.aborted) return;
+        if (result.totalElements > 0 && result.page >= result.totalPages) {
+          // Membership can shrink between page requests (e.g. PENDING becomes PAID).
+          // Recover once; a second shrink must not create an unbounded request loop.
+          result = await fetchPage(Math.max(0, result.totalPages - 1));
+          if (controller.signal.aborted) return;
+          if (result.totalElements > 0 && result.page >= result.totalPages) {
+            throw new Error("Danh sách hóa đơn vừa thay đổi. Vui lòng thử lại.");
+          }
+        }
+        if (result.totalElements === 0) result = emptyPage;
         setData(result);
         if (result.totalElements === 0 && (query.code || query.from || query.status !== "ALL")) setSearchNotice("Not found!");
       } catch (error) {

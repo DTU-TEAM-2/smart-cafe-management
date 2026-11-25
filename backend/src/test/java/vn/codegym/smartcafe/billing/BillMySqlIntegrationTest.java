@@ -3,6 +3,7 @@ package vn.codegym.smartcafe.billing;
 import com.jayway.jsonpath.JsonPath;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -27,6 +28,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.hamcrest.Matchers.*;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -187,6 +189,97 @@ class BillMySqlIntegrationTest {
             mvc.perform(get("/api/v1/auth/me").header("Authorization", auth))
                     .andExpect(status().is4xxClientError());
         }
+    }
+
+    @Test
+    void customerOrderToPaidBillReconcilesListDetailStatisticsAndIncome() throws Exception {
+        String guestToken = "Q".repeat(43);
+        String guestAuth = "Bearer " + guestToken;
+        String guestHash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                .digest(guestToken.getBytes(StandardCharsets.UTF_8)));
+        String staffAuth = bearer(2, "staff_u");
+        String adminAuth = bearer(1, "admin_u");
+        jdbc.update("INSERT INTO cafe_tables(id,code,name,qr_public_id) VALUES(3,'T003','Bàn tích hợp',UUID())");
+        jdbc.update("""
+                INSERT INTO table_sessions(id,table_id,session_code,opened_by_user_id,started_at)
+                VALUES(3,3,'BILL-FLOW',2,'2026-11-11 09:00:00')
+                """);
+        jdbc.update("""
+                INSERT INTO session_clients(id,session_id,access_token_hash,joined_at,expires_at)
+                VALUES(3,3,?,'2026-11-11 09:50:00','2026-11-11 11:00:00')
+                """, guestHash);
+        String orderBody = """
+                {"items":[{"menuItemId":"1","quantity":3,"expectedUnitPrice":"35000"},
+                          {"menuItemId":"2","quantity":2,"expectedUnitPrice":"40000"}]}
+                """;
+        for (int retry = 0; retry < 2; retry++) {
+            mvc.perform(post("/api/v1/customer/sessions/3/orders").with(csrf())
+                            .header("Authorization", guestAuth).header("Idempotency-Key", "billing-flow-order")
+                            .contentType(MediaType.APPLICATION_JSON).content(orderBody))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.totalAmount").value("185000"));
+        }
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM order_batches WHERE session_id=3", Integer.class)).isEqualTo(1);
+        mvc.perform(post("/api/v1/customer/sessions/3/bill-requests").with(csrf())
+                        .header("Authorization", guestAuth).header("Idempotency-Key", "billing-flow-request"))
+                .andExpect(status().isOk());
+        // Catalog price and name change after customer submission must not change the sold snapshot.
+        jdbc.update("UPDATE menu_items SET price=99000,name='Tên mới' WHERE id=1");
+        String billBody = """
+                {"expectedSessionCode":"BILL-FLOW","idempotencyKey":"billing-flow-bill"}
+                """;
+        String created = mvc.perform(post("/api/v1/sales/tables/3/bill").with(csrf())
+                        .header("Authorization", staffAuth).contentType(MediaType.APPLICATION_JSON).content(billBody))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.totalAmount").value("185000")).andReturn().getResponse().getContentAsString();
+        String billId = JsonPath.read(created, "$.id");
+        String code = JsonPath.read(created, "$.billCode");
+        mvc.perform(post("/api/v1/sales/tables/3/bill").with(csrf())
+                        .header("Authorization", staffAuth).contentType(MediaType.APPLICATION_JSON).content(billBody))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.id").value(billId));
+        mvc.perform(get("/api/v1/bills").header("Authorization", staffAuth).param("code", code).param("status", "PENDING"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content[0].id").value(billId));
+        mvc.perform(get("/api/v1/statistics/revenue").header("Authorization", adminAuth).param("period", "today"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.summary.totalRevenue").value("110000"));
+        String paymentBody = """
+                {"method":"CASH","idempotencyKey":"billing-flow-pay"}
+                """;
+        mvc.perform(post("/api/v1/bills/" + billId + "/payments").with(csrf())
+                        .header("Authorization", staffAuth).contentType(MediaType.APPLICATION_JSON).content(paymentBody))
+                .andExpect(status().isForbidden());
+        for (int retry = 0; retry < 2; retry++) {
+            mvc.perform(post("/api/v1/bills/" + billId + "/payments").with(csrf())
+                            .header("Authorization", adminAuth).contentType(MediaType.APPLICATION_JSON).content(paymentBody))
+                    .andExpect(status().isOk()).andExpect(jsonPath("$.payment.amount").value("185000"))
+                    .andExpect(jsonPath("$.bill.status").value("PAID"));
+        }
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM bills WHERE session_id=3", Integer.class)).isEqualTo(1);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM payments WHERE bill_id=?", Integer.class, billId)).isEqualTo(1);
+        mvc.perform(get("/api/v1/bills").header("Authorization", staffAuth).param("code", code).param("status", "PENDING"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(0));
+        mvc.perform(get("/api/v1/bills").header("Authorization", staffAuth).param("code", code).param("status", "PAID"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].totalAmount").value("185000"));
+        mvc.perform(get("/api/v1/bills/" + billId).header("Authorization", staffAuth))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PAID"))
+                .andExpect(jsonPath("$.totalAmount").value("185000"))
+                .andExpect(jsonPath("$.items.length()").value(2))
+                .andExpect(jsonPath("$.items[0].itemName").value("Cà phê sữa"))
+                .andExpect(jsonPath("$.items[0].quantity").value(3))
+                .andExpect(jsonPath("$.items[0].unitPrice").value("35000"))
+                .andExpect(jsonPath("$.items[0].lineTotal").value("105000"))
+                .andExpect(jsonPath("$.items[1].itemName").value("Bạc xỉu"))
+                .andExpect(jsonPath("$.items[1].quantity").value(2))
+                .andExpect(jsonPath("$.items[1].unitPrice").value("40000"))
+                .andExpect(jsonPath("$.items[1].lineTotal").value("80000"));
+        mvc.perform(get("/api/v1/statistics/revenue").header("Authorization", adminAuth).param("period", "today"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.summary.totalRevenue").value("295000"))
+                .andExpect(jsonPath("$.summary.totalBills").value(2))
+                .andExpect(jsonPath("$.dailyRevenue[0].revenue").value("295000"))
+                .andExpect(jsonPath("$.revenueByPaymentMethod[?(@.method == 'CASH')].revenue", contains("185000")))
+                .andExpect(jsonPath("$.revenueByPaymentMethod[?(@.method == 'UNKNOWN')].revenue", contains("110000")));
+        mvc.perform(get("/api/v1/income").header("Authorization", adminAuth).param("period", "today"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.totalAmount").value("295000"))
+                .andExpect(jsonPath("$.billCount").value(2));
     }
 
     // --- 2. Bill List & Search Tests ---

@@ -628,10 +628,10 @@
 }
 
 @media print {
-  body:has(> .billing-modal-content[open]) > :not(.billing-modal-content) { display: none; }
-  .billing-modal-content[open],
-  .billing-modal-content[open] * { color: #000 !important; }
-  .billing-modal-content[open] {
+  body:has(> .billing-modal-content[open][data-receipt-print]) > :not(.billing-modal-content[open][data-receipt-print]) { display: none; }
+  .billing-modal-content[open][data-receipt-print],
+  .billing-modal-content[open][data-receipt-print] * { color: #000 !important; }
+  .billing-modal-content[open][data-receipt-print] {
     position: static;
     display: block;
     inset: auto;
@@ -647,36 +647,36 @@
     box-shadow: none;
     border: 0;
   }
-  .billing-items-scroll { width: 100%; max-width: 100%; overflow: visible; }
-  .billing-items-table {
+  .billing-modal-content[open][data-receipt-print] .billing-items-scroll { width: 100%; max-width: 100%; overflow: visible; }
+  .billing-modal-content[open][data-receipt-print] .billing-items-table {
     width: 100%;
     min-width: 0;
     max-width: 100%;
     table-layout: fixed;
     font-size: 11px;
   }
-  .billing-items-table col:nth-child(1) { width: 40%; }
-  .billing-items-table col:nth-child(2) { width: 10%; }
-  .billing-items-table col:nth-child(3),
-  .billing-items-table col:nth-child(4) { width: 25%; }
-  .billing-items-table th, .billing-items-table td {
+  .billing-modal-content[open][data-receipt-print] .billing-items-table col:nth-child(1) { width: 40%; }
+  .billing-modal-content[open][data-receipt-print] .billing-items-table col:nth-child(2) { width: 10%; }
+  .billing-modal-content[open][data-receipt-print] .billing-items-table col:nth-child(3),
+  .billing-modal-content[open][data-receipt-print] .billing-items-table col:nth-child(4) { width: 25%; }
+  .billing-modal-content[open][data-receipt-print] .billing-items-table th, .billing-modal-content[open][data-receipt-print] .billing-items-table td {
     padding: 6px 4px;
     overflow-wrap: anywhere;
     white-space: normal;
     vertical-align: top;
   }
-  .billing-items-table td:nth-child(2) { text-align: center; }
-  .billing-items-table td:nth-child(3),
-  .billing-items-table td:nth-child(4) { text-align: right; }
-  .billing-items-table thead { display: table-header-group; }
-  .billing-items-table tr { break-inside: avoid; }
-  .billing-modal-header, .billing-metadata-grid, .billing-modal-footer { break-inside: avoid; }
-  .billing-modal-header h2, .billing-modal-total { overflow-wrap: anywhere; }
-  .billing-modal-footer { display: block; }
-  .billing-modal-footer > div:last-child { display: none !important; }
-  .billing-modal-content[open]::backdrop { background: transparent; }
-  .billing-modal-content[open] button { display: none; }
-  .billing-modal-content[open] :is(th, .billing-metadata-grid, .billing-status-badge) {
+  .billing-modal-content[open][data-receipt-print] .billing-items-table td:nth-child(2) { text-align: center; }
+  .billing-modal-content[open][data-receipt-print] .billing-items-table td:nth-child(3),
+  .billing-modal-content[open][data-receipt-print] .billing-items-table td:nth-child(4) { text-align: right; }
+  .billing-modal-content[open][data-receipt-print] .billing-items-table thead { display: table-header-group; }
+  .billing-modal-content[open][data-receipt-print] .billing-items-table tr { break-inside: avoid; }
+  .billing-modal-content[open][data-receipt-print] .billing-modal-header, .billing-modal-content[open][data-receipt-print] .billing-metadata-grid, .billing-modal-content[open][data-receipt-print] .billing-modal-footer { break-inside: avoid; }
+  .billing-modal-content[open][data-receipt-print] .billing-modal-header h2, .billing-modal-content[open][data-receipt-print] .billing-modal-total { overflow-wrap: anywhere; }
+  .billing-modal-content[open][data-receipt-print] .billing-modal-footer { display: block; }
+  .billing-modal-content[open][data-receipt-print] .billing-modal-footer > div:last-child { display: none !important; }
+  .billing-modal-content[open][data-receipt-print]::backdrop { background: transparent; }
+  .billing-modal-content[open][data-receipt-print] button { display: none; }
+  .billing-modal-content[open][data-receipt-print] :is(th, .billing-metadata-grid, .billing-status-badge) {
     background: #fff;
   }
 }
