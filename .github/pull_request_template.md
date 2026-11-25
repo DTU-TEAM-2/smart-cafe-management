@@ -1,13 +1,12 @@
 ## Vấn đề và kết quả
 
-Task Jira và link nguồn chính thức:
+Lấy mã CF từ thẻ Jira, backlog hoặc tài liệu bàn giao được dẫn từ thẻ. [Mở bảng Jira DT2](https://duymanhdnvn20092005.atlassian.net/jira/software/projects/DT2/boards/35).
 
-- Mã Jira/DT2: `DT2-xx`
-- Link Jira: `https://duymanhdnvn20092005.atlassian.net/browse/DT2-xx`
-- Mã CF/QA dùng trong tiêu đề PR: `CF-xx` / `QA-xx`
-- Nguồn xác nhận mã CF/QA: link Jira, backlog hoặc tài liệu handoff
+- Link Jira: https://duymanhdnvn20092005.atlassian.net/browse/DT2-xx
+- Mã CF trong tiêu đề: CF-xx
+- Nguồn xác nhận mã CF: link trực tiếp tới Jira, backlog hoặc tài liệu bàn giao có ghi mã
 
-Không tự đoán mã `CF/QA`. Nếu chưa có mã hoặc nguồn không khớp, để PR ở draft và hỏi owner.
+CI đối chiếu mã CF ở đây với tiêu đề. Nếu chưa tìm được mã, trao đổi trên thẻ Jira trước khi gửi review.
 
 Nguồn yêu cầu / quyết định liên quan:
 

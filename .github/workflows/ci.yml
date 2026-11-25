@@ -118,17 +118,25 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - name: Require Jira link and CF source
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - name: Check Jira link and CF source
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           node <<'NODE'
-          const body = process.env.PR_BODY || "";
-          const jira = /https:\/\/duymanhdnvn20092005\.atlassian\.net\/browse\/(?:DT2|CF|QA)-[0-9]+/i.test(body);
-          const source = /(?:CF|QA)[-_ ]?(?:source|nguồn xác nhận|mã)/i.test(body);
-          if (!jira || !source) {
-            console.error("PR cần link Jira và ghi nguồn xác nhận mã CF/QA. Lấy mã từ Jira/backlog/handoff, không tự đoán.");
-            process.exit(1);
+          const body = process.env.PR_BODY ?? "";
+          const titleCode = /^\w+\([a-z0-9-]+\): (CF-\d+) /.exec(process.env.PR_TITLE ?? "")?.[1];
+          const bodyCode = /^- Mã CF trong tiêu đề: *(CF-\d+) *$/m.exec(body)?.[1];
+          const jira = /^- Link Jira: *https:\/\/duymanhdnvn20092005\.atlassian\.net\/browse\/DT2-\d+ *$/m.test(body);
+          const source = /^- Nguồn xác nhận mã CF: *https:\/\/[^\s]+ *$/m.test(body);
+          if (jira && source && titleCode && bodyCode === titleCode) {
+            console.log("Link Jira, nguồn mã CF và tiêu đề PR đúng định dạng.");
+          } else {
+            console.error("Mở Jira DT2: https://duymanhdnvn20092005.atlassian.net/jira/software/projects/DT2/boards/35");
+            console.error("Điền Link Jira, Mã CF trong tiêu đề và Nguồn xác nhận mã CF theo mẫu PR. Mã CF lấy từ Jira, backlog hoặc tài liệu bàn giao.");
+            process.exitCode = 1;
           }
-          console.log("Jira link and CF/QA source are documented.");
           NODE
