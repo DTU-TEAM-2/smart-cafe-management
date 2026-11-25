@@ -8,6 +8,7 @@ import OtpPage from "./auth/OtpPage.jsx";
 import ResetPasswordPage from "./auth/ResetPasswordPage.jsx";
 import AdminDashboard from "./dashboard/AdminDashboard.jsx";
 import StaffDashboard from "./dashboard/StaffDashboard.jsx";
+import CustomerApp from "./customer/CustomerApp.jsx";
 import "./styles.css";
 
 export default function App() {
@@ -33,6 +34,10 @@ export default function App() {
   }
 
   const baseRoute = route.split("?")[0];
+
+  if (baseRoute.startsWith("#customer")) {
+    return <CustomerApp onNavigateHome={() => navigate("#top")} />;
+  }
 
   let content;
   switch (baseRoute) {

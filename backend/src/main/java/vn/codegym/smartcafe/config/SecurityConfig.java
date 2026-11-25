@@ -97,6 +97,7 @@ public class SecurityConfig {
                         .requestMatchers(guestCsrf, feedbackPost).permitAll()
                         // The controller/service verifies an existing guest token against session_clients.
                         .requestMatchers(HttpMethod.POST, "/api/v1/customer/sessions/*/orders").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/customer/sessions/*/orders/*").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/customer/csrf").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/customer/sessions/*/waiter-requests", "/api/v1/customer/sessions/*/bill-requests").permitAll()
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/customer/sessions/*/order-items/*").permitAll()
