@@ -2,24 +2,12 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '../auth/AuthContext.jsx';
 import MenuEditor from './MenuEditor.jsx';
 import DeleteDialog from './DeleteDialog.jsx';
-import { deleteMenu, listMenu, readMenu, reconcileMenuSave, saveMenu } from './menuApi.js';
+import { deleteMenu, listMenu, loadCategories, readMenu, reconcileMenuSave, saveMenu } from './menuApi.js';
 import './menu.css';
 
 const money = new Intl.NumberFormat('vi-VN');
 const pageSize = 10;
 const blankQuery = { field: 'name', keyword: '', categoryCode: '', page: 0 };
-
-async function loadCategories(authorization, signal) {
-  const size = 100;
-  const first = await listMenu('categories', { page: 0, size }, authorization, signal);
-  const remaining = Math.max(0, Math.ceil(first.totalElements / size) - 1);
-  const categories = new Map(first.content.map(row => [row.code, row]));
-  for (let page = 1; page <= remaining; page += 1) {
-    const result = await listMenu('categories', { page, size }, authorization, signal);
-    for (const row of result.content) categories.set(row.code, row);
-  }
-  return [...categories.values()];
-}
 
 export default function MenuAdmin({ authorization: header }) {
   const { captureSession, isCurrentSession, expireSession, sessionGeneration } = useAuth();
@@ -34,6 +22,7 @@ export default function MenuAdmin({ authorization: header }) {
   const [keyword, setKeyword] = useState('');
   const [result, setResult] = useState(null);
   const [categoryResult, setCategoryResult] = useState(null);
+  const [categoryAttempt, setCategoryAttempt] = useState(0);
   const [revision, setRevision] = useState(0);
   const [editor, setEditor] = useState(null);
   const [target, setTarget] = useState(null);
@@ -41,6 +30,7 @@ export default function MenuAdmin({ authorization: header }) {
   const [notice, setNotice] = useState('');
   const [actionError, setActionError] = useState('');
   const [deleteError, setDeleteError] = useState('');
+  const [pendingDelete, setPendingDelete] = useState(null);
   const [busy, setBusy] = useState(false);
   const action = useRef(null);
   const uploadedImages = useRef(new WeakMap());
@@ -48,7 +38,9 @@ export default function MenuAdmin({ authorization: header }) {
   const itemView = kind === 'items';
   const noun = itemView ? 'món' : 'nhóm món';
   const current = result?.query === query && result.kind === kind && result.revision === revision ? result : null;
-  const categories = categoryResult?.revision === revision ? categoryResult.data : null;
+  const currentCategories = categoryResult?.revision === revision && categoryResult.query === query
+    && categoryResult.attempt === categoryAttempt ? categoryResult : null;
+  const categories = currentCategories?.data ?? null;
   const rows = current?.data?.content ?? [];
   const pageCount = Math.max(1, Math.ceil((current?.data?.totalElements ?? 0) / pageSize));
 
@@ -73,12 +65,12 @@ export default function MenuAdmin({ authorization: header }) {
   useEffect(() => {
     const controller = new AbortController();
     loadCategories(authorization, controller.signal).then(data => {
-      if (!controller.signal.aborted) setCategoryResult({ revision, data });
+      if (!controller.signal.aborted) setCategoryResult({ revision, query, attempt: categoryAttempt, data });
     }).catch(error => {
-      if (!controller.signal.aborted) setCategoryResult({ revision, error: error.message });
+      if (!controller.signal.aborted) setCategoryResult({ revision, query, attempt: categoryAttempt, error: error.message });
     });
     return () => controller.abort();
-  }, [authorization, revision]);
+  }, [authorization, revision, query, categoryAttempt]);
 
   useEffect(() => () => action.current?.abort(), []);
   useEffect(() => { if (!editor) heading.current?.focus(); }, [editor, kind]);
@@ -134,6 +126,7 @@ export default function MenuAdmin({ authorization: header }) {
         if (editing) setEditor({ value: latest });
         else {
           setDeleteError('');
+          setPendingDelete(null);
           setTarget(latest);
         }
       });
@@ -162,6 +155,7 @@ export default function MenuAdmin({ authorization: header }) {
   }
 
   async function confirmDelete() {
+    if (pendingDelete) return;
     setDeleteError('');
     try {
       await runAction(async signal => {
@@ -169,6 +163,43 @@ export default function MenuAdmin({ authorization: header }) {
         if (signal.aborted) return;
         setTarget(null);
         refresh(`Đã ẩn ${noun}${itemView ? '' : ' và các món thuộc nhóm'}.`);
+      });
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        if (error.uncertain) {
+          setPendingDelete({ kind, row: target });
+          setDeleteError('Chưa xác nhận được kết quả xóa. Không gửi lại; hãy kiểm tra trạng thái hoặc hủy để tải lại danh sách.');
+        } else setDeleteError(error.message);
+      }
+    }
+  }
+
+  function closeDelete() {
+    setTarget(null);
+    if (pendingDelete) refresh();
+    setPendingDelete(null);
+  }
+
+  async function checkDelete() {
+    if (!pendingDelete) return;
+    setDeleteError('');
+    try {
+      await runAction(async signal => {
+        let latest;
+        try { latest = await readMenu(pendingDelete.kind, pendingDelete.row.code, authorization, signal); }
+        catch (error) {
+          if (error.status !== 404) throw error;
+          if (!signal.aborted) {
+            setTarget(null);
+            setPendingDelete(null);
+            refresh('Đã kiểm tra: mục không còn hoạt động trong thực đơn.');
+          }
+          return;
+        }
+        if (signal.aborted) return;
+        setDeleteError(String(latest.version) !== String(pendingDelete.row.version)
+          ? 'Dữ liệu đã thay đổi. Hãy hủy và mở lại xác nhận với dữ liệu mới; chưa gửi lại yêu cầu xóa.'
+          : 'Mục vẫn đang hoạt động; kết quả yêu cầu xóa chưa xác định. Kiểm tra lại hoặc hủy để tải lại; chưa gửi lại yêu cầu xóa.');
       });
     } catch (error) {
       if (error.name !== 'AbortError') setDeleteError(error.message);
@@ -190,15 +221,21 @@ export default function MenuAdmin({ authorization: header }) {
   }
 
   const selectedRow = rows.find(row => row.code === selected);
-  const categoryError = categoryResult?.revision === revision ? categoryResult.error : null;
-  const canEdit = !busy && (!itemView || Boolean(categories));
+  const categoryError = currentCategories?.error;
+  const canEdit = !busy;
+  const canCreate = !busy;
   return <div className="menu-preview admin-shell">
     <div className="workspace">
       <header className="topbar"><a href="#admin">Về bảng điều khiển</a></header>
       <main id="main-content" aria-busy={busy}>
         <div className="page-heading"><h1 ref={heading} tabIndex={-1}>Quản lý thực đơn</h1></div>
         {editor ? <MenuEditor key={editor.value?.code ?? 'new'} kind={kind} value={editor.value}
-          categories={categories ?? []} onSave={save} onReconcile={reconcile} onCancel={() => setEditor(null)} /> : <section className="panel" aria-labelledby="menu-list-title">
+          categories={categories ?? []} categoriesLoading={!categories && !categoryError} categoryError={categoryError}
+          onReloadCategories={() => setCategoryAttempt(current => current + 1)}
+          onSave={save} onReconcile={reconcile} onCancel={uncertain => {
+            setEditor(null);
+            if (uncertain) refresh();
+          }} /> : <section className="panel" aria-labelledby="menu-list-title">
           <h2 id="menu-list-title">Danh sách {noun}</h2>
           <div className="view-switch" role="group" aria-label="Loại danh sách">
             <button disabled={busy} aria-pressed={itemView} onClick={() => switchKind('items')}>Món</button>
@@ -215,7 +252,8 @@ export default function MenuAdmin({ authorization: header }) {
             </select></label> : null}
             <button disabled={busy}>TÌM KIẾM</button><button type="button" disabled={busy} onClick={showAll}>HIỂN THỊ TẤT CẢ</button>
           </form>
-          {itemView && categoryError ? <p role="alert">{categoryError} <button disabled={busy} onClick={() => refresh()}>Tải lại nhóm món</button></p> : null}
+          {itemView ? <button type="button" disabled={busy} onClick={() => setCategoryAttempt(current => current + 1)}>Tải lại nhóm món</button> : null}
+          {itemView && categoryError ? <p role="alert">{categoryError}</p> : null}
           {itemView && !categories && !categoryError ? <p role="status">Đang tải nhóm món…</p> : null}
           {!current ? <p role="status">Đang tải {noun}…</p> : null}
           {current?.error ? <p role="alert">{current.error} <button disabled={busy} onClick={() => refresh()}>Thử lại</button></p> : null}
@@ -241,7 +279,10 @@ export default function MenuAdmin({ authorization: header }) {
             </table></div>
             {rows.length === 0 ? <p role="status">Không tìm thấy {noun}.</p> : null}
             <div className="list-footer">
-              <button className="primary" disabled={!canEdit} onClick={() => setEditor({ value: null })}>THÊM {itemView ? 'MÓN' : 'NHÓM MÓN'} MỚI</button>
+              <button className="primary" disabled={!canCreate} onClick={() => {
+                if (itemView) setCategoryAttempt(current => current + 1);
+                setEditor({ value: null });
+              }}>THÊM {itemView ? 'MÓN' : 'NHÓM MÓN'} MỚI</button>
               <div className="pagination"><span>{current.data.totalElements} {noun} · {query.page + 1}/{pageCount}</span>
                 <button aria-label="Trang trước" disabled={busy || query.page === 0} onClick={() => changeQuery({ ...query, page: query.page - 1 })}>‹</button>
                 <button aria-label="Trang sau" disabled={busy || query.page + 1 >= pageCount} onClick={() => changeQuery({ ...query, page: query.page + 1 })}>›</button>
@@ -254,6 +295,7 @@ export default function MenuAdmin({ authorization: header }) {
       </main>
     </div>
     {target ? <DeleteDialog target={target} kind={kind} itemCount={target.itemCount} preview={false} pending={busy}
-      error={deleteError} onClose={() => setTarget(null)} onConfirm={() => void confirmDelete()} /> : null}
+      uncertain={Boolean(pendingDelete)} onCheck={() => void checkDelete()}
+      error={deleteError} onClose={closeDelete} onConfirm={() => void confirmDelete()} /> : null}
   </div>;
 }

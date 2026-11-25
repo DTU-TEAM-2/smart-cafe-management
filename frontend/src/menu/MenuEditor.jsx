@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { imageDimensions } from './imageDimensions.js';
 
-export default function MenuEditor({ kind, value, categories, onSave, onReconcile, onCancel }) {
+export default function MenuEditor({ kind, value, categories, categoriesLoading, categoryError, onReloadCategories, onSave, onReconcile, onCancel }) {
   const isItem = kind === 'items';
   const [form, setForm] = useState(value ?? { code: '', name: '', categoryCode: '', price: '', imageUrl: '', available: true });
   const [errors, setErrors] = useState({});
@@ -10,6 +10,9 @@ export default function MenuEditor({ kind, value, categories, onSave, onReconcil
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [pendingSave, setPendingSave] = useState(null);
+  const [pendingUpload, setPendingUpload] = useState(false);
+  const editorCategories = isItem && value && !categories.some(category => category.code === value.categoryCode)
+    ? [...categories, { code: value.categoryCode, name: value.categoryName ?? value.categoryCode }] : categories;
   const firstField = useRef(null);
   const reader = useRef(null);
   const imageRequest = useRef(0);
@@ -31,7 +34,7 @@ export default function MenuEditor({ kind, value, categories, onSave, onReconcil
   }
 
   async function readImage(file) {
-    if (!file || saving || pendingSave) return;
+    if (!file || saving || pendingSave || pendingUpload) return;
     const request = ++imageRequest.current;
     reader.current?.abort();
     setReading(false);
@@ -68,14 +71,14 @@ export default function MenuEditor({ kind, value, categories, onSave, onReconcil
 
   async function submit(event) {
     event.preventDefault();
-    if (reading || imageError || saving || pendingSave) return;
+    if (reading || imageError || saving || pendingSave || pendingUpload) return;
     const fields = event.currentTarget.elements;
     const next = { ...form, code: form.code.trim().toUpperCase(), name: form.name.trim(), price: String(form.price ?? '').trim() };
     const failures = {};
     if (!(isItem ? /^[A-Z0-9_-]{4,40}$/ : /^[A-Z0-9_-]{1,32}$/).test(next.code)) failures.code = `Mã gồm ${isItem ? '4–40' : '1–32'} ký tự Latin, số, gạch ngang hoặc gạch dưới.`;
     if (next.name.length < (isItem ? 6 : 1) || next.name.length > (isItem ? 160 : 120)) failures.name = `Tên sau khi bỏ khoảng trắng phải dài ${isItem ? '6–160' : '1–120'} ký tự.`;
     if (isItem) {
-      if (!categories.some(category => category.code === next.categoryCode)) failures.categoryCode = 'Chọn nhóm món đang hoạt động.';
+      if (value ? next.categoryCode !== value.categoryCode : !categories.some(category => category.code === next.categoryCode)) failures.categoryCode = 'Chọn nhóm món đang hoạt động.';
       if (!/^\d{1,18}$/.test(next.price) || BigInt(next.price) <= 5000n) failures.price = 'Giá VND phải là số nguyên lớn hơn 5.000, tối đa 18 chữ số.';
       else next.price = BigInt(next.price).toString();
     }
@@ -88,6 +91,7 @@ export default function MenuEditor({ kind, value, categories, onSave, onReconcil
       } catch (error) {
         if (error.name !== 'AbortError') setSaveError(error.message);
         if (error.pendingSave) setPendingSave(error.pendingSave);
+        if (error.pendingUpload) setPendingUpload(true);
         result = error.fields;
       } finally {
         setSaving(false);
@@ -112,7 +116,9 @@ export default function MenuEditor({ kind, value, categories, onSave, onReconcil
   return <form className="panel editor" noValidate onSubmit={submit}>
     <h2>{value ? 'Chỉnh sửa' : 'Thêm'} {isItem ? 'món' : 'nhóm món'}</h2>
     <p className="panel-description">{isItem ? 'Ảnh sản phẩm / Xem trước ảnh' : 'Thông tin nhóm món trong thực đơn'}</p>
-    <fieldset className="form-grid" disabled={saving || Boolean(pendingSave)}>
+    {isItem && !value && categoriesLoading ? <p role="status">Đang tải nhóm món…</p> : null}
+    {isItem && !value && categoryError ? <p role="alert">{categoryError} <button type="button" disabled={saving} onClick={onReloadCategories}>Tải lại nhóm món</button></p> : null}
+    <fieldset className="form-grid" disabled={saving || Boolean(pendingSave) || pendingUpload}>
       <label>Mã {isItem ? 'món' : 'nhóm món'} *
         <input ref={firstField} name="code" required minLength={isItem ? 4 : 1} maxLength={isItem ? 40 : 32} pattern="[A-Za-z0-9_-]+" title="Chữ Latin, số, dấu gạch ngang hoặc gạch dưới" readOnly={Boolean(value)} {...errorProps('code')} value={form.code} onChange={e => update('code', e.target.value)} placeholder={isItem ? 'VD: CF104' : 'VD: CF'} />
         {fieldError('code')}
@@ -125,7 +131,7 @@ export default function MenuEditor({ kind, value, categories, onSave, onReconcil
         <label>Danh mục *
           <select name="categoryCode" required disabled={Boolean(value)} {...errorProps('categoryCode')} value={form.categoryCode} onChange={e => update('categoryCode', e.target.value)}>
             <option value="">Chọn nhóm món</option>
-            {categories.map(category => <option key={category.code} value={category.code}>{category.name}</option>)}
+            {editorCategories.map(category => <option key={category.code} value={category.code}>{category.name}</option>)}
           </select>
           {value ? <small>Nhóm món đã gán không thay đổi khi sửa.</small> : null}
           {fieldError('categoryCode')}
@@ -147,8 +153,13 @@ export default function MenuEditor({ kind, value, categories, onSave, onReconcil
       </> : null}
     </fieldset>
     {saveError ? <p className="error" role="alert">{saveError}</p> : null}
+    {pendingUpload ? <button type="button" disabled={saving} onClick={() => {
+      setForm(current => ({ ...current, imageFile: null, imageMediaId: value?.imageMediaId ?? null, imageUrl: value?.imageUrl ?? '' }));
+      setPendingUpload(false);
+      setSaveError('Đã bỏ ảnh mới khỏi biểu mẫu. Ảnh có thể đã được tải lên; chưa tự động xóa trên dịch vụ ảnh.');
+    }}>TIẾP TỤC KHÔNG DÙNG ẢNH MỚI</button> : null}
     {pendingSave ? <button type="button" disabled={saving} onClick={() => void checkSave()}>KIỂM TRA KẾT QUẢ LƯU</button> : null}
     {saving ? <p role="status">Đang lưu thực đơn…</p> : null}
-    <div className="form-actions"><button type="button" disabled={saving} onClick={onCancel}>HỦY</button><button className="primary" disabled={saving || reading || Boolean(imageError) || Boolean(pendingSave)}>{isItem ? 'LƯU MÓN' : 'LƯU NHÓM MÓN'}</button></div>
+    <div className="form-actions"><button type="button" disabled={saving} onClick={() => onCancel(Boolean(pendingSave) || pendingUpload)}>HỦY</button><button className="primary" disabled={saving || reading || Boolean(imageError) || Boolean(pendingSave) || pendingUpload || (isItem && !value && (categoriesLoading || Boolean(categoryError)))}>{isItem ? 'LƯU MÓN' : 'LƯU NHÓM MÓN'}</button></div>
   </form>;
 }

@@ -44,6 +44,27 @@ export function readMenu(kind, code, authorization, signal) {
   return request(menuPath(kind, code), authorization, { signal });
 }
 
+export async function loadCategories(authorization, signal) {
+  const size = 100;
+  let previous;
+  // Offset pages are not a snapshot. Publish only two matching, complete passes.
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const first = await listMenu('categories', { page: 0, size }, authorization, signal);
+    const rows = [...first.content];
+    let consistent = true;
+    for (let page = 1; page < Math.ceil(first.totalElements / size); page += 1) {
+      const result = await listMenu('categories', { page, size }, authorization, signal);
+      if (result.totalElements !== first.totalElements) { consistent = false; break; }
+      rows.push(...result.content);
+    }
+    consistent &&= rows.length === first.totalElements && new Set(rows.map(row => row.code)).size === rows.length;
+    const snapshot = JSON.stringify(rows.map(row => [row.code, row.name, row.version, row.itemCount]));
+    if (consistent && snapshot === previous) return rows;
+    previous = consistent ? snapshot : undefined;
+  }
+  throw new Error('Danh sách nhóm món đang thay đổi. Vui lòng tải lại nhóm món rồi thử lại.');
+}
+
 async function writeMenu(path, method, body, authorization, signal) {
   const csrf = await request('/csrf', authorization, { signal });
   const headers = { [csrf.headerName]: csrf.token };
@@ -60,11 +81,23 @@ export async function saveMenu(kind, value, editing, authorization, signal, uplo
   const { code, name, categoryCode, price, available, imageFile } = value;
   let imageMediaId = value.imageMediaId ?? null;
   if (kind === 'items' && imageFile) {
+    const uploadUnknown = () => Object.assign(new Error('Chưa xác nhận được kết quả tải ảnh. Ảnh có thể đã được lưu; không gửi lại. Hãy hủy biểu mẫu hoặc tiếp tục không dùng ảnh mới.'),
+      { uncertain: true, pendingUpload: true });
+    if (uploadedImages.get(imageFile)?.uncertain) throw uploadUnknown();
     if (!uploadedImages.has(imageFile)) {
       const data = new FormData();
       data.append('file', imageFile);
-      const uploaded = await writeMenu('/images', 'POST', data, authorization, signal);
-      uploadedImages.set(imageFile, uploaded.mediaId);
+      try {
+        const uploaded = await writeMenu('/images', 'POST', data, authorization, signal);
+        if (!/^[1-9]\d*$/.test(uploaded?.mediaId ?? '')) throw uploadUnknown();
+        uploadedImages.set(imageFile, uploaded.mediaId);
+      } catch (error) {
+        // This code is emitted before any provider call; retry remains safe.
+        if (error.status === 503 && error.code === 'IMAGE_NOT_CONFIGURED') throw error;
+        if (!error.uncertain) throw error;
+        uploadedImages.set(imageFile, { uncertain: true });
+        throw uploadUnknown();
+      }
     }
     imageMediaId = uploadedImages.get(imageFile);
   }

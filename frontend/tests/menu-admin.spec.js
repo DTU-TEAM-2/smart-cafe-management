@@ -113,7 +113,7 @@ test('upload failure retains draft and a rejected save reuses the uploaded media
       expect(request.headers()['x-csrf-token']).toBe('fixture-csrf');
       expect(request.headers()['content-type']).toContain('multipart/form-data');
       return uploads === 1
-        ? route.fulfill({ status: 503, json: { detail: 'Dịch vụ ảnh chưa được cấu hình.' } })
+        ? route.fulfill({ status: 503, json: { code: 'IMAGE_NOT_CONFIGURED', detail: 'Dịch vụ ảnh chưa được cấu hình.' } })
         : route.fulfill({ json: { mediaId: 42, imageUrl: 'https://res.cloudinary.com/menu-test/image/upload/new.png' } });
     }
     if (path.endsWith('/items') && request.method() === 'POST') {
@@ -289,4 +289,198 @@ test('a create with dropped response is read back without repeating POST', async
   await expect(page.getByRole('status').filter({ hasText: 'đã được lưu trên máy chủ' })).toBeVisible();
   expect(writes).toBe(1);
   expect(reads).toBe(2);
+});
+
+for (const [kind, outcome] of [['items', 'changed'], ['categories', 'changed'], ['items', 'missing'],
+  ['items', 'unavailable'], ['items', 'unchecked']]) {
+  test(`canceling an uncertain ${kind} save reloads both lists: ${outcome}`, async ({ page }) => {
+    await signIn(page, 'ADMIN');
+    const category = { code: 'CF', name: 'Coffee group', version: '4', itemCount: 1 };
+    const item = { code: 'CF01', name: 'Coffee fixture', categoryCode: 'CF', categoryName: category.name,
+      price: '45000', available: true, imageMediaId: null, version: '7' };
+    const entity = kind === 'items' ? item : category;
+    const reads = { items: 0, categories: 0 };
+    let writes = 0;
+    await page.route('**/api/v1/menu/**', async route => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname;
+      if (path.endsWith('/csrf')) return route.fulfill({ json: { headerName: 'X-CSRF-TOKEN', token: 'fixture-csrf' } });
+      if (request.method() === 'PUT') {
+        writes += 1;
+        Object.assign(entity, request.postDataJSON(), { name: 'Latest server name', version: '10' });
+        item.price = '51000';
+        category.name = 'Latest server group';
+        return route.abort('failed');
+      }
+      for (const listKind of ['items', 'categories']) {
+        if (path.endsWith(`/${listKind}`)) {
+          reads[listKind] += 1;
+          const content = listKind === 'items' ? [item] : [category];
+          return route.fulfill({ json: { content: writes && outcome === 'missing' && listKind === kind ? [] : content,
+            totalElements: writes && outcome === 'missing' && listKind === kind ? 0 : 1 } });
+        }
+      }
+      if (writes && outcome === 'missing') return route.fulfill({ status: 404, json: {} });
+      if (writes && outcome === 'unavailable') return route.fulfill({ status: 503, json: {} });
+      return route.fulfill({ json: path.includes('/categories/') ? category : item });
+    });
+    await page.goto('http://127.0.0.1:15174/#admin-menu');
+    if (kind === 'categories') await page.getByRole('button', { name: 'Nhóm món', exact: true }).click();
+    await page.getByRole('button', { name: `Sửa ${entity.name}` }).click();
+    const before = { ...reads };
+    await page.getByRole('button', { name: kind === 'items' ? 'LƯU MÓN' : 'LƯU NHÓM MÓN', exact: true }).click();
+    await expect(page.getByRole('alert')).toContainText('Chưa xác nhận được kết quả lưu');
+    if (outcome !== 'unchecked') {
+      await page.getByRole('button', { name: 'KIỂM TRA KẾT QUẢ LƯU' }).click();
+      await expect(page.getByRole('alert')).toContainText(outcome === 'missing' ? 'Chưa tìm thấy bản ghi'
+        : outcome === 'unavailable' ? 'Không thể xử lý yêu cầu' : 'không tự ghi đè');
+    }
+    await page.getByRole('button', { name: 'HỦY', exact: true }).click();
+    await expect.poll(() => reads.categories).toBeGreaterThan(before.categories);
+    if (outcome === 'missing') await expect(page.getByRole('status').filter({ hasText: 'Không tìm thấy món' })).toBeVisible();
+    else {
+      await expect(page.getByRole('button', { name: `Sửa ${entity.name}` })).toBeVisible();
+      if (kind === 'items') {
+        await expect(page.getByRole('cell', { name: '51.000đ', exact: true })).toBeVisible();
+        await expect(page.getByRole('combobox', { name: 'Lọc nhóm món' })).toContainText(category.name);
+      } else {
+        await page.getByRole('button', { name: 'Món', exact: true }).click();
+        await expect(page.getByRole('button', { name: `Sửa ${item.name}` })).toBeVisible();
+      }
+    }
+    await expect.poll(() => reads.items).toBeGreaterThan(before.items);
+    expect(writes).toBe(1);
+  });
+}
+
+for (const outcome of ['dropped', 'provider-error']) {
+  test(`unknown image upload requires an explicit choice without re-upload: ${outcome}`, async ({ page }) => {
+    let uploads = 0;
+    let writes = 0;
+    await menuFixture(page, async (route, path, item) => {
+      if (path.endsWith('/images')) {
+        uploads += 1;
+        if (outcome === 'dropped') await route.abort('failed');
+        else await route.fulfill({ status: 502, json: { code: 'IMAGE_PROVIDER_ERROR' } });
+        return true;
+      }
+      if (route.request().method() === 'PUT') {
+        writes += 1;
+        expect(route.request().postDataJSON().imageMediaId).toBeNull();
+        await route.fulfill({ json: { ...item, version: '8' } }); return true;
+      }
+      return false;
+    });
+    const image = await page.evaluate(() => {
+      const canvas = document.createElement('canvas'); canvas.width = 2; canvas.height = 2;
+      return canvas.toDataURL('image/png').split(',')[1];
+    });
+    await page.getByLabel('Ảnh sản phẩm', { exact: true }).setInputFiles({ name: 'menu.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') });
+    const save = page.getByRole('button', { name: 'LƯU MÓN', exact: true });
+    await save.click();
+    await expect(page.getByRole('alert')).toContainText('không gửi lại');
+    await expect(save).toBeDisabled();
+    expect(uploads).toBe(1);
+    expect(writes).toBe(0);
+    await expect(page.getByLabel('Tên món *')).toHaveValue('Coffee fixture');
+    await page.getByRole('button', { name: 'TIẾP TỤC KHÔNG DÙNG ẢNH MỚI' }).click();
+    await save.click();
+    await expect(page.getByRole('status').filter({ hasText: 'Đã lưu món.' })).toBeVisible();
+    expect(uploads).toBe(1);
+    expect(writes).toBe(1);
+  });
+}
+
+for (const kind of ['items', 'categories']) {
+  for (const outcome of ['missing', 'changed', 'unchanged', 'unavailable', 'cancel']) {
+    test(`unknown ${kind} delete reconciles without another DELETE: ${outcome}`, async ({ page }) => {
+      await signIn(page, 'ADMIN');
+      const row = kind === 'items' ? { code: 'CF01', name: 'Coffee fixture', categoryCode: 'CF', categoryName: 'Coffee', price: '45000', version: '4', available: true }
+        : { code: 'CF', name: 'Coffee group', itemCount: 1, version: '4' };
+      let deletes = 0;
+      let lists = 0;
+      await page.route('**/api/v1/menu/**', async route => {
+        const request = route.request();
+        const path = new URL(request.url()).pathname;
+        if (path.endsWith('/csrf')) return route.fulfill({ json: { headerName: 'X-CSRF-TOKEN', token: 'test' } });
+        if (request.method() === 'DELETE') { deletes += 1; return route.abort('failed'); }
+        if (path.endsWith(`/${kind}`)) {
+          lists += 1;
+          return route.fulfill({ json: { content: deletes && ['missing', 'cancel'].includes(outcome) ? [] : [row], totalElements: deletes && ['missing', 'cancel'].includes(outcome) ? 0 : 1 } });
+        }
+        if (path.endsWith(`/${kind}/${row.code}`)) {
+          if (deletes && outcome === 'missing') return route.fulfill({ status: 404, json: {} });
+          if (deletes && outcome === 'unavailable') return route.fulfill({ status: 503, json: {} });
+          return route.fulfill({ json: { ...row, version: deletes && outcome === 'changed' ? '5' : row.version } });
+        }
+        return route.fulfill({ json: { content: kind === 'items' ? [{ code: 'CF', name: 'Coffee', version: '0' }] : [], totalElements: kind === 'items' ? 1 : 0 } });
+      });
+      await page.goto('http://127.0.0.1:15174/#admin-menu');
+      if (kind === 'categories') await page.getByRole('button', { name: 'Nhóm món', exact: true }).click();
+      await page.getByRole('button', { name: `Xóa ${row.name}`, exact: true }).click();
+      const before = lists;
+      const dialog = page.getByRole('dialog');
+      await dialog.getByRole('button', { name: 'XÁC NHẬN XÓA' }).click();
+      await expect(dialog.getByRole('alert')).toContainText('Chưa xác nhận được kết quả xóa');
+      await expect(dialog.getByRole('button', { name: 'XÁC NHẬN XÓA' })).toBeDisabled();
+      if (outcome === 'cancel') await page.keyboard.press('Escape');
+      else {
+        await dialog.getByRole('button', { name: 'KIỂM TRA KẾT QUẢ XÓA' }).click();
+        if (outcome !== 'missing') {
+          await expect(dialog.getByRole('alert')).toContainText(outcome === 'changed' ? 'Dữ liệu đã thay đổi'
+            : outcome === 'unavailable' ? 'Không thể xử lý yêu cầu' : 'vẫn đang hoạt động');
+          await expect(dialog.getByRole('button', { name: 'XÁC NHẬN XÓA' })).toBeDisabled();
+          await dialog.getByRole('button', { name: 'HỦY', exact: true }).click();
+        }
+      }
+      await expect(dialog).toHaveCount(0);
+      await expect.poll(() => lists).toBeGreaterThan(before);
+      expect(deletes).toBe(1);
+    });
+  }
+}
+
+test('a group missing from options does not prevent editing its item from fresh detail', async ({ page }) => {
+  let written = false;
+  await menuFixture(page, async (route, path, item) => {
+    if (path.endsWith('/categories')) {
+      const content = [{ code: 'CF', name: 'Coffee', version: '0' }];
+      await route.fulfill({ json: { content, totalElements: content.length } }); return true;
+    }
+    if (path.endsWith('/items/TE01')) {
+      const tea = { ...item, code: 'TE01', name: 'New tea fixture', categoryCode: 'TE', categoryName: 'New tea group' };
+      if (route.request().method() === 'PUT') {
+        expect(route.request().postDataJSON().categoryCode).toBe('TE');
+        written = true;
+      }
+      await route.fulfill({ json: tea }); return true;
+    }
+    if (path.endsWith('/items') && new URL(route.request().url()).searchParams.get('keyword') === 'TE01') {
+      await route.fulfill({ json: { content: [{ ...item, code: 'TE01', name: 'New tea fixture', categoryCode: 'TE' }], totalElements: 1 } }); return true;
+    }
+    return false;
+  });
+  await page.getByRole('button', { name: 'HỦY', exact: true }).click();
+  await page.getByRole('searchbox', { name: 'Tìm món' }).fill('TE01');
+  await page.getByRole('button', { name: 'TÌM KIẾM', exact: true }).click();
+  await page.getByRole('button', { name: 'Sửa New tea fixture' }).click();
+  await expect(page.getByLabel('Danh mục *')).toHaveValue('TE');
+  await page.getByRole('button', { name: 'LƯU MÓN', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Đã lưu món.' })).toBeVisible();
+  expect(written).toBe(true);
+});
+
+test('opening create refreshes groups added by another admin after mount', async ({ page }) => {
+  let groupAdded = false;
+  await menuFixture(page, async (route, path) => {
+    if (!path.endsWith('/categories')) return false;
+    const content = [{ code: 'CF', name: 'Coffee', version: '0' }];
+    if (groupAdded) content.push({ code: 'TE', name: 'New tea group', version: '0' });
+    await route.fulfill({ json: { content, totalElements: content.length } }); return true;
+  });
+  await page.getByRole('button', { name: 'HỦY', exact: true }).click();
+  groupAdded = true;
+  await page.getByRole('button', { name: 'THÊM MÓN MỚI', exact: true }).click();
+  await page.getByLabel('Danh mục *').selectOption('TE');
+  await expect(page.getByLabel('Danh mục *')).toHaveValue('TE');
 });

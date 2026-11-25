@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-export default function DeleteDialog({ target, kind, itemCount, preview = true, pending, error, onClose, onConfirm }) {
+export default function DeleteDialog({ target, kind, itemCount, preview = true, pending, uncertain, error, onClose, onConfirm, onCheck }) {
   const dialog = useRef(null);
   useEffect(() => {
     const previous = document.activeElement;
@@ -26,6 +26,7 @@ export default function DeleteDialog({ target, kind, itemCount, preview = true, 
     <p id="delete-description">Bạn có chắc muốn ẩn <strong>{target.name}</strong> khỏi {preview ? 'danh sách minh họa' : 'thực đơn'}?{kind === 'categories' ? ` ${itemCount} món đang hoạt động thuộc nhóm cũng sẽ bị ẩn. Hủy để giữ nguyên nhóm và các món.` : ''}</p>
     {error ? <p className="error" role="alert">{error}</p> : null}
     {pending ? <p role="status">Đang cập nhật thực đơn…</p> : null}
-    <div className="form-actions"><button autoFocus disabled={pending} onClick={onClose}>HỦY</button><button className="danger" disabled={pending} onClick={onConfirm}>XÁC NHẬN XÓA</button></div>
+    {uncertain ? <button disabled={pending} onClick={onCheck}>KIỂM TRA KẾT QUẢ XÓA</button> : null}
+    <div className="form-actions"><button autoFocus disabled={pending} onClick={onClose}>HỦY</button><button className="danger" disabled={pending || uncertain} onClick={onConfirm}>XÁC NHẬN XÓA</button></div>
   </dialog>;
 }

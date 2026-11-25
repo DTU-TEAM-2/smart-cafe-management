@@ -113,6 +113,26 @@ try {
   await capture('05-item-edit');
   const updated = await saveItem();
   expect(updated.imageMediaId).not.toBe(created.imageMediaId);
+  if (!live) {
+    // Let the real provider stub and MySQL commit, then lose only the HTTP response.
+    await page.getByRole('button', { name: 'Sửa ' + code + ' Coffee', exact: true }).click();
+    await chooseImage('green');
+    let unknownUploads = 0;
+    await page.route('**/api/v1/menu/images', async route => {
+      unknownUploads += 1;
+      const response = await route.fetch();
+      expect(response.ok()).toBe(true);
+      await route.abort('failed');
+    });
+    await page.getByRole('button', { name: 'LƯU MÓN', exact: true }).click();
+    await expect(page.getByRole('alert')).toContainText('không gửi lại');
+    await expect(page.getByRole('button', { name: 'LƯU MÓN', exact: true })).toBeDisabled();
+    await page.getByRole('button', { name: 'TIẾP TỤC KHÔNG DÙNG ẢNH MỚI' }).click();
+    const retained = await saveItem();
+    expect(retained.imageMediaId).toBe(updated.imageMediaId);
+    expect(unknownUploads).toBe(1);
+    await page.unroute('**/api/v1/menu/images');
+  }
   await checkCustomerImage(updated.imageUrl);
   await capture('06-customer-menu');
   await page.screenshot({ path: '../backend/target/menu-browser-customer.png', fullPage: true });

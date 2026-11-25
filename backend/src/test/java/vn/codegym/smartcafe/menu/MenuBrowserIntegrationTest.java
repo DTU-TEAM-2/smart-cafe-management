@@ -92,7 +92,10 @@ class MenuBrowserIntegrationTest {
             assertThat(jdbc.queryForObject("SELECT CAST(price AS CHAR) FROM menu_items WHERE code=?", String.class, item)).isEqualTo("48000");
             assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM menu_items i JOIN media_assets m ON m.id=i.image_media_id WHERE i.code=? AND m.provider='CLOUDINARY' AND m.deleted_at IS NULL", Integer.class, item)).isEqualTo(1);
             if (!LIVE) {
-                assertThat(provider.calls()).isEqualTo(2);
+                assertThat(provider.calls()).isEqualTo(3);
+                // Three uploads were registered, but only the acknowledged second image is referenced.
+                assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM media_assets WHERE provider_asset_id LIKE ?", Integer.class, provider.assetPrefix() + "%")).isEqualTo(3);
+                assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM media_assets m WHERE m.provider_asset_id LIKE ? AND EXISTS (SELECT 1 FROM menu_items i WHERE i.image_media_id=m.id)", Integer.class, provider.assetPrefix() + "%")).isEqualTo(1);
                 assertThat(provider.invalidRequest()).isNull();
             }
         } finally {
