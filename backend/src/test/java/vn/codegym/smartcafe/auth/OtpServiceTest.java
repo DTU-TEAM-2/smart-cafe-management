@@ -422,4 +422,22 @@ class OtpServiceTest {
         boolean valid = otpService.verifyResetToken(rawToken);
         assertThat(valid).isFalse();
     }
+
+    @Test
+    void initiatePasswordResetDispatchesEmailSuccessfullyForValidUser() {
+        String email = "staff_member@smartcafe.vn";
+        UserRecord user = createUser(2L, "staff_member", email, "STAFF", "ACTIVE", 0L);
+
+        when(authRepository.findUserByEmail(email)).thenReturn(Optional.of(user));
+        when(authRepository.findUserById(2L)).thenReturn(Optional.of(user));
+        when(authRepository.findUserByIdForUpdate(2L)).thenReturn(Optional.of(user));
+        when(authRepository.checkAndIncrementLimit(anyString(), eq("RESET"), any(), any(), any())).thenReturn(true);
+
+        ForgotPasswordResponse response = otpService.initiatePasswordResetOtp(email);
+
+        assertThat(response).isNotNull();
+        assertThat(response.challengeId()).isNotEmpty();
+        verify(authRepository).saveOtpChallenge(argThat(c -> c.userId() != null && c.userId().equals(2L) && "RESET".equals(c.purpose())));
+        verify(emailService, times(1)).sendOtpEmail(eq(email), anyString(), eq("RESET"), anyLong());
+    }
 }

@@ -59,7 +59,12 @@ public class OtpService {
         this.requiresNewTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
-    @Transactional
+    private record ResetReservation(
+            String challengeId,
+            String recipientEmail,
+            String otpCode
+    ) {}
+
     public ForgotPasswordResponse initiatePasswordResetOtp(String email) {
         if (email == null || !email.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
             throw new OtpException("Định dạng email không hợp lệ.");
@@ -69,35 +74,67 @@ public class OtpService {
         Instant nextSendAt = now.plusSeconds(COOLDOWN_SECONDS);
         Instant windowStart = now;
 
-        // Anti-enumeration: neutral response even if email doesn't exist
-        Optional<UserRecord> userOpt = authRepository.findUserByEmail(email.trim());
+        // Perform rate limit check, locking read on users PK, identity validation and challenge insert
+        // in a dedicated short transaction to release the exclusive row lock on users before external SMTP I/O.
+        ResetReservation reservation = requiresNewTx.execute(status -> {
+            // Anti-enumeration: neutral response even if email doesn't exist
+            Optional<UserRecord> userOpt = authRepository.findUserByEmail(email.trim());
 
-        String emailKey = tokenService.hmacSha256("LIMIT:" + email.trim().toLowerCase());
-        boolean allowed = authRepository.checkAndIncrementLimit(emailKey, "RESET", now, windowStart, nextSendAt);
-        if (!allowed) {
-            throw new OtpException("Bạn đã yêu cầu gửi mã quá số lần cho phép. Vui lòng đợi trước khi thử lại.");
-        }
+            String emailKey = tokenService.hmacSha256("LIMIT:" + email.trim().toLowerCase());
+            boolean allowed = authRepository.checkAndIncrementLimit(emailKey, "RESET", now, windowStart, nextSendAt);
+            if (!allowed) {
+                throw new OtpException("Bạn đã yêu cầu gửi mã quá số lần cho phép. Vui lòng đợi trước khi thử lại.");
+            }
 
-        String challengeId = tokenService.generateRandomHex(32);
-        Instant expiresAt = now.plusSeconds(otpValiditySeconds);
+            String challengeId = tokenService.generateRandomHex(32);
+            Instant expiresAt = now.plusSeconds(otpValiditySeconds);
 
-        boolean realChallengeCreated = false;
-        if (userOpt.isPresent()) {
-            Long userId = userOpt.get().id();
-            // Lock user row by PK to serialize with concurrent email/profile changes and read current state
-            Optional<UserRecord> lockedUserOpt = authRepository.findUserByIdForUpdate(userId);
-            if (lockedUserOpt.isPresent()
-                    && "ACTIVE".equalsIgnoreCase(lockedUserOpt.get().status())
-                    && lockedUserOpt.get().email().equalsIgnoreCase(email.trim())) {
-                UserRecord user = lockedUserOpt.get();
-                String otpCode = generateNumericOtp();
-                String codeHash = tokenService.hmacSha256(challengeId + "|RESET|" + otpCode);
-                OtpChallengeRecord challenge = new OtpChallengeRecord(
+            String recipientEmail = null;
+            String otpCode = null;
+
+            if (userOpt.isPresent()) {
+                Long userId = userOpt.get().id();
+                // Lock user row by PK to serialize with concurrent email/profile changes and read current state
+                Optional<UserRecord> lockedUserOpt = authRepository.findUserByIdForUpdate(userId);
+                if (lockedUserOpt.isPresent()
+                        && "ACTIVE".equalsIgnoreCase(lockedUserOpt.get().status())
+                        && lockedUserOpt.get().email().equalsIgnoreCase(email.trim())) {
+                    UserRecord user = lockedUserOpt.get();
+                    otpCode = generateNumericOtp();
+                    String codeHash = tokenService.hmacSha256(challengeId + "|RESET|" + otpCode);
+                    OtpChallengeRecord challenge = new OtpChallengeRecord(
+                            challengeId,
+                            user.id(),
+                            user.email(),
+                            "RESET",
+                            codeHash,
+                            0,
+                            1,
+                            expiresAt,
+                            nextSendAt,
+                            null,
+                            "PENDING",
+                            now,
+                            null,
+                            now
+                    );
+                    authRepository.saveOtpChallenge(challenge);
+                    recipientEmail = user.email();
+                }
+            }
+
+            if (recipientEmail == null) {
+                // Anti-account enumeration: create dummy challenge record with unguessable HMAC hash
+                // so subsequent verify-otp and resend-otp requests behave completely identically
+                // to existing accounts without revealing account existence or sending external emails.
+                // Conforms to database constraint ck_auth_otp_reset_user (allows user_id NULL for REGISTER).
+                String dummyHash = tokenService.hmacSha256("DUMMY|" + challengeId + "|" + tokenService.generateRandomHex(32));
+                OtpChallengeRecord dummyChallenge = new OtpChallengeRecord(
                         challengeId,
-                        user.id(),
-                        user.email(),
-                        "RESET",
-                        codeHash,
+                        null,
+                        email.trim().toLowerCase(),
+                        "REGISTER",
+                        dummyHash,
                         0,
                         1,
                         expiresAt,
@@ -108,45 +145,25 @@ public class OtpService {
                         null,
                         now
                 );
-                authRepository.saveOtpChallenge(challenge);
+                authRepository.saveOtpChallenge(dummyChallenge);
+                log.info("Password reset dummy challenge created for non-existent or modified email: {}", email);
+            }
 
-                try {
-                    emailService.sendOtpEmail(user.email(), otpCode, "RESET", otpValiditySeconds);
-                } catch (Exception ex) {
-                    log.error("Failed to send OTP email to {}: {}", user.email(), ex.getMessage());
-                }
-                realChallengeCreated = true;
+            return new ResetReservation(challengeId, recipientEmail, otpCode);
+        });
+
+        // Dispatch email OUTSIDE the database transaction and without holding any user row locks
+        if (reservation != null && reservation.recipientEmail() != null && reservation.otpCode() != null) {
+            try {
+                emailService.sendOtpEmail(reservation.recipientEmail(), reservation.otpCode(), "RESET", otpValiditySeconds);
+            } catch (Exception ex) {
+                log.error("Failed to send OTP email to {}: {}", reservation.recipientEmail(), ex.getMessage());
             }
         }
 
-        if (!realChallengeCreated) {
-            // Anti-account enumeration: create dummy challenge record with unguessable HMAC hash
-            // so subsequent verify-otp and resend-otp requests behave completely identically
-            // to existing accounts without revealing account existence or sending external emails.
-            // Conforms to database constraint ck_auth_otp_reset_user (allows user_id NULL for REGISTER).
-            String dummyHash = tokenService.hmacSha256("DUMMY|" + challengeId + "|" + tokenService.generateRandomHex(32));
-            OtpChallengeRecord dummyChallenge = new OtpChallengeRecord(
-                    challengeId,
-                    null,
-                    email.trim().toLowerCase(),
-                    "REGISTER",
-                    dummyHash,
-                    0,
-                    1,
-                    expiresAt,
-                    nextSendAt,
-                    null,
-                    "PENDING",
-                    now,
-                    null,
-                    now
-            );
-            authRepository.saveOtpChallenge(dummyChallenge);
-            log.info("Password reset dummy challenge created for non-existent or modified email: {}", email);
-        }
-
+        String returnedChallengeId = (reservation != null) ? reservation.challengeId() : "";
         return new ForgotPasswordResponse(
-                challengeId,
+                returnedChallengeId,
                 "Yêu cầu gửi mã xác minh đã được tiếp nhận. Nếu email tồn tại trong hệ thống, bạn sẽ nhận được mã OTP trong hộp thư.",
                 COOLDOWN_SECONDS,
                 otpValiditySeconds

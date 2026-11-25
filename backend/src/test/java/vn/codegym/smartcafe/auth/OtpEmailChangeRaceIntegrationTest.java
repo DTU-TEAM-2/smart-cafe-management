@@ -202,6 +202,116 @@ class OtpEmailChangeRaceIntegrationTest {
         assertThat(deliveredCodes.size()).isEqualTo(emailsBeforeResend);
     }
 
+    // Follow-up P1 regression: Thực phát grant token trước đổi email -> reset password bị từ chối sau khi email đổi
+    @Test
+    void existingGrantTokenIssuedBeforeEmailChangeIsRejectedAtResetPassword() throws Exception {
+        // Step 1: Initiate forgot-password with old email
+        MvcResult forgotResult = mvc.perform(post("/api/v1/auth/forgot-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"" + OLD_EMAIL + "\"}"))
+                .andReturn();
+        assertThat(forgotResult.getResponse().getStatus()).isEqualTo(200);
+        String challengeId = (String) body(forgotResult).get("challengeId");
+        assertThat(deliveredCodes).isNotEmpty();
+        String code = deliveredCodes.getLast();
+
+        // Step 2: Verify OTP to obtain a real reset grant token before email change
+        MvcResult verifyResult = mvc.perform(post("/api/v1/auth/verify-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"challengeId\":\"" + challengeId + "\",\"otp\":\"" + code + "\"}"))
+                .andReturn();
+        assertThat(verifyResult.getResponse().getStatus()).isEqualTo(200);
+        String grantToken = (String) body(verifyResult).get("token");
+        assertThat(grantToken).isNotEmpty();
+
+        // Step 3: Staff PUT changes email to NEW_EMAIL -> increments auth_version
+        String updateBody = """
+                {"fullName":"Staff Race User","email":"%s","phone":"0901234567",
+                 "address":"DN","role":"STAFF","salary":10000000,"version":"0"}
+                """.formatted(NEW_EMAIL);
+        mvc.perform(put("/api/v1/staff/" + staffUserId)
+                .with(user("admin_race").roles("ADMIN")).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(updateBody))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+
+        // Step 4: Attempt to reset password using the old grant token -> must be rejected (400)
+        MvcResult resetResult = mvc.perform(post("/api/v1/auth/reset-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"token\":\"" + grantToken + "\",\"newPassword\":\"HackedPass@123\",\"confirmPassword\":\"HackedPass@123\"}"))
+                .andReturn();
+        assertThat(resetResult.getResponse().getStatus()).isEqualTo(400);
+
+        // Step 5: Password in database must remain unchanged, login with old password succeeds
+        MvcResult loginResult = mvc.perform(post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"staff_race\",\"password\":\"StaffPass@123\"}"))
+                .andReturn();
+        assertThat(loginResult.getResponse().getStatus()).isEqualTo(200);
+
+        // Login with attempted new password must fail
+        MvcResult failedLogin = mvc.perform(post("/api/v1/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"username\":\"staff_race\",\"password\":\"HackedPass@123\"}"))
+                .andReturn();
+        assertThat(failedLogin.getResponse().getStatus()).isEqualTo(401);
+    }
+
+    // Follow-up P2 regression: SMTP latency/timeout does not hold user row lock blocking Staff PUT updates
+    @Test
+    void smtpLatencyDoesNotHoldUserLockBlockingConcurrentStaffUpdate() throws Exception {
+        var mailStarted = new CountDownLatch(1);
+        var mailResume = new CountDownLatch(1);
+
+        doAnswer(call -> {
+            deliveredCodes.add(call.getArgument(1));
+            mailStarted.countDown();
+            await(mailResume);
+            return null;
+        }).when(mail).sendOtpEmail(eq(OLD_EMAIL), anyString(), eq("RESET"), anyLong());
+
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            // Thread A: calls forgot-password
+            var forgotFuture = executor.submit(() -> mvc.perform(post("/api/v1/auth/forgot-password")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"email\":\"" + OLD_EMAIL + "\"}"))
+                    .andReturn());
+
+            // Await Thread A reaching the external SMTP call (DB transaction already committed, lock released)
+            await(mailStarted);
+
+            // Thread B (Main thread): Staff PUT updates user's profile under lockUser(staffUserId)
+            // If the row lock were held across SMTP delivery, this PUT would be blocked until mailResume!
+            String updateBody = """
+                    {"fullName":"Staff Promptly Updated","email":"%s","phone":"0987654321",
+                     "address":"DN","role":"STAFF","salary":12000000,"version":"0"}
+                    """.formatted(OLD_EMAIL);
+
+            long startPut = System.nanoTime();
+            MvcResult putResult = mvc.perform(put("/api/v1/staff/" + staffUserId)
+                    .with(user("admin_race").roles("ADMIN")).with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(updateBody))
+                    .andReturn();
+            long elapsedPutMillis = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startPut);
+
+            assertThat(putResult.getResponse().getStatus()).isEqualTo(200);
+            // Must complete immediately without waiting for SMTP (timeout latch is 10s)
+            assertThat(elapsedPutMillis).as("Staff PUT must not wait for external SMTP I/O").isLessThan(3000);
+
+            // Verify user data was updated in database
+            String updatedFullName = jdbc.queryForObject("SELECT full_name FROM users WHERE id = ?", String.class, staffUserId);
+            assertThat(updatedFullName).isEqualTo("Staff Promptly Updated");
+
+            // Resume mail sending and verify forgot-password completes
+            mailResume.countDown();
+            MvcResult forgotResult = forgotFuture.get(10, TimeUnit.SECONDS);
+            assertThat(forgotResult.getResponse().getStatus()).isEqualTo(200);
+        } finally {
+            mailResume.countDown();
+        }
+    }
+
     // (d) & (e) New email recovery/login succeeds, updating name/phone does not increment auth_version
     @Test
     void newEmailCanSuccessfullyRecoverAndLogin_updatingRegularFieldsPreservesAuthVersion() throws Exception {
