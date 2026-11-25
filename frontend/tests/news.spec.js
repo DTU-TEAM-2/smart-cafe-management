@@ -42,6 +42,92 @@ test("admin creates news with explicit recipients and safe text content", async 
   expect(await page.evaluate(() => window.__unsafe)).toBeUndefined();
 });
 
+test("an uncertain create is recovered after reload without another POST", async ({ page }) => {
+  await setup(page);
+  let slug;
+  let posts = 0;
+  let lookups = 0;
+  await page.route("**/api/v1/news", route => {
+    posts++;
+    slug = route.request().postDataJSON().slug;
+    return route.abort("connectionreset");
+  });
+  await page.route("**/api/v1/news/by-slug/*", route => {
+    expect(new URL(route.request().url()).pathname).toBe(`/api/v1/news/by-slug/${slug}`);
+    if (++lookups === 1) return route.fulfill({ status: 404, json: {} });
+    return route.fulfill({ json: { ...fixture, slug } });
+  });
+  await page.goto("/#news/new");
+  await page.getByLabel("Tiêu đề").fill("Đón ngày mới");
+  await page.getByLabel("Nội dung").fill("Nội dung xuất bản");
+  await page.getByRole("checkbox", { name: /Nhân viên/ }).check();
+  await page.getByLabel("Trạng thái", { exact: true }).selectOption("PUBLISHED");
+  await page.getByRole("button", { name: "Đăng tin", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Chưa xác nhận được kết quả lưu bài.");
+  expect(slug).toMatch(/^don-ngay-moi-[a-f0-9]{32}$/);
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Lưu bản nháp", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "Kiểm tra bài đã lưu" }).click();
+  await expect(page.getByRole("alert")).toContainText("Chưa tìm thấy bài");
+  await expect(page.getByRole("button", { name: "Lưu bản nháp", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "Kiểm tra bài đã lưu" }).click();
+  await expect(page).toHaveURL(new RegExp(`#news/${fixture.id}$`));
+  expect(posts).toBe(1);
+});
+
+for (const role of ["ADMIN", "CUSTOMER"]) test(`News checks the current ${role} session after a REST denial`, async ({ page }) => {
+  await setup(page, role);
+  let revoked = false;
+  let checks = 0;
+  await page.route("**/api/v1/auth/me", route => {
+    checks++;
+    return route.fulfill({ status: revoked ? 401 : 200, json: { id: 1, username: "ui-fixture", role } });
+  });
+  await page.route("**/api/v1/home/account", route => route.request().headers().authorization
+    ? route.fulfill({ json: { id: "1", name: "Tài khoản kiểm thử", role } })
+    : route.fulfill({ status: 401, json: {} }));
+  await page.route("**/api/v1/news?*", route => route.fulfill({ status: 403, json: {} }));
+  await page.goto("/#news");
+  await expect(page.getByRole("alert")).toContainText("Bạn không có quyền");
+  await expect.poll(() => checks).toBeGreaterThanOrEqual(2);
+  expect(await page.evaluate(() => sessionStorage.getItem("smart_cafe_token"))).toBe("isolated-ui-fixture-token");
+  revoked = true;
+  await page.getByRole("button", { name: "Thử lại" }).click();
+  await expect(page.getByText("Đăng nhập để xem những tin tức dành cho bạn.")).toBeVisible();
+  expect(await page.evaluate(() => sessionStorage.getItem("smart_cafe_token"))).toBeNull();
+});
+
+test("an auth check for the old News token cannot clear its replacement", async ({ page }) => {
+  await setup(page);
+  const initialAuth = page.waitForResponse(r => r.url().endsWith("/api/v1/auth/me") && r.ok());
+  await page.goto("/#news");
+  await initialAuth;
+  await expect(page.getByRole("link", { name: fixture.title, exact: true })).toBeVisible();
+  let delayed;
+  await page.route("**/api/v1/auth/me", route => {
+    if (route.request().headers().authorization === "Bearer isolated-ui-fixture-token") {
+      delayed = route;
+      return;
+    }
+    return route.fulfill({ json: { id: 1, username: "ui-fixture", role: "ADMIN" } });
+  });
+  await page.route("**/api/v1/news?*", route => route.fulfill(route.request().headers().authorization === "Bearer replacement"
+    ? { json: { content: [fixture], totalElements: 1, totalPages: 1, last: true } }
+    : { status: 403, json: {} }));
+  await page.getByRole("button", { name: "Làm mới" }).click();
+  await expect.poll(() => Boolean(delayed)).toBe(true);
+  await page.evaluate(() => {
+    sessionStorage.setItem("smart_cafe_token", "replacement");
+    window.dispatchEvent(new CustomEvent("smart-cafe-auth-change"));
+  });
+  await expect(page.getByRole("link", { name: fixture.title, exact: true })).toBeVisible();
+  const response = page.waitForResponse(r => r.url().endsWith("/api/v1/auth/me") && r.status() === 401);
+  await delayed.fulfill({ status: 401, json: {} });
+  await (await response).finished();
+  await expect(page.getByRole("link", { name: fixture.title, exact: true })).toBeVisible();
+  expect(await page.evaluate(() => sessionStorage.getItem("smart_cafe_token"))).toBe("replacement");
+});
+
 test("editing sends If-Match and keeps unsaved text after a conflict", async ({ page }) => {
   await setup(page);
   let ifMatch;

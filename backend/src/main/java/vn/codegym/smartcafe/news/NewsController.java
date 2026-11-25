@@ -34,6 +34,12 @@ public class NewsController {
         return ResponseEntity.ok().eTag("\"" + post.version() + "\"").body(post);
     }
 
+    @GetMapping("/by-slug/{slug}")
+    public ResponseEntity<NewsDetailResponse> getOwnNewsBySlug(@PathVariable String slug, Principal principal) {
+        var post = newsService.getOwnNewsBySlug(slug, principal.getName());
+        return ResponseEntity.ok().eTag("\"" + post.version() + "\"").body(post);
+    }
+
     @PostMapping
     public ResponseEntity<NewsDetailResponse> createNews(
             @RequestBody CreateNewsRequest request,

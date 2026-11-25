@@ -106,6 +106,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/profiles/me").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers(HttpMethod.POST, "/api/v1/profiles/me/password").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers(HttpMethod.GET, "/api/v1/home/notifications").hasAnyRole("STAFF", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/news/by-slug/{slug}").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/news/events").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/news/images").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/news/images/{id}").hasAnyRole("ADMIN", "STAFF", "CUSTOMER")

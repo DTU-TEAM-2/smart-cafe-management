@@ -91,6 +91,13 @@ Không gửi cho khách hàng. Không tự mở socket cho ADMIN vì đáp án c
 
 BE cung cấp tín hiệu để FE có thể reload danh sách hoặc hiện thông báo; phản hồi 20 chốt người nhận, không tự khẳng định khách hàng đã chọn chi tiết UI. Kênh trong bộ nhớ một instance, không replay/durable delivery/multi-instance broadcast. Reconnect phải đọc REST; không tuyên bố exactly-once.
 
+## Đối soát lần tạo tin và phiên đăng nhập
+
+- Trình biên tập gửi một slug cố định cho mỗi lần tạo. Khi để trống slug, giao diện ghép tiêu đề đã chuẩn hóa với hậu tố ngẫu nhiên. MySQL bảo vệ uniqueness bằng `uq_news_slug`.
+- Nếu mất phản hồi hoặc gặp lỗi chưa xác định được kết quả lưu, giao diện giữ slug trong phiên tab theo tài khoản và khóa gửi lại POST. Quản trị viên kiểm tra bằng `GET /api/v1/news/by-slug/{slug}`. API chỉ trả bài do chính tài khoản hiện tại tạo và trả 404 nếu chưa tìm thấy. Kiểm tra nhiều lần chỉ đọc dữ liệu. Quản trị viên cần đối chiếu bài tìm được khi dùng slug tự nhập, hoặc xác nhận sau khi kiểm tra danh sách trước khi bỏ lần lưu cũ.
+- Cơ chế này xử lý kết quả không xác định trên giao diện News. Client khác dùng POST với slug rỗng vẫn theo hợp đồng tự sinh slug phía server.
+- Khi REST trả 401/403, giao diện xác minh lại bearer qua `/api/v1/auth/me`. Chỉ phản hồi từ chối của API Auth với phiên đang dùng mới kết thúc phiên, nên lỗi thiếu quyền của News và phản hồi đến muộn của token cũ được xử lý riêng.
+
 ## Mapping dữ liệu
 
 - news_posts: id, slug, title, summary, body, status, author_user_id, updated_by_user_id, published_at, created_at, updated_at, version, audience_staff, audience_customer. Hai cột audience thuộc phần mở rộng ADR-005, đã áp dụng vào smart_cafe local theo chỉ thị riêng ADR-006.

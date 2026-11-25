@@ -1,16 +1,43 @@
 import { useEffect, useRef, useState } from "react";
 import NewsImage from "./NewsImage.jsx";
-import { newsError, newsRequest } from "./newsApi.js";
+import { newsError, NewsApiError } from "./newsApi.js";
 
 const emptyDraft = () => ({ title: "", summary: "", body: "", slug: "", status: "DRAFT", audiences: [], images: [] });
 const length = value => [...value].length;
+const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const validPost = post => typeof post?.id === "string" && /^\d+$/.test(post.id);
 
-export default function NewsEditor({ id, authorization, setNavigationGuard }) {
+function autoSlug(title) {
+  const stem = title.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replaceAll("đ", "d")
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 140).replace(/-$/, "");
+  const suffix = Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("");
+  return `${stem || "news"}-${suffix}`;
+}
+
+export default function NewsEditor({ id, accountId, authorization, request, setNavigationGuard }) {
   const [draft, setDraft] = useState(emptyDraft), [original, setOriginal] = useState(() => JSON.stringify(emptyDraft()));
   const [etag, setEtag] = useState(null), [state, setState] = useState(id ? "loading" : "ready");
   const [busy, setBusy] = useState(false), [uploading, setUploading] = useState(false), [error, setError] = useState("");
   const [invalid, setInvalid] = useState({}), [attempt, setAttempt] = useState(0), [conflict, setConflict] = useState(false);
   const controller = useRef(null), errorRef = useRef(null), blocked = useRef(false);
+  const storageKey = `lecker_news_pending:${accountId}`;
+  const [pending, setPending] = useState(() => {
+    if (id) return null;
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(storageKey));
+      return typeof saved?.slug === "string" && saved.slug.length <= 180 && slugPattern.test(saved.slug) ? saved : null;
+    } catch { return null; }
+  });
+  const [found, setFound] = useState(null);
+  const saving = useRef(false);
+  function remember(creation) {
+    setPending(creation);
+    setFound(null);
+    try {
+      if (creation) sessionStorage.setItem(storageKey, JSON.stringify(creation));
+      else sessionStorage.removeItem(storageKey);
+    } catch { /* An unavailable storage area still leaves this editor protected. */ }
+  }
   const dirty = JSON.stringify(draft) !== original;
   useEffect(() => {
     const abort = new AbortController(); controller.current = abort;
@@ -28,34 +55,84 @@ export default function NewsEditor({ id, authorization, setNavigationGuard }) {
     if (!id) return;
     const abort = new AbortController();
     setState("loading"); setError("");
-    newsRequest(`/${id}`, authorization, { signal: abort.signal }).then(({ data, etag: tag }) => {
+    request(`/${id}`, { signal: abort.signal }).then(({ data, etag: tag }) => {
       if (abort.signal.aborted) return;
       const loaded = { title: data.title, summary: data.summary || "", body: data.body, slug: data.slug, status: data.status,
         audiences: data.audiences, images: data.images.map(image => ({ mediaId: image.mediaId, url: image.secureUrl })) };
       setDraft(loaded); setOriginal(JSON.stringify(loaded)); setEtag(tag); setState("ready"); setConflict(false); setInvalid({});
     }).catch(e => { if (!abort.signal.aborted) { setState("error"); setError(newsError(e)); } });
     return () => abort.abort();
-  }, [id, authorization, attempt]);
+  }, [id, request, attempt]);
   function field(key, value) { setDraft(current => ({ ...current, [key]: value })); setInvalid(current => ({ ...current, [key]: null })); }
   function showError(message) { setError(message); requestAnimationFrame(() => errorRef.current?.focus()); }
+  function openPost(post) {
+    setOriginal(JSON.stringify(draft));
+    blocked.current = false;
+    setNavigationGuard?.(null);
+    location.hash = `#news/${post.id}`;
+  }
+  async function checkPending() {
+    if (saving.current || !pending) return;
+    saving.current = true;
+    setBusy(true);
+    const signal = controller.current.signal;
+    try {
+      const { data } = await request(`/by-slug/${pending.slug}`, { signal });
+      if (signal.aborted) return;
+      if (!validPost(data)) throw new Error("Invalid news response");
+      if (!pending.custom) {
+        remember(null);
+        openPost(data);
+      } else {
+        setError("");
+        setFound(data);
+      }
+    } catch (error) {
+      if (!signal.aborted) showError(error.status === 404
+        ? "Chưa tìm thấy bài. Hãy kiểm tra lại trước khi gửi lần mới."
+        : newsError(error));
+    } finally {
+      saving.current = false;
+      if (!signal.aborted) setBusy(false);
+    }
+  }
   async function submit(event) {
     event.preventDefault();
-    if (busy || uploading || conflict) return;
+    if (saving.current || busy || uploading || conflict || pending) return;
     const errors = {};
     if (!draft.title.trim() || length(draft.title) > 200) errors.title = "Nhập tiêu đề từ 1 đến 200 ký tự.";
     if (length(draft.summary) > 500) errors.summary = "Tóm tắt tối đa 500 ký tự.";
     if (!draft.body.trim()) errors.body = "Nhập nội dung bài viết.";
     if (!draft.audiences.length) errors.audiences = "Chọn ít nhất một nhóm người nhận.";
     if (Object.keys(errors).length) { setInvalid(errors); showError("Vui lòng kiểm tra các trường được đánh dấu."); return; }
+    const slug = draft.slug.trim().toLowerCase();
+    if (slug && (slug.length > 180 || !slugPattern.test(slug))) {
+      showError("Đường dẫn chỉ gồm chữ thường, chữ số và dấu gạch ngang, tối đa 180 ký tự.");
+      return;
+    }
+    const creationSlug = id ? null : slug || autoSlug(draft.title);
+    const signal = controller.current.signal;
+    saving.current = true;
+    if (creationSlug) remember({ slug: creationSlug, custom: Boolean(slug) });
     setBusy(true); setError("");
     try {
-      const body = { title: draft.title.trim(), summary: draft.summary.trim() || null, body: draft.body, slug: draft.slug.trim() || null,
+      const body = { title: draft.title.trim(), summary: draft.summary.trim() || null, body: draft.body, slug: creationSlug || slug || null,
         status: draft.status, audiences: draft.audiences, imageMediaIds: draft.images.map(image => image.mediaId) };
-      const { data } = await newsRequest(id ? `/${id}` : "", authorization, { method: id ? "PUT" : "POST", body, etag, signal: controller.current.signal });
-      if (controller.current.signal.aborted) return;
-      setOriginal(JSON.stringify(draft)); blocked.current = false; setNavigationGuard?.(null); location.hash = `#news/${data.id}`;
-    } catch (e) { if (!controller.current.signal.aborted) { if (e.status === 412) setConflict(true); showError(newsError(e)); } }
-    finally { if (!controller.current.signal.aborted) setBusy(false); }
+      const { data } = await request(id ? `/${id}` : "", { method: id ? "PUT" : "POST", body, etag, signal });
+      if (signal.aborted) return;
+      if (!validPost(data)) throw new Error("Invalid news response");
+      if (creationSlug) remember(null);
+      openPost(data);
+    } catch (e) {
+      if (signal.aborted) return;
+      const rejected = e instanceof NewsApiError && e.status >= 400 && e.status < 500 && e.status !== 408;
+      if (creationSlug && rejected) remember(null);
+      if (e.status === 412) setConflict(true);
+      showError(creationSlug && !rejected ? "Chưa xác nhận được kết quả lưu bài." : newsError(e));
+    } finally {
+      saving.current = false;
+      if (!signal.aborted) setBusy(false);
+    }
   }
   async function upload(event) {
     const files = [...event.target.files]; event.target.value = "";
@@ -69,7 +146,7 @@ export default function NewsEditor({ id, authorization, setNavigationGuard }) {
     try {
       for (const file of files) {
         const body = new FormData(); body.append("file", file);
-        const { data } = await newsRequest("/images", authorization, { method: "POST", body, signal: controller.current.signal });
+        const { data } = await request("/images", { method: "POST", body, signal: controller.current.signal });
         if (controller.current.signal.aborted) return;
         setDraft(current => ({ ...current, images: [...current.images, { mediaId: data.mediaId, url: data.url }] }));
       }
@@ -79,13 +156,29 @@ export default function NewsEditor({ id, authorization, setNavigationGuard }) {
   function move(index, delta) {
     setDraft(current => { const images = [...current.images]; [images[index], images[index + delta]] = [images[index + delta], images[index]]; return { ...current, images }; });
   }
-  const saveDisabled = busy || uploading || conflict;
+  const saveDisabled = busy || uploading || conflict || Boolean(pending);
   return <section className="news-page news-editor" aria-labelledby="editor-title">
     <a className="news-text-link" href={id ? `#news/${id}` : "#news"}>← {id ? "Về bài viết" : "Danh sách tin tức"}</a>
     <div className="news-heading"><div><p className="eyebrow">LECKER • Biên tập</p><h1 id="editor-title">{id ? "Chỉnh sửa tin tức" : "Một câu chuyện mới."}</h1><p>Những điều bạn chia sẻ làm nên câu chuyện LECKER.</p></div></div>
     {error && <div className="news-error" role="alert" tabIndex={-1} ref={errorRef}><p>{error}</p>{conflict && <button type="button" className="news-button" onClick={() => {
       if (window.confirm("Tải bản mới sẽ thay nội dung bạn đang soạn. Bạn đã sao chép phần cần giữ chưa?")) setAttempt(v => v + 1);
     }}>Tải bản mới</button>}</div>}
+    {pending && !busy && <div className="news-error" role="status">
+      <p>Chưa xác nhận được kết quả lần lưu trước. Kiểm tra bài có đường dẫn <strong>{pending.slug}</strong> trước khi tạo tin khác.</p>
+      <button type="button" className="news-button" onClick={checkPending}>Kiểm tra bài đã lưu</button>
+      {found && <p>Tìm thấy “{found.title}”. <button type="button" className="news-button" onClick={() => {
+        if (window.confirm("Mở bài đã tìm thấy để đối chiếu? Nội dung đang soạn trên trang này sẽ đóng.")) {
+          remember(null);
+          openPost(found);
+        }
+      }}>Mở bài tìm thấy</button></p>}
+      <button type="button" className="news-button subtle" onClick={() => {
+        if (window.confirm("Chỉ tiếp tục khi bạn đã kiểm tra danh sách tin và xác nhận bài trước chưa được lưu. Bạn muốn tạo tin mới?")) {
+          remember(null);
+          setError("");
+        }
+      }}>Bỏ lần lưu trước</button>
+    </div>}
     {state === "loading" ? <p role="status">Đang tải nội dung biên tập…</p> : state === "error" ? <button className="news-button" onClick={() => setAttempt(v => v + 1)}>Thử lại</button>
       : <form onSubmit={submit} noValidate aria-busy={busy || uploading}>
         <div className="news-editor-grid"><div className="news-editor-main"><section className="news-form-panel"><h2>Nội dung bài viết</h2>
@@ -100,7 +193,7 @@ export default function NewsEditor({ id, authorization, setNavigationGuard }) {
           <section className="news-form-panel"><div className="news-panel-title"><h2>Hình ảnh</h2><span>{draft.images.length}/20</span></div>
             <p className="news-field-help" id="news-upload-help">PNG hoặc JPEG, tối đa 5 MiB/ảnh, 6000 px mỗi chiều và 12 triệu pixel. Ảnh đầu là ảnh đại diện.</p>
             {draft.images.length > 0 && <ol className="news-upload-list">{draft.images.map((image, index) => <li key={image.mediaId}>
-              <NewsImage url={image.url} authorization={authorization} alt={`Ảnh ${index + 1}`} />
+              <NewsImage request={request} url={image.url} authorization={authorization} alt={`Ảnh ${index + 1}`} />
               <div className="news-upload-actions"><button type="button" disabled={saveDisabled || index === 0} aria-label={`Đưa ảnh ${index + 1} lên trước`} onClick={() => move(index, -1)}>←</button>
                 <span>{index === 0 ? "Ảnh đại diện" : `Ảnh ${index + 1}`}</span><button type="button" disabled={saveDisabled || index === draft.images.length - 1} aria-label={`Đưa ảnh ${index + 1} ra sau`} onClick={() => move(index, 1)}>→</button>
                 <button type="button" disabled={saveDisabled} aria-label={`Gỡ ảnh ${index + 1}`} onClick={() => field("images", draft.images.filter(item => item.mediaId !== image.mediaId))}>Gỡ</button></div>
@@ -120,7 +213,7 @@ export default function NewsEditor({ id, authorization, setNavigationGuard }) {
           <label htmlFor="news-slug">Đường dẫn riêng</label><input id="news-slug" disabled={busy} value={draft.slug} onChange={e => field("slug", e.target.value)} aria-describedby="news-slug-help" placeholder="Tự tạo từ tiêu đề" />
           <p className="news-field-help" id="news-slug-help">Tùy chọn. Chữ thường, chữ số và dấu gạch ngang, tối đa 180 ký tự sau chuẩn hóa.</p>
           <button type="submit" className="news-button primary news-save" disabled={saveDisabled} aria-describedby={saveDisabled ? "news-save-help" : undefined}>{busy ? "Đang lưu…" : id ? "Lưu thay đổi" : draft.status === "PUBLISHED" ? "Đăng tin" : "Lưu bản nháp"}<span aria-hidden="true">↗</span></button>
-          {saveDisabled && <p id="news-save-help" className="news-field-help">{conflict ? "Cần tải bản mới trước khi lưu tiếp." : uploading ? "Đang tải ảnh lên." : "Đang lưu tin tức."}</p>}
+          {saveDisabled && <p id="news-save-help" className="news-field-help">{pending && !busy ? "Cần kiểm tra kết quả lần lưu trước." : conflict ? "Cần tải bản mới trước khi lưu tiếp." : uploading ? "Đang tải ảnh lên." : "Đang lưu tin tức."}</p>}
           <a className="news-cancel" href={id ? `#news/${id}` : "#news"}>Hủy và quay lại</a>
           <p className="news-editor-note">{dirty ? "Bạn có thay đổi chưa lưu." : "Mọi thay đổi sẽ được lưu khi bạn xác nhận."}</p>
         </section><p className="news-editor-caption">Một câu chuyện hay bắt đầu<br />từ những điều giản dị.</p></aside></div>

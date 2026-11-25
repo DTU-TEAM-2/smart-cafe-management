@@ -35,6 +35,8 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
+import org.springframework.test.context.event.ApplicationEvents;
+import org.springframework.test.context.event.RecordApplicationEvents;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -62,6 +64,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "smartcafe.news.socket.max-per-account=256"
 })
 @AutoConfigureMockMvc
+@RecordApplicationEvents
 @EnabledIfEnvironmentVariable(named = "TEST_DB_URL", matches = "jdbc:mysql:.*")
 class NewsReviewMySqlTest {
     @Autowired JdbcTemplate jdbc;
@@ -117,6 +120,28 @@ class NewsReviewMySqlTest {
             for (var session : sessions) newsSocket.afterConnectionClosed(session, CloseStatus.NORMAL);
             release.countDown();
         }
+    }
+
+    @Test
+    void recoverCommittedCreateBySlugWithoutInsertingOrEmittingAgain(ApplicationEvents events) throws Exception {
+        String path = "/api/v1/news/by-slug/recover-published-news";
+        var admin = user("review-admin").roles("ADMIN");
+        mvc.perform(get(path).with(admin)).andExpect(status().isNotFound());
+        mvc.perform(post("/api/v1/news").with(admin).contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"slug":"recover-published-news","title":"Committed","body":"Body",
+                         "status":"PUBLISHED","audiences":["STAFF"]}
+                        """)).andExpect(status().isCreated());
+
+        long id = jdbc.queryForObject("SELECT id FROM news_posts WHERE slug='recover-published-news'", Long.class);
+        mvc.perform(get(path).with(admin)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(String.valueOf(id)))
+                .andExpect(jsonPath("$.status").value("PUBLISHED"));
+        mvc.perform(get(path).with(user("review-staff").roles("STAFF"))).andExpect(status().isForbidden());
+        jdbc.update("UPDATE users SET role='ADMIN' WHERE id=902");
+        mvc.perform(get(path).with(user("review-staff").roles("ADMIN"))).andExpect(status().isNotFound());
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM news_posts", Long.class)).isEqualTo(1L);
+        assertThat(events.stream(NewsChanged.class)).hasSize(1);
     }
 
     @BeforeEach

@@ -2,7 +2,7 @@ export class NewsApiError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
 
-export async function newsRequest(path, authorization, { method = "GET", body, etag, signal } = {}) {
+export async function newsRequest(path, authorization, { method = "GET", body, etag, signal, asResponse = false } = {}) {
   const response = await fetch(`/api/v1/news${path}`, {
     method, credentials: "same-origin", cache: "no-store",
     signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000),
@@ -23,6 +23,7 @@ export async function newsRequest(path, authorization, { method = "GET", body, e
       : messages[response.status] ?? (typeof problem?.detail === "string" ? problem.detail : "Chưa thực hiện được thao tác. Vui lòng thử lại.");
     throw new NewsApiError(response.status, message);
   }
+  if (asResponse) return response;
   return { data: response.status === 204 ? null : await response.json(), etag: response.headers.get("ETag") };
 }
 

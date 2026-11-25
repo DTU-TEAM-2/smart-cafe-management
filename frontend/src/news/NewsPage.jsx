@@ -1,37 +1,63 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuth } from "../auth/useAuth.js";
+import { getCurrentUserApi } from "../auth/authApi.js";
 import NewsImage from "./NewsImage.jsx";
 import NewsEditor from "./NewsEditor.jsx";
 import { audienceNames, newsDate, newsError, newsRequest, statusNames } from "./newsApi.js";
 import "./news.css";
 
 export default function NewsPage({ authorization, account, identityStatus, route, revision, connection, setNavigationGuard }) {
+  const { captureSession, isCurrentSession, expireSession } = useAuth();
+  const verification = useRef(null);
+  const checkAccess = useCallback(async (snapshot) => {
+    if (!snapshot.token || !isCurrentSession(snapshot)) return;
+    if (verification.current?.generation === snapshot.generation) return;
+    verification.current = snapshot;
+    try {
+      await getCurrentUserApi(snapshot.token, AbortSignal.timeout(10000));
+    } catch (error) {
+      if (error.status === 401 || error.status === 403) expireSession(snapshot);
+    } finally {
+      if (verification.current === snapshot) verification.current = null;
+    }
+  }, [isCurrentSession, expireSession]);
+  const request = useCallback(async (path, options) => {
+    const snapshot = captureSession();
+    try {
+      return await newsRequest(path, authorization, options);
+    } catch (error) {
+      if ([401, 403].includes(error.status) && authorization === `Bearer ${snapshot.token}`) void checkAccess(snapshot);
+      throw error;
+    }
+  }, [authorization, captureSession, checkAccess]);
+
   if (identityStatus === "loading") return <section className="news-page"><p role="status">Đang kiểm tra phiên đăng nhập…</p></section>;
   if (!account) return <section className="news-page news-empty"><p className="eyebrow">LECKER • Tin tức</p><h1>Câu chuyện chờ bạn khám phá.</h1>
     <p>Đăng nhập để xem những tin tức dành cho bạn.</p><a className="news-button primary" href="#login">Đăng nhập</a></section>;
   const match = /^#news\/([0-9]+)(\/edit)?$/.exec(route);
   if (route === "#news/new" || match?.[2]) {
     if (account.role !== "ADMIN") return <section className="news-page news-empty"><h1>Bạn không có quyền quản lý tin tức</h1><a href="#news">Về danh sách tin tức</a></section>;
-    return <NewsEditor key={route} id={match?.[1]} authorization={authorization} setNavigationGuard={setNavigationGuard} />;
+    return <NewsEditor key={route} id={match?.[1]} accountId={account.id} request={request} authorization={authorization} setNavigationGuard={setNavigationGuard} />;
   }
-  if (match) return <NewsDetail key={match[1]} id={match[1]} authorization={authorization} admin={account.role === "ADMIN"} revision={revision} />;
-  return <NewsList authorization={authorization} admin={account.role === "ADMIN"} revision={revision} connection={account.role === "STAFF" ? connection : null} />;
+  if (match) return <NewsDetail key={match[1]} id={match[1]} request={request} authorization={authorization} admin={account.role === "ADMIN"} revision={revision} />;
+  return <NewsList request={request} authorization={authorization} admin={account.role === "ADMIN"} revision={revision} connection={account.role === "STAFF" ? connection : null} />;
 }
 
-function NewsList({ authorization, admin, revision, connection }) {
+function NewsList({ request, authorization, admin, revision, connection }) {
   const [page, setPage] = useState(0), [status, setStatus] = useState(""), [sort, setSort] = useState("publishedAt,desc");
   const [attempt, setAttempt] = useState(0), [view, setView] = useState({ state: "loading", data: null });
   const heading = useRef(null);
   useEffect(() => {
     const controller = new AbortController();
     setView({ state: "loading", data: null });
-    newsRequest(`?page=${page}&size=6&sort=${sort}${status ? `&status=${status}` : ""}`, authorization, { signal: controller.signal })
+    request(`?page=${page}&size=6&sort=${sort}${status ? `&status=${status}` : ""}`, { signal: controller.signal })
       .then(({ data }) => {
         if (controller.signal.aborted) return;
         if (page > 0 && !data.content.length) { setPage(Math.max(0, data.totalPages - 1)); return; }
         setView({ state: "ready", data });
       }).catch(error => { if (!controller.signal.aborted) setView({ state: "error", error: newsError(error), data: null }); });
     return () => controller.abort();
-  }, [authorization, page, status, sort, attempt, revision]);
+  }, [request, page, status, sort, attempt, revision]);
   return <section className="news-page" aria-labelledby="news-title">
     <div className="news-heading"><div><p className="eyebrow">LECKER • Bảng tin</p><h1 ref={heading} id="news-title" tabIndex={-1}>{admin ? "Quản lý tin tức" : "Chuyện từ LECKER."}</h1>
       <p>{admin ? "Chia sẻ câu chuyện, gửi đúng người đọc." : "Những điều mới, những câu chuyện nhỏ bên tách cà phê."}</p></div>
@@ -53,7 +79,7 @@ function NewsList({ authorization, admin, revision, connection }) {
           : !view.data.content.length ? <div className="news-empty"><span className="news-empty-mark" aria-hidden="true">✦</span><h2>{status === "ARCHIVED" ? "Chưa có tin đã lưu trữ" : "Chưa có câu chuyện nào"}</h2><p>{admin ? "Bắt đầu bằng một tin mới dành cho nhân viên hoặc khách hàng." : "Những tin tức dành cho bạn sẽ xuất hiện tại đây."}</p></div>
             : <><p className="news-result-count" role="status">{view.data.totalElements} tin tức</p><ul className={admin ? "news-admin-list" : "news-grid"}>
               {view.data.content.map(post => <li key={post.id} className="news-card">
-                <a className="news-card-cover" href={`#news/${post.id}`} tabIndex={-1} aria-hidden="true"><NewsImage url={post.thumbnailUrl} authorization={authorization} /></a>
+                <a className="news-card-cover" href={`#news/${post.id}`} tabIndex={-1} aria-hidden="true"><NewsImage request={request} url={post.thumbnailUrl} authorization={authorization} /></a>
                 <div className="news-card-copy"><div className="news-card-meta"><time dateTime={post.publishedAt || post.createdAt}>{newsDate(post.publishedAt || post.createdAt)}</time>
                   {admin && <span className={`news-badge ${post.status.toLowerCase()}`}>{statusNames[post.status]}</span>}</div>
                   <h2><a href={`#news/${post.id}`}>{post.title}</a></h2>{post.summary && <p>{post.summary}</p>}
@@ -66,7 +92,7 @@ function NewsList({ authorization, admin, revision, connection }) {
   </section>;
 }
 
-function NewsDetail({ id, authorization, admin, revision }) {
+function NewsDetail({ id, request, authorization, admin, revision }) {
   const [view, setView] = useState({ state: "loading" }), [attempt, setAttempt] = useState(0);
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
   const dialog = useRef(null), operation = useRef(null);
@@ -77,17 +103,17 @@ function NewsDetail({ id, authorization, admin, revision }) {
   useEffect(() => {
     const controller = new AbortController();
     setView({ state: "loading" });
-    newsRequest(`/${id}`, authorization, { signal: controller.signal }).then(data => {
+    request(`/${id}`, { signal: controller.signal }).then(data => {
       if (!controller.signal.aborted) setView({ state: "ready", ...data });
     }).catch(e => { if (!controller.signal.aborted) setView({ state: "error", error: newsError(e) }); });
     return () => controller.abort();
-  }, [id, authorization, revision, attempt]);
+  }, [id, request, revision, attempt]);
   async function archive() {
     if (busy || operation.current.signal.aborted) return;
     const signal = operation.current.signal;
     setBusy(true); setError("");
     try {
-      await newsRequest(`/${id}`, authorization, { method: "DELETE", etag: view.etag, signal });
+      await request(`/${id}`, { method: "DELETE", etag: view.etag, signal });
       if (!signal.aborted) location.hash = "#news";
     } catch (e) { if (!signal.aborted) { setError(newsError(e)); dialog.current?.close(); } }
     finally { if (!signal.aborted) setBusy(false); }
@@ -102,7 +128,7 @@ function NewsDetail({ id, authorization, admin, revision }) {
       <h1>{post.title}</h1>{post.summary && <p className="news-article-summary">{post.summary}</p>}
       <div className="news-article-byline"><span>{post.authorName}</span><span aria-hidden="true">·</span><time dateTime={post.publishedAt || post.createdAt}>{newsDate(post.publishedAt || post.createdAt)}</time></div>
       {admin && <p className="news-recipients">Gửi đến: {post.audiences.map(a => audienceNames[a]).join(", ") || "Chưa chọn"}</p>}</header>
-    {post.images.length > 0 && <div className="news-gallery">{post.images.map((image, index) => <NewsImage key={image.mediaId} url={image.secureUrl} authorization={authorization} alt={`Ảnh ${index + 1} của bài viết ${post.title}`} />)}</div>}
+    {post.images.length > 0 && <div className="news-gallery">{post.images.map((image, index) => <NewsImage request={request} key={image.mediaId} url={image.secureUrl} authorization={authorization} alt={`Ảnh ${index + 1} của bài viết ${post.title}`} />)}</div>}
     <div className="news-article-body">{post.body}</div>
     <div className="news-article-end"><span aria-hidden="true">✦</span><p>LECKER Coffee Cafe</p><a href="#news">Khám phá thêm câu chuyện →</a></div>
     <dialog className="news-dialog" ref={dialog} aria-labelledby="archive-title" onCancel={e => { if (busy) e.preventDefault(); }} onKeyDown={event => {

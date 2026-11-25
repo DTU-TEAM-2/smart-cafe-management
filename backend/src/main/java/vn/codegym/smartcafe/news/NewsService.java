@@ -134,6 +134,18 @@ public class NewsService {
         return readNews(id, readers.predicate(username));
     }
 
+    @Transactional(readOnly = true)
+    public NewsDetailResponse getOwnNewsBySlug(String slug, String username) {
+        if (slug.length() > 180 || !SLUG_PATTERN.matcher(slug).matches()) {
+            throw new IllegalArgumentException("Đường dẫn tin tức không hợp lệ.");
+        }
+        long authorId = getUserId(username);
+        long id = jdbc.sql("SELECT id FROM news_posts WHERE slug = ? AND author_user_id = ?")
+                .param(slug).param(authorId).query(Long.class).optional().orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.NOT_FOUND, "Chưa tìm thấy bài viết theo đường dẫn này."));
+        return readNews(id, readers.predicate(username));
+    }
+
     private NewsDetailResponse readNews(long id, String access) {
         var post = jdbc.sql("""
                 SELECT p.id, p.slug, p.title, p.summary, p.body, p.status,
