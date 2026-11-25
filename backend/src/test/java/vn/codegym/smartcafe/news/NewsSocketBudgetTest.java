@@ -133,6 +133,30 @@ class NewsSocketBudgetTest {
     }
 
     @Test
+    void expiryContinuesWhileStaffRevalidationWaitsForDatabase() throws Exception {
+        var active = establish(admit(source(1)));
+        socket.handleMessage(active, new TextMessage("Bearer staff"));
+        var pending = establish(admit(source(2)));
+        var validating = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        var expired = new CountDownLatch(1);
+        when(authenticator.isCurrentStaff(staff)).thenAnswer(call -> {
+            validating.countDown();
+            return release.await(10, TimeUnit.SECONDS);
+        });
+        doAnswer(call -> { expired.countDown(); return null; }).when(pending).close(CloseStatus.POLICY_VIOLATION);
+        socket.startExpiry();
+        try {
+            assertThat(validating.await(8, TimeUnit.SECONDS)).isTrue();
+            clock.advance(Duration.ofSeconds(10));
+            assertThat(expired.await(3, TimeUnit.SECONDS)).isTrue();
+            assertThat(connections()).isEqualTo(1);
+        } finally {
+            release.countDown();
+        }
+    }
+
+    @Test
     void twoBurstsOfOneThousandConcurrentAdmissionsStayBoundedAndRecover() throws Exception {
         for (int burst = 0; burst < 2; burst++) {
             var accepted = new ConcurrentLinkedQueue<WebSocketSession>();

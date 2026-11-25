@@ -53,8 +53,8 @@ class NewsSocket extends TextWebSocketHandler implements WebSocketConfigurer, Ha
     private final ConcurrentHashMap<String, Client> clients = new ConcurrentHashMap<>();
     private final ThreadPoolExecutor delivery;
     private volatile boolean stopping;
-    private final ScheduledExecutorService expiry = Executors.newSingleThreadScheduledExecutor(task -> {
-        var thread = new Thread(task, "news-socket-expiry");
+    private final ScheduledExecutorService expiry = Executors.newScheduledThreadPool(2, task -> {
+        var thread = new Thread(task, "news-socket-maintenance");
         thread.setDaemon(true);
         return thread;
     });
@@ -91,6 +91,7 @@ class NewsSocket extends TextWebSocketHandler implements WebSocketConfigurer, Ha
 
     @PostConstruct
     void startExpiry() {
+        // Expiry must keep running while the independent revalidation task waits for JDBC.
         expiry.scheduleWithFixedDelay(this::expirePendingClients, 1, 1, TimeUnit.SECONDS);
         expiry.scheduleWithFixedDelay(this::revalidateClients, 5, 5, TimeUnit.SECONDS);
     }

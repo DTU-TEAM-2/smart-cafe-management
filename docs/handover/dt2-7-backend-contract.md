@@ -93,10 +93,10 @@ BE cung cấp tín hiệu để FE có thể reload danh sách hoặc hiện th�
 
 ## Đối soát lần tạo tin và phiên đăng nhập
 
-- Trình biên tập gửi một slug cố định cho mỗi lần tạo. Khi để trống slug, giao diện ghép tiêu đề đã chuẩn hóa với hậu tố ngẫu nhiên. MySQL bảo vệ uniqueness bằng `uq_news_slug`.
-- Trước POST, form lưu slug và payload đã chốt trong phiên của tab theo tài khoản. Khi kết quả chưa rõ, form khóa nhập mới ngay cả sau reload. **Gửi lại lần lưu này** gửi đúng slug/payload cũ. Nếu hai POST cùng đến, MySQL chỉ cho một dòng mang slug đó commit. Khi nhận 409, form kiểm tra lại bằng `GET /api/v1/news/by-slug/{slug}`, giới hạn ở bài do chính tài khoản hiện tại tạo. GET 404 vẫn giữ lần lưu để đối soát. Sau khi máy chủ xác nhận slug đã được dùng, form chỉ tiếp tục tra cứu. Nếu nội dung tìm thấy khác hoặc lần lưu cũ chỉ có slug, form yêu cầu xác nhận trước khi mở bài.
-- Đối soát dựa trên slug hiện có của bài và thông tin lưu trong tab. Giữ nguyên slug trong lúc còn đối soát. Việc đổi slug từ nơi khác hoặc xóa bộ nhớ phiên của tab làm mất điểm tra cứu. Hợp đồng hiện tại chưa có khóa idempotency độc lập với slug.
-- Cơ chế này xử lý kết quả không xác định trên giao diện News. Client khác dùng POST với slug rỗng vẫn theo hợp đồng tự sinh slug phía server.
+- Form lưu slug và payload đã chốt trong phiên tab theo tài khoản trước khi POST. Khi kết quả chưa rõ, form chỉ tra cứu bằng `GET /api/v1/news/by-slug/{slug}` và khóa nhập mới. API chỉ trả bài do tài khoản hiện tại tạo. Nếu bài không khớp payload hoặc bản lưu chỉ có slug, người dùng xác nhận trước khi mở.
+- GET 404 có thể xảy ra khi giao dịch còn đang xử lý, bài đã đổi slug hoặc slug thuộc tác giả khác. Form giữ payload để đối chiếu và cho người dùng chủ động tải bản sao JSON rồi mở form trống cho một bài khác. Thao tác này không gửi yêu cầu ghi hay xác nhận kết quả lần đăng cũ.
+- Với schema hiện tại, POST dùng slug có thể được chỉnh sửa sau khi tạo. Luồng đối soát từ giao diện không phát lại POST khi kết quả chưa rõ. Khóa idempotency bền vững cho mọi client cần thiết kế lưu trữ được chủ repo phê duyệt.
+- Upload nhiều ảnh giữ lại các ảnh đã nhận được phản hồi thành công. Khi kết quả tải một ảnh chưa rõ, form dừng tải thêm trong lượt soạn hiện tại và cho lưu bài với các ảnh đã xác nhận. Khi PUT hoặc DELETE gặp kết quả chưa rõ, giao diện yêu cầu kiểm tra lại phiên bản hiện tại trước khi thao tác tiếp.
 - Khi REST trả 401/403, giao diện xác minh lại bearer qua `/api/v1/auth/me`. Chỉ phản hồi từ chối của API Auth với phiên đang dùng mới kết thúc phiên, nên lỗi thiếu quyền của News và phản hồi đến muộn của token cũ được xử lý riêng.
 
 ## Mapping dữ liệu

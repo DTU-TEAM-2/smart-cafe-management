@@ -3,7 +3,7 @@ import { useAuth } from "../auth/useAuth.js";
 import { getCurrentUserApi } from "../auth/authApi.js";
 import NewsImage from "./NewsImage.jsx";
 import NewsEditor from "./NewsEditor.jsx";
-import { audienceNames, newsDate, newsError, newsRequest, statusNames } from "./newsApi.js";
+import { audienceNames, newsDate, isUncertainNewsWrite, newsError, newsRequest, statusNames } from "./newsApi.js";
 import "./news.css";
 
 export default function NewsPage({ authorization, account, identityStatus, route, revision, connection, setNavigationGuard }) {
@@ -95,6 +95,7 @@ function NewsList({ request, authorization, admin, revision, connection }) {
 function NewsDetail({ id, request, authorization, admin, revision }) {
   const [view, setView] = useState({ state: "loading" }), [attempt, setAttempt] = useState(0);
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
+  const [archiveUncertain, setArchiveUncertain] = useState(false);
   const dialog = useRef(null), operation = useRef(null);
   useEffect(() => {
     const controller = new AbortController(); operation.current = controller;
@@ -104,25 +105,32 @@ function NewsDetail({ id, request, authorization, admin, revision }) {
     const controller = new AbortController();
     setView({ state: "loading" });
     request(`/${id}`, { signal: controller.signal }).then(data => {
-      if (!controller.signal.aborted) setView({ state: "ready", ...data });
+      if (!controller.signal.aborted) { setView({ state: "ready", ...data }); setArchiveUncertain(false); }
     }).catch(e => { if (!controller.signal.aborted) setView({ state: "error", error: newsError(e) }); });
     return () => controller.abort();
   }, [id, request, revision, attempt]);
   async function archive() {
-    if (busy || operation.current.signal.aborted) return;
+    if (busy || archiveUncertain || operation.current.signal.aborted) return;
     const signal = operation.current.signal;
     setBusy(true); setError("");
     try {
       await request(`/${id}`, { method: "DELETE", etag: view.etag, signal });
       if (!signal.aborted) location.hash = "#news";
-    } catch (e) { if (!signal.aborted) { setError(newsError(e)); dialog.current?.close(); } }
+    } catch (e) {
+      if (!signal.aborted) {
+        const uncertain = isUncertainNewsWrite(e);
+        setArchiveUncertain(uncertain);
+        setError(uncertain ? "Chưa xác nhận được kết quả lưu trữ. Tải bản mới để kiểm tra trạng thái." : newsError(e));
+        dialog.current?.close();
+      }
+    }
     finally { if (!signal.aborted) setBusy(false); }
   }
   if (view.state !== "ready") return <section className="news-page news-empty"><a className="news-text-link" href="#news">← Danh sách tin tức</a>
     {view.state === "loading" ? <p role="status">Đang tải bài viết…</p> : <div role="alert"><h1>Chưa mở được bài viết</h1><p>{view.error}</p><button className="news-button" onClick={() => setAttempt(v => v + 1)}>Thử lại</button></div>}</section>;
   const post = view.data;
   return <article className="news-page news-detail"><div className="news-detail-bar"><a className="news-text-link" href="#news">← Danh sách tin tức</a>
-    {admin && <div className="news-actions"><a className="news-button" href={`#news/${id}/edit`}>Chỉnh sửa</a>{post.status !== "ARCHIVED" && <button className="news-button danger" onClick={() => dialog.current.showModal()}>Lưu trữ tin</button>}</div>}</div>
+    {admin && <div className="news-actions"><a className="news-button" href={`#news/${id}/edit`}>Chỉnh sửa</a>{post.status !== "ARCHIVED" && <button disabled={archiveUncertain} className="news-button danger" onClick={() => dialog.current.showModal()}>Lưu trữ tin</button>}</div>}</div>
     {error && <div className="news-error" role="alert"><p>{error}</p><button className="news-button" onClick={() => { setAttempt(v => v + 1); setError(""); }}>Tải bản mới</button></div>}
     <header className="news-article-header"><p className="eyebrow">LECKER • Câu chuyện</p>{admin && <p className={`news-badge ${post.status.toLowerCase()}`}>{statusNames[post.status]}</p>}
       <h1>{post.title}</h1>{post.summary && <p className="news-article-summary">{post.summary}</p>}

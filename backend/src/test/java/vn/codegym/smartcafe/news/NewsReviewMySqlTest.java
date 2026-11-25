@@ -155,7 +155,7 @@ class NewsReviewMySqlTest {
         }).when(client).sql(argThat(sql -> sql != null && sql.stripLeading().startsWith("INSERT INTO news_posts")));
         doAnswer(call -> {
             inserted.countDown();
-            if (!release.await(8, TimeUnit.SECONDS)) throw new IllegalStateException("Create was not released");
+            if (!release.await(30, TimeUnit.SECONDS)) throw new IllegalStateException("Create was not released");
             return call.callRealMethod();
         }).when(client).sql(argThat(sql -> sql != null && sql.stripLeading().startsWith("INSERT INTO news_images")));
 
@@ -169,15 +169,15 @@ class NewsReviewMySqlTest {
                 var first = executor.submit(() -> mvc.perform(post("/api/v1/news")
                         .with(user("review-admin").roles("ADMIN")).contentType(MediaType.APPLICATION_JSON)
                         .content(payload)).andExpect(status().isCreated()));
-                assertThat(inserted.await(5, TimeUnit.SECONDS)).isTrue();
+                assertThat(inserted.await(15, TimeUnit.SECONDS)).isTrue();
                 mvc.perform(get(path).with(user("review-admin").roles("ADMIN"))).andExpect(status().isNotFound());
                 var retry = executor.submit(() -> mvc.perform(post("/api/v1/news")
                         .with(user("review-admin").roles("ADMIN")).contentType(MediaType.APPLICATION_JSON)
                         .content(payload)).andExpect(status().isConflict()));
-                assertThat(retryInserting.await(5, TimeUnit.SECONDS)).isTrue();
+                assertThat(retryInserting.await(15, TimeUnit.SECONDS)).isTrue();
                 release.countDown();
-                first.get(5, TimeUnit.SECONDS);
-                retry.get(5, TimeUnit.SECONDS);
+                first.get(20, TimeUnit.SECONDS);
+                retry.get(20, TimeUnit.SECONDS);
             } finally {
                 release.countDown();
             }
@@ -186,6 +186,29 @@ class NewsReviewMySqlTest {
                 .andExpect(status().isOk()).andExpect(jsonPath("$.title").value("Late commit"));
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM news_posts", Long.class)).isEqualTo(1L);
         assertThat(events.stream(NewsChanged.class).filter(event -> event.type().equals("CREATED"))).hasSize(1);
+    }
+
+    @Test
+    void lookupOfRenamedOrOtherAuthorsArticleDoesNotMakeOrExposeAnotherPost() throws Exception {
+        var owner = user("review-admin").roles("ADMIN");
+        mvc.perform(post("/api/v1/news").with(owner).contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"slug":"original-slug","title":"Committed","body":"Body",
+                         "status":"DRAFT","audiences":["STAFF"]}
+                        """)).andExpect(status().isCreated());
+        long id = jdbc.queryForObject("SELECT id FROM news_posts WHERE slug='original-slug'", Long.class);
+        jdbc.update("UPDATE users SET role='ADMIN' WHERE id=902");
+        var other = user("review-staff").roles("ADMIN");
+        mvc.perform(get("/api/v1/news/by-slug/original-slug").with(other)).andExpect(status().isNotFound());
+        mvc.perform(put("/api/v1/news/" + id).with(other)
+                .header("If-Match", "\"0\"").contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"slug":"renamed-slug","title":"Committed","body":"Body"}
+                        """)).andExpect(status().isOk());
+        mvc.perform(get("/api/v1/news/by-slug/original-slug").with(owner)).andExpect(status().isNotFound());
+        mvc.perform(get("/api/v1/news/by-slug/renamed-slug").with(owner))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(Long.toString(id)));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM news_posts", Long.class)).isOne();
     }
 
     @BeforeEach

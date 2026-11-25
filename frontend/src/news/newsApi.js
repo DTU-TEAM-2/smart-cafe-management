@@ -27,6 +27,10 @@ export async function newsRequest(path, authorization, { method = "GET", body, e
   return { data: response.status === 204 ? null : await response.json(), etag: response.headers.get("ETag") };
 }
 
+export function isUncertainNewsWrite(error) {
+  return !(error instanceof NewsApiError) || error.status >= 500 || error.status === 408;
+}
+
 export function newsError(error) {
   return error instanceof NewsApiError ? error.message : "Chưa kết nối được máy chủ. Vui lòng thử lại.";
 }
