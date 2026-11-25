@@ -235,12 +235,12 @@ class OtpEmailChangeRaceIntegrationTest {
                 .content(updateBody))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
 
-        // Step 4: Attempt to reset password using the old grant token -> must be rejected (400)
+        // Step 4: Attempt to reset password using the old grant token -> must be rejected (401 Unauthorized via InvalidTokenException)
         MvcResult resetResult = mvc.perform(post("/api/v1/auth/reset-password")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"token\":\"" + grantToken + "\",\"newPassword\":\"HackedPass@123\",\"confirmPassword\":\"HackedPass@123\"}"))
                 .andReturn();
-        assertThat(resetResult.getResponse().getStatus()).isEqualTo(400);
+        assertThat(resetResult.getResponse().getStatus()).isEqualTo(401);
 
         // Step 5: Password in database must remain unchanged, login with old password succeeds
         MvcResult loginResult = mvc.perform(post("/api/v1/auth/login")

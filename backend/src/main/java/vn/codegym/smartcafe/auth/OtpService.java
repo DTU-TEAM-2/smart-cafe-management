@@ -38,6 +38,7 @@ public class OtpService {
     private final long otpValiditySeconds;
     private final Clock clock;
     private final SecureRandom secureRandom = new SecureRandom();
+    private final TransactionTemplate transactionTemplate;
     private final TransactionTemplate requiresNewTx;
 
     public OtpService(
@@ -55,6 +56,7 @@ public class OtpService {
         this.emailService = emailService;
         this.passwordEncoder = passwordEncoder;
         this.otpValiditySeconds = otpValiditySeconds;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
         this.requiresNewTx = new TransactionTemplate(transactionManager);
         this.requiresNewTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
@@ -76,7 +78,7 @@ public class OtpService {
 
         // Perform rate limit check, locking read on users PK, identity validation and challenge insert
         // in a dedicated short transaction to release the exclusive row lock on users before external SMTP I/O.
-        ResetReservation reservation = requiresNewTx.execute(status -> {
+        ResetReservation reservation = transactionTemplate.execute(status -> {
             // Anti-enumeration: neutral response even if email doesn't exist
             Optional<UserRecord> userOpt = authRepository.findUserByEmail(email.trim());
 
