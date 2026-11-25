@@ -35,6 +35,12 @@ class StaffControllerTest {
     @Autowired
     private JdbcTemplate jdbc;
 
+    @Autowired(required = false)
+    private vn.codegym.smartcafe.auth.OtpService otpService;
+
+    @Autowired(required = false)
+    private vn.codegym.smartcafe.auth.TokenService tokenService;
+
     private Long testAdminId;
     private Long testStaffId;
 
@@ -601,6 +607,60 @@ class StaffControllerTest {
 
         long finalAuthVersion = jdbc.queryForObject("SELECT auth_version FROM users WHERE id=?", Long.class, testStaffId);
         org.assertj.core.api.Assertions.assertThat(finalAuthVersion).isEqualTo(afterAuthVersion);
+    }
+
+    @Test
+    void emailChangeRaceInterleavingPreventsStaleOtpAndGrant() throws Exception {
+        // 1. Pre-existing challenge created before email update
+        String oldChallengeId = "ch-pre-existing-old-email";
+        jdbc.update("""
+                INSERT INTO auth_otp_challenges(id, user_id, email, purpose, code_hash, attempts, sends, expires_at, next_send_at, used_at, delivery_status, created_at)
+                VALUES (?, ?, 'staff@test.vn', 'RESET', 'dummy_hash_old_email', 0, 1,
+                        DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 10 MINUTE), DATE_ADD(CURRENT_TIMESTAMP, INTERVAL 1 MINUTE),
+                        NULL, 'SENT', CURRENT_TIMESTAMP)
+                """, oldChallengeId, testStaffId);
+
+        // 2. Staff PUT updates email from staff@test.vn to staff-new-race@test.vn
+        String body = """
+                {"fullName":"Nguyen Email Race","email":"staff-new-race@test.vn","phone":"0902222222",
+                 "address":"Da Nang","role":"STAFF","salary":6000000,"version":"0"}
+                """;
+        mvc.perform(put("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email", is("staff-new-race@test.vn")));
+
+        // 3. Verify challenge in DB was immediately revoked (used_at is NOT NULL)
+        java.sql.Timestamp usedAt = jdbc.queryForObject(
+                "SELECT used_at FROM auth_otp_challenges WHERE id = ?", java.sql.Timestamp.class, oldChallengeId);
+        org.assertj.core.api.Assertions.assertThat(usedAt).isNotNull();
+
+        // 4. Verify auth_version incremented
+        long currentAuthVersion = jdbc.queryForObject("SELECT auth_version FROM users WHERE id=?", Long.class, testStaffId);
+        org.assertj.core.api.Assertions.assertThat(currentAuthVersion).isEqualTo(1L);
+
+        // 5. If otpService is present: verify that old challenge cannot be verified or resent
+        if (otpService != null) {
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> otpService.verifyOtp(oldChallengeId, "123456"))
+                    .isInstanceOf(vn.codegym.smartcafe.auth.OtpException.class);
+
+            org.assertj.core.api.Assertions.assertThatThrownBy(() -> otpService.resendOtp(oldChallengeId))
+                    .isInstanceOf(vn.codegym.smartcafe.auth.OtpException.class);
+
+            // Initiating forgot-password for old email creates dummy challenge (user_id IS NULL)
+            var forgotResp = otpService.initiatePasswordResetOtp("staff@test.vn");
+            org.assertj.core.api.Assertions.assertThat(forgotResp.challengeId()).isNotEmpty();
+            Long challengeUserId = jdbc.queryForObject(
+                    "SELECT user_id FROM auth_otp_challenges WHERE id = ?", Long.class, forgotResp.challengeId());
+            org.assertj.core.api.Assertions.assertThat(challengeUserId).isNull();
+
+            // Initiating forgot-password for new email creates real challenge
+            var newForgotResp = otpService.initiatePasswordResetOtp("staff-new-race@test.vn");
+            org.assertj.core.api.Assertions.assertThat(newForgotResp.challengeId()).isNotEmpty();
+            Long newChallengeUserId = jdbc.queryForObject(
+                    "SELECT user_id FROM auth_otp_challenges WHERE id = ?", Long.class, newForgotResp.challengeId());
+            org.assertj.core.api.Assertions.assertThat(newChallengeUserId).isEqualTo(testStaffId);
+        }
     }
 
     @Test

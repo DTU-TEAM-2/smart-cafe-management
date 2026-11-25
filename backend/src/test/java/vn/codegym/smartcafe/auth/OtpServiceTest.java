@@ -46,6 +46,23 @@ class OtpServiceTest {
         );
     }
 
+    private UserRecord createUser(Long id, String username, String email, String role, String status, long authVersion) {
+        return new UserRecord(
+                id,
+                username,
+                "password_hash",
+                "Full Name",
+                email,
+                "0901234567",
+                role,
+                status,
+                null,
+                authVersion,
+                Instant.now(),
+                false
+        );
+    }
+
     @Test
     void resendOtpThrowsOtpExceptionAndNeverUpdatesDbWhenEmailServiceThrowsUnconfiguredSmtp() {
         String challengeId = "test-challenge-123";
@@ -68,6 +85,7 @@ class OtpServiceTest {
 
         when(authRepository.findOtpChallengeById(challengeId)).thenReturn(Optional.of(existingChallenge));
         when(authRepository.findOtpChallengeByIdForUpdate(challengeId)).thenReturn(Optional.of(existingChallenge));
+        when(authRepository.findUserByIdForUpdate(1L)).thenReturn(Optional.of(createUser(1L, "user", "user@smartcafe.vn", "STAFF", "ACTIVE", 0L)));
         doThrow(new IllegalStateException("Dịch vụ gửi email chưa được cấu hình máy chủ SMTP."))
                 .when(emailService).validateReady();
 
@@ -101,6 +119,7 @@ class OtpServiceTest {
 
         when(authRepository.findOtpChallengeById(challengeId)).thenReturn(Optional.of(existingChallenge));
         when(authRepository.findOtpChallengeByIdForUpdate(challengeId)).thenReturn(Optional.of(existingChallenge));
+        when(authRepository.findUserByIdForUpdate(1L)).thenReturn(Optional.of(createUser(1L, "user", "user@smartcafe.vn", "STAFF", "ACTIVE", 0L)));
         doThrow(new RuntimeException("SMTP delivery failed with 451"))
                 .when(emailService).sendOtpEmail(eq("user@smartcafe.vn"), anyString(), eq("RESET"), anyLong());
 
@@ -137,6 +156,7 @@ class OtpServiceTest {
                 Instant.now().minusSeconds(60)
         );
 
+        when(authRepository.findOtpChallengeById(challengeId)).thenReturn(Optional.of(dummyChallenge));
         when(authRepository.findOtpChallengeByIdForUpdate(challengeId)).thenReturn(Optional.of(dummyChallenge));
         doThrow(new RuntimeException("Máy chủ SMTP hiện không phản hồi. Vui lòng thử lại sau."))
                 .when(emailService).validateReady();
@@ -153,10 +173,14 @@ class OtpServiceTest {
     @org.junit.jupiter.params.provider.CsvSource({"false,false", "false,true", "true,false", "true,true"})
     void failedDatabaseTransitionDoesNotSilentlyReportSuccessfulResend(boolean deliveryTransition, boolean sqlException) {
         String id = "database-failure";
-        when(authRepository.findOtpChallengeByIdForUpdate(id)).thenReturn(Optional.of(new OtpChallengeRecord(
+        OtpChallengeRecord challenge = new OtpChallengeRecord(
                 id, 1L, "fixture@smartcafe.vn", "RESET", "old-hash", 2, 1,
                 Instant.now().plusSeconds(300), Instant.now().minusSeconds(5), null,
-                "SENT", Instant.now().minusSeconds(300), null, Instant.now().minusSeconds(300))));
+                "SENT", Instant.now().minusSeconds(300), null, Instant.now().minusSeconds(300));
+        when(authRepository.findOtpChallengeById(id)).thenReturn(Optional.of(challenge));
+        when(authRepository.findOtpChallengeByIdForUpdate(id)).thenReturn(Optional.of(challenge));
+        when(authRepository.findUserByIdForUpdate(1L)).thenReturn(Optional.of(createUser(1L, "fixture", "fixture@smartcafe.vn", "STAFF", "ACTIVE", 0L)));
+
         RuntimeException failure = new org.springframework.dao.DataAccessResourceFailureException("test database unavailable");
         if (deliveryTransition) {
             when(authRepository.consumeOtpResend(eq(id), any(), any())).thenReturn(1);
@@ -176,21 +200,10 @@ class OtpServiceTest {
     @Test
     void initiatePasswordResetKeepsNeutralResponseWhenEmailServiceThrowsUnconfiguredSmtp() {
         String email = "existing@smartcafe.vn";
-        UserRecord user = new UserRecord(
-                1L,
-                "existing_user",
-                "hashed_pwd",
-                "Existing User",
-                email,
-                "0901234567",
-                "STAFF",
-                "ACTIVE",
-                null,
-                0L,
-                Instant.now()
-        );
+        UserRecord user = createUser(1L, "existing_user", email, "STAFF", "ACTIVE", 0L);
 
         when(authRepository.findUserByEmail(email)).thenReturn(Optional.of(user));
+        when(authRepository.findUserByIdForUpdate(1L)).thenReturn(Optional.of(user));
         when(authRepository.checkAndIncrementLimit(anyString(), eq("RESET"), any(), any(), any())).thenReturn(true);
         doThrow(new IllegalStateException("Dịch vụ gửi email chưa được cấu hình máy chủ SMTP."))
                 .when(emailService).sendOtpEmail(eq(email), anyString(), eq("RESET"), anyLong());
@@ -212,10 +225,11 @@ class OtpServiceTest {
                 "RESET", "mocked-hash-value", 0, 2, Instant.now().plusSeconds(300),
                 Instant.now(), null, "SENT", Instant.now().minusSeconds(300), null, Instant.now());
         when(authRepository.findOtpChallengeById(snapshot.id())).thenReturn(Optional.of(snapshot));
+        when(authRepository.findOtpChallengeByIdForUpdate(snapshot.id())).thenReturn(Optional.of(snapshot));
+        when(authRepository.findUserByIdForUpdate(1L)).thenReturn(Optional.of(createUser(1L, "fixture", "fixture@example.test", "STAFF", "ACTIVE", 0L)));
         when(authRepository.markOtpUsedIfCurrent(snapshot.id(), snapshot.codeHash(), snapshot.sends())).thenReturn(rows);
         assertThatThrownBy(() -> otpService.verifyOtp(snapshot.id(), "123456")).isInstanceOf(OtpException.class);
         verify(authRepository).markOtpUsedIfCurrent(snapshot.id(), snapshot.codeHash(), snapshot.sends());
-        verify(authRepository, never()).findUserById(anyLong());
         verify(tokenService, never()).generateResetGrantToken(anyString(), anyLong(), anyLong(), anyLong());
     }
 
@@ -225,6 +239,8 @@ class OtpServiceTest {
                 "RESET", "mocked-hash-value", 0, 1, Instant.now().plusSeconds(300),
                 Instant.now(), null, "SENT", Instant.now().minusSeconds(300), null, Instant.now());
         when(authRepository.findOtpChallengeById(snapshot.id())).thenReturn(Optional.of(snapshot));
+        when(authRepository.findOtpChallengeByIdForUpdate(snapshot.id())).thenReturn(Optional.of(snapshot));
+        when(authRepository.findUserByIdForUpdate(1L)).thenReturn(Optional.of(createUser(1L, "fixture", "fixture@example.test", "STAFF", "ACTIVE", 0L)));
         when(authRepository.markOtpUsedIfCurrent(snapshot.id(), snapshot.codeHash(), snapshot.sends()))
                 .thenThrow(new org.springframework.dao.DataAccessResourceFailureException("fixture database failure"));
         assertThatThrownBy(() -> otpService.verifyOtp(snapshot.id(), "123456"))
@@ -249,5 +265,149 @@ class OtpServiceTest {
 
         // Verify NO email was sent
         verify(emailService, never()).sendOtpEmail(anyString(), anyString(), anyString(), anyLong());
+    }
+
+    @Test
+    void initiatePasswordResetCreatesDummyChallengeWhenUserEmailWasChangedUnderLock() {
+        String oldEmail = "old@smartcafe.vn";
+        UserRecord userWithNewEmail = createUser(1L, "user1", "new@smartcafe.vn", "STAFF", "ACTIVE", 1L);
+
+        when(authRepository.findUserByEmail(oldEmail)).thenReturn(Optional.of(createUser(1L, "user1", oldEmail, "STAFF", "ACTIVE", 0L)));
+        when(authRepository.findUserByIdForUpdate(1L)).thenReturn(Optional.of(userWithNewEmail));
+        when(authRepository.checkAndIncrementLimit(anyString(), eq("RESET"), any(), any(), any())).thenReturn(true);
+
+        ForgotPasswordResponse response = otpService.initiatePasswordResetOtp(oldEmail);
+
+        assertThat(response).isNotNull();
+        assertThat(response.challengeId()).isNotEmpty();
+        // Verifies dummy challenge is saved with null userId and purpose REGISTER
+        verify(authRepository).saveOtpChallenge(argThat(c -> c.userId() == null && "REGISTER".equals(c.purpose())));
+        verify(emailService, never()).sendOtpEmail(anyString(), anyString(), anyString(), anyLong());
+    }
+
+    @Test
+    void verifyOtpRejectsWhenUserEmailNoLongerMatchesChallengeEmail() {
+        String challengeId = "ch-verify-mismatch";
+        OtpChallengeRecord challenge = new OtpChallengeRecord(
+                challengeId,
+                1L,
+                "old@smartcafe.vn",
+                "RESET",
+                "mocked-hash-value",
+                0,
+                1,
+                Instant.now().plusSeconds(300),
+                Instant.now(),
+                null,
+                "SENT",
+                Instant.now().minusSeconds(60),
+                null,
+                Instant.now()
+        );
+
+        when(authRepository.findOtpChallengeById(challengeId)).thenReturn(Optional.of(challenge));
+        when(authRepository.findOtpChallengeByIdForUpdate(challengeId)).thenReturn(Optional.of(challenge));
+        // User email changed to new@smartcafe.vn
+        when(authRepository.findUserByIdForUpdate(1L)).thenReturn(Optional.of(createUser(1L, "user1", "new@smartcafe.vn", "STAFF", "ACTIVE", 1L)));
+
+        // Expect OtpException because email no longer matches
+        assertThatThrownBy(() -> otpService.verifyOtp(challengeId, "123456"))
+                .isInstanceOf(OtpException.class)
+                .hasMessageContaining("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc.");
+
+        verify(tokenService, never()).generateResetGrantToken(anyString(), anyLong(), anyLong(), anyLong());
+    }
+
+    @Test
+    void resendOtpRejectsWhenUserEmailNoLongerMatchesChallengeEmail() {
+        String challengeId = "ch-resend-mismatch";
+        OtpChallengeRecord challenge = new OtpChallengeRecord(
+                challengeId,
+                1L,
+                "old@smartcafe.vn",
+                "RESET",
+                "mocked-hash-value",
+                0,
+                1,
+                Instant.now().plusSeconds(300),
+                Instant.now().minusSeconds(10),
+                null,
+                "SENT",
+                Instant.now().minusSeconds(60),
+                null,
+                Instant.now()
+        );
+
+        when(authRepository.findOtpChallengeById(challengeId)).thenReturn(Optional.of(challenge));
+        when(authRepository.findOtpChallengeByIdForUpdate(challengeId)).thenReturn(Optional.of(challenge));
+        when(authRepository.findUserByIdForUpdate(1L)).thenReturn(Optional.of(createUser(1L, "user1", "new@smartcafe.vn", "STAFF", "ACTIVE", 1L)));
+
+        assertThatThrownBy(() -> otpService.resendOtp(challengeId))
+                .isInstanceOf(OtpException.class)
+                .hasMessageContaining("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc.");
+
+        verify(emailService, never()).sendOtpEmail(anyString(), anyString(), anyString(), anyLong());
+    }
+
+    @Test
+    void resetPasswordRejectsWhenUserEmailNoLongerMatchesChallengeEmail() {
+        String rawToken = "valid.reset.grant.token";
+        TokenService.ResetGrantClaims claims = new TokenService.ResetGrantClaims("ch-1", 1L, 0L, Instant.now().plusSeconds(300));
+        when(tokenService.parseResetGrantToken(rawToken)).thenReturn(claims);
+
+        OtpChallengeRecord challenge = new OtpChallengeRecord(
+                "ch-1",
+                1L,
+                "old@smartcafe.vn",
+                "RESET",
+                "mocked-hash-value",
+                0,
+                1,
+                Instant.now().plusSeconds(300),
+                Instant.now(),
+                Instant.now(), // usedAt is set
+                "SENT",
+                Instant.now().minusSeconds(60),
+                null,
+                Instant.now()
+        );
+
+        when(authRepository.findOtpChallengeById("ch-1")).thenReturn(Optional.of(challenge));
+        when(authRepository.findUserByIdForUpdate(1L)).thenReturn(Optional.of(createUser(1L, "user1", "new@smartcafe.vn", "STAFF", "ACTIVE", 1L)));
+
+        assertThatThrownBy(() -> otpService.resetPassword(rawToken, "NewPass123@", "NewPass123@"))
+                .isInstanceOf(InvalidTokenException.class);
+
+        verify(authRepository, never()).updateUserPassword(anyLong(), anyString(), anyLong());
+    }
+
+    @Test
+    void verifyResetTokenReturnsFalseWhenUserEmailNoLongerMatchesChallengeEmail() {
+        String rawToken = "valid.reset.grant.token";
+        TokenService.ResetGrantClaims claims = new TokenService.ResetGrantClaims("ch-1", 1L, 0L, Instant.now().plusSeconds(300));
+        when(tokenService.parseResetGrantToken(rawToken)).thenReturn(claims);
+
+        OtpChallengeRecord challenge = new OtpChallengeRecord(
+                "ch-1",
+                1L,
+                "old@smartcafe.vn",
+                "RESET",
+                "mocked-hash-value",
+                0,
+                1,
+                Instant.now().plusSeconds(300),
+                Instant.now(),
+                Instant.now(), // usedAt is set
+                "SENT",
+                Instant.now().minusSeconds(60),
+                null,
+                Instant.now()
+        );
+
+        when(authRepository.findOtpChallengeById("ch-1")).thenReturn(Optional.of(challenge));
+        when(authRepository.findUserById(1L)).thenReturn(Optional.of(createUser(1L, "user1", "new@smartcafe.vn", "STAFF", "ACTIVE", 0L)));
+
+        boolean valid = otpService.verifyResetToken(rawToken);
+        assertThat(valid).isFalse();
     }
 }

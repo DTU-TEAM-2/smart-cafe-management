@@ -99,6 +99,21 @@ public class AuthRepository {
         }
     }
 
+    public Optional<UserRecord> findUserByIdForUpdate(Long id) {
+        String sql = """
+            SELECT id, username, password_hash, full_name, email, phone, role, status,
+                   avatar_media_id, auth_version, password_changed_at, must_change_password
+            FROM users
+            WHERE id = ?
+            FOR UPDATE
+            """;
+        try {
+            return Optional.ofNullable(jdbcTemplate.queryForObject(sql, USER_ROW_MAPPER, id));
+        } catch (EmptyResultDataAccessException e) {
+            return Optional.empty();
+        }
+    }
+
     public int updateUserPassword(Long userId, String newPasswordHash, long expectedAuthVersion) {
         String sql = """
             UPDATE users
