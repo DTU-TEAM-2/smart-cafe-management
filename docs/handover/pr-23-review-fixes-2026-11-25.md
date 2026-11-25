@@ -63,3 +63,13 @@ Kiểm chứng follow-up:
 - Không sửa backend production/API contract/schema/dependency/policy; Java chỉ mở rộng assertion E2E. Dữ liệu synthetic chỉ trong schema `_test` đã dùng ở phần trên. Cloudinary live vẫn NOT RUN.
 
 Skills follow-up: `cafe-review`, `vercel-react-best-practices`, `fixing-accessibility` và `cafe-quality` ở các path `.agents/skills/.../SKILL.md` đã nêu. State upload/save/delete tách theo bằng chứng thực tế; các nút native có tên, thông báo trạng thái/lỗi và giữ focus trap của dialog. Không tính self-review là approval độc lập.
+
+## Follow-up upload 409 trên nền f9e3d7e
+
+[Thread 4691649692](https://github.com/DTU-TEAM-2/smart-cafe-management/pull/23#discussion_r4691649692): provider đã tạo asset trước khi `MenuMedia.register()` ném lỗi JDBC; `MenuErrors` có thể trả 409 `RETRY_MENU` hoặc `MENU_CONFLICT`. HTTP 409 không chứng minh upload chưa có side effect, dù metadata chưa được commit.
+
+- `writeMenu` ghi nhận mutation đã được thử sau bước CSRF, tách khỏi lỗi CSRF trước khi gửi upload. Upload chỉ cho retry tự do với lỗi proven pre-provider theo contract: auth/CSRF 401/403, validation 400 có code đã biết, 413 IMAGE_TOO_LARGE và 503 IMAGE_NOT_CONFIGURED. Kết quả còn lại sau POST ảnh, kể cả 409/mã chưa biết, chuyển pendingUpload và nhớ File để không tự gửi lại.
+- Giữ nguyên semantics 409 của PUT/POST món: không đổi thành pendingSave chỉ vì mutationAttempted. Upload có mediaId rồi PUT 409 vẫn reuse mediaId. Không sửa backend production, schema, mapping 409 hoặc tự xóa cloud asset.
+- Frontend `npm run lint`, `npm run build`, `npm run test:ui`: PASS — **13 unit + 296 Playwright** desktop/mobile. Regression thêm RETRY_MENU, MENU_CONFLICT, mã 409 không biết; gọi lại cùng File chỉ một POST ảnh. CSRF 503 không gửi upload và không khóa File. Browser xác minh draft/khóa lưu/lựa chọn bỏ ảnh mới; các ca IMAGE_NOT_CONFIGURED retry và PUT conflict reuse tiếp tục PASS.
+- Backend `mvnw.cmd -o -B -ntp -Dtest=MenuImagesTest verify`: **9/9 PASS**, 0 failures/errors/skips. Provider HTTP fixture trả thành công, dependency `register()` được inject CannotAcquireLockException hoặc DataIntegrityViolationException, xác minh provider đã gọi và mapping 409 tương ứng. Đây là fault injection tại dependency register, **không phải tái hiện deadlock MySQL thật hoặc Cloudinary live**. Không chạy lại toàn bộ MySQL local vì backend production không đổi; CI kiểm tra toàn bộ theo quy trình.
+- `git diff --check` PASS; ảnh do test sinh ngoài phạm vi được phục hồi. Aikido vẫn chưa có scan result do xác thực chưa hoàn tất; không coi đó là PASS.

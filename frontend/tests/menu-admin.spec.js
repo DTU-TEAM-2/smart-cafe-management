@@ -353,7 +353,7 @@ for (const [kind, outcome] of [['items', 'changed'], ['categories', 'changed'], 
   });
 }
 
-for (const outcome of ['dropped', 'provider-error']) {
+for (const outcome of ['dropped', 'provider-error', 'metadata-retry', 'metadata-conflict']) {
   test(`unknown image upload requires an explicit choice without re-upload: ${outcome}`, async ({ page }) => {
     let uploads = 0;
     let writes = 0;
@@ -361,7 +361,8 @@ for (const outcome of ['dropped', 'provider-error']) {
       if (path.endsWith('/images')) {
         uploads += 1;
         if (outcome === 'dropped') await route.abort('failed');
-        else await route.fulfill({ status: 502, json: { code: 'IMAGE_PROVIDER_ERROR' } });
+        else await route.fulfill({ status: outcome.startsWith('metadata-') ? 409 : 502,
+          json: { code: outcome === 'metadata-retry' ? 'RETRY_MENU' : outcome === 'metadata-conflict' ? 'MENU_CONFLICT' : 'IMAGE_PROVIDER_ERROR' } });
         return true;
       }
       if (route.request().method() === 'PUT') {

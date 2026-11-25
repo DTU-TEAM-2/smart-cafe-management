@@ -62,3 +62,42 @@ test('unknown upload is remembered for the same File and never retried implicitl
   assert.equal(uploads, 1);
   assert.equal(writes, 0);
 });
+
+for (const code of ['RETRY_MENU', 'MENU_CONFLICT', 'UNRECOGNIZED_UPLOAD_ERROR']) {
+  test(`upload 409 ${code} preserves partial side-effect state instead of retrying`, async () => {
+    let uploads = 0;
+    globalThis.fetch = async url => {
+      if (url.endsWith('/csrf')) return json({ headerName: 'X-CSRF-TOKEN', token: 'test' });
+      assert.ok(url.endsWith('/images'));
+      uploads += 1;
+      return new Response(JSON.stringify({ code }), { status: 409 });
+    };
+    const cache = new WeakMap();
+    const value = { code: 'CF01', imageFile: new File(['test'], 'menu.png') };
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      await assert.rejects(saveMenu('items', value, true, 'Bearer test', undefined, cache), error => error.pendingUpload === true);
+    }
+    assert.equal(uploads, 1);
+  });
+}
+
+test('a CSRF failure occurs before any upload and leaves the File retryable', async () => {
+  let csrf = 0;
+  let uploads = 0;
+  const file = new File(['test'], 'menu.png');
+  const cache = new WeakMap();
+  globalThis.fetch = async url => {
+    if (url.endsWith('/csrf')) {
+      csrf += 1;
+      return new Response(JSON.stringify({ code: 'DATABASE_UNAVAILABLE' }), { status: 503 });
+    }
+    uploads += 1;
+    throw new Error('Unexpected upload');
+  };
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    await assert.rejects(saveMenu('items', { imageFile: file }, true, 'Bearer test', undefined, cache), error => !error.pendingUpload);
+  }
+  assert.equal(csrf, 2);
+  assert.equal(uploads, 0);
+  assert.equal(cache.has(file), false);
+});

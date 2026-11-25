@@ -72,6 +72,7 @@ async function writeMenu(path, method, body, authorization, signal) {
   try {
     return await request(path, authorization, { method, body, headers, signal });
   } catch (error) {
+    error.mutationAttempted = true;
     if (!signal?.aborted && (!error.status || error.status >= 500)) error.uncertain = true;
     throw error;
   }
@@ -92,9 +93,13 @@ export async function saveMenu(kind, value, editing, authorization, signal, uplo
         if (!/^[1-9]\d*$/.test(uploaded?.mediaId ?? '')) throw uploadUnknown();
         uploadedImages.set(imageFile, uploaded.mediaId);
       } catch (error) {
-        // This code is emitted before any provider call; retry remains safe.
-        if (error.status === 503 && error.code === 'IMAGE_NOT_CONFIGURED') throw error;
-        if (!error.uncertain) throw error;
+        // HTTP 409 can be a metadata failure after the provider has already created an asset.
+        // Retry freely only for failures proven to precede the provider call.
+        const beforeProvider = [401, 403].includes(error.status)
+          || (error.status === 400 && ['INVALID_IMAGE', 'INVALID_MULTIPART', 'INVALID_REQUEST'].includes(error.code))
+          || (error.status === 413 && error.code === 'IMAGE_TOO_LARGE')
+          || (error.status === 503 && error.code === 'IMAGE_NOT_CONFIGURED');
+        if (signal?.aborted || beforeProvider || (!error.mutationAttempted && !error.pendingUpload)) throw error;
         uploadedImages.set(imageFile, { uncertain: true });
         throw uploadUnknown();
       }
