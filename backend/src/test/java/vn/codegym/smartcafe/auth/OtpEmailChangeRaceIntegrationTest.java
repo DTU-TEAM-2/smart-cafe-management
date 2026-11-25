@@ -254,12 +254,14 @@ class OtpEmailChangeRaceIntegrationTest {
         assertThat(loginResult.getResponse().getStatus()).isEqualTo(200);
 
         // Step 6: Updating regular field (fullName, phone) does NOT increment auth_version
+        long currentVersion = jdbc.queryForObject(
+                "SELECT version FROM users WHERE id = ?", Long.class, staffUserId);
         long currentAuthVersion = jdbc.queryForObject(
                 "SELECT auth_version FROM users WHERE id = ?", Long.class, staffUserId);
         String updateNameBody = """
                 {"fullName":"Staff Modified Name","email":"%s","phone":"0909999888",
-                 "address":"DN","role":"STAFF","salary":10000000,"version":"1"}
-                """.formatted(NEW_EMAIL);
+                 "address":"DN","role":"STAFF","salary":10000000,"version":"%d"}
+                """.formatted(NEW_EMAIL, currentVersion);
         mvc.perform(put("/api/v1/staff/" + staffUserId)
                 .with(user("admin_race").roles("ADMIN")).with(csrf())
                 .contentType(MediaType.APPLICATION_JSON)
