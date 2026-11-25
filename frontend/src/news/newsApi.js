@@ -1,5 +1,5 @@
 export class NewsApiError extends Error {
-  constructor(status, message) { super(message); this.status = status; }
+  constructor(status, message, code) { super(message); this.status = status; this.code = code; }
 }
 
 export async function newsRequest(path, authorization, { method = "GET", body, etag, signal, asResponse = false } = {}) {
@@ -21,7 +21,7 @@ export async function newsRequest(path, authorization, { method = "GET", body, e
     const message = response.status === 409 && problem?.code === "NEWS_SLUG_TAKEN"
       ? "Đường dẫn bài viết đã được sử dụng. Hãy chọn đường dẫn khác."
       : messages[response.status] ?? (typeof problem?.detail === "string" ? problem.detail : "Chưa thực hiện được thao tác. Vui lòng thử lại.");
-    throw new NewsApiError(response.status, message);
+    throw new NewsApiError(response.status, message, problem?.code);
   }
   if (asResponse) return response;
   return { data: response.status === 204 ? null : await response.json(), etag: response.headers.get("ETag") };

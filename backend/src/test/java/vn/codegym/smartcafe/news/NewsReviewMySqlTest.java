@@ -144,6 +144,50 @@ class NewsReviewMySqlTest {
         assertThat(events.stream(NewsChanged.class)).hasSize(1);
     }
 
+    @Test
+    void concurrentRetryAfterAnUncommittedLookupCreatesOneArticle(ApplicationEvents events) throws Exception {
+        var inserted = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        var retryInserting = new CountDownLatch(2);
+        doAnswer(call -> {
+            retryInserting.countDown();
+            return call.callRealMethod();
+        }).when(client).sql(argThat(sql -> sql != null && sql.stripLeading().startsWith("INSERT INTO news_posts")));
+        doAnswer(call -> {
+            inserted.countDown();
+            if (!release.await(8, TimeUnit.SECONDS)) throw new IllegalStateException("Create was not released");
+            return call.callRealMethod();
+        }).when(client).sql(argThat(sql -> sql != null && sql.stripLeading().startsWith("INSERT INTO news_images")));
+
+        String path = "/api/v1/news/by-slug/same-create-attempt";
+        String payload = """
+                {"slug":"same-create-attempt","title":"Late commit","body":"Body",
+                 "status":"PUBLISHED","audiences":["STAFF"],"imageMediaIds":["901"]}
+                """;
+        try (var executor = Executors.newFixedThreadPool(2)) {
+            try {
+                var first = executor.submit(() -> mvc.perform(post("/api/v1/news")
+                        .with(user("review-admin").roles("ADMIN")).contentType(MediaType.APPLICATION_JSON)
+                        .content(payload)).andExpect(status().isCreated()));
+                assertThat(inserted.await(5, TimeUnit.SECONDS)).isTrue();
+                mvc.perform(get(path).with(user("review-admin").roles("ADMIN"))).andExpect(status().isNotFound());
+                var retry = executor.submit(() -> mvc.perform(post("/api/v1/news")
+                        .with(user("review-admin").roles("ADMIN")).contentType(MediaType.APPLICATION_JSON)
+                        .content(payload)).andExpect(status().isConflict()));
+                assertThat(retryInserting.await(5, TimeUnit.SECONDS)).isTrue();
+                release.countDown();
+                first.get(5, TimeUnit.SECONDS);
+                retry.get(5, TimeUnit.SECONDS);
+            } finally {
+                release.countDown();
+            }
+        }
+        mvc.perform(get(path).with(user("review-admin").roles("ADMIN")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.title").value("Late commit"));
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM news_posts", Long.class)).isEqualTo(1L);
+        assertThat(events.stream(NewsChanged.class).filter(event -> event.type().equals("CREATED"))).hasSize(1);
+    }
+
     @BeforeEach
     void seed() {
         assertThat(jdbc.queryForObject("SELECT DATABASE()", String.class)).endsWith("_test");

@@ -6,6 +6,15 @@ const emptyDraft = () => ({ title: "", summary: "", body: "", slug: "", status: 
 const length = value => [...value].length;
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const validPost = post => typeof post?.id === "string" && /^\d+$/.test(post.id);
+const sameList = (first, second) => Array.isArray(first) && first.length === second.length
+  && first.every((value, index) => value === second[index]);
+
+function matchesCreation(post, body) {
+  return body && post.version === 0 && post.slug === body.slug && post.title === body.title
+    && (post.summary || null) === body.summary && post.body === body.body && post.status === body.status
+    && sameList(post.audiences?.slice().sort(), body.audiences.slice().sort())
+    && sameList(post.images?.map(image => image.mediaId), body.imageMediaIds);
+}
 
 function autoSlug(title) {
   const stem = title.normalize("NFD").replace(/\p{M}/gu, "").toLowerCase().replaceAll("đ", "d")
@@ -25,18 +34,19 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
     if (id) return null;
     try {
       const saved = JSON.parse(sessionStorage.getItem(storageKey));
-      return typeof saved?.slug === "string" && saved.slug.length <= 180 && slugPattern.test(saved.slug) ? saved : null;
+      if (typeof saved?.slug !== "string" || saved.slug.length > 180 || !slugPattern.test(saved.slug)) return null;
+      const body = saved.body;
+      const canRetry = body?.slug === saved.slug && typeof body.title === "string" && typeof body.body === "string"
+        && Array.isArray(body.audiences) && Array.isArray(body.imageMediaIds);
+      return { slug: saved.slug, body: canRetry ? body : null, slugTaken: saved.slugTaken === true };
     } catch { return null; }
   });
   const [found, setFound] = useState(null);
   const saving = useRef(false);
-  function remember(creation) {
-    setPending(creation);
+  function clearPending() {
+    try { sessionStorage.removeItem(storageKey); } catch { /* A stale record can still be checked by slug. */ }
+    setPending(null);
     setFound(null);
-    try {
-      if (creation) sessionStorage.setItem(storageKey, JSON.stringify(creation));
-      else sessionStorage.removeItem(storageKey);
-    } catch { /* An unavailable storage area still leaves this editor protected. */ }
   }
   const dirty = JSON.stringify(draft) !== original;
   useEffect(() => {
@@ -71,26 +81,51 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
     setNavigationGuard?.(null);
     location.hash = `#news/${post.id}`;
   }
-  async function checkPending() {
-    if (saving.current || !pending) return;
+  async function lookupCreation(creation, signal) {
+    const { data } = await request(`/by-slug/${creation.slug}`, { signal });
+    if (signal.aborted) return;
+    if (!validPost(data)) throw new Error("Invalid news response");
+    if (matchesCreation(data, creation.body)) {
+      clearPending();
+      openPost(data);
+    } else {
+      setError("");
+      setFound(data);
+    }
+  }
+
+  async function resolvePending(retry) {
+    if (saving.current || !pending || (retry && (!pending.body || pending.slugTaken))) return;
+    const signal = controller.current.signal;
     saving.current = true;
     setBusy(true);
-    const signal = controller.current.signal;
+    setFound(null);
+    setError("");
     try {
-      const { data } = await request(`/by-slug/${pending.slug}`, { signal });
-      if (signal.aborted) return;
-      if (!validPost(data)) throw new Error("Invalid news response");
-      if (!pending.custom) {
-        remember(null);
-        openPost(data);
-      } else {
-        setError("");
-        setFound(data);
+      if (retry) {
+        try {
+          const { data } = await request("", { method: "POST", body: pending.body, signal });
+          if (signal.aborted) return;
+          if (!validPost(data)) throw new Error("Invalid news response");
+          clearPending();
+          openPost(data);
+          return;
+        } catch (error) {
+          if (signal.aborted || error.status !== 409) throw error;
+          if (error.code === "NEWS_SLUG_TAKEN") {
+            const collision = { ...pending, slugTaken: true };
+            setPending(collision);
+            try { sessionStorage.setItem(storageKey, JSON.stringify(collision)); } catch { /* Keep the current tab locked. */ }
+          }
+        }
       }
+      await lookupCreation(pending, signal);
     } catch (error) {
-      if (!signal.aborted) showError(error.status === 404
-        ? "Chưa tìm thấy bài. Hãy kiểm tra lại trước khi gửi lần mới."
-        : newsError(error));
+      if (!signal.aborted) {
+        showError(error.status === 404
+          ? "Chưa tìm thấy bài. Lần lưu trước có thể vẫn đang xử lý."
+          : retry ? `Chưa đối soát được lần lưu trước. ${newsError(error)}` : newsError(error));
+      }
     } finally {
       saving.current = false;
       if (!signal.aborted) setBusy(false);
@@ -111,22 +146,32 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
       return;
     }
     const creationSlug = id ? null : slug || autoSlug(draft.title);
+    const body = { title: draft.title.trim(), summary: draft.summary.trim() || null, body: id ? draft.body : draft.body.trim(),
+      slug: creationSlug || slug || null, status: draft.status, audiences: draft.audiences,
+      imageMediaIds: draft.images.map(image => image.mediaId) };
+    if (creationSlug) {
+      const creation = { slug: creationSlug, body };
+      try {
+        sessionStorage.setItem(storageKey, JSON.stringify(creation));
+      } catch {
+        showError("Trình duyệt không lưu được thông tin đối soát. Hãy giữ nội dung và kiểm tra bộ nhớ của tab trước khi đăng.");
+        return;
+      }
+      setPending(creation);
+    }
     const signal = controller.current.signal;
     saving.current = true;
-    if (creationSlug) remember({ slug: creationSlug, custom: Boolean(slug) });
     setBusy(true); setError("");
     try {
-      const body = { title: draft.title.trim(), summary: draft.summary.trim() || null, body: draft.body, slug: creationSlug || slug || null,
-        status: draft.status, audiences: draft.audiences, imageMediaIds: draft.images.map(image => image.mediaId) };
       const { data } = await request(id ? `/${id}` : "", { method: id ? "PUT" : "POST", body, etag, signal });
       if (signal.aborted) return;
       if (!validPost(data)) throw new Error("Invalid news response");
-      if (creationSlug) remember(null);
+      if (creationSlug) clearPending();
       openPost(data);
     } catch (e) {
       if (signal.aborted) return;
       const rejected = e instanceof NewsApiError && e.status >= 400 && e.status < 500 && e.status !== 408;
-      if (creationSlug && rejected) remember(null);
+      if (creationSlug && rejected) clearPending();
       if (e.status === 412) setConflict(true);
       showError(creationSlug && !rejected ? "Chưa xác nhận được kết quả lưu bài." : newsError(e));
     } finally {
@@ -156,38 +201,37 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
   function move(index, delta) {
     setDraft(current => { const images = [...current.images]; [images[index], images[index + delta]] = [images[index + delta], images[index]]; return { ...current, images }; });
   }
-  const saveDisabled = busy || uploading || conflict || Boolean(pending);
+  const fieldsLocked = busy || Boolean(pending);
+  const shownDraft = pending?.body ?? draft;
+  const saveDisabled = fieldsLocked || uploading || conflict;
   return <section className="news-page news-editor" aria-labelledby="editor-title">
     <a className="news-text-link" href={id ? `#news/${id}` : "#news"}>← {id ? "Về bài viết" : "Danh sách tin tức"}</a>
     <div className="news-heading"><div><p className="eyebrow">LECKER • Biên tập</p><h1 id="editor-title">{id ? "Chỉnh sửa tin tức" : "Một câu chuyện mới."}</h1><p>Những điều bạn chia sẻ làm nên câu chuyện LECKER.</p></div></div>
     {error && <div className="news-error" role="alert" tabIndex={-1} ref={errorRef}><p>{error}</p>{conflict && <button type="button" className="news-button" onClick={() => {
       if (window.confirm("Tải bản mới sẽ thay nội dung bạn đang soạn. Bạn đã sao chép phần cần giữ chưa?")) setAttempt(v => v + 1);
     }}>Tải bản mới</button>}</div>}
-    {pending && !busy && <div className="news-error" role="status">
-      <p>Chưa xác nhận được kết quả lần lưu trước. Kiểm tra bài có đường dẫn <strong>{pending.slug}</strong> trước khi tạo tin khác.</p>
-      <button type="button" className="news-button" onClick={checkPending}>Kiểm tra bài đã lưu</button>
+    {pending && !busy && <div className="news-error">
+      <p role="status">Chưa xác nhận được kết quả lần lưu trước. Kiểm tra bài có đường dẫn <strong>{pending.slug}</strong>.</p>
+      <button type="button" className="news-button" onClick={() => resolvePending(false)}>Kiểm tra bài đã lưu</button>
+      {pending.body && !pending.slugTaken && <button type="button" className="news-button subtle" onClick={() => resolvePending(true)}>Gửi lại lần lưu này</button>}
+      {pending.slugTaken && <p>Máy chủ báo đường dẫn đã được dùng. Tiếp tục kiểm tra bài đã lưu.</p>}
+      {!pending.body && <p>Lần lưu từ phiên bản trước chỉ có thông tin đường dẫn để kiểm tra.</p>}
       {found && <p>Tìm thấy “{found.title}”. <button type="button" className="news-button" onClick={() => {
-        if (window.confirm("Mở bài đã tìm thấy để đối chiếu? Nội dung đang soạn trên trang này sẽ đóng.")) {
-          remember(null);
+        if (window.confirm("Xác nhận bài tìm thấy là bài cần khôi phục và mở bài đó?")) {
+          clearPending();
           openPost(found);
         }
       }}>Mở bài tìm thấy</button></p>}
-      <button type="button" className="news-button subtle" onClick={() => {
-        if (window.confirm("Chỉ tiếp tục khi bạn đã kiểm tra danh sách tin và xác nhận bài trước chưa được lưu. Bạn muốn tạo tin mới?")) {
-          remember(null);
-          setError("");
-        }
-      }}>Bỏ lần lưu trước</button>
     </div>}
     {state === "loading" ? <p role="status">Đang tải nội dung biên tập…</p> : state === "error" ? <button className="news-button" onClick={() => setAttempt(v => v + 1)}>Thử lại</button>
       : <form onSubmit={submit} noValidate aria-busy={busy || uploading}>
         <div className="news-editor-grid"><div className="news-editor-main"><section className="news-form-panel"><h2>Nội dung bài viết</h2>
           <label htmlFor="news-title-input">Tiêu đề <span aria-hidden="true">*</span></label>
-          <input id="news-title-input" value={draft.title} required disabled={busy} aria-invalid={!!invalid.title} aria-describedby="news-title-help" onChange={e => field("title", e.target.value)} placeholder="Bạn muốn chia sẻ điều gì?" />
-          <p className={invalid.title ? "news-field-error" : "news-field-help"} id="news-title-help">{invalid.title || `${length(draft.title)}/200 ký tự`}</p>
-          <label htmlFor="news-summary">Tóm tắt</label><textarea id="news-summary" rows={3} disabled={busy} value={draft.summary} aria-invalid={!!invalid.summary} aria-describedby="news-summary-help" onChange={e => field("summary", e.target.value)} placeholder="Một lời mở đầu để người đọc muốn khám phá thêm…" />
-          <p className={invalid.summary ? "news-field-error" : "news-field-help"} id="news-summary-help">{invalid.summary || `${length(draft.summary)}/500 ký tự`}</p>
-          <label htmlFor="news-body">Nội dung <span aria-hidden="true">*</span></label><textarea id="news-body" className="news-body-input" rows={13} disabled={busy} required value={draft.body} aria-invalid={!!invalid.body} aria-describedby="news-body-help" onChange={e => field("body", e.target.value)} placeholder="Viết câu chuyện của bạn tại đây…" />
+          <input id="news-title-input" value={shownDraft.title} required disabled={fieldsLocked} aria-invalid={!!invalid.title} aria-describedby="news-title-help" onChange={e => field("title", e.target.value)} placeholder="Bạn muốn chia sẻ điều gì?" />
+          <p className={invalid.title ? "news-field-error" : "news-field-help"} id="news-title-help">{invalid.title || `${length(shownDraft.title)}/200 ký tự`}</p>
+          <label htmlFor="news-summary">Tóm tắt</label><textarea id="news-summary" rows={3} disabled={fieldsLocked} value={shownDraft.summary ?? ""} aria-invalid={!!invalid.summary} aria-describedby="news-summary-help" onChange={e => field("summary", e.target.value)} placeholder="Một lời mở đầu để người đọc muốn khám phá thêm…" />
+          <p className={invalid.summary ? "news-field-error" : "news-field-help"} id="news-summary-help">{invalid.summary || `${length(shownDraft.summary ?? "")}/500 ký tự`}</p>
+          <label htmlFor="news-body">Nội dung <span aria-hidden="true">*</span></label><textarea id="news-body" className="news-body-input" rows={13} disabled={fieldsLocked} required value={shownDraft.body} aria-invalid={!!invalid.body} aria-describedby="news-body-help" onChange={e => field("body", e.target.value)} placeholder="Viết câu chuyện của bạn tại đây…" />
           <p id="news-body-help" className={invalid.body ? "news-field-error" : "news-field-help"}>{invalid.body || "Nội dung văn bản, giữ nguyên xuống dòng."}</p>
         </section>
           <section className="news-form-panel"><div className="news-panel-title"><h2>Hình ảnh</h2><span>{draft.images.length}/20</span></div>
@@ -203,14 +247,14 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
             {uploading && <p role="status">Đang tải ảnh. Vui lòng đợi trước khi lưu tin.</p>}
           </section>
         </div><aside className="news-editor-sidebar"><section className="news-form-panel"><h2>Xuất bản</h2>
-          <label htmlFor="news-publish-status">Trạng thái</label><select id="news-publish-status" disabled={busy} value={draft.status} onChange={e => field("status", e.target.value)}>
+          <label htmlFor="news-publish-status">Trạng thái</label><select id="news-publish-status" disabled={fieldsLocked} value={shownDraft.status} onChange={e => field("status", e.target.value)}>
             <option value="DRAFT">Bản nháp</option><option value="PUBLISHED">Đã đăng</option>{id && <option value="ARCHIVED">Đã lưu trữ</option>}</select>
           <p className="news-field-help">{draft.status === "PUBLISHED" ? "Tin sẽ hiển thị với nhóm người nhận đã chọn." : draft.status === "ARCHIVED" ? "Tin được lưu giữ và ẩn với người đọc." : "Chỉ quản lý có thể xem bản nháp."}</p>
-          <fieldset aria-describedby="news-audience-help" aria-invalid={!!invalid.audiences} disabled={busy}><legend>Gửi đến <span aria-hidden="true">*</span></legend>
+          <fieldset aria-describedby="news-audience-help" aria-invalid={!!invalid.audiences} disabled={fieldsLocked}><legend>Gửi đến <span aria-hidden="true">*</span></legend>
             {[["STAFF", "Nhân viên", "Thông tin nội bộ của quán"], ["CUSTOMER", "Khách hàng", "Câu chuyện dành cho khách"]].map(([value, label, hint]) => <label className="news-audience-option" key={value}>
-              <input type="checkbox" checked={draft.audiences.includes(value)} onChange={e => field("audiences", e.target.checked ? [...draft.audiences, value] : draft.audiences.filter(a => a !== value))} /><span><strong>{label}</strong><small>{hint}</small></span></label>)}
+              <input type="checkbox" checked={shownDraft.audiences.includes(value)} onChange={e => field("audiences", e.target.checked ? [...draft.audiences, value] : draft.audiences.filter(a => a !== value))} /><span><strong>{label}</strong><small>{hint}</small></span></label>)}
           </fieldset><p id="news-audience-help" className={invalid.audiences ? "news-field-error" : "news-field-help"}>{invalid.audiences || "Chọn một hoặc cả hai nhóm."}</p>
-          <label htmlFor="news-slug">Đường dẫn riêng</label><input id="news-slug" disabled={busy} value={draft.slug} onChange={e => field("slug", e.target.value)} aria-describedby="news-slug-help" placeholder="Tự tạo từ tiêu đề" />
+          <label htmlFor="news-slug">Đường dẫn riêng</label><input id="news-slug" disabled={fieldsLocked} value={shownDraft.slug} onChange={e => field("slug", e.target.value)} aria-describedby="news-slug-help" placeholder="Tự tạo từ tiêu đề" />
           <p className="news-field-help" id="news-slug-help">Tùy chọn. Chữ thường, chữ số và dấu gạch ngang, tối đa 180 ký tự sau chuẩn hóa.</p>
           <button type="submit" className="news-button primary news-save" disabled={saveDisabled} aria-describedby={saveDisabled ? "news-save-help" : undefined}>{busy ? "Đang lưu…" : id ? "Lưu thay đổi" : draft.status === "PUBLISHED" ? "Đăng tin" : "Lưu bản nháp"}<span aria-hidden="true">↗</span></button>
           {saveDisabled && <p id="news-save-help" className="news-field-help">{pending && !busy ? "Cần kiểm tra kết quả lần lưu trước." : conflict ? "Cần tải bản mới trước khi lưu tiếp." : uploading ? "Đang tải ảnh lên." : "Đang lưu tin tức."}</p>}

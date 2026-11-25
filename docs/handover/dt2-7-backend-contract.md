@@ -94,7 +94,8 @@ BE cung cấp tín hiệu để FE có thể reload danh sách hoặc hiện th�
 ## Đối soát lần tạo tin và phiên đăng nhập
 
 - Trình biên tập gửi một slug cố định cho mỗi lần tạo. Khi để trống slug, giao diện ghép tiêu đề đã chuẩn hóa với hậu tố ngẫu nhiên. MySQL bảo vệ uniqueness bằng `uq_news_slug`.
-- Nếu mất phản hồi hoặc gặp lỗi chưa xác định được kết quả lưu, giao diện giữ slug trong phiên tab theo tài khoản và khóa gửi lại POST. Quản trị viên kiểm tra bằng `GET /api/v1/news/by-slug/{slug}`. API chỉ trả bài do chính tài khoản hiện tại tạo và trả 404 nếu chưa tìm thấy. Kiểm tra nhiều lần chỉ đọc dữ liệu. Quản trị viên cần đối chiếu bài tìm được khi dùng slug tự nhập, hoặc xác nhận sau khi kiểm tra danh sách trước khi bỏ lần lưu cũ.
+- Trước POST, form lưu slug và payload đã chốt trong phiên của tab theo tài khoản. Khi kết quả chưa rõ, form khóa nhập mới ngay cả sau reload. **Gửi lại lần lưu này** gửi đúng slug/payload cũ. Nếu hai POST cùng đến, MySQL chỉ cho một dòng mang slug đó commit. Khi nhận 409, form kiểm tra lại bằng `GET /api/v1/news/by-slug/{slug}`, giới hạn ở bài do chính tài khoản hiện tại tạo. GET 404 vẫn giữ lần lưu để đối soát. Sau khi máy chủ xác nhận slug đã được dùng, form chỉ tiếp tục tra cứu. Nếu nội dung tìm thấy khác hoặc lần lưu cũ chỉ có slug, form yêu cầu xác nhận trước khi mở bài.
+- Đối soát dựa trên slug hiện có của bài và thông tin lưu trong tab. Giữ nguyên slug trong lúc còn đối soát. Việc đổi slug từ nơi khác hoặc xóa bộ nhớ phiên của tab làm mất điểm tra cứu. Hợp đồng hiện tại chưa có khóa idempotency độc lập với slug.
 - Cơ chế này xử lý kết quả không xác định trên giao diện News. Client khác dùng POST với slug rỗng vẫn theo hợp đồng tự sinh slug phía server.
 - Khi REST trả 401/403, giao diện xác minh lại bearer qua `/api/v1/auth/me`. Chỉ phản hồi từ chối của API Auth với phiên đang dùng mới kết thúc phiên, nên lỗi thiếu quyền của News và phản hồi đến muộn của token cũ được xử lý riêng.
 

@@ -42,20 +42,18 @@ test("admin creates news with explicit recipients and safe text content", async 
   expect(await page.evaluate(() => window.__unsafe)).toBeUndefined();
 });
 
-test("an uncertain create is recovered after reload without another POST", async ({ page }) => {
+test("reload locks the form and recovers a creation that committed after a 404 lookup", async ({ page }) => {
   await setup(page);
-  let slug;
-  let posts = 0;
+  const requests = [];
   let lookups = 0;
   await page.route("**/api/v1/news", route => {
-    posts++;
-    slug = route.request().postDataJSON().slug;
-    return route.abort("connectionreset");
+    requests.push(route.request().postDataJSON());
+    return requests.length === 1 ? route.abort("connectionreset") : route.fulfill({ status: 409, json: { code: "NEWS_SLUG_TAKEN" } });
   });
   await page.route("**/api/v1/news/by-slug/*", route => {
-    expect(new URL(route.request().url()).pathname).toBe(`/api/v1/news/by-slug/${slug}`);
-    if (++lookups === 1) return route.fulfill({ status: 404, json: {} });
-    return route.fulfill({ json: { ...fixture, slug } });
+    expect(new URL(route.request().url()).pathname).toBe(`/api/v1/news/by-slug/${requests[0].slug}`);
+    if (++lookups <= 2) return route.fulfill({ status: 404, json: {} });
+    return route.fulfill({ json: { ...fixture, ...requests[0], images: [] } });
   });
   await page.goto("/#news/new");
   await page.getByLabel("Tiêu đề").fill("Đón ngày mới");
@@ -64,15 +62,66 @@ test("an uncertain create is recovered after reload without another POST", async
   await page.getByLabel("Trạng thái", { exact: true }).selectOption("PUBLISHED");
   await page.getByRole("button", { name: "Đăng tin", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("Chưa xác nhận được kết quả lưu bài.");
-  expect(slug).toMatch(/^don-ngay-moi-[a-f0-9]{32}$/);
+  expect(requests[0].slug).toMatch(/^don-ngay-moi-[a-f0-9]{32}$/);
   await page.reload();
-  await expect(page.getByRole("button", { name: "Lưu bản nháp", exact: true })).toBeDisabled();
+  await expect(page.getByLabel("Tiêu đề")).toBeDisabled();
+  await expect(page.getByLabel("Nội dung")).toBeDisabled();
+  await expect(page.getByRole("checkbox", { name: /Nhân viên/ })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Bỏ lần lưu trước" })).toHaveCount(0);
   await page.getByRole("button", { name: "Kiểm tra bài đã lưu" }).click();
-  await expect(page.getByRole("alert")).toContainText("Chưa tìm thấy bài");
-  await expect(page.getByRole("button", { name: "Lưu bản nháp", exact: true })).toBeDisabled();
+  await expect(page.getByRole("alert")).toContainText("Lần lưu trước có thể vẫn đang xử lý.");
+  await page.getByRole("button", { name: "Gửi lại lần lưu này" }).click();
+  await expect(page.getByText("Máy chủ báo đường dẫn đã được dùng.")).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Gửi lại lần lưu này" })).toHaveCount(0);
   await page.getByRole("button", { name: "Kiểm tra bài đã lưu" }).click();
   await expect(page).toHaveURL(new RegExp(`#news/${fixture.id}$`));
-  expect(posts).toBe(1);
+  expect(requests).toEqual([requests[0], requests[0]]);
+});
+
+test("a different article found at the same slug requires confirmation to leave recovery", async ({ page }) => {
+  await setup(page);
+  await page.addInitScript(() => sessionStorage.setItem("lecker_news_pending:1",
+    JSON.stringify({ slug: "ca-phe", custom: false })));
+  await page.route("**/api/v1/news/by-slug/ca-phe", route => route.fulfill({ json: fixture }));
+  await page.goto("/#news/new");
+  await expect(page.getByLabel("Tiêu đề")).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Gửi lại lần lưu này" })).toHaveCount(0);
+  await page.getByRole("button", { name: "Kiểm tra bài đã lưu" }).click();
+  const open = page.getByRole("button", { name: "Mở bài tìm thấy" });
+  page.once("dialog", dialog => dialog.dismiss());
+  await open.click();
+  await expect(page).toHaveURL(/#news\/new$/);
+  expect(await page.evaluate(() => sessionStorage.getItem("lecker_news_pending:1"))).toContain("ca-phe");
+  page.once("dialog", dialog => dialog.accept());
+  await open.click();
+  await expect(page).toHaveURL(new RegExp(`#news/${fixture.id}$`));
+  expect(await page.evaluate(() => sessionStorage.getItem("lecker_news_pending:1"))).toBeNull();
+});
+
+test("a storage failure preserves the draft before sending a creation", async ({ page }) => {
+  await setup(page);
+  await page.addInitScript(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (key.startsWith("lecker_news_pending:")) throw new DOMException("Storage is full", "QuotaExceededError");
+      return original.call(this, key, value);
+    };
+  });
+  let posts = 0;
+  await page.route("**/api/v1/news", route => {
+    posts++;
+    return route.fulfill({ status: 201, json: fixture });
+  });
+  await page.goto("/#news/new");
+  await page.getByLabel("Tiêu đề").fill("Bản chưa gửi");
+  await page.getByLabel("Nội dung").fill("Nội dung đang soạn");
+  await page.getByRole("checkbox", { name: /Nhân viên/ }).check();
+  await page.getByRole("button", { name: "Lưu bản nháp", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Trình duyệt không lưu được thông tin đối soát");
+  await expect(page.getByLabel("Tiêu đề")).toHaveValue("Bản chưa gửi");
+  await expect(page.getByLabel("Nội dung")).toBeEditable();
+  expect(posts).toBe(0);
 });
 
 for (const role of ["ADMIN", "CUSTOMER"]) test(`News checks the current ${role} session after a REST denial`, async ({ page }) => {
