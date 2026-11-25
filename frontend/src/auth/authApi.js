@@ -2,6 +2,13 @@
  * Client API for authentication and password recovery
  */
 
+export function passwordStatusFrom(response) {
+  if (typeof response?.mustChangePassword !== "boolean"
+    || typeof response.passwordChangedAt !== "string" || typeof response.passwordExpiresAt !== "string") return null;
+  return { mustChangePassword: response.mustChangePassword,
+    passwordChangedAt: response.passwordChangedAt, passwordExpiresAt: response.passwordExpiresAt };
+}
+
 async function handleResponse(res) {
   const isJson = res.headers.get("content-type")?.includes("application");
   const data = isJson ? await res.json() : null;

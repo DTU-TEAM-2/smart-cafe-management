@@ -8,6 +8,9 @@ export async function productMocks(page, overrides = {}) {
   let token = "initial-ui-test-only";
   const calls = [];
   const user = () => ({ id: 203, username: profile.username, fullName: profile.name, email: profile.email, phone: profile.phone, role: profile.role });
+  await page.routeWebSocket("**/api/v1/news/events", socket => {
+    socket.onMessage(() => socket.send(JSON.stringify({ type: "READY" })));
+  });
   await page.route("**/api/v1/home/highlights", route => route.fulfill({ json: { newest: [], mostOrdered: [] } }));
   await page.route("**/api/v1/auth/login", route => route.fulfill({ json: { token, user: user(), ...passwordStatus, mustChangePassword: profile.mustChangePassword } }));
   await page.route("**/api/v1/auth/me", route => route.fulfill({ json: user() }));

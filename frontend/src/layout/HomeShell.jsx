@@ -2,107 +2,135 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
 import HomePage from "../home/HomePage.jsx";
 import SiteLayout from "./SiteLayout.jsx";
 import LoginPage from "../auth/LoginPage.jsx";
-import useNewsSocket from "../news/useNewsSocket.js";
-import { useAuth } from "../auth/useAuth.js";
+import RegisterPage from "../auth/RegisterPage.jsx";
 import ForgotPasswordPage from "../auth/ForgotPasswordPage.jsx";
 import OtpPage from "../auth/OtpPage.jsx";
 import ResetPasswordPage from "../auth/ResetPasswordPage.jsx";
 import AdminDashboard from "../dashboard/AdminDashboard.jsx";
 import StaffDashboard from "../dashboard/StaffDashboard.jsx";
 import SalesWorkspace from "../sales/SalesWorkspace.jsx";
+import CustomerApp from "../customer/CustomerApp.jsx";
+import { useAuth } from "../auth/AuthContext.jsx";
+import PersonnelAccountPage from "../account/AccountPage.jsx";
+import PasswordExpiryNotice from "../account/PasswordExpiryNotice.jsx";
+import LeaveProfileDialog from "../account/LeaveProfileDialog.jsx";
+
+import useNewsSocket from "../news/useNewsSocket.js";
+import { readCustomerSession } from "../customer/customerSession.js";
 
 const NewsPage = lazy(() => import("../news/NewsPage.jsx"));
 
+const roles = { ADMIN: "Quản trị viên", STAFF: "Nhân viên phục vụ", CUSTOMER: "Khách hàng thân thiết" };
 const money = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" });
-const roles = { ADMIN: "Quản lý", STAFF: "Nhân viên", CUSTOMER: "Khách hàng" };
 
-export default function HomeShell(props) {
-  // Remount account-scoped state on credential changes, including logout and account switching.
-  return <ScopedHomeShell key={`${props.authorization ?? ""}:${props.credentials ?? ""}`} {...props} />;
+export default function HomeShell({ authorization, credentials, loginHref = "#login" }) {
+  const { sessionGeneration } = useAuth();
+  return <ScopedHomeShell key={`${authorization ?? ""}:${credentials ?? ""}:${sessionGeneration}`}
+    authorization={authorization} credentials={credentials} loginHref={loginHref} />;
 }
 
-function ScopedHomeShell({ authorization = "", loginHref = "#login", credentials = "same-origin" }) {
-  const { logout } = useAuth();
-  const [hash, setHash] = useState(() => window.location.hash);
-  const navigationGuard = useRef(null);
-  const approvedHash = useRef(null);
-  const setNavigationGuard = useCallback(guard => { navigationGuard.current = guard; }, []);
+function ScopedHomeShell({ authorization, credentials, loginHref }) {
+  const auth = useAuth();
+  const [hash, setHash] = useState(() => window.location.hash || "#top");
+  const currentHash = useRef(hash);
+  const dirty = useRef(false);
+  const newsGuard = useRef(null);
+  const approvedNewsHash = useRef(null);
+  const setNavigationGuard = useCallback(guard => { newsGuard.current = guard; }, []);
+  const [pendingNavigation, setPendingNavigation] = useState(null);
+  const onDirtyChange = useCallback(value => { dirty.current = value; }, []);
   const [identity, setIdentity] = useState({ status: "loading", account: null });
-  const [feed, setFeed] = useState({ status: "loading", data: null });
-  const [readIds, setReadIds] = useState(() => new Set());
   const [accountAttempt, setAccountAttempt] = useState(0);
-  const [feedAttempt, setFeedAttempt] = useState(0);
   const recheckIdentity = useCallback(() => setAccountAttempt(value => value + 1), []);
   const news = useNewsSocket(authorization, identity.account, recheckIdentity);
+  const [feed, setFeed] = useState({ status: "idle", data: null });
+  const [feedAttempt, setFeedAttempt] = useState(0);
+  const [readIds, setReadIds] = useState(() => new Set());
+  const profileAuthority = useRef(0);
+  const onProfileLoaded = useCallback(profile => {
+    profileAuthority.current += 1;
+    setIdentity({ status: "ready", account: profile });
+  }, []);
 
   useEffect(() => {
-    function changed() {
-      if (location.hash === hash) return;
-      const approved = approvedHash.current === location.hash;
-      approvedHash.current = null;
-      if (!approved && navigationGuard.current && !navigationGuard.current()) {
-        history.replaceState(null, "", hash || `${location.pathname}${location.search}`);
+    function onHash() {
+      const next = window.location.hash || "#top";
+      if (dirty.current && next !== currentHash.current) { setPendingNavigation(next); return; }
+      const approved = approvedNewsHash.current === next;
+      approvedNewsHash.current = null;
+      if (!approved && next !== currentHash.current && newsGuard.current && !newsGuard.current()) {
+        history.replaceState(history.state, "", currentHash.current);
         return;
       }
-      setHash(location.hash);
+      currentHash.current = next;
+      setHash(next);
     }
-    function leaving(event) {
+    function onLink(event) {
+      if ((!dirty.current && !newsGuard.current) || event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
       const link = event.target.closest?.("a[href]");
-      if (!link || event.defaultPrevented || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
-      if (link.hash === "#main") { event.preventDefault(); document.getElementById("main")?.focus(); return; }
-      if (link.hash === hash || !navigationGuard.current) return;
-      if (!navigationGuard.current()) event.preventDefault();
-      else approvedHash.current = link.hash || null;
+      if (!link || link.target === "_blank" || link.hasAttribute("download")) return;
+      const url = new URL(link.href, window.location.href);
+      if (newsGuard.current && url.origin === location.origin && url.hash === "#main") {
+        event.preventDefault();
+        document.getElementById("main")?.focus();
+        return;
+      }
+      if (url.origin !== location.origin || url.pathname !== location.pathname || url.search !== location.search
+        || !url.hash || url.hash === "#main" || url.hash === currentHash.current || link.closest(".account-feedback")) return;
+      if (dirty.current) {
+        event.preventDefault();
+        setPendingNavigation(url.hash);
+      } else if (!newsGuard.current()) {
+        event.preventDefault();
+      } else {
+        approvedNewsHash.current = url.hash;
+      }
     }
-    window.addEventListener("hashchange", changed);
-    document.addEventListener("click", leaving);
-    return () => { window.removeEventListener("hashchange", changed); document.removeEventListener("click", leaving); };
-  }, [hash]);
+    function onUnload(event) { if (dirty.current) { event.preventDefault(); event.returnValue = ""; } }
+    window.addEventListener("hashchange", onHash);
+    document.addEventListener("click", onLink, true);
+    window.addEventListener("beforeunload", onUnload);
+    return () => { window.removeEventListener("hashchange", onHash); document.removeEventListener("click", onLink, true); window.removeEventListener("beforeunload", onUnload); };
+  }, []);
 
   useEffect(() => {
+    let active = true;
     const controller = new AbortController();
+    const expectedAuthority = profileAuthority.current;
     async function loadAccount() {
+      setIdentity(current => (current.status === "ready" ? current : { status: "loading", account: null }));
       try {
-        const response = await fetch("/api/v1/home/account", {
-          headers: authorization ? { Authorization: authorization } : {},
-          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10000)]),
-          cache: "no-store",
-          credentials,
-        });
+        const headers = { Accept: "application/json" };
+        if (authorization) headers.Authorization = authorization;
+        const response = await fetch("/api/v1/home/account", { headers, credentials, signal: controller.signal });
         if (response.status === 401 || response.status === 403) {
-          if (!controller.signal.aborted) setIdentity({ status: "guest", account: null });
+          if (active && expectedAuthority === profileAuthority.current) setIdentity({ status: "ready", account: null });
           return;
         }
         if (!response.ok) throw new Error("Account unavailable");
         const account = await response.json();
-        if (typeof account.id !== "string" || typeof account.name !== "string" || !roles[account.role]) throw new Error("Invalid account");
-        if (!controller.signal.aborted) setIdentity({ status: "ready", account });
+        if (active && expectedAuthority === profileAuthority.current) setIdentity({ status: "ready", account });
       } catch {
-        if (!controller.signal.aborted) setIdentity({ status: "error", account: null });
+        if (active && expectedAuthority === profileAuthority.current) setIdentity({ status: "error", account: null });
       }
     }
     void loadAccount();
-    return () => controller.abort();
+    return () => { active = false; controller.abort(); };
   }, [authorization, credentials, accountAttempt]);
 
   useEffect(() => {
     const account = identity.account;
-    if (!account || !["STAFF", "ADMIN"].includes(account.role)) return;
-    const controller = new AbortController();
+    if (!account || (account.role !== "STAFF" && account.role !== "ADMIN")) {
+      setFeed({ status: "idle", data: null });
+      return undefined;
+    }
     let timer;
+    const controller = new AbortController();
     async function refresh() {
       try {
-        const response = await fetch("/api/v1/home/notifications", {
-          headers: authorization ? { Authorization: authorization } : {},
-          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10000)]), cache: "no-store", credentials,
-        });
-        if (response.status === 401 || response.status === 403) {
-          if (!controller.signal.aborted) {
-            setIdentity({ status: "guest", account: null });
-            setFeed({ status: "ready", data: null });
-          }
-          return;
-        }
+        const headers = { Accept: "application/json" };
+        if (authorization) headers.Authorization = authorization;
+        const response = await fetch("/api/v1/home/notifications", { headers, credentials, signal: controller.signal });
         if (!response.ok) throw new Error("Feed unavailable");
         const data = await response.json();
         if (data.recipientId !== account.id || !Array.isArray(data.items)
@@ -122,6 +150,7 @@ function ScopedHomeShell({ authorization = "", loginHref = "#login", credentials
 
   const onAccountPage = hash.startsWith("#account");
   const onLoginPage = hash.startsWith("#login");
+  const onRegisterPage = hash.startsWith("#register");
   const onForgotPasswordPage = hash.startsWith("#forgot-password");
   const onOtpPage = hash.startsWith("#verify-otp");
   const onResetPasswordPage = hash.startsWith("#reset-password");
@@ -129,8 +158,10 @@ function ScopedHomeShell({ authorization = "", loginHref = "#login", credentials
   const onStaffPage = hash.startsWith("#staff");
   const onNewsPage = /^#news(?:\/|$)/.test(hash);
   const onSalesPage = hash === "#sale" || hash === "#sale-income";
+  const onCustomerPage = hash.startsWith("#customer");
 
-  const isSpecialPage = onAccountPage || onLoginPage || onForgotPasswordPage || onOtpPage || onResetPasswordPage || onAdminPage || onStaffPage || onSalesPage || onNewsPage;
+  const isAuthPage = onLoginPage || onRegisterPage || onForgotPasswordPage || onOtpPage || onResetPasswordPage;
+  const isSpecialPage = onAccountPage || isAuthPage || onAdminPage || onStaffPage || onSalesPage || onCustomerPage || onNewsPage;
 
   useEffect(() => {
     if (!isSpecialPage && hash) {
@@ -143,18 +174,23 @@ function ScopedHomeShell({ authorization = "", loginHref = "#login", credentials
     }
   }, [hash, isSpecialPage, onSalesPage]);
 
-  const handleNavigate = useCallback(newHash => { window.location.hash = newHash; }, []);
+  function handleNavigate(newHash) {
+    window.location.hash = newHash;
+  }
 
+  if (onCustomerPage) return <CustomerApp onNavigateHome={() => handleNavigate("#top")} />;
+  const tableMenuHref = readCustomerSession() ? "#customer" : undefined;
   const account = identity.account ? { ...identity.account, profileHref: "#account" } : null;
   if (onSalesPage) return <SalesWorkspace account={account} identityStatus={identity.status}
     authorization={authorization} credentials={credentials} income={hash === "#sale-income"}
     retryIdentity={() => { setIdentity({ status: "loading", account: null }); setAccountAttempt(value => value + 1); }} />;
   const notifications = feed.data && { ...feed.data, items: feed.data.items.map(item => ({ ...item, read: readIds.has(item.id) })) };
-  return <SiteLayout account={account} notifications={notifications} links={{ login: loginHref, news: "#news" }}
-    currentPage={onAccountPage ? "account" : onLoginPage ? "login" : onNewsPage ? "news" : "home"} notificationState={feed.status}
+  return <SiteLayout account={account} notifications={notifications} links={{ login: loginHref, news: "#news", menu: tableMenuHref }}
+    currentPage={onAccountPage ? "account" : onLoginPage ? "login" : onNewsPage ? "news" : "home"} isAuthPage={isAuthPage} notificationState={feed.status}
     onRetryNotifications={() => { setFeed({ status: "loading", data: null }); setFeedAttempt(value => value + 1); }}
-    onLogout={() => { if (navigationGuard.current && !navigationGuard.current()) return; void logout(); }}
-    onNotificationsOpen={() => setReadIds(previous => new Set([...previous, ...(feed.data?.items.map(item => item.id) ?? [])]))}>
+    onNotificationsOpen={() => setReadIds(previous => new Set([...previous, ...(feed.data?.items.map(item => item.id) ?? [])]))}
+    onLogout={() => { if (newsGuard.current && !newsGuard.current()) return; void auth.logout(); if (!onNewsPage) window.location.hash = "#login"; }}>
+    {auth.token && ["ADMIN", "STAFF"].includes(auth.user?.role) && <PasswordExpiryNotice status={auth.passwordStatus} />}
     {identity.status === "error" && <div className="identity-error" role="alert">Chưa tải được thông tin tài khoản.
       <button type="button" onClick={() => setAccountAttempt(value => value + 1)}>Thử lại</button></div>}
     {onNewsPage ? (
@@ -166,8 +202,10 @@ function ScopedHomeShell({ authorization = "", loginHref = "#login", credentials
       account ? (
         <section className="account-page"><h1>Bạn đã đăng nhập</h1><a href="#account">Xem thông tin tài khoản</a></section>
       ) : (
-        <LoginPage onNavigate={handleNavigate} />
+        <LoginPage onNavigate={handleNavigate} returnHref={tableMenuHref} />
       )
+    ) : onRegisterPage ? (
+      <RegisterPage onNavigate={handleNavigate} />
     ) : onForgotPasswordPage ? (
       <ForgotPasswordPage onNavigate={handleNavigate} />
     ) : onOtpPage ? (
@@ -179,14 +217,27 @@ function ScopedHomeShell({ authorization = "", loginHref = "#login", credentials
     ) : onStaffPage ? (
       <StaffDashboard onNavigate={handleNavigate} />
     ) : onAccountPage ? (
-      <AccountPage status={identity.status} account={identity.account} />
+      identity.account?.role === "CUSTOMER" && hash !== "#account-password"
+        ? <CustomerAccountPage status={identity.status} account={identity.account} />
+        : <PersonnelAccountPage key={hash === "#account-password" ? "password" : "profile"} changingPassword={hash === "#account-password"} onProfileLoaded={onProfileLoaded} onDirtyChange={onDirtyChange} />
     ) : (
-      <HomePage />
+      <HomePage tableMenuHref={tableMenuHref} />
     )}
+    {pendingNavigation && <LeaveProfileDialog onCancel={() => {
+      history.replaceState(history.state, "", `${location.pathname}${location.search}${currentHash.current}`);
+      setPendingNavigation(null);
+    }} onLeave={() => {
+      const target = pendingNavigation;
+      dirty.current = false;
+      setPendingNavigation(null);
+      currentHash.current = target;
+      setHash(target);
+      if (window.location.hash !== target) window.location.hash = target;
+    }} />}
   </SiteLayout>;
 }
 
-function AccountPage({ status, account }) {
+function CustomerAccountPage({ status, account }) {
   if (status === "loading") return <section className="account-page"><p role="status">Đang tải thông tin tài khoản…</p></section>;
   if (!account) return <section className="account-page"><h1>Thông tin tài khoản</h1><p>Bạn chưa đăng nhập hoặc phiên đã hết hạn.</p><a href="#top">Về trang chủ</a></section>;
   const birthday = account.birthday ? account.birthday.split("-").reverse().join("/") : null;

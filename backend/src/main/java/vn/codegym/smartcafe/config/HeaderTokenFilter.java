@@ -14,7 +14,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 final class HeaderTokenFilter extends OncePerRequestFilter {
     private static final List<String> AUTHENTICATED_RESOURCES = List.of(
             "/api/v1/home/account", "/api/v1/home/notifications", "/api/v1/auth/me",
-            "/api/v1/news", "/api/v1/menu", "/api/v1/sales", "/api/v1/income",
+            "/api/v1/profiles", "/api/v1/news", "/api/v1/menu", "/api/v1/sales", "/api/v1/income",
             "/api/v1/bills", "/api/v1/statistics", "/api/v1/admin", "/api/v1/staff");
     private final BearerTokenAuthenticator authenticator;
 

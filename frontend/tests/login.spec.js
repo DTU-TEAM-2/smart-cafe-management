@@ -81,7 +81,7 @@ test("leaving an in-flight login cannot establish a stale session", async ({ pag
   await page.getByLabel("Tên đăng nhập", { exact: true }).fill("test@example.invalid");
   await page.getByLabel("Mật khẩu", { exact: true }).fill("UI-fixture-password");
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Đang xử lý...", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Đăng nhập", exact: true })).toBeDisabled();
   await expect.poll(() => !!pending).toBe(true);
   await page.getByRole("link", { name: "← Về trang chủ", exact: true }).click();
   await expect(page.getByRole("heading", { name: "High Quality COFFEE" })).toBeVisible();

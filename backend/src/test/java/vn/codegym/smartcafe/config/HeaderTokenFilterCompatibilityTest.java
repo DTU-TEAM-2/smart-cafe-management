@@ -22,7 +22,7 @@ class HeaderTokenFilterCompatibilityTest {
         var filter = new HeaderTokenFilter(authenticator);
         for (String path : List.of("/api/v1/menu/categories", "/api/v1/menu", "/api/v1/sales/tables",
                 "/api/v1/income", "/api/v1/bills", "/api/v1/bills/42", "/api/v1/statistics/revenue",
-                "/api/v1/auth/me", "/api/v1/admin/test", "/api/v1/staff", "/api/v1/staff/test")) {
+                "/api/v1/auth/me", "/api/v1/profiles/me", "/api/v1/profiles/me/password", "/api/v1/admin/test", "/api/v1/staff", "/api/v1/staff/test")) {
             SecurityContextHolder.clearContext();
             try {
                 var request = new MockHttpServletRequest("GET", "/cafe" + path);
