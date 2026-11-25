@@ -18,17 +18,20 @@ async function request(path, authorization, options = {}) {
   const { method = 'GET', headers, body, signal } = options;
   const response = await fetch(root + path, {
     method, signal, credentials: 'same-origin', cache: 'no-store', body,
-    headers: { Accept: 'application/json', Authorization: authorization, ...headers },
+    headers: { Accept: 'application/json', Authorization: authorization.header ?? authorization, ...headers },
   });
   if (response.ok) return response.status === 204 ? null : parseMenuJson(await response.text());
+  if (response.status === 401 && !signal?.aborted) authorization.onUnauthorized?.();
   const problem = await response.json().catch(() => ({}));
   const messages = {
     401: 'Phiên đã hết hạn. Vui lòng đăng nhập lại.',
-    403: 'Bạn không có quyền quản lý thực đơn hoặc phiên đã hết hạn.',
+    403: 'Yêu cầu bị từ chối do quyền quản lý thực đơn hoặc CSRF. Hãy tải lại và kiểm tra quyền truy cập.',
     404: 'Mục này không còn trong thực đơn. Hãy tải lại danh sách.',
     409: 'Dữ liệu đã thay đổi hoặc mã đã được dùng. Hãy tải lại trước khi thử lại.',
   };
   const error = new Error(messages[response.status] ?? problem.detail ?? 'Không thể xử lý yêu cầu. Vui lòng thử lại.');
+  error.status = response.status;
+  error.code = problem.code;
   error.fields = problem.fieldErrors;
   throw error;
 }
@@ -45,7 +48,12 @@ async function writeMenu(path, method, body, authorization, signal) {
   const csrf = await request('/csrf', authorization, { signal });
   const headers = { [csrf.headerName]: csrf.token };
   if (body !== undefined && !(body instanceof FormData)) headers['Content-Type'] = 'application/json';
-  return request(path, authorization, { method, body, headers, signal });
+  try {
+    return await request(path, authorization, { method, body, headers, signal });
+  } catch (error) {
+    if (!signal?.aborted && (!error.status || error.status >= 500)) error.uncertain = true;
+    throw error;
+  }
 }
 
 export async function saveMenu(kind, value, editing, authorization, signal, uploadedImages) {
@@ -62,11 +70,30 @@ export async function saveMenu(kind, value, editing, authorization, signal, uplo
   }
   const payload = { code, name, version: editing ? value.version : 0 };
   if (kind === 'items') Object.assign(payload, { categoryCode, price, available, imageMediaId });
-  return writeMenu(menuPath(kind, editing ? code : undefined), editing ? 'PUT' : 'POST',
-    JSON.stringify(payload), authorization, signal);
+  try {
+    return await writeMenu(menuPath(kind, editing ? code : undefined), editing ? 'PUT' : 'POST',
+      JSON.stringify(payload), authorization, signal);
+  } catch (error) {
+    if (!error.uncertain) throw error;
+    // A dropped response (including an unreadable success body) is not a rejected write.
+    error.pendingSave = { kind, payload, editing };
+    error.message = 'Chưa xác nhận được kết quả lưu. Hãy kiểm tra kết quả trước khi tiếp tục; không gửi lại thao tác lưu.';
+    throw error;
+  }
 }
 
 export function deleteMenu(kind, row, authorization, signal) {
   return writeMenu(`${menuPath(kind, row.code)}?${new URLSearchParams({ version: row.version })}`,
     'DELETE', undefined, authorization, signal);
+}
+
+export async function reconcileMenuSave(pending, authorization, signal) {
+  const { kind, payload, editing } = pending;
+  const actual = await readMenu(kind, payload.code, authorization, signal);
+  const expectedVersion = editing ? BigInt(payload.version) + 1n : 0n;
+  const fields = kind === 'items' ? ['code', 'name', 'categoryCode', 'price', 'available', 'imageMediaId'] : ['code', 'name'];
+  const matches = fields.every(field => (actual[field] ?? null) === (payload[field] ?? null))
+    && BigInt(actual.version) === expectedVersion;
+  if (!matches) throw new Error('Dữ liệu trên máy chủ khác bản vừa gửi hoặc đã thay đổi tiếp. Hãy hủy biểu mẫu và tải lại để kiểm tra; không tự ghi đè.');
+  return actual;
 }

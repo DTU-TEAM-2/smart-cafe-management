@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { imageDimensions } from './imageDimensions.js';
 
-export default function MenuEditor({ kind, value, categories, onSave, onCancel }) {
+export default function MenuEditor({ kind, value, categories, onSave, onReconcile, onCancel }) {
   const isItem = kind === 'items';
   const [form, setForm] = useState(value ?? { code: '', name: '', categoryCode: '', price: '', imageUrl: '', available: true });
   const [errors, setErrors] = useState({});
@@ -9,6 +9,7 @@ export default function MenuEditor({ kind, value, categories, onSave, onCancel }
   const [reading, setReading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [pendingSave, setPendingSave] = useState(null);
   const firstField = useRef(null);
   const reader = useRef(null);
   const imageRequest = useRef(0);
@@ -30,7 +31,7 @@ export default function MenuEditor({ kind, value, categories, onSave, onCancel }
   }
 
   async function readImage(file) {
-    if (!file || saving) return;
+    if (!file || saving || pendingSave) return;
     const request = ++imageRequest.current;
     reader.current?.abort();
     setReading(false);
@@ -67,7 +68,7 @@ export default function MenuEditor({ kind, value, categories, onSave, onCancel }
 
   async function submit(event) {
     event.preventDefault();
-    if (reading || imageError || saving) return;
+    if (reading || imageError || saving || pendingSave) return;
     const fields = event.currentTarget.elements;
     const next = { ...form, code: form.code.trim().toUpperCase(), name: form.name.trim(), price: String(form.price ?? '').trim() };
     const failures = {};
@@ -86,6 +87,7 @@ export default function MenuEditor({ kind, value, categories, onSave, onCancel }
         result = await onSave(isItem ? next : { code: next.code, name: next.name, version: next.version });
       } catch (error) {
         if (error.name !== 'AbortError') setSaveError(error.message);
+        if (error.pendingSave) setPendingSave(error.pendingSave);
         result = error.fields;
       } finally {
         setSaving(false);
@@ -97,10 +99,20 @@ export default function MenuEditor({ kind, value, categories, onSave, onCancel }
     }
   }
 
+  async function checkSave() {
+    if (saving) return;
+    setSaving(true);
+    try { await onReconcile(pendingSave); }
+    catch (error) {
+      if (error.name !== 'AbortError') setSaveError(error.status === 404
+        ? 'Chưa tìm thấy bản ghi trên máy chủ. Kết quả lưu vẫn chưa xác định; hãy kiểm tra lại hoặc hủy biểu mẫu để tải lại.' : error.message);
+    } finally { setSaving(false); }
+  }
+
   return <form className="panel editor" noValidate onSubmit={submit}>
     <h2>{value ? 'Chỉnh sửa' : 'Thêm'} {isItem ? 'món' : 'nhóm món'}</h2>
     <p className="panel-description">{isItem ? 'Ảnh sản phẩm / Xem trước ảnh' : 'Thông tin nhóm món trong thực đơn'}</p>
-    <fieldset className="form-grid" disabled={saving}>
+    <fieldset className="form-grid" disabled={saving || Boolean(pendingSave)}>
       <label>Mã {isItem ? 'món' : 'nhóm món'} *
         <input ref={firstField} name="code" required minLength={isItem ? 4 : 1} maxLength={isItem ? 40 : 32} pattern="[A-Za-z0-9_-]+" title="Chữ Latin, số, dấu gạch ngang hoặc gạch dưới" readOnly={Boolean(value)} {...errorProps('code')} value={form.code} onChange={e => update('code', e.target.value)} placeholder={isItem ? 'VD: CF104' : 'VD: CF'} />
         {fieldError('code')}
@@ -135,7 +147,8 @@ export default function MenuEditor({ kind, value, categories, onSave, onCancel }
       </> : null}
     </fieldset>
     {saveError ? <p className="error" role="alert">{saveError}</p> : null}
+    {pendingSave ? <button type="button" disabled={saving} onClick={() => void checkSave()}>KIỂM TRA KẾT QUẢ LƯU</button> : null}
     {saving ? <p role="status">Đang lưu thực đơn…</p> : null}
-    <div className="form-actions"><button type="button" disabled={saving} onClick={onCancel}>HỦY</button><button className="primary" disabled={saving || reading || Boolean(imageError)}>{isItem ? 'LƯU MÓN' : 'LƯU NHÓM MÓN'}</button></div>
+    <div className="form-actions"><button type="button" disabled={saving} onClick={onCancel}>HỦY</button><button className="primary" disabled={saving || reading || Boolean(imageError) || Boolean(pendingSave)}>{isItem ? 'LƯU MÓN' : 'LƯU NHÓM MÓN'}</button></div>
   </form>;
 }

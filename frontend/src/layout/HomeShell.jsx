@@ -163,6 +163,7 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
       <p role="alert">Chỉ quản trị viên đã đăng nhập mới có thể quản lý thực đơn.</p>
       <a href={account ? "#top" : loginHref}>{account ? "Về trang chủ" : "Đăng nhập"}</a></main>;
     return <Suspense fallback={<main><p role="status">Đang tải quản lý thực đơn…</p></main>}>
+      <PasswordExpiryNotice status={auth.passwordStatus} />
       <MenuAdmin authorization={authorization} />
     </Suspense>;
   }

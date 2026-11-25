@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useAuth } from '../auth/AuthContext.jsx';
 import MenuEditor from './MenuEditor.jsx';
 import DeleteDialog from './DeleteDialog.jsx';
-import { deleteMenu, listMenu, readMenu, saveMenu } from './menuApi.js';
+import { deleteMenu, listMenu, readMenu, reconcileMenuSave, saveMenu } from './menuApi.js';
 import './menu.css';
 
 const money = new Intl.NumberFormat('vi-VN');
@@ -20,7 +21,14 @@ async function loadCategories(authorization, signal) {
   return [...categories.values()];
 }
 
-export default function MenuAdmin({ authorization }) {
+export default function MenuAdmin({ authorization: header }) {
+  const { captureSession, isCurrentSession, expireSession, sessionGeneration } = useAuth();
+  const authorization = useMemo(() => {
+    const snapshot = captureSession();
+    return { header, onUnauthorized: () => {
+      if (header === `Bearer ${snapshot.token}` && isCurrentSession(snapshot)) expireSession(snapshot);
+    } };
+  }, [header, sessionGeneration, captureSession, isCurrentSession, expireSession]);
   const [kind, setKind] = useState('items');
   const [query, setQuery] = useState(blankQuery);
   const [keyword, setKeyword] = useState('');
@@ -144,6 +152,15 @@ export default function MenuAdmin({ authorization }) {
     return null;
   }
 
+  async function reconcile(pending) {
+    await runAction(async signal => {
+      await reconcileMenuSave(pending, authorization, signal);
+      if (signal.aborted) return;
+      setEditor(null);
+      refresh(`Đã kiểm tra: ${noun} đã được lưu trên máy chủ.`);
+    });
+  }
+
   async function confirmDelete() {
     setDeleteError('');
     try {
@@ -181,7 +198,7 @@ export default function MenuAdmin({ authorization }) {
       <main id="main-content" aria-busy={busy}>
         <div className="page-heading"><h1 ref={heading} tabIndex={-1}>Quản lý thực đơn</h1></div>
         {editor ? <MenuEditor key={editor.value?.code ?? 'new'} kind={kind} value={editor.value}
-          categories={categories ?? []} onSave={save} onCancel={() => setEditor(null)} /> : <section className="panel" aria-labelledby="menu-list-title">
+          categories={categories ?? []} onSave={save} onReconcile={reconcile} onCancel={() => setEditor(null)} /> : <section className="panel" aria-labelledby="menu-list-title">
           <h2 id="menu-list-title">Danh sách {noun}</h2>
           <div className="view-switch" role="group" aria-label="Loại danh sách">
             <button disabled={busy} aria-pressed={itemView} onClick={() => switchKind('items')}>Món</button>

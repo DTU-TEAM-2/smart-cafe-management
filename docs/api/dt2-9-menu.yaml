@@ -7,6 +7,9 @@ info:
     No login or seeded accounts. GET csrf with a valid Bearer token, retain the session cookie,
     then send the returned token/headerName for each mutation. Codes are immutable.
     Deleting a category atomically hides its items. Soft-deleted codes cannot be reused.
+    Category version advances on category edits and on each committed item create/delete,
+    under the same category lock. DELETE with a stale confirmation version returns 409,
+    including membership changes that leave itemCount unchanged. Read and confirm again.
 servers:
   - url: http://127.0.0.1:8080
 security:

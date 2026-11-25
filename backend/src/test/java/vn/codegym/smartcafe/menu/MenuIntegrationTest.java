@@ -205,6 +205,27 @@ class MenuIntegrationTest {
         mvc.perform(post("/api/v1/menu/items").with(csrf()).contentType("application/json").content(item("CF09", "New coffee", 15000, "CF", 0))).andExpect(status().isConflict());
     }
 
+    @Test @WithMockUser(roles = "ADMIN")
+    void staleCategoryConfirmationRejectsCommittedMembershipChangesIncludingSameCountReplacement() throws Exception {
+        fixtures();
+        var confirmation = catalog.category("CF");
+        catalog.createItem(new MenuModels.ItemInput("CF09", "Added coffee", new java.math.BigDecimal("15000"), "CF", null, 0L, true));
+        mvc.perform(delete("/api/v1/menu/categories/CF").param("version", Long.toString(confirmation.version())).with(csrf()))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("STALE_MENU"));
+        assertThat(catalog.category("CF").itemCount()).isEqualTo(3);
+        catalog.deleteItem("CF01", 0);
+        assertThat(catalog.category("CF").itemCount()).isEqualTo(confirmation.itemCount());
+        mvc.perform(delete("/api/v1/menu/categories/CF").param("version", Long.toString(confirmation.version())).with(csrf()))
+                .andExpect(status().isConflict());
+        assertThat(catalog.item("CF09").code()).isEqualTo("CF09");
+        long current = catalog.category("CF").version();
+        assertThat(current).isEqualTo(confirmation.version() + 2);
+        assertThatThrownBy(() -> catalog.deleteItem("CF09", 9)).isInstanceOf(MenuException.class);
+        assertThat(catalog.category("CF").version()).isEqualTo(current);
+        mvc.perform(delete("/api/v1/menu/categories/CF").param("version", Long.toString(current)).with(csrf()))
+                .andExpect(status().isNoContent());
+    }
+
     @Test void simultaneousUpdatesHaveOneWinner() throws Exception {
         fixtures();
         var gate = new CountDownLatch(1);
@@ -221,6 +242,32 @@ class MenuIntegrationTest {
             catalog.updateItem("CF01", new MenuModels.ItemInput("CF01", name, new java.math.BigDecimal("20000"), "CF", null, 0L, true));
             return "saved";
         } catch (MenuException error) { return error.status().value() == 409 ? "conflict" : "unexpected"; }
+    }
+
+    @Test void insertionHoldingCategoryLockInvalidatesWaitingDeleteConfirmation() throws Exception {
+        fixtures();
+        long confirmation = catalog.category("CF").version();
+        var inserted = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        try (var pool = Executors.newFixedThreadPool(2)) {
+            var insertion = pool.submit(() -> transaction.executeWithoutResult(status -> {
+                catalog.createItem(new MenuModels.ItemInput("CF09", "Added coffee", new java.math.BigDecimal("15000"), "CF", null, 0L, true));
+                inserted.countDown();
+                try { if (!release.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("timeout"); }
+                catch (InterruptedException error) { Thread.currentThread().interrupt(); throw new IllegalStateException(error); }
+            }));
+            assertThat(inserted.await(5, TimeUnit.SECONDS)).isTrue();
+            var deletion = pool.submit(() -> {
+                try { catalog.deleteCategory("CF", confirmation); return "deleted"; }
+                catch (MenuException error) { return error.code(); }
+            });
+            try { assertThatThrownBy(() -> deletion.get(200, TimeUnit.MILLISECONDS)).isInstanceOf(java.util.concurrent.TimeoutException.class); }
+            finally { release.countDown(); }
+            insertion.get(5, TimeUnit.SECONDS);
+            assertThat(deletion.get(5, TimeUnit.SECONDS)).isEqualTo("STALE_MENU");
+        }
+        assertThat(catalog.category("CF").itemCount()).isEqualTo(3);
+        assertThat(catalog.item("CF09").code()).isEqualTo("CF09");
     }
 
     @Test void deleteGroupLockBlocksNewItemsUntilDeletionCommits() throws Exception {

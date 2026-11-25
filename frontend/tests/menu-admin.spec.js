@@ -150,3 +150,143 @@ test('upload failure retains draft and a rejected save reuses the uploaded media
   expect(uploads).toBe(2);
   expect(writes).toBe(2);
 });
+
+async function menuFixture(page, handler) {
+  await signIn(page, 'ADMIN');
+  const item = { code: 'CF01', name: 'Coffee fixture', categoryCode: 'CF', categoryName: 'Coffee',
+    price: '45000', available: true, imageMediaId: null, version: '7' };
+  await page.route('**/api/v1/menu/**', async route => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname;
+    if (await handler?.(route, path, item)) return;
+    if (path.endsWith('/csrf')) return route.fulfill({ json: { headerName: 'X-CSRF-TOKEN', token: 'fixture-csrf' } });
+    if (path.endsWith('/categories')) return route.fulfill({ json: { content: [{ code: 'CF', name: 'Coffee', version: 0 }], totalElements: 1 } });
+    if (path.endsWith('/items')) return route.fulfill({ json: { content: [item], totalElements: 1 } });
+    return route.fulfill({ json: item });
+  });
+  await page.goto('http://127.0.0.1:15174/#admin-menu');
+  await page.getByRole('button', { name: 'Sửa Coffee fixture' }).click();
+}
+
+test('menu mutation 401 expires the current session and clears the draft', async ({ page }) => {
+  await menuFixture(page, async route => {
+    if (route.request().method() !== 'PUT') return false;
+    await route.fulfill({ status: 401, json: {} }); return true;
+  });
+  await page.getByRole('button', { name: 'LƯU MÓN', exact: true }).click();
+  await expect(page.getByText('Chỉ quản trị viên đã đăng nhập mới có thể quản lý thực đơn.')).toBeVisible();
+  await expect(page.getByLabel('Tên món *')).toHaveCount(0);
+  expect(await page.evaluate(() => sessionStorage.getItem('smart_cafe_token'))).toBeNull();
+});
+
+test('menu upload 401 expires session while csrf 403 preserves it', async ({ page }) => {
+  let forbidden = true;
+  await menuFixture(page, async (route, path) => {
+    if (path.endsWith('/csrf') && forbidden) {
+      await route.fulfill({ status: 403, json: { code: 'CSRF_INVALID' } }); return true;
+    }
+    if (path.endsWith('/images')) { await route.fulfill({ status: 401, json: {} }); return true; }
+    return false;
+  });
+  await page.getByRole('button', { name: 'LƯU MÓN', exact: true }).click();
+  await expect(page.getByRole('alert')).toContainText('CSRF');
+  expect(await page.evaluate(() => sessionStorage.getItem('smart_cafe_token'))).toBe('fixture-menu-token');
+  forbidden = false;
+  const image = await page.evaluate(() => {
+    const canvas = document.createElement('canvas'); canvas.width = 2; canvas.height = 2;
+    return canvas.toDataURL('image/png').split(',')[1];
+  });
+  await page.getByLabel('Ảnh sản phẩm', { exact: true }).setInputFiles({ name: 'menu.png', mimeType: 'image/png', buffer: Buffer.from(image, 'base64') });
+  await page.getByRole('button', { name: 'LƯU MÓN', exact: true }).click();
+  await expect(page.getByText('Chỉ quản trị viên đã đăng nhập mới có thể quản lý thực đơn.')).toBeVisible();
+  expect(await page.evaluate(() => sessionStorage.getItem('smart_cafe_token'))).toBeNull();
+});
+
+test('a delayed old-session 401 cannot clear a replacement login', async ({ page }) => {
+  let release;
+  const gate = new Promise(resolve => { release = resolve; });
+  let started;
+  const sent = new Promise(resolve => { started = resolve; });
+  await menuFixture(page, async route => {
+    if (route.request().method() !== 'PUT') return false;
+    started(); await gate;
+    await route.fulfill({ status: 401, json: {} }).catch(() => {}); return true;
+  });
+  await page.getByRole('button', { name: 'LƯU MÓN', exact: true }).click();
+  await sent;
+  await page.evaluate(() => {
+    sessionStorage.setItem('smart_cafe_token', 'replacement-token');
+    window.dispatchEvent(new CustomEvent('smart-cafe-auth-change'));
+  });
+  release();
+  await expect(page.getByRole('button', { name: 'Sửa Coffee fixture' })).toBeVisible();
+  expect(await page.evaluate(() => sessionStorage.getItem('smart_cafe_token'))).toBe('replacement-token');
+});
+
+for (const outcome of ['dropped', 'invalid-json', 'changed-by-another-admin']) {
+  test(`uncertain save reconciles without a second write: ${outcome}`, async ({ page }) => {
+    let writes = 0;
+    await menuFixture(page, async (route, path, item) => {
+      if (route.request().method() !== 'PUT') return false;
+      writes += 1;
+      Object.assign(item, route.request().postDataJSON(), { version: outcome === 'changed-by-another-admin' ? '9' : '8' });
+      if (outcome === 'changed-by-another-admin') item.name = 'Other admin coffee';
+      if (outcome === 'invalid-json') await route.fulfill({ status: 200, contentType: 'application/json', body: '{' });
+      else await route.abort('failed');
+      return true;
+    });
+    await page.getByRole('button', { name: 'LƯU MÓN', exact: true }).click();
+    await expect(page.getByRole('alert')).toContainText('Chưa xác nhận được kết quả lưu');
+    await expect(page.getByRole('button', { name: 'LƯU MÓN', exact: true })).toBeDisabled();
+    await expect(page.getByLabel('Tên món *')).toBeDisabled();
+    await page.getByRole('button', { name: 'KIỂM TRA KẾT QUẢ LƯU' }).click();
+    if (outcome === 'changed-by-another-admin') {
+      await expect(page.getByRole('alert')).toContainText('không tự ghi đè');
+      await expect(page.getByRole('button', { name: 'LƯU MÓN', exact: true })).toBeDisabled();
+    } else await expect(page.getByRole('status').filter({ hasText: 'đã được lưu trên máy chủ' })).toBeVisible();
+    expect(writes).toBe(1);
+  });
+}
+
+test('direct menu navigation preserves password-expiry warning and link', async ({ page }) => {
+  await page.addInitScript(() => sessionStorage.setItem('smart_cafe_user', JSON.stringify({ role: 'ADMIN',
+    _passwordStatus: { mustChangePassword: true, passwordChangedAt: '2026-01-01T00:00:00Z', passwordExpiresAt: '2026-02-01T00:00:00Z' } })));
+  await menuFixture(page);
+  await expect(page.getByRole('complementary', { name: 'Cảnh báo mật khẩu' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Đổi mật khẩu' })).toHaveAttribute('href', '#account-password');
+});
+
+test('a create with dropped response is read back without repeating POST', async ({ page }) => {
+  let saved;
+  let writes = 0;
+  let reads = 0;
+  await menuFixture(page, async (route, path) => {
+    if (route.request().method() === 'POST' && path.endsWith('/items')) {
+      writes += 1;
+      saved = { ...route.request().postDataJSON(), version: '0' };
+      await route.abort('failed'); return true;
+    }
+    if (path.endsWith('/items/NEW1')) {
+      reads += 1;
+      if (reads === 1) await route.fulfill({ status: 503, json: {} });
+      else await route.fulfill({ json: saved });
+      return true;
+    }
+    return false;
+  });
+  await page.getByRole('button', { name: 'HỦY', exact: true }).click();
+  await page.getByRole('button', { name: 'THÊM MÓN MỚI', exact: true }).click();
+  await page.getByLabel('Mã món *').fill('NEW1');
+  await page.getByLabel('Tên món *').fill('New coffee');
+  await page.getByLabel('Danh mục *').selectOption('CF');
+  await page.getByLabel('Đơn giá (đ) *').fill('45000');
+  await page.getByRole('button', { name: 'LƯU MÓN', exact: true }).click();
+  const check = page.getByRole('button', { name: 'KIỂM TRA KẾT QUẢ LƯU' });
+  await check.click();
+  await expect(page.getByRole('button', { name: 'LƯU MÓN', exact: true })).toBeDisabled();
+  await expect(check).toBeEnabled();
+  await check.click();
+  await expect(page.getByRole('status').filter({ hasText: 'đã được lưu trên máy chủ' })).toBeVisible();
+  expect(writes).toBe(1);
+  expect(reads).toBe(2);
+});
