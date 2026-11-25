@@ -70,6 +70,7 @@ export default function BillDetailModal({ bill, onClose, canPrint }) {
         <h3>Danh sách món đã gọi</h3>
         <div className="billing-items-scroll" role="region" aria-label="Món trong hóa đơn" tabIndex={0}>
           <table className="billing-items-table">
+            <colgroup><col /><col /><col /><col /></colgroup>
             <thead>
               <tr>
                 <th scope="col">Tên món</th>

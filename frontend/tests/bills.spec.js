@@ -486,4 +486,74 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
     expect(await page.evaluate(() => sessionStorage.getItem("smart_cafe_token"))).toBe("replacement-token");
   });
 
+
+  test("Actual A4 PDF preserves long names, exact VND, all rows and repeated headers", async ({ page }, testInfo) => {
+    const longName = "W".repeat(160);
+    const mediumName = "M".repeat(80);
+    const items = [
+      { orderItemId: "9007199254740993", itemName: longName, quantity: 3, unitPrice: "123456789012345678", lineTotal: "370370367037037034" },
+      { orderItemId: "9007199254740994", itemName: mediumName, quantity: 7, unitPrice: "23456789", lineTotal: "164197523" },
+      ...Array.from({ length: 150 }, (_, i) => ({
+        orderItemId: String(i + 10), itemName: `PRINT-ROW-${String(i + 1).padStart(3, "0")}`,
+        quantity: 1, unitPrice: String(10000 + i), lineTotal: String(10000 + i),
+      })),
+    ];
+    const totalAmount = items.reduce((sum, item) => sum + BigInt(item.lineTotal), 0n).toString();
+    const detail = { ...mockBillDetail1, id: "1", sessionCode: "PRINT-SESSION", totalAmount, items };
+    const summary = { ...mockBills[0], id: "1", totalAmount };
+    await page.route("**/api/v1/home/account", route => route.fulfill({ json: admin }));
+    await page.route("**/api/v1/bills?**", route => route.fulfill({
+      json: { content: [summary], totalElements: 1, totalPages: 1, page: 0, size: 10 },
+    }));
+    await page.route("**/api/v1/bills/1", route => route.fulfill({ json: detail }));
+    await page.goto("/#bills");
+    await setToken(page, "admin-token");
+    await page.getByRole("button", { name: summary.billCode }).click();
+    await page.getByRole("button", { name: "Xem chi tiết", exact: true }).click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog.getByRole("button", { name: "In hóa đơn" })).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    const path = testInfo.outputPath("dt2-8-print-a4.pdf");
+    const buffer = await page.pdf({ path, format: "A4", margin: { top: "12mm", bottom: "12mm", left: "12mm", right: "12mm" } });
+    const { getDocument } = await import("pdfjs-dist/legacy/build/pdf.mjs");
+    const loadingTask = getDocument({ data: new Uint8Array(buffer), isEvalSupported: false });
+    const pdf = await loadingTask.promise;
+    const compact = value => value.normalize("NFC").replace(/\s/gu, "");
+    const money = value => compact(new Intl.NumberFormat("vi-VN", {
+      style: "currency", currency: "VND", maximumFractionDigits: 0,
+    }).format(BigInt(value)));
+    try {
+      expect(pdf.numPages).toBeGreaterThan(1);
+      const texts = [];
+      for (let n = 1; n <= pdf.numPages; n++) {
+        const printedPage = await pdf.getPage(n);
+        const viewport = printedPage.getViewport({ scale: 1 });
+        const content = await printedPage.getTextContent();
+        const spans = content.items.filter(item => "str" in item && item.str.trim());
+        for (const span of spans) {
+          expect(span.transform[4], `PDF page ${n}: ${span.str} starts outside paper`).toBeGreaterThanOrEqual(-1);
+          expect(span.transform[4] + span.width, `PDF page ${n}: ${span.str} ends outside paper`).toBeLessThanOrEqual(viewport.width + 1);
+        }
+        const text = compact(spans.map(item => item.str).join(""));
+        texts.push(text);
+        if (text.includes("PRINT-ROW-") || text.includes("WWWWWW")) {
+          for (const heading of ["Tên món", "Số lượng", "Đơn giá", "Thành tiền"]) expect(text).toContain(compact(heading));
+        }
+      }
+      const full = texts.join("");
+      for (const item of items) {
+        expect(full, `Missing printed item ${item.orderItemId}`).toContain(item.itemName);
+        expect(full, `Missing exact price for ${item.orderItemId}`).toContain(money(item.unitPrice));
+        expect(full, `Missing exact line total for ${item.orderItemId}`).toContain(money(item.lineTotal));
+      }
+      expect(full).toContain(`3${money(items[0].unitPrice)}${money(items[0].lineTotal)}`);
+      expect(full).toContain(`7${money(items[1].unitPrice)}${money(items[1].lineTotal)}`);
+      expect(full).toContain(compact("Tổng cộng:") + money(totalAmount));
+      for (const hidden of ["Search by ID", "Show List Bill", "KHU VỰC QUẢN TRỊ", "In hóa đơn"]) expect(full).not.toContain(compact(hidden));
+      await testInfo.attach("Actual A4 invoice", { path, contentType: "application/pdf" });
+    } finally {
+      await loadingTask.destroy();
+    }
+  });
+
 });
