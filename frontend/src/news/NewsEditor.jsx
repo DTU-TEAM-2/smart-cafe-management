@@ -115,14 +115,17 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
     }
   }
 
-  function finishRecovery() {
-    if (!window.confirm("Bài trước vẫn có thể đã được lưu. Lưu bản sao để đối soát và mở form trống cho một bài khác?")) return;
+  function downloadRecovery() {
     const url = URL.createObjectURL(new Blob([JSON.stringify(pending, null, 2)], { type: "application/json" }));
     const link = document.createElement("a");
     link.href = url;
     link.download = "tin-tuc-can-doi-soat.json";
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function discardRecovery() {
+    if (!window.confirm("Bỏ nội dung đối soát trong tab này và soạn bài khác? Nếu đã tải bản sao, hãy kiểm tra tệp trước khi xác nhận. Bài trước vẫn có thể đã được lưu trên máy chủ.")) return;
     const blank = emptyDraft();
     setDraft(blank);
     setOriginal(JSON.stringify(blank));
@@ -243,7 +246,8 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
     {pending && !busy && <div className="news-error">
       <p role="status">Chưa xác nhận được kết quả lần lưu trước. Kiểm tra bài có đường dẫn <strong>{pending.slug}</strong>.</p>
       <button type="button" className="news-button" onClick={resolvePending}>Kiểm tra bài đã lưu</button>
-      <button type="button" className="news-button subtle" onClick={finishRecovery}>Lưu bản sao và soạn bài khác</button>
+      <button type="button" className="news-button subtle" onClick={downloadRecovery}>Tải bản sao JSON</button>
+      <button type="button" className="news-button subtle" onClick={discardRecovery}>Bỏ đối soát và soạn bài khác</button>
       {found && <p>Tìm thấy “{found.title}”. <button type="button" className="news-button" onClick={() => {
         if (window.confirm("Xác nhận bài tìm thấy là bài cần khôi phục và mở bài đó?")) {
           clearPending();

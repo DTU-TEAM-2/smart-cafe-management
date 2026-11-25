@@ -70,16 +70,31 @@ test("lost create response and missing old slug never replay a POST", async ({ p
   await page.getByRole("button", { name: "Kiểm tra bài đã lưu" }).click();
   await expect(page.getByRole("alert")).toContainText("Chưa tìm thấy bài qua đường dẫn cũ");
   await expect(page.getByRole("button", { name: "Gửi lại lần lưu này" })).toHaveCount(0);
-  const startAnother = page.getByRole("button", { name: "Lưu bản sao và soạn bài khác" });
-  page.once("dialog", dialog => dialog.dismiss());
-  await startAnother.click();
+  const exportBackup = page.getByRole("button", { name: "Tải bản sao JSON" });
+  await page.evaluate(() => {
+    const click = HTMLAnchorElement.prototype.click;
+    HTMLAnchorElement.prototype.click = function () {
+      if (!this.download) click.call(this);
+    };
+  });
+  await exportBackup.click();
   await expect(page.getByLabel("Tiêu đề")).toHaveValue(article.title);
+  await page.reload();
+  await expect(page.getByLabel("Nội dung")).toHaveValue(article.body);
+
   const download = page.waitForEvent("download");
-  page.once("dialog", dialog => dialog.accept());
-  await startAnother.click();
+  await exportBackup.click();
   const backup = await download;
   expect(backup.suggestedFilename()).toBe("tin-tuc-can-doi-soat.json");
   expect(JSON.parse(await readFile(await backup.path(), "utf8"))).toEqual({ slug: article.slug, body: article });
+  await page.reload();
+  await expect(page.getByLabel("Tiêu đề")).toHaveValue(article.title);
+  const startAnother = page.getByRole("button", { name: "Bỏ đối soát và soạn bài khác" });
+  page.once("dialog", dialog => dialog.dismiss());
+  await startAnother.click();
+  await expect(page.getByLabel("Tiêu đề")).toHaveValue(article.title);
+  page.once("dialog", dialog => dialog.accept());
+  await startAnother.click();
   await expect(page.getByLabel("Tiêu đề")).toHaveValue("");
   await expect(page.getByLabel("Tiêu đề")).toBeEditable();
   expect(posts).toBe(0);
