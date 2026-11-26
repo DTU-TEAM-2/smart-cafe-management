@@ -23,9 +23,13 @@ jobs:
       - run: node --test scripts/git-flow.test.mjs
       - run: node scripts/git-flow.mjs
   backend-verify:
-    name: Maven verification on MySQL
+    name: Maven verification on MySQL (${{ matrix.suite }})
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [auth, database, migrations, application]
     services:
       mysql:
         image: mysql:8.0
@@ -51,10 +55,24 @@ jobs:
       - name: Verify API on MySQL
         working-directory: backend
         env:
+          MAVEN_SUITE: ${{ matrix.suite }}
           TEST_DB_URL: jdbc:mysql://127.0.0.1:3306/smart_cafe_ci_test?connectionTimeZone=UTC
           TEST_DB_USERNAME: root
           TEST_DB_PASSWORD: ''
-        run: sh mvnw -B -ntp verify
+        run: |
+          # Keep Surefire's default test-name patterns within each selected package.
+          suite_patterns() {
+            printf '%s/Test*.java,%s/*Test.java,%s/*Tests.java,%s/*TestCase.java' "$1" "$1" "$1" "$1"
+          }
+          migrations='**/database/DatabaseMigrationSafetyTest.java,**/database/VerifiedDatabaseMigrationTest.java'
+          case "$MAVEN_SUITE" in
+            auth) tests="$(suite_patterns '**/auth/**')" ;;
+            database) tests="$(suite_patterns '**/database/**'),!${migrations//,/,!}" ;;
+            migrations) tests="$migrations" ;;
+            application) tests="$(suite_patterns '**'),!**/auth/**,!**/database/**" ;;
+            *) echo "::error::Unknown Maven suite"; exit 1 ;;
+          esac
+          sh mvnw -B -ntp "-Dtest=$tests" verify
   production-smoke:
     name: Production menu smoke
     runs-on: ubuntu-latest
@@ -133,14 +151,14 @@ jobs:
           test "$MAVEN_RESULT" = success
           test "$SMOKE_RESULT" = success
   frontend-browser:
-    name: Frontend UI (${{ matrix.project }} ${{ matrix.shard }}/3)
+    name: Frontend UI (${{ matrix.project }} ${{ matrix.shard }}/4)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
         project: [desktop, mobile]
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4]
     defaults:
       run:
         working-directory: frontend
@@ -161,7 +179,7 @@ jobs:
       - run: npx playwright test --project "$PLAYWRIGHT_PROJECT" --fully-parallel --shard "$PLAYWRIGHT_SHARD" --workers=2
         env:
           PLAYWRIGHT_PROJECT: ${{ matrix.project }}
-          PLAYWRIGHT_SHARD: ${{ matrix.shard }}/3
+          PLAYWRIGHT_SHARD: ${{ matrix.shard }}/4
           PLAYWRIGHT_USE_EXISTING_BUILD: '1'
       - name: Upload Playwright failure evidence
         if: failure()
