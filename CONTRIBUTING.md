@@ -44,7 +44,7 @@ Không tạo release cho mỗi feature. Chỉ tạo release từ develop khi nh�
 
 ## CI và dọn nhánh
 
-Gắn ít nhất một GitHub label phù hợp ngay khi mở PR. Check bắt buộc `PR title` kiểm cả tiêu đề và label, đồng thời chạy lại khi có người thêm hoặc gỡ label.
+Gắn ít nhất một GitHub label phù hợp ngay khi mở PR. Check bắt buộc `PR title` kiểm cả tiêu đề và label. Thêm hoặc gỡ label chỉ chạy lại workflow `PR metadata`.
 
 Workflow hỗ trợ PR vào main/develop/release, push main/develop/release và kiểm nhánh nguồn/đích qua `scripts/git-flow.mjs`. Required checks và quyền GitHub xem tại [thiết lập GitHub](docs/engineering/github-settings.md). CI xanh không thay review/AC hoặc chứng minh nguồn tách nhánh và phạm vi nghiệp vụ.
 
