@@ -209,7 +209,10 @@ public class AuthRepository {
     public int consumeOtpResend(String challengeId, Instant acceptedAt, Instant nextSendAt) {
         return jdbcTemplate.update("""
             UPDATE auth_otp_challenges
-            SET sends = sends + 1, next_send_at = ?
+            SET sends = sends + 1,
+                next_send_at = ?,
+                delivery_status = CASE WHEN user_id IS NOT NULL THEN 'PENDING' ELSE delivery_status END,
+                last_error_code = NULL
             WHERE id = ?
               AND used_at IS NULL
               AND sends < 3
@@ -220,14 +223,16 @@ public class AuthRepository {
 
     public int recordOtpDelivery(String challengeId, int expectedSends, String newCodeHash,
                                  boolean delivered, Instant sentAt) {
+        Timestamp sentTs = Timestamp.from(sentAt);
         return jdbcTemplate.update("""
             UPDATE auth_otp_challenges
             SET code_hash = CASE WHEN ? THEN ? ELSE code_hash END,
                 delivery_status = ?,
+                last_error_code = CASE WHEN ? THEN NULL ELSE 'SMTP_DELIVERY_FAILED' END,
                 sent_at = CASE WHEN ? THEN ? ELSE sent_at END
-            WHERE id = ? AND used_at IS NULL AND sends = ?
+            WHERE id = ? AND used_at IS NULL AND sends = ? AND expires_at > ?
             """, delivered, newCodeHash, delivered ? "SENT" : "FAILED", delivered,
-                Timestamp.from(sentAt), challengeId, expectedSends);
+                delivered, sentTs, challengeId, expectedSends, sentTs);
     }
 
     public int markOtpUsedIfCurrent(String challengeId, String expectedCodeHash, int expectedSends) {

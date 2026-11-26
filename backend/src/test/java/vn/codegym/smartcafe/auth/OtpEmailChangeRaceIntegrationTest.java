@@ -224,6 +224,8 @@ class OtpEmailChangeRaceIntegrationTest {
         String grantToken = (String) body(verifyResult).get("token");
         assertThat(grantToken).isNotEmpty();
 
+        String originalHash = jdbc.queryForObject("SELECT password_hash FROM users WHERE id = ?", String.class, staffUserId);
+
         // Step 3: Staff PUT changes email to NEW_EMAIL -> increments auth_version
         String updateBody = """
                 {"fullName":"Staff Race User","email":"%s","phone":"0901234567",
@@ -235,14 +237,24 @@ class OtpEmailChangeRaceIntegrationTest {
                 .content(updateBody))
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
 
-        // Step 4: Attempt to reset password using the old grant token -> must be rejected (401 Unauthorized via InvalidTokenException)
+        // Step 4a: verify-reset-token must return valid=false
+        MvcResult checkTokenResult = mvc.perform(post("/api/v1/auth/verify-reset-token")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"token\":\"" + grantToken + "\"}"))
+                .andReturn();
+        assertThat(checkTokenResult.getResponse().getStatus()).isEqualTo(200);
+        assertThat(body(checkTokenResult).get("valid")).isEqualTo(false);
+
+        // Step 4b: Attempt to reset password using the old grant token -> must be rejected (401 Unauthorized via InvalidTokenException)
         MvcResult resetResult = mvc.perform(post("/api/v1/auth/reset-password")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"token\":\"" + grantToken + "\",\"newPassword\":\"HackedPass@123\",\"confirmPassword\":\"HackedPass@123\"}"))
                 .andReturn();
         assertThat(resetResult.getResponse().getStatus()).isEqualTo(401);
 
-        // Step 5: Password in database must remain unchanged, login with old password succeeds
+        // Step 5: Password hash in database must remain unchanged, login with old password succeeds
+        assertThat(jdbc.queryForObject("SELECT password_hash FROM users WHERE id = ?", String.class, staffUserId))
+                .isEqualTo(originalHash);
         MvcResult loginResult = mvc.perform(post("/api/v1/auth/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"username\":\"staff_race\",\"password\":\"StaffPass@123\"}"))
@@ -255,6 +267,160 @@ class OtpEmailChangeRaceIntegrationTest {
                 .content("{\"username\":\"staff_race\",\"password\":\"HackedPass@123\"}"))
                 .andReturn();
         assertThat(failedLogin.getResponse().getStatus()).isEqualTo(401);
+    }
+
+    // T01: Slow resend SMTP does NOT hold challenge/user locks blocking Staff PUT email change; old/resent OTP cannot verify
+    @Test
+    void slowResendSmtpAllowsStaffPutEmailChangeToCompleteBeforeReleaseAndRevokesCredentials() throws Exception {
+        // Step 1: Initial forgot-password and fast-forward cooldown
+        MvcResult forgotResult = mvc.perform(post("/api/v1/auth/forgot-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"" + OLD_EMAIL + "\"}"))
+                .andReturn();
+        assertThat(forgotResult.getResponse().getStatus()).isEqualTo(200);
+        String challengeId = (String) body(forgotResult).get("challengeId");
+        String code1 = deliveredCodes.getLast();
+        String hash1 = repository.findOtpChallengeById(challengeId).orElseThrow().codeHash();
+        update("UPDATE auth_otp_challenges SET next_send_at = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 5 SECOND) WHERE id = ?", challengeId);
+
+        // Step 2: Block resend SMTP call using latch
+        var resendMailStarted = new CountDownLatch(1);
+        var resendMailResume = new CountDownLatch(1);
+        doAnswer(call -> {
+            deliveredCodes.add(call.getArgument(1));
+            resendMailStarted.countDown();
+            await(resendMailResume);
+            return null;
+        }).when(mail).sendOtpEmail(eq(OLD_EMAIL), anyString(), eq("RESET"), anyLong());
+
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            var resendFuture = executor.submit(() -> mvc.perform(post("/api/v1/auth/resend-otp")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"challengeId\":\"" + challengeId + "\"}"))
+                    .andReturn());
+
+            await(resendMailStarted);
+
+            // Step 3: While resend SMTP is blocked, Staff PUT changes email to NEW_EMAIL -> MUST complete BEFORE mail release!
+            String updateBody = """
+                    {"fullName":"Staff Resend Race","email":"%s","phone":"0901234567",
+                     "address":"DN","role":"STAFF","salary":10000000,"version":"0"}
+                    """.formatted(NEW_EMAIL);
+            MvcResult putResult = mvc.perform(put("/api/v1/staff/" + staffUserId)
+                    .with(user("admin_race").roles("ADMIN")).with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(updateBody))
+                    .andReturn();
+            assertThat(putResult.getResponse().getStatus()).isEqualTo(200);
+
+            // Verify email, version, auth_version updated and challenge revoked BEFORE releasing SMTP latch
+            assertThat(jdbc.queryForObject("SELECT email FROM users WHERE id = ?", String.class, staffUserId)).isEqualTo(NEW_EMAIL);
+            assertThat(jdbc.queryForObject("SELECT auth_version FROM users WHERE id = ?", Long.class, staffUserId)).isEqualTo(1L);
+            assertThat(jdbc.queryForObject("SELECT version FROM users WHERE id = ?", Long.class, staffUserId)).isEqualTo(1L);
+            assertThat(repository.findOtpChallengeById(challengeId).orElseThrow().usedAt()).isNotNull();
+
+            // Step 4: Release SMTP latch; late finalize MUST be a safe no-op (no resurrection, no code_hash overwrite)
+            resendMailResume.countDown();
+            MvcResult resendResult = resendFuture.get(10, TimeUnit.SECONDS);
+            assertThat(resendResult.getResponse().getStatus()).isEqualTo(200);
+        } finally {
+            resendMailResume.countDown();
+        }
+
+        OtpChallengeRecord after = repository.findOtpChallengeById(challengeId).orElseThrow();
+        assertThat(after.usedAt()).isNotNull();
+        assertThat(after.codeHash()).isEqualTo(hash1);
+
+        // Neither initial code1 nor in-flight resent code2 may verify
+        String code2 = deliveredCodes.getLast();
+        assertThat(mvc.perform(post("/api/v1/auth/verify-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"challengeId\":\"" + challengeId + "\",\"otp\":\"" + code1 + "\"}"))
+                .andReturn().getResponse().getStatus()).isEqualTo(400);
+        assertThat(mvc.perform(post("/api/v1/auth/verify-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"challengeId\":\"" + challengeId + "\",\"otp\":\"" + code2 + "\"}"))
+                .andReturn().getResponse().getStatus()).isEqualTo(400);
+
+        // Recovery with NEW_EMAIL succeeds
+        reset(mail);
+        doAnswer(call -> {
+            deliveredCodes.add(call.getArgument(1));
+            return null;
+        }).when(mail).sendOtpEmail(eq(NEW_EMAIL), anyString(), eq("RESET"), anyLong());
+        MvcResult newForgot = mvc.perform(post("/api/v1/auth/forgot-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"email\":\"" + NEW_EMAIL + "\"}"))
+                .andReturn();
+        assertThat(newForgot.getResponse().getStatus()).isEqualTo(200);
+        String newChallengeId = (String) body(newForgot).get("challengeId");
+        String newCode = deliveredCodes.getLast();
+        MvcResult newVerify = mvc.perform(post("/api/v1/auth/verify-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"challengeId\":\"" + newChallengeId + "\",\"otp\":\"" + newCode + "\"}"))
+                .andReturn();
+        assertThat(newVerify.getResponse().getStatus()).isEqualTo(200);
+        String newGrant = (String) body(newVerify).get("token");
+        assertThat(mvc.perform(post("/api/v1/auth/reset-password")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"token\":\"" + newGrant + "\",\"newPassword\":\"RecoveredNew@123\",\"confirmPassword\":\"RecoveredNew@123\"}"))
+                .andReturn().getResponse().getStatus()).isEqualTo(200);
+    }
+
+    // T02: Slow initial forgot-password SMTP does NOT block Staff PUT email change; challenge is revoked immediately
+    @Test
+    void slowInitialForgotSmtpAllowsStaffPutEmailChangeToCompleteBeforeReleaseAndRevokesChallenge() throws Exception {
+        var mailStarted = new CountDownLatch(1);
+        var mailResume = new CountDownLatch(1);
+        doAnswer(call -> {
+            deliveredCodes.add(call.getArgument(1));
+            mailStarted.countDown();
+            await(mailResume);
+            return null;
+        }).when(mail).sendOtpEmail(eq(OLD_EMAIL), anyString(), eq("RESET"), anyLong());
+
+        String challengeId;
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            var forgotFuture = executor.submit(() -> mvc.perform(post("/api/v1/auth/forgot-password")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content("{\"email\":\"" + OLD_EMAIL + "\"}"))
+                    .andReturn());
+
+            await(mailStarted);
+
+            // Staff PUT changes email to NEW_EMAIL BEFORE initial SMTP completes
+            String updateBody = """
+                    {"fullName":"Staff Email Changed","email":"%s","phone":"0901234567",
+                     "address":"DN","role":"STAFF","salary":10000000,"version":"0"}
+                    """.formatted(NEW_EMAIL);
+            MvcResult putResult = mvc.perform(put("/api/v1/staff/" + staffUserId)
+                    .with(user("admin_race").roles("ADMIN")).with(csrf())
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(updateBody))
+                    .andReturn();
+            assertThat(putResult.getResponse().getStatus()).isEqualTo(200);
+            assertThat(jdbc.queryForObject("SELECT email FROM users WHERE id = ?", String.class, staffUserId)).isEqualTo(NEW_EMAIL);
+            assertThat(jdbc.queryForObject("SELECT auth_version FROM users WHERE id = ?", Long.class, staffUserId)).isEqualTo(1L);
+
+            mailResume.countDown();
+            MvcResult forgotResult = forgotFuture.get(10, TimeUnit.SECONDS);
+            assertThat(forgotResult.getResponse().getStatus()).isEqualTo(200);
+            challengeId = (String) body(forgotResult).get("challengeId");
+        } finally {
+            mailResume.countDown();
+        }
+
+        // Challenge created during initial forgot-password must be revoked and unusable
+        assertThat(repository.findOtpChallengeById(challengeId).orElseThrow().usedAt()).isNotNull();
+        String code1 = deliveredCodes.getLast();
+        assertThat(mvc.perform(post("/api/v1/auth/verify-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"challengeId\":\"" + challengeId + "\",\"otp\":\"" + code1 + "\"}"))
+                .andReturn().getResponse().getStatus()).isEqualTo(400);
+        assertThat(mvc.perform(post("/api/v1/auth/resend-otp")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"challengeId\":\"" + challengeId + "\"}"))
+                .andReturn().getResponse().getStatus()).isEqualTo(400);
     }
 
     // Follow-up P2 regression: SMTP latency/timeout does not hold user row lock blocking Staff PUT updates

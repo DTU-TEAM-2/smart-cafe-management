@@ -249,80 +249,155 @@ public class OtpService {
         });
     }
 
-    @Transactional
+    private record ResendReservation(
+            String challengeId,
+            Long userId,
+            String recipientEmail,
+            String purpose,
+            int expectedSends,
+            String newOtpCode,
+            String newCodeHash,
+            long remainingValiditySeconds
+    ) {}
+
     public ForgotPasswordResponse resendOtp(String challengeId) {
-        OtpChallengeRecord challenge = authRepository.findOtpChallengeByIdForUpdate(challengeId)
-                .orElseThrow(() -> new OtpException("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc."));
-
-        if (challenge.usedAt() != null) {
-            throw new OtpException("Phiên xác minh này đã hoàn tất. Vui lòng tạo yêu cầu mới.");
-        }
-
-        if (challenge.userId() != null) {
-            UserRecord user = authRepository.findUserById(challenge.userId())
-                    .orElseThrow(() -> new OtpException("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc."));
-            if (!"ACTIVE".equalsIgnoreCase(user.status()) || !user.email().equalsIgnoreCase(challenge.email())) {
-                throw new OtpException("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc.");
-            }
-        }
-
-        if (challenge.usedAt() != null) {
-            throw new OtpException("Phiên xác minh này đã hoàn tất. Vui lòng tạo yêu cầu mới.");
-        }
-
         Instant now = clock.instant();
-        if (!now.isBefore(challenge.expiresAt())) {
-            throw new OtpException("Mã OTP đã hết hạn. Vui lòng yêu cầu mã mới.");
-        }
 
-        if (challenge.sends() >= MAX_SENDS) {
-            throw new OtpException("Bạn đã vượt quá số lần gửi lại mã (tối đa 2 lần). Vui lòng yêu cầu lại từ đầu.");
-        }
+        // Phase 1 (Reserve): lock challenge row briefly, validate invariants/cooldown/budget/SMTP readiness,
+        // reserve resend generation, and commit BEFORE any external SMTP network I/O.
+        ResendReservation reservation = transactionTemplate.execute(status -> {
+            OtpChallengeRecord challenge = authRepository.findOtpChallengeByIdForUpdate(challengeId)
+                    .orElseThrow(() -> new OtpException("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc."));
 
-        if (now.isBefore(challenge.nextSendAt())) {
-            long remainingCooldown = challenge.nextSendAt().getEpochSecond() - now.getEpochSecond();
-            throw new OtpException("Vui lòng đợi " + remainingCooldown + " giây trước khi gửi lại mã.", remainingCooldown);
-        }
+            if (challenge.usedAt() != null) {
+                throw new OtpException("Phiên xác minh này đã hoàn tất. Vui lòng tạo yêu cầu mới.");
+            }
 
-        // Validate SMTP configuration readiness upfront for ALL requests (Nam P2 & Anti-Account Enumeration)
-        try {
-            emailService.validateReady();
-        } catch (Exception ex) {
-            log.error("Failed to resend OTP due to unconfigured mail service: {}", ex.getMessage());
-            throw new OtpException("Không thể gửi email OTP qua dịch vụ gửi thư. Vui lòng thử lại sau.");
-        }
+            if (challenge.userId() != null) {
+                // Plain read on users avoids acquiring users lock after challenge lock (prevents lock cycle with Staff PUT).
+                UserRecord user = authRepository.findUserById(challenge.userId())
+                        .orElseThrow(() -> new OtpException("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc."));
+                if (!"ACTIVE".equalsIgnoreCase(user.status()) || !user.email().equalsIgnoreCase(challenge.email())) {
+                    throw new OtpException("Yêu cầu xác minh không hợp lệ hoặc phiên đã kết thúc.");
+                }
+            }
 
-        Instant newNextSendAt = now.plusSeconds(COOLDOWN_SECONDS);
-        // Reserve once for real and dummy challenges while holding FOR UPDATE through delivery.
-        if (authRepository.consumeOtpResend(challengeId, now, newNextSendAt) != 1) {
-            throw new IllegalStateException("OTP resend reservation failed");
-        }
-        Duration remaining = Duration.between(now, challenge.expiresAt());
-        long remainingValidity = remaining.toSeconds() + (remaining.getNano() > 0 ? 1 : 0);
+            if (!now.isBefore(challenge.expiresAt())) {
+                throw new OtpException("Mã OTP đã hết hạn. Vui lòng yêu cầu mã mới.");
+            }
 
-        if (challenge.userId() != null) {
-            String newOtpCode = generateNumericOtp();
-            String newCodeHash = tokenService.hmacSha256(challengeId + "|" + challenge.purpose() + "|" + newOtpCode);
-            boolean delivered = false;
+            if (challenge.sends() >= MAX_SENDS) {
+                throw new OtpException("Bạn đã vượt quá số lần gửi lại mã (tối đa 2 lần). Vui lòng yêu cầu lại từ đầu.");
+            }
+
+            if (now.isBefore(challenge.nextSendAt())) {
+                long remainingCooldown = challenge.nextSendAt().getEpochSecond() - now.getEpochSecond();
+                throw new OtpException("Vui lòng đợi " + remainingCooldown + " giây trước khi gửi lại mã.", remainingCooldown);
+            }
+
+            // Validate SMTP configuration readiness upfront for ALL requests (Nam P2 & Anti-Account Enumeration)
             try {
-                emailService.sendOtpEmail(challenge.email(), newOtpCode, challenge.purpose(), remainingValidity);
-                delivered = true;
+                emailService.validateReady();
             } catch (Exception ex) {
-                log.warn("OTP resend delivery failed");
+                log.error("Failed to resend OTP due to unconfigured mail service: {}", ex.getMessage());
+                throw new OtpException("Không thể gửi email OTP qua dịch vụ gửi thư. Vui lòng thử lại sau.");
             }
-            // Keep database failures outside the SMTP catch: rollback instead of reporting neutral success.
-            if (authRepository.recordOtpDelivery(challengeId, challenge.sends() + 1,
-                    newCodeHash, delivered, clock.instant()) != 1) {
-                throw new IllegalStateException("OTP delivery transition failed");
+
+            Instant newNextSendAt = now.plusSeconds(COOLDOWN_SECONDS);
+            if (authRepository.consumeOtpResend(challengeId, now, newNextSendAt) != 1) {
+                throw new IllegalStateException("OTP resend reservation failed");
+            }
+
+            Duration remaining = Duration.between(now, challenge.expiresAt());
+            long remainingValidity = remaining.toSeconds() + (remaining.getNano() > 0 ? 1 : 0);
+
+            String newOtpCode = null;
+            String newCodeHash = null;
+            if (challenge.userId() != null) {
+                newOtpCode = generateNumericOtp();
+                newCodeHash = tokenService.hmacSha256(challengeId + "|" + challenge.purpose() + "|" + newOtpCode);
+            }
+
+            return new ResendReservation(
+                    challengeId,
+                    challenge.userId(),
+                    challenge.email(),
+                    challenge.purpose(),
+                    challenge.sends() + 1,
+                    newOtpCode,
+                    newCodeHash,
+                    remainingValidity
+            );
+        });
+
+        // Phase 2 & 3 (Dispatch outside TX/locks, then Finalize in short CAS transaction):
+        // Dummy challenges (userId == null) consume the same budget/cooldown without dispatching external mail.
+        if (reservation != null && reservation.userId() != null) {
+            Optional<OtpChallengeRecord> preCheckChallenge = authRepository.findOtpChallengeById(challengeId);
+            Optional<UserRecord> preCheckUser = authRepository.findUserById(reservation.userId());
+            boolean stillValidForDispatch = preCheckChallenge.isPresent()
+                    && preCheckChallenge.get().usedAt() == null
+                    && clock.instant().isBefore(preCheckChallenge.get().expiresAt())
+                    && preCheckUser.isPresent()
+                    && "ACTIVE".equalsIgnoreCase(preCheckUser.get().status())
+                    && preCheckUser.get().email().equalsIgnoreCase(reservation.recipientEmail());
+
+            if (stillValidForDispatch) {
+                boolean delivered = false;
+                try {
+                    emailService.sendOtpEmail(
+                            reservation.recipientEmail(),
+                            reservation.newOtpCode(),
+                            reservation.purpose(),
+                            reservation.remainingValiditySeconds()
+                    );
+                    delivered = true;
+                } catch (Exception ex) {
+                    log.warn("OTP resend delivery failed for challenge {}", challengeId);
+                }
+
+                final boolean deliverySucceeded = delivered;
+                transactionTemplate.executeWithoutResult(status -> {
+                    Optional<UserRecord> userOpt = authRepository.findUserById(reservation.userId());
+                    if (userOpt.isEmpty()
+                            || !"ACTIVE".equalsIgnoreCase(userOpt.get().status())
+                            || !userOpt.get().email().equalsIgnoreCase(reservation.recipientEmail())) {
+                        // Safe no-op: user became inactive or email binding changed during SMTP dispatch.
+                        return;
+                    }
+
+                    // Keep database failures outside the SMTP catch: throw on genuine DB failure without rolling back Phase 1 quota.
+                    int updated = authRepository.recordOtpDelivery(
+                            challengeId,
+                            reservation.expectedSends(),
+                            reservation.newCodeHash(),
+                            deliverySucceeded,
+                            clock.instant()
+                    );
+                    if (updated != 1) {
+                        // Use locking current read (FOR UPDATE) so MySQL REPEATABLE READ snapshot from findUserById
+                        // does not mask a concurrent commit that consumed/revoked/expired the challenge.
+                        Optional<OtpChallengeRecord> currentOpt = authRepository.findOtpChallengeByIdForUpdate(challengeId);
+                        if (currentOpt.isPresent()) {
+                            OtpChallengeRecord current = currentOpt.get();
+                            if (current.usedAt() != null
+                                    || !clock.instant().isBefore(current.expiresAt())
+                                    || current.sends() > reservation.expectedSends()) {
+                                // Safe no-op: challenge was consumed, revoked, expired, or superseded during dispatch.
+                                return;
+                            }
+                        }
+                        throw new IllegalStateException("OTP delivery transition failed");
+                    }
+                });
             }
         }
-        // Dummy challenges consume the same budget/cooldown but never claim a delivered email.
 
         return new ForgotPasswordResponse(
                 challengeId,
                 "Yêu cầu gửi lại mã xác minh đã được tiếp nhận. Vui lòng kiểm tra hộp thư của bạn.",
                 COOLDOWN_SECONDS,
-                remainingValidity
+                reservation != null ? reservation.remainingValiditySeconds() : 0L
         );
     }
 
@@ -406,7 +481,7 @@ public class OtpService {
         log.info("User password successfully reset for user id {}", user.id());
     }
 
-    private String generateNumericOtp() {
+    String generateNumericOtp() {
         int code = secureRandom.nextInt(1_000_000);
         return String.format("%06d", code);
     }

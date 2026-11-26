@@ -250,7 +250,18 @@ class OtpRetryLifecycleIntegrationTest {
             doReturn(0).when(repository).consumeOtpResend(eq(id), any(), any());
         }
         assertThat(resend(id).getResponse().getStatus()).isEqualTo(500);
-        assertThat(state(id)).isEqualTo(before);
+        if (deliveryTransition) {
+            // Phase 1 reserve committed before SMTP; finalize failure preserves committed quota/cooldown
+            // without falsely marking SENT or overwriting the previous code_hash/sent_at.
+            Map<String, Object> after = state(id);
+            assertPreserved(before, after);
+            assertThat(after.get("sends")).isEqualTo(2);
+            assertThat(after.get("delivery_status")).isEqualTo("PENDING");
+            assertThat(jdbc.queryForObject("SELECT next_send_at FROM auth_otp_challenges WHERE id = ?", Timestamp.class, id).toInstant())
+                    .isEqualTo(now.plusSeconds(60));
+        } else {
+            assertThat(state(id)).isEqualTo(before);
+        }
         verify(mail, times(deliveryTransition ? 1 : 0)).sendOtpEmail(anyString(), anyString(), anyString(), anyLong());
     }
 

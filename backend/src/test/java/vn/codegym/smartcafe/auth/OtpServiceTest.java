@@ -440,4 +440,91 @@ class OtpServiceTest {
         verify(authRepository).saveOtpChallenge(argThat(c -> c.userId() != null && c.userId().equals(2L) && "RESET".equals(c.purpose())));
         verify(emailService, times(1)).sendOtpEmail(eq(email), anyString(), eq("RESET"), anyLong());
     }
+
+    @Test
+    void resendOtpSkipsEmailDispatchWhenChallengeRevokedBetweenReserveAndDispatch() {
+        String challengeId = "ch-revoked-before-dispatch";
+        OtpChallengeRecord initial = new OtpChallengeRecord(
+                challengeId, 1L, "user@smartcafe.vn", "RESET", "initial-hash", 0, 1,
+                Instant.now().plusSeconds(600), Instant.now().minusSeconds(10), null,
+                "PENDING", Instant.now().minusSeconds(60), null, null);
+        OtpChallengeRecord revokedAfterReserve = new OtpChallengeRecord(
+                challengeId, 1L, "user@smartcafe.vn", "RESET", "initial-hash", 0, 2,
+                Instant.now().plusSeconds(600), Instant.now().plusSeconds(60), Instant.now(),
+                "PENDING", Instant.now().minusSeconds(60), null, null);
+        UserRecord activeUser = createUser(1L, "user", "user@smartcafe.vn", "STAFF", "ACTIVE", 0L);
+
+        when(authRepository.findOtpChallengeByIdForUpdate(challengeId)).thenReturn(Optional.of(initial));
+        when(authRepository.findUserById(1L)).thenReturn(Optional.of(activeUser));
+        when(authRepository.consumeOtpResend(eq(challengeId), any(), any())).thenReturn(1);
+        when(authRepository.findOtpChallengeById(challengeId)).thenReturn(Optional.of(revokedAfterReserve));
+
+        ForgotPasswordResponse response = otpService.resendOtp(challengeId);
+
+        assertThat(response.challengeId()).isEqualTo(challengeId);
+        verify(emailService, never()).sendOtpEmail(anyString(), anyString(), anyString(), anyLong());
+        verify(authRepository, never()).recordOtpDelivery(anyString(), anyInt(), anyString(), anyBoolean(), any());
+    }
+
+    @Test
+    void resendOtpFinalizesSafelyAsNoOpWhenRevokedDuringSmtpDispatch() {
+        String challengeId = "ch-revoked-during-dispatch";
+        OtpChallengeRecord initial = new OtpChallengeRecord(
+                challengeId, 1L, "user@smartcafe.vn", "RESET", "initial-hash", 0, 1,
+                Instant.now().plusSeconds(600), Instant.now().minusSeconds(10), null,
+                "PENDING", Instant.now().minusSeconds(60), null, null);
+        OtpChallengeRecord reserved = new OtpChallengeRecord(
+                challengeId, 1L, "user@smartcafe.vn", "RESET", "initial-hash", 0, 2,
+                Instant.now().plusSeconds(600), Instant.now().plusSeconds(60), null,
+                "PENDING", Instant.now().minusSeconds(60), null, null);
+        OtpChallengeRecord revokedDuringSmtp = new OtpChallengeRecord(
+                challengeId, 1L, "user@smartcafe.vn", "RESET", "initial-hash", 0, 2,
+                Instant.now().plusSeconds(600), Instant.now().plusSeconds(60), Instant.now(),
+                "PENDING", Instant.now().minusSeconds(60), null, null);
+        UserRecord activeUser = createUser(1L, "user", "user@smartcafe.vn", "STAFF", "ACTIVE", 0L);
+
+        when(authRepository.findOtpChallengeByIdForUpdate(challengeId))
+                .thenReturn(Optional.of(initial))
+                .thenReturn(Optional.of(revokedDuringSmtp));
+        when(authRepository.findOtpChallengeById(challengeId)).thenReturn(Optional.of(reserved));
+        when(authRepository.findUserById(1L)).thenReturn(Optional.of(activeUser));
+        when(authRepository.consumeOtpResend(eq(challengeId), any(), any())).thenReturn(1);
+        when(authRepository.recordOtpDelivery(eq(challengeId), eq(2), anyString(), eq(true), any())).thenReturn(0);
+
+        ForgotPasswordResponse response = otpService.resendOtp(challengeId);
+
+        assertThat(response.challengeId()).isEqualTo(challengeId);
+        verify(emailService, times(1)).sendOtpEmail(eq("user@smartcafe.vn"), anyString(), eq("RESET"), anyLong());
+        verify(authRepository, times(1)).recordOtpDelivery(eq(challengeId), eq(2), anyString(), eq(true), any());
+    }
+
+    @Test
+    void resendOtpStillAdvancesExpectedSendsWhenNewOtpCollidesWithPreviousOtp() {
+        String challengeId = "ch-same-otp-collision";
+        String fixedOtp = "123456";
+        OtpService deterministicService = new OtpService(
+                authRepository, tokenService, emailService, passwordEncoder,
+                transactionManager, Clock.systemUTC(), 600) {
+            @Override
+            String generateNumericOtp() {
+                return fixedOtp;
+            }
+        };
+        OtpChallengeRecord initial = new OtpChallengeRecord(
+                challengeId, 1L, "user@smartcafe.vn", "RESET", "mocked-hash-value", 0, 1,
+                Instant.now().plusSeconds(600), Instant.now().minusSeconds(10), null,
+                "PENDING", Instant.now().minusSeconds(60), null, null);
+        UserRecord activeUser = createUser(1L, "user", "user@smartcafe.vn", "STAFF", "ACTIVE", 0L);
+
+        when(authRepository.findOtpChallengeByIdForUpdate(challengeId)).thenReturn(Optional.of(initial));
+        when(authRepository.findOtpChallengeById(challengeId)).thenReturn(Optional.of(initial));
+        when(authRepository.findUserById(1L)).thenReturn(Optional.of(activeUser));
+        when(authRepository.consumeOtpResend(eq(challengeId), any(), any())).thenReturn(1);
+        when(authRepository.recordOtpDelivery(eq(challengeId), eq(2), eq("mocked-hash-value"), eq(true), any())).thenReturn(1);
+
+        deterministicService.resendOtp(challengeId);
+
+        verify(emailService).sendOtpEmail(eq("user@smartcafe.vn"), eq(fixedOtp), eq("RESET"), anyLong());
+        verify(authRepository).recordOtpDelivery(eq(challengeId), eq(2), eq("mocked-hash-value"), eq(true), any());
+    }
 }
