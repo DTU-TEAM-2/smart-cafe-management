@@ -21,6 +21,9 @@ Năm required check từ GitHub Actions (integration_id 15368): **Governance**, 
 
 ## CI và giới hạn
 
+- Check bắt buộc `PR title` yêu cầu đúng định dạng tiêu đề và ít nhất một GitHub label. Sự kiện thêm/gỡ label kích hoạt lại CI.
+- Check `Backend MySQL` chạy thêm smoke test menu khách trên bản build production, gọi Spring Boot với MySQL cô lập và fixture tổng hợp. Hai bộ Playwright lưu report, screenshot và trace khi lỗi với thời hạn 7 ngày.
+- Thay đổi file PowerShell/batch, bộ test launcher, mẫu cấu hình backend, quy tắc xuống dòng hoặc workflow CI kích hoạt test trên Windows. `Governance` yêu cầu kết quả Windows xanh khi job áp dụng.
 - CI chính chạy PR vào main/develop/release và push lên các nhánh chung này. Job Git Flow kiểm loại nhánh nguồn/đích và main-to-develop sync phải từ cùng repo, bằng `scripts/git-flow.mjs`; các case regression ở `scripts/git-flow.test.mjs`.
 - Postman workflow cũng hỗ trợ develop/release; check đó có path filter, không đưa thành required check toàn bộ PR vì có thể không được tạo ở PR tài liệu.
 - GitHub không tự chứng minh nhánh đã tách đúng SHA, code chỉ nằm trong scope release/hotfix hoặc merge method có đúng loại. Reviewer kiểm các phần này; dùng merge commit cho promotion và main-to-develop sync, không báo đã có enforcement chưa được cài.

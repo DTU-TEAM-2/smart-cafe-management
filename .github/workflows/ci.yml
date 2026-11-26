@@ -4,7 +4,7 @@ on:
     branches: [main, develop, 'release/**']
   pull_request:
     branches: [main, develop, 'release/**']
-    types: [opened, synchronize, reopened, edited]
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
 permissions:
   contents: read
 concurrency:
@@ -25,6 +25,7 @@ jobs:
   backend:
     name: Backend MySQL
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       mysql:
         image: mysql:8.0
@@ -44,7 +45,9 @@ jobs:
           cache: maven
           cache-dependency-path: backend/pom.xml
       - name: Prepare isolated schema contract fixture
-        run: docker exec -i $(docker ps -q --filter ancestor=mysql:8.0) mysql --protocol=TCP --host=127.0.0.1 -uroot smart_cafe_ci_test < backend/src/test/resources/schema.sql
+        env:
+          MYSQL_CONTAINER: ${{ job.services.mysql.id }}
+        run: docker exec -i "$MYSQL_CONTAINER" mysql --protocol=TCP --host=127.0.0.1 -uroot smart_cafe_ci_test < backend/src/test/resources/schema.sql
       - name: Verify API on MySQL
         working-directory: backend
         env:
@@ -52,9 +55,49 @@ jobs:
           TEST_DB_USERNAME: root
           TEST_DB_PASSWORD: ''
         run: sh mvnw -B -ntp verify
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build production frontend and install Chromium for smoke test
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+          npx playwright install --with-deps chromium
+      - name: Prepare isolated smoke database with synthetic menu
+        env:
+          MYSQL_CONTAINER: ${{ job.services.mysql.id }}
+        run: |
+          docker exec "$MYSQL_CONTAINER" mysql -uroot -e 'CREATE DATABASE smart_cafe_postman_test'
+          test "$(docker exec "$MYSQL_CONTAINER" mysql -uroot -N smart_cafe_postman_test -e 'SELECT DATABASE()')" = smart_cafe_postman_test
+          docker exec -i "$MYSQL_CONTAINER" mysql -uroot smart_cafe_postman_test < backend/src/test/resources/schema.sql
+          docker exec -i "$MYSQL_CONTAINER" mysql -uroot smart_cafe_postman_test < docs/qa/postman/dt2-4-menu-test-fixture.sql
+      - name: Smoke test production menu through Spring Boot and MySQL
+        env:
+          DB_URL: jdbc:mysql://127.0.0.1:3306/smart_cafe_postman_test?connectionTimeZone=UTC
+          DB_USERNAME: root
+          DB_PASSWORD: ''
+          SERVER_PORT: '18084'
+          # The isolated fixture already has the system schema. Maven verify tests migration behavior separately.
+          SPRING_FLYWAY_ENABLED: 'false'
+          VITE_API_PROXY_TARGET: http://127.0.0.1:18084
+        run: bash scripts/ci-production-smoke.sh
+      - name: Upload production smoke failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-smoke-failure-${{ github.run_attempt }}
+          path: |
+            frontend/smoke/playwright-report/
+            frontend/smoke/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
   frontend:
     name: Frontend UI
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     defaults:
       run:
         working-directory: frontend
@@ -70,10 +113,70 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:ui -- --workers=2
+      - name: Upload Playwright failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-ui-failure-${{ github.run_attempt }}
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+  launcher-scope:
+    name: Detect Windows launcher changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      changed: ${{ steps.paths.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: paths
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          changed=true
+          if git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            if git diff --quiet "$BASE_SHA" HEAD -- '*.ps1' '*.bat' '*.cmd' \
+                scripts/launchers.test.cjs backend/.env.example .gitattributes .github/workflows/ci.yml; then
+              changed=false
+            else
+              status=$?
+              if [ "$status" -ne 1 ]; then exit "$status"; fi
+            fi
+          fi
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+  windows-launcher:
+    name: Windows launcher contracts
+    needs: launcher-scope
+    if: needs.launcher-scope.outputs.changed == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - run: node --test scripts/launchers.test.cjs
   governance:
     name: Governance
+    needs: [launcher-scope, windows-launcher]
+    if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
+      - name: Verify the Windows launcher result
+        env:
+          SCOPE_RESULT: ${{ needs.launcher-scope.result }}
+          LAUNCHERS_CHANGED: ${{ needs.launcher-scope.outputs.changed }}
+          WINDOWS_RESULT: ${{ needs.windows-launcher.result }}
+        run: |
+          case "$SCOPE_RESULT:$LAUNCHERS_CHANGED:$WINDOWS_RESULT" in
+            success:true:success|success:false:skipped) ;;
+            *) echo '::error::Windows launcher scope or test failed.'; exit 1 ;;
+          esac
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -113,3 +216,11 @@ jobs:
           PR_TITLE: ${{ github.event.pull_request.title }}
         run: |
           node -e "if (!/^(feat|fix|chore|docs|refactor|test|ci|build|perf|revert)\([a-z0-9-]+\): CF-[0-9]+ .+/.test(process.env.PR_TITLE)) { console.error('Use type(scope): CF-01 description'); process.exit(1); }"
+      - name: Require a pull request label
+        env:
+          PR_LABEL: ${{ github.event.pull_request.labels[0].name }}
+        run: |
+          if [ -z "$PR_LABEL" ]; then
+            echo '::error::Add at least one relevant GitHub label to this pull request before merging.'
+            exit 1
+          fi
