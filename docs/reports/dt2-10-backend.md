@@ -88,4 +88,4 @@
 
 ### Định danh trong JSON
 
-Response danh sách, chi tiết và upload trả ID nhân viên và ID ảnh dưới dạng chuỗi thập phân. Giữ nguyên chuỗi khi đưa vào URL hoặc gửi `avatarMediaId`. Request hiện vẫn nhận số nguyên JSON cho client cũ.
+Response danh sách, chi tiết và upload trả ID nhân viên và ID ảnh dưới dạng chuỗi thập phân. Giữ nguyên chuỗi khi đưa vào URL hoặc gửi `avatarMediaId`. Request nhận chuỗi chữ số hoặc số nguyên JSON dương trong phạm vi `BIGINT` có dấu, và nhận `null` khi không có ảnh. Giá trị như `501.9`, `5.01e2`, chuỗi rỗng hoặc ID vượt phạm vi trả HTTP 400.

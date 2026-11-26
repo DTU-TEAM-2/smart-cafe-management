@@ -1,6 +1,7 @@
 package vn.codegym.smartcafe.staff;
 
 import java.math.BigDecimal;
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
@@ -514,6 +515,12 @@ class StaffControllerTest {
                 .replace("staff_avatar_none", "staff_avatar_ok")
                 .replace("avatar_none@smartcafe.vn", "avatar_ok@smartcafe.vn")
                 .replace("999999", "501");
+        for (String invalidId : List.of("501.9", "5.01e2", "\"\"", "\"9223372036854775808\"")) {
+            mvc.perform(post("/api/v1/staff").with(user("test_admin").roles("ADMIN")).with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(activeJson.replace("\"avatarMediaId\": 501", "\"avatarMediaId\": " + invalidId)))
+                    .andExpect(status().isBadRequest());
+        }
         mvc.perform(post("/api/v1/staff").with(user("test_admin").roles("ADMIN")).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(activeJson))
@@ -547,6 +554,10 @@ class StaffControllerTest {
 
         // 6. UPDATE with active avatarMediaId -> 200 OK
         String updateActiveJson = updateNonExistentJson.replace("999999", "501");
+        mvc.perform(put("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(updateActiveJson.replace("\"avatarMediaId\": 501", "\"avatarMediaId\": 501.9")))
+                .andExpect(status().isBadRequest());
         mvc.perform(put("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")).with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(updateActiveJson))
