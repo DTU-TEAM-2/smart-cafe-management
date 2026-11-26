@@ -63,6 +63,19 @@ class OtpServiceTest {
         );
     }
 
+    private void allowInitialDispatch(UserRecord user) {
+        Instant now = Instant.now();
+        var challenge = new OtpChallengeRecord("mocked-random-hex-id", user.id(), user.email(), "RESET",
+                "mocked-hash-value", 0, 1, now.plusSeconds(600), now.plusSeconds(60), null, "PENDING", now, null, now);
+        when(authRepository.findOtpChallengeById(challenge.id())).thenReturn(Optional.of(challenge));
+    }
+
+    private OtpChallengeRecord reservedForResend(OtpChallengeRecord challenge) {
+        return new OtpChallengeRecord(challenge.id(), challenge.userId(), challenge.email(), challenge.purpose(),
+                challenge.codeHash(), challenge.attempts(), challenge.sends() + 1, challenge.expiresAt(),
+                Instant.now().plusSeconds(60), null, "PENDING", challenge.createdAt(), null, challenge.sentAt());
+    }
+
     @Test
     void resendOtpThrowsOtpExceptionAndNeverUpdatesDbWhenEmailServiceThrowsUnconfiguredSmtp() {
         String challengeId = "test-challenge-123";
@@ -118,7 +131,7 @@ class OtpServiceTest {
                 Instant.now().minusSeconds(60)
         );
 
-        when(authRepository.findOtpChallengeById(challengeId)).thenReturn(Optional.of(existingChallenge));
+        when(authRepository.findOtpChallengeById(challengeId)).thenReturn(Optional.of(reservedForResend(existingChallenge)));
         when(authRepository.findOtpChallengeByIdForUpdate(challengeId)).thenReturn(Optional.of(existingChallenge));
         when(authRepository.findUserById(1L)).thenReturn(Optional.of(createUser(1L, "user", "user@smartcafe.vn", "STAFF", "ACTIVE", 0L)));
         when(authRepository.findUserByIdForUpdate(1L)).thenReturn(Optional.of(createUser(1L, "user", "user@smartcafe.vn", "STAFF", "ACTIVE", 0L)));
@@ -179,7 +192,7 @@ class OtpServiceTest {
                 id, 1L, "fixture@smartcafe.vn", "RESET", "old-hash", 2, 1,
                 Instant.now().plusSeconds(300), Instant.now().minusSeconds(5), null,
                 "SENT", Instant.now().minusSeconds(300), null, Instant.now().minusSeconds(300));
-        when(authRepository.findOtpChallengeById(id)).thenReturn(Optional.of(challenge));
+        when(authRepository.findOtpChallengeById(id)).thenReturn(Optional.of(reservedForResend(challenge)));
         when(authRepository.findOtpChallengeByIdForUpdate(id)).thenReturn(Optional.of(challenge));
         when(authRepository.findUserById(1L)).thenReturn(Optional.of(createUser(1L, "fixture", "fixture@smartcafe.vn", "STAFF", "ACTIVE", 0L)));
         when(authRepository.findUserByIdForUpdate(1L)).thenReturn(Optional.of(createUser(1L, "fixture", "fixture@smartcafe.vn", "STAFF", "ACTIVE", 0L)));
@@ -209,6 +222,7 @@ class OtpServiceTest {
         when(authRepository.findUserById(1L)).thenReturn(Optional.of(user));
         when(authRepository.findUserByIdForUpdate(1L)).thenReturn(Optional.of(user));
         when(authRepository.checkAndIncrementLimit(anyString(), eq("RESET"), any(), any(), any())).thenReturn(true);
+        allowInitialDispatch(user);
         doThrow(new IllegalStateException("Dịch vụ gửi email chưa được cấu hình máy chủ SMTP."))
                 .when(emailService).sendOtpEmail(eq(email), anyString(), eq("RESET"), anyLong());
 
@@ -220,6 +234,7 @@ class OtpServiceTest {
 
         // Verify challenge was saved even though sending threw, maintaining user enumeration protection
         verify(authRepository, times(1)).saveOtpChallenge(any());
+        verify(emailService).sendOtpEmail(eq(email), anyString(), eq("RESET"), anyLong());
     }
 
     @org.junit.jupiter.params.ParameterizedTest
@@ -432,6 +447,7 @@ class OtpServiceTest {
         when(authRepository.findUserById(2L)).thenReturn(Optional.of(user));
         when(authRepository.findUserByIdForUpdate(2L)).thenReturn(Optional.of(user));
         when(authRepository.checkAndIncrementLimit(anyString(), eq("RESET"), any(), any(), any())).thenReturn(true);
+        allowInitialDispatch(user);
 
         ForgotPasswordResponse response = otpService.initiatePasswordResetOtp(email);
 
@@ -517,7 +533,7 @@ class OtpServiceTest {
         UserRecord activeUser = createUser(1L, "user", "user@smartcafe.vn", "STAFF", "ACTIVE", 0L);
 
         when(authRepository.findOtpChallengeByIdForUpdate(challengeId)).thenReturn(Optional.of(initial));
-        when(authRepository.findOtpChallengeById(challengeId)).thenReturn(Optional.of(initial));
+        when(authRepository.findOtpChallengeById(challengeId)).thenReturn(Optional.of(reservedForResend(initial)));
         when(authRepository.findUserById(1L)).thenReturn(Optional.of(activeUser));
         when(authRepository.consumeOtpResend(eq(challengeId), any(), any())).thenReturn(1);
         when(authRepository.recordOtpDelivery(eq(challengeId), eq(2), eq("mocked-hash-value"), eq(true), any())).thenReturn(1);

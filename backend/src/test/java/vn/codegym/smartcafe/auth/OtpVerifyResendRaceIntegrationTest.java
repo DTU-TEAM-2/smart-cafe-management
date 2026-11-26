@@ -22,6 +22,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -471,6 +472,39 @@ class OtpVerifyResendRaceIntegrationTest {
     }
 
     // T09: Abandoned reservation (crash after TX1 Reserve before TX2 Finalize) does not permanently lock recovery
+    @Test
+    void supersededResendDoesNotSendAnObsoleteCode() throws Exception {
+        String id = forgot();
+        var beforeDispatchCheck = new CountDownLatch(1);
+        var resumeDispatchCheck = new CountDownLatch(1);
+        var firstRead = new AtomicBoolean(true);
+        doAnswer(call -> {
+            if (firstRead.getAndSet(false)) {
+                beforeDispatchCheck.countDown();
+                await(resumeDispatchCheck);
+            }
+            return call.callRealMethod();
+        }).when(repository).findOtpChallengeById(id);
+
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            var firstResend = executor.submit(() -> resend(id));
+            try {
+                await(beforeDispatchCheck);
+                assertThat(challenge(id).sends()).isEqualTo(2);
+                update("UPDATE auth_otp_challenges SET next_send_at = DATE_SUB(NOW(6), INTERVAL 5 SECOND) WHERE id = ?", id);
+                assertThat(resend(id).getResponse().getStatus()).isEqualTo(200);
+                assertThat(challenge(id).sends()).isEqualTo(3);
+                assertThat(challenge(id).deliveryStatus()).isEqualTo("SENT");
+            } finally {
+                resumeDispatchCheck.countDown();
+            }
+            assertThat(firstResend.get(10, TimeUnit.SECONDS).getResponse().getStatus()).isEqualTo(200);
+        }
+
+        assertThat(deliveredCodes).hasSize(2); // Initial OTP and latest resend only.
+        assertThat(verifyOtp(id, deliveredCodes.getLast()).getResponse().getStatus()).isEqualTo(200);
+    }
+
     @Test
     void abandonedResendReservationDoesNotPermanentlyLockRecovery() throws Exception {
         String id1 = forgot();

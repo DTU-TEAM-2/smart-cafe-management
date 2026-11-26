@@ -16,6 +16,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.bean.override.mockito.MockitoSpyBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -368,6 +370,52 @@ class OtpEmailChangeRaceIntegrationTest {
     }
 
     // T02: Slow initial forgot-password SMTP does NOT block Staff PUT email change; challenge is revoked immediately
+    @Test
+    void initialForgotSkipsSmtpWhenEmailChangesAfterReservationCommits() throws Exception {
+        var reserved = new CountDownLatch(1);
+        var resume = new CountDownLatch(1);
+        doAnswer(call -> {
+            var result = call.callRealMethod();
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    reserved.countDown();
+                    try {
+                        await(resume);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        throw new AssertionError(e);
+                    }
+                }
+            });
+            return result;
+        }).when(repository).saveOtpChallenge(argThat(challenge -> OLD_EMAIL.equals(challenge.email())));
+
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            var forgot = executor.submit(() -> mvc.perform(post("/api/v1/auth/forgot-password")
+                    .contentType(MediaType.APPLICATION_JSON).content("{\"email\":\"" + OLD_EMAIL + "\"}"))
+                    .andReturn());
+            try {
+                await(reserved);
+                String updateBody = """
+                        {"fullName":"Staff Email Changed","email":"%s","phone":"0901234567",
+                         "address":"DN","role":"STAFF","salary":10000000,"version":"0"}
+                        """.formatted(NEW_EMAIL);
+                mvc.perform(put("/api/v1/staff/" + staffUserId)
+                                .with(user("admin_race").roles("ADMIN")).with(csrf())
+                                .contentType(MediaType.APPLICATION_JSON).content(updateBody))
+                        .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.status().isOk());
+            } finally {
+                resume.countDown();
+            }
+            var response = forgot.get(10, TimeUnit.SECONDS);
+            assertThat(response.getResponse().getStatus()).isEqualTo(200);
+            String id = (String) body(response).get("challengeId");
+            assertThat(repository.findOtpChallengeById(id).orElseThrow().usedAt()).isNotNull();
+            verify(mail, never()).sendOtpEmail(eq(OLD_EMAIL), anyString(), eq("RESET"), anyLong());
+        }
+    }
+
     @Test
     void slowInitialForgotSmtpAllowsStaffPutEmailChangeToCompleteBeforeReleaseAndRevokesChallenge() throws Exception {
         var mailStarted = new CountDownLatch(1);

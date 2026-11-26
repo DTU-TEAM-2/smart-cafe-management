@@ -63,6 +63,7 @@ public class OtpService {
 
     private record ResetReservation(
             String challengeId,
+            Long recipientId,
             String recipientEmail,
             String otpCode
     ) {}
@@ -91,6 +92,7 @@ public class OtpService {
             String challengeId = tokenService.generateRandomHex(32);
             Instant expiresAt = now.plusSeconds(otpValiditySeconds);
 
+            Long recipientId = null;
             String recipientEmail = null;
             String otpCode = null;
 
@@ -121,6 +123,7 @@ public class OtpService {
                             now
                     );
                     authRepository.saveOtpChallenge(challenge);
+                    recipientId = user.id();
                     recipientEmail = user.email();
                 }
             }
@@ -151,13 +154,15 @@ public class OtpService {
                 log.info("Password reset dummy challenge created for non-existent or modified email: {}", email);
             }
 
-            return new ResetReservation(challengeId, recipientEmail, otpCode);
+            return new ResetReservation(challengeId, recipientId, recipientEmail, otpCode);
         });
 
         // Dispatch email OUTSIDE the database transaction and without holding any user row locks
-        if (reservation != null && reservation.recipientEmail() != null && reservation.otpCode() != null) {
+        if (reservation != null && reservation.recipientId() != null) {
             try {
-                emailService.sendOtpEmail(reservation.recipientEmail(), reservation.otpCode(), "RESET", otpValiditySeconds);
+                if (canDispatchOtp(reservation.challengeId(), reservation.recipientId(), reservation.recipientEmail(), 1)) {
+                    emailService.sendOtpEmail(reservation.recipientEmail(), reservation.otpCode(), "RESET", otpValiditySeconds);
+                }
             } catch (Exception ex) {
                 log.error("Failed to send OTP email to {}: {}", reservation.recipientEmail(), ex.getMessage());
             }
@@ -333,16 +338,7 @@ public class OtpService {
         // Phase 2 & 3 (Dispatch outside TX/locks, then Finalize in short CAS transaction):
         // Dummy challenges (userId == null) consume the same budget/cooldown without dispatching external mail.
         if (reservation != null && reservation.userId() != null) {
-            Optional<OtpChallengeRecord> preCheckChallenge = authRepository.findOtpChallengeById(challengeId);
-            Optional<UserRecord> preCheckUser = authRepository.findUserById(reservation.userId());
-            boolean stillValidForDispatch = preCheckChallenge.isPresent()
-                    && preCheckChallenge.get().usedAt() == null
-                    && clock.instant().isBefore(preCheckChallenge.get().expiresAt())
-                    && preCheckUser.isPresent()
-                    && "ACTIVE".equalsIgnoreCase(preCheckUser.get().status())
-                    && preCheckUser.get().email().equalsIgnoreCase(reservation.recipientEmail());
-
-            if (stillValidForDispatch) {
+            if (canDispatchOtp(challengeId, reservation.userId(), reservation.recipientEmail(), reservation.expectedSends())) {
                 boolean delivered = false;
                 try {
                     emailService.sendOtpEmail(
@@ -399,6 +395,18 @@ public class OtpService {
                 COOLDOWN_SECONDS,
                 reservation != null ? reservation.remainingValiditySeconds() : 0L
         );
+    }
+
+    private boolean canDispatchOtp(String challengeId, Long userId, String email, int expectedSends) {
+        var user = authRepository.findUserById(userId);
+        if (user.isEmpty() || !"ACTIVE".equalsIgnoreCase(user.get().status()) || !email.equalsIgnoreCase(user.get().email())) {
+            return false;
+        }
+        return authRepository.findOtpChallengeById(challengeId)
+                .filter(challenge -> userId.equals(challenge.userId()) && email.equalsIgnoreCase(challenge.email())
+                        && challenge.usedAt() == null && challenge.sends() == expectedSends
+                        && clock.instant().isBefore(challenge.expiresAt()))
+                .isPresent();
     }
 
     public boolean verifyResetToken(String rawToken) {
