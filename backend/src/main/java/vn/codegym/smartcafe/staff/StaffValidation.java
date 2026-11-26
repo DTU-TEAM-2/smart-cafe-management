@@ -1,6 +1,7 @@
 package vn.codegym.smartcafe.staff;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.Locale;
 import java.util.regex.Pattern;
 import org.springframework.http.HttpStatus;
@@ -20,6 +21,7 @@ public final class StaffValidation {
         }
         validateUsername(request.username());
         validateEmail(request.email());
+        validateBirthday(request.birthday());
         validateCommonFields(request.fullName(), request.address(), request.phone(), request.gender(), request.role(), request.salary());
     }
 
@@ -36,7 +38,14 @@ public final class StaffValidation {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid version.");
         }
         validateEmail(request.email());
+        validateBirthday(request.birthday());
         validateCommonFields(request.fullName(), request.address(), request.phone(), request.gender(), request.role(), request.salary());
+    }
+
+    private static void validateBirthday(LocalDate birthday) {
+        if (birthday != null && (birthday.getYear() < 1000 || birthday.getYear() > 9999)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ngày sinh nằm ngoài phạm vi hỗ trợ.");
+        }
     }
 
     public static void validateUsername(String username) {

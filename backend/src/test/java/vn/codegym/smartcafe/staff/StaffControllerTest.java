@@ -470,6 +470,37 @@ class StaffControllerTest {
     }
 
     @Test
+    void birthdayPreservesDateOnlyAndRejectsUnsupportedYears() throws Exception {
+        String create = """
+                {"username":"staff_birthday","fullName":"Staff Birthday","email":"birthday@test.vn",
+                 "phone":"0912345678","address":"Da Nang","salary":6500000,"birthday":"%s"}
+                """;
+        String update = """
+                {"version":"0","fullName":"Staff Birthday","email":"staff@test.vn",
+                 "phone":"0912345678","address":"Da Nang","salary":6500000,"birthday":"%s"}
+                """;
+        for (String invalidDate : List.of("0000-01-01", "+10000-01-01")) {
+            mvc.perform(post("/api/v1/staff").with(user("test_admin").roles("ADMIN")).with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON).content(create.formatted(invalidDate)))
+                    .andExpect(status().isBadRequest());
+            mvc.perform(put("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")).with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON).content(update.formatted(invalidDate)))
+                    .andExpect(status().isBadRequest());
+        }
+        mvc.perform(post("/api/v1/staff").with(user("test_admin").roles("ADMIN")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON).content(create.formatted("1998-05-20")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.birthday", is("1998-05-20")));
+        mvc.perform(put("/api/v1/staff/" + testStaffId).with(user("test_admin").roles("ADMIN")).with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON).content(update.formatted("1582-10-10")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.birthday", is("1582-10-10")));
+        mvc.perform(get("/api/v1/staff?keyword=test_staff").with(user("test_admin").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].birthday", is("1582-10-10")));
+    }
+
+    @Test
     void avatarMediaIdValidationForCreateAndUpdate() throws Exception {
         // Seed active media asset
         jdbc.update("""

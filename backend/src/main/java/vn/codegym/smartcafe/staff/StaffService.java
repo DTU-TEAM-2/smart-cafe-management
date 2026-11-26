@@ -2,7 +2,6 @@ package vn.codegym.smartcafe.staff;
 
 import java.math.BigDecimal;
 import java.security.SecureRandom;
-import java.sql.Date;
 import java.sql.Statement;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -146,8 +145,7 @@ public class StaffService {
         selectParams.add(offset);
 
         List<StaffModels.StaffSummary> items = jdbc.query(selectSql, (rs, rowNum) -> {
-            Date bDate = rs.getDate("birthday");
-            LocalDate birthday = (bDate != null) ? bDate.toLocalDate() : null;
+            LocalDate birthday = rs.getObject("birthday", LocalDate.class);
             return new StaffModels.StaffSummary(
                     rs.getLong("id"),
                     rs.getString("username"),
@@ -180,8 +178,7 @@ public class StaffService {
                 """;
 
         List<StaffModels.StaffDetail> list = jdbc.query(sql, (rs, rowNum) -> {
-            Date bDate = rs.getDate("birthday");
-            LocalDate birthday = (bDate != null) ? bDate.toLocalDate() : null;
+            LocalDate birthday = rs.getObject("birthday", LocalDate.class);
             Long mediaId = rs.getObject("avatar_media_id") != null ? rs.getLong("avatar_media_id") : null;
             return new StaffModels.StaffDetail(
                     rs.getLong("id"),
@@ -274,7 +271,6 @@ public class StaffService {
         }
         long userId = generatedKey.longValue();
 
-        Date birthdaySql = request.birthday() != null ? Date.valueOf(request.birthday()) : null;
         String gender = request.gender() != null && !request.gender().trim().isEmpty()
                 ? request.gender().trim().toUpperCase(Locale.ROOT)
                 : null;
@@ -282,7 +278,7 @@ public class StaffService {
         jdbc.update("""
                 INSERT INTO staff_profiles(user_id, address, birthday, gender, salary)
                 VALUES (?, ?, ?, ?, ?)
-                """, userId, request.address().trim(), birthdaySql, gender, request.salary());
+                """, userId, request.address().trim(), request.birthday(), gender, request.salary());
 
         return getStaffById(userId);
     }
@@ -351,7 +347,6 @@ public class StaffService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Ảnh đại diện không tồn tại hoặc đã bị xóa.");
         }
 
-        Date birthdaySql = request.birthday() != null ? Date.valueOf(request.birthday()) : null;
         String gender = request.gender() != null && !request.gender().trim().isEmpty()
                 ? request.gender().trim().toUpperCase(Locale.ROOT)
                 : null;
@@ -364,7 +359,7 @@ public class StaffService {
                     birthday = VALUES(birthday),
                     gender = VALUES(gender),
                     salary = VALUES(salary)
-                """, id, request.address().trim(), birthdaySql, gender, request.salary());
+                """, id, request.address().trim(), request.birthday(), gender, request.salary());
 
         return getStaffById(id);
     }

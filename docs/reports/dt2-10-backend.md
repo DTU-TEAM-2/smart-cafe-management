@@ -89,3 +89,5 @@
 ### Định danh trong JSON
 
 Response danh sách, chi tiết và upload trả ID nhân viên và ID ảnh dưới dạng chuỗi thập phân. Giữ nguyên chuỗi khi đưa vào URL hoặc gửi `avatarMediaId`. Request nhận chuỗi chữ số hoặc số nguyên JSON dương trong phạm vi `BIGINT` có dấu, và nhận `null` khi không có ảnh. Giá trị như `501.9`, `5.01e2`, chuỗi rỗng hoặc ID vượt phạm vi trả HTTP 400.
+
+`birthday` là ngày theo định dạng `YYYY-MM-DD` hoặc `null`. Ngày ngoài phạm vi `DATE` được MySQL hỗ trợ (`1000-01-01` đến `9999-12-31`) trả HTTP 400 khi tạo hoặc cập nhật. API và JDBC giữ nguyên ngày khi ghi và đọc. [MySQL 8.0 Reference Manual](https://dev.mysql.com/doc/refman/8.0/en/datetime.html)
