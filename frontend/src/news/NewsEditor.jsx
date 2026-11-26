@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import NewsImage from "./NewsImage.jsx";
-import { audienceNames, isNewsId, newsError, isUncertainNewsWrite } from "./newsApi.js";
+import { audienceNames, isNewsDetail, isNewsId, newsError, isUncertainNewsWrite } from "./newsApi.js";
 
 const emptyDraft = () => ({ title: "", summary: "", body: "", slug: "", status: "DRAFT", audiences: [], images: [] });
 const length = value => [...value].length;
@@ -74,6 +74,7 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
     setState("loading"); setError("");
     request(`/${id}`, { signal: abort.signal }).then(({ data, etag: tag }) => {
       if (abort.signal.aborted) return;
+      if (!isNewsDetail(data, id)) throw new Error("Invalid news detail response");
       const loaded = { title: data.title, summary: data.summary || "", body: data.body, slug: data.slug, status: data.status,
         audiences: data.audiences, images: data.images.map(image => ({ mediaId: image.mediaId, url: image.secureUrl })) };
       setDraft(loaded); setOriginal(JSON.stringify(loaded)); setEtag(tag); setState("ready"); setConflict(false); setInvalid({});
@@ -91,7 +92,7 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
   async function lookupCreation(creation, signal) {
     const { data } = await request(`/by-slug/${creation.slug}`, { signal });
     if (signal.aborted) return;
-    if (!isNewsId(data?.id)) throw new Error("Invalid news response");
+    if (!isNewsDetail(data) || data.slug !== creation.slug) throw new Error("Invalid news lookup response");
     if (canPreviewRecovery(creation) && matchesCreation(data, creation.body)) {
       clearPending();
       openPost(data);

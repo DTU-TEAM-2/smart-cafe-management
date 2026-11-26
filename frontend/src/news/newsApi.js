@@ -34,6 +34,29 @@ export function isNewsId(value) {
     && (value.length < 19 || value <= "9223372036854775807");
 }
 
+const isOptionalText = value => value == null || typeof value === "string";
+
+function isNewsSummary(post) {
+  return isNewsId(post?.id) && typeof post.title === "string"
+    && isOptionalText(post.summary) && isOptionalText(post.authorName)
+    && isOptionalText(post.publishedAt) && isOptionalText(post.createdAt)
+    && typeof post.status === "string" && Object.hasOwn(statusNames, post.status)
+    && Array.isArray(post.audiences) && post.audiences.every(audience =>
+      typeof audience === "string" && Object.hasOwn(audienceNames, audience));
+}
+
+export function isNewsPage(page) {
+  return Array.isArray(page?.content) && page.content.every(isNewsSummary)
+    && Number.isSafeInteger(page.totalElements) && page.totalElements >= 0
+    && Number.isSafeInteger(page.totalPages) && page.totalPages >= 0 && typeof page.last === "boolean";
+}
+
+export function isNewsDetail(post, id) {
+  return isNewsSummary(post) && (!id || post.id === id.replace(/^0+/, ""))
+    && typeof post.slug === "string" && typeof post.body === "string"
+    && Array.isArray(post.images) && post.images.every(image => isNewsId(image?.mediaId));
+}
+
 export function isUncertainNewsWrite(error) {
   return !(error instanceof NewsApiError) || error.status >= 500 || error.status === 408;
 }

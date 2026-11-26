@@ -3,7 +3,7 @@ import { useAuth } from "../auth/useAuth.js";
 import { getCurrentUserApi } from "../auth/authApi.js";
 import NewsImage from "./NewsImage.jsx";
 import NewsEditor from "./NewsEditor.jsx";
-import { audienceNames, newsDate, isUncertainNewsWrite, newsError, newsRequest, statusNames } from "./newsApi.js";
+import { audienceNames, isNewsDetail, isNewsPage, newsDate, isUncertainNewsWrite, newsError, newsRequest, statusNames } from "./newsApi.js";
 import "./news.css";
 
 export default function NewsPage({ authorization, account, identityStatus, route, revision, connection, setNavigationGuard }) {
@@ -53,6 +53,7 @@ function NewsList({ request, authorization, admin, revision, connection }) {
     request(`?page=${page}&size=6&sort=${sort}${status ? `&status=${status}` : ""}`, { signal: controller.signal })
       .then(({ data }) => {
         if (controller.signal.aborted) return;
+        if (!isNewsPage(data)) throw new Error("Invalid news page response");
         if (page > 0 && !data.content.length) { setPage(Math.max(0, data.totalPages - 1)); return; }
         setView({ state: "ready", data });
       }).catch(error => { if (!controller.signal.aborted) setView({ state: "error", error: newsError(error), data: null }); });
@@ -104,8 +105,10 @@ function NewsDetail({ id, request, authorization, admin, revision }) {
   useEffect(() => {
     const controller = new AbortController();
     setView({ state: "loading" });
-    request(`/${id}`, { signal: controller.signal }).then(data => {
-      if (!controller.signal.aborted) { setView({ state: "ready", ...data }); setArchiveUncertain(false); }
+    request(`/${id}`, { signal: controller.signal }).then(result => {
+      if (controller.signal.aborted) return;
+      if (!isNewsDetail(result.data, id)) throw new Error("Invalid news detail response");
+      setView({ state: "ready", ...result }); setArchiveUncertain(false);
     }).catch(e => { if (!controller.signal.aborted) setView({ state: "error", error: newsError(e) }); });
     return () => controller.abort();
   }, [id, request, revision, attempt]);

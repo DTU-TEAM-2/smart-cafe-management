@@ -422,6 +422,26 @@ test("guest gate, empty feed, retry and mobile layout remain usable", async ({ p
   await expect(page.getByText("Đăng nhập để xem những tin tức dành cho bạn.")).toBeVisible();
 });
 
+for (const [path, broken, message] of [
+  ["", { content: [{ ...fixture, audiences: null }], totalElements: 1, totalPages: 1, last: true }, "Chưa tải được tin tức"],
+  [`/${fixture.id}`, { ...fixture, images: null }, "Chưa mở được bài viết"],
+  [`/${fixture.id}/edit`, { ...fixture, summary: 123 }, "Chưa kết nối được máy chủ"],
+]) test(`malformed news data at ${path || "feed"} can be retried`, async ({ page }) => {
+  await setup(page);
+  const apiPath = path.replace(/\/edit$/, "");
+  let payload = broken;
+  await page.route(apiPath ? `**/api/v1/news${apiPath}` : "**/api/v1/news?*", route => route.fulfill({
+    json: payload,
+    headers: { ETag: '"0"' },
+  }));
+  await page.goto(`/#news${path}`);
+  await expect(page.getByRole("alert")).toContainText(message);
+  payload = apiPath ? fixture : { content: [fixture], totalElements: 1, totalPages: 1, last: true };
+  await page.getByRole("button", { name: "Thử lại" }).click();
+  if (path.endsWith("/edit")) await expect(page.getByLabel("Tiêu đề")).toHaveValue(fixture.title);
+  else await expect(page.getByRole("heading", { name: fixture.title })).toBeVisible();
+});
+
 test("policy-close reconnects only after the server confirms the STAFF identity again", async ({ page }) => {
   await setup(page, "STAFF");
   let accountChecks = 0, connections = 0, socket;
