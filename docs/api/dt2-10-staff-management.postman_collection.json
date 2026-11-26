@@ -111,6 +111,7 @@
 						"exec": [
 							"if (pm.response.code === 201) {",
 							"    var data = pm.response.json();",
+							"    pm.expect(data.id).to.be.a('string');",
 							"    pm.collectionVariables.set('createdStaffId', data.id);",
 							"}"
 						],

@@ -75,6 +75,45 @@ class StaffControllerTest {
     }
 
     @Test
+    void staffAndAvatarIdsRemainExactAtTheJsonBoundary() throws Exception {
+        long neighbor = 9007199254740992L;
+        long target = 9007199254740993L;
+        jdbc.update("""
+                INSERT INTO users(id, username, password_hash, full_name, email, role, status)
+                VALUES (?, 'large_staff_a', 'hash', 'Large A', 'large-a@example.invalid', 'STAFF', 'ACTIVE'),
+                       (?, 'large_staff_b', 'hash', 'Large B', 'large-b@example.invalid', 'STAFF', 'ACTIVE')
+                """, neighbor, target);
+        jdbc.update("INSERT INTO staff_profiles(user_id,address,salary) VALUES (?,'Da Nang',6000000), (?,'Da Nang',6000000)", neighbor, target);
+        jdbc.update("""
+                INSERT INTO media_assets(id, provider, provider_asset_id, secure_url, mime_type, size_bytes)
+                VALUES (?, 'CLOUDINARY', 'large-a', 'https://example.invalid/a.png', 'image/png', 10),
+                       (?, 'CLOUDINARY', 'large-b', 'https://example.invalid/b.png', 'image/png', 10)
+                """, neighbor, target);
+
+        var admin = user("test_admin").roles("ADMIN");
+        mvc.perform(get("/api/v1/staff").param("keyword", "large_staff_").with(admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[*].id", containsInAnyOrder(Long.toString(neighbor), Long.toString(target))));
+        mvc.perform(put("/api/v1/staff/{id}", target).with(admin).with(csrf())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("""
+                        {"fullName":"Updated Large B","email":"large-b@example.invalid",
+                         "role":"STAFF","avatarMediaId":"9007199254740993","version":"0", "address":"Da Nang","phone":"0901234567","gender":"FEMALE","salary":6000000}
+                        """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id", is(Long.toString(target))))
+                .andExpect(jsonPath("$.avatarMediaId", is(Long.toString(target))));
+        mvc.perform(get("/api/v1/staff/{id}", neighbor).with(admin))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id", is(Long.toString(neighbor))))
+                .andExpect(jsonPath("$.fullName", is("Large A")));
+        mvc.perform(delete("/api/v1/staff/{id}", target).with(admin).with(csrf()))
+                .andExpect(status().isNoContent());
+        mvc.perform(get("/api/v1/staff/{id}", neighbor).with(admin))
+                .andExpect(status().isOk());
+    }
+
+    @Test
     void anonymousOrStaffAccessIsForbidden() throws Exception {
         mvc.perform(get("/api/v1/staff"))
                 .andExpect(status().isForbidden());

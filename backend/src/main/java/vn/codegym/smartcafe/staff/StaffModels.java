@@ -9,7 +9,7 @@ public final class StaffModels {
     private StaffModels() {}
 
     public record StaffSummary(
-            Long id,
+            @JsonFormat(shape = JsonFormat.Shape.STRING) Long id,
             String username,
             String fullName,
             String email,
@@ -25,7 +25,7 @@ public final class StaffModels {
     ) {}
 
     public record StaffDetail(
-            Long id,
+            @JsonFormat(shape = JsonFormat.Shape.STRING) Long id,
             String username,
             String fullName,
             String email,
@@ -37,7 +37,7 @@ public final class StaffModels {
             @JsonFormat(shape = JsonFormat.Shape.STRING)
             BigDecimal salary,
             String status,
-            Long avatarMediaId,
+            @JsonFormat(shape = JsonFormat.Shape.STRING) Long avatarMediaId,
             String avatarUrl,
             String version
     ) {}
@@ -77,7 +77,7 @@ public final class StaffModels {
     ) {}
 
     public record ImageUploadResponse(
-            Long mediaId,
+            @JsonFormat(shape = JsonFormat.Shape.STRING) Long mediaId,
             String secureUrl
     ) {}
 

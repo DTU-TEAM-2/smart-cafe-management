@@ -22,6 +22,7 @@ import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.server.ResponseStatusException;
+import tools.jackson.databind.json.JsonMapper;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -57,14 +58,17 @@ class StaffImageServiceTest {
         var jdbc = mock(JdbcTemplate.class);
         doAnswer(invocation -> {
             KeyHolder kh = invocation.getArgument(1);
-            kh.getKeyList().add(java.util.Map.of("GENERATED_KEY", 101L));
+            kh.getKeyList().add(java.util.Map.of("GENERATED_KEY", 9007199254740993L));
             return 1;
         }).when(jdbc).update(any(PreparedStatementCreator.class), any(KeyHolder.class));
 
         var service = new StaffImageService("test-cloud", "test-key", "test-secret", builder.build(), jdbc);
         var res = service.upload(file(png()));
 
-        assertThat(res.mediaId()).isEqualTo(101L);
+        assertThat(res.mediaId()).isEqualTo(9007199254740993L);
+        var json = JsonMapper.builder().build().valueToTree(res);
+        assertThat(json.get("mediaId").isString()).isTrue();
+        assertThat(json.get("mediaId").asString()).isEqualTo("9007199254740993");
         assertThat(res.secureUrl()).isEqualTo("https://res.cloudinary.com/test-cloud/image/upload/v1/avatar.png");
         server.verify();
     }
