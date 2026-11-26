@@ -197,6 +197,8 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
         const body = new FormData(); body.append("file", file);
         const { data } = await request("/images", { method: "POST", body, signal: controller.current.signal });
         if (controller.current.signal.aborted) return;
+        if (typeof data?.mediaId !== "string" || !/^[1-9]\d{0,18}$/.test(data.mediaId)
+          || data.url !== `/api/v1/news/images/${data.mediaId}`) throw new Error("Invalid upload response");
         setDraft(current => ({ ...current, images: [...current.images, { mediaId: data.mediaId, url: data.url }] }));
       }
     } catch (e) {

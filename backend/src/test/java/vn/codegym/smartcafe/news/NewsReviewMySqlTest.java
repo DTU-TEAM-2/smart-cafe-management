@@ -369,6 +369,18 @@ class NewsReviewMySqlTest {
                 String message2 = second.messages.poll(5, TimeUnit.SECONDS);
                 assertThat(message1).isEqualTo("{\"type\":\"NEWS_CHANGED\"}");
                 assertThat(message2).isEqualTo(message1);
+                long id = jdbc.queryForObject("SELECT id FROM news_posts", Long.class);
+                mvc.perform(put("/api/v1/news/{id}", id).with(user("review-admin").roles("ADMIN"))
+                                .header("If-Match", "\"0\"").contentType(MediaType.APPLICATION_JSON)
+                                .content("{\"title\":\"Updated\",\"body\":\"Body\"}"))
+                        .andExpect(status().isOk());
+                assertThat(first.messages.poll(5, TimeUnit.SECONDS)).isEqualTo(message1);
+                assertThat(second.messages.poll(5, TimeUnit.SECONDS)).isEqualTo(message1);
+                mvc.perform(delete("/api/v1/news/{id}", id).with(user("review-admin").roles("ADMIN"))
+                                .header("If-Match", "\"1\""))
+                        .andExpect(status().isNoContent());
+                assertThat(first.messages.poll(5, TimeUnit.SECONDS)).isEqualTo(message1);
+                assertThat(second.messages.poll(5, TimeUnit.SECONDS)).isEqualTo(message1);
                 // Current role/auth-version is rechecked before sending any event.
                 jdbc.update("UPDATE users SET auth_version=1 WHERE id=902");
                 assertThat(createPublishedPost()).isEqualTo(201);

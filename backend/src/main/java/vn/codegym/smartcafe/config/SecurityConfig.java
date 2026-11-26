@@ -48,6 +48,7 @@ public class SecurityConfig {
         org.springframework.security.web.util.matcher.RequestMatcher guestCsrf =
                 request -> feedbackCsrf.matches(request) || customerCsrf.matches(request);
         return http
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/v1/news", "/api/v1/news/**"))
                 .csrf(csrf -> csrf.ignoringRequestMatchers(
                         // These exact endpoints authenticate only explicit bearer headers, never cookies.
                         request -> ("PATCH".equals(request.getMethod()) && "/api/v1/profiles/me".equals(request.getServletPath()))
@@ -55,8 +56,7 @@ public class SecurityConfig {
                 ).ignoringRequestMatchers(
                         "/api/v1/auth/**",
                         "/api/v1/admin/**",
-                        "/api/v1/staff/**",
-                        "/api/v1/news", "/api/v1/news/**"
+                        "/api/v1/staff/**"
                 ))
                 .sessionManagement(session -> session.requireExplicitAuthenticationStrategy(true))
                 .securityContext(context -> context.securityContextRepository(new NullSecurityContextRepository()))

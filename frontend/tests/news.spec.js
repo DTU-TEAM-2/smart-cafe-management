@@ -517,6 +517,34 @@ for (const failure of ["connection reset", "HTTP 503"]) test(`upload ${failure} 
   expect(uploads).toBe(1);
 });
 
+test("an incomplete upload response keeps verified images and excludes the unknown image from saving", async ({ page }) => {
+  await setup(page);
+  let uploaded = 0;
+  let submitted;
+  await page.route("**/api/v1/news/images", route => route.fulfill({
+    status: 201, json: ++uploaded === 1 ? { mediaId: "42", url: "/api/v1/news/images/42" } : {},
+  }));
+  await page.route("**/api/v1/news/images/42", route => route.fulfill({ status: 404 }));
+  await page.route("**/api/v1/news", route => {
+    submitted = route.request().postDataJSON();
+    return route.fulfill({ status: 201, json: fixture });
+  });
+  await page.goto("/#news/new");
+  const input = page.locator('input[type="file"]');
+  await input.setInputFiles(["confirmed", "incomplete"].map(name => ({
+    name: `${name}.png`, mimeType: "image/png", buffer: Buffer.from(name),
+  })));
+  await expect(page.getByRole("alert")).toContainText("Chưa rõ kết quả tải ảnh.");
+  await expect(input).toBeDisabled();
+  await expect(page.getByText("1/20", { exact: true })).toBeVisible();
+  await page.getByLabel("Tiêu đề").fill("Bài có ảnh");
+  await page.getByLabel("Nội dung").fill("Nội dung");
+  await page.getByRole("checkbox", { name: /Nhân viên/ }).check();
+  await page.getByRole("button", { name: "Lưu bản nháp", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`#news/${fixture.id}$`));
+  expect(submitted.imageMediaIds).toEqual(["42"]);
+});
+
 test("restoring archived news publishes the chosen status with the loaded ETag", async ({ page }) => {
   await setup(page);
   let saved;
