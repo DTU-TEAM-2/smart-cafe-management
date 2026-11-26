@@ -163,7 +163,7 @@ jobs:
   governance:
     name: Governance
     needs: [launcher-scope, windows-launcher]
-    if: always()
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
