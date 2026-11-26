@@ -140,6 +140,58 @@ class MenuIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT price FROM menu_items WHERE code='CF03'", Long.class)).isEqualTo(50000);
     }
 
+    @Test @WithMockUser(roles = "ADMIN")
+    void decimalStringInputsPreserveExactPriceMediaAndVersionsWhileResponsesRemainNumbers() throws Exception {
+        fixtures();
+        jdbc.update("INSERT INTO media_assets(provider,provider_asset_id,secure_url,mime_type,size_bytes) VALUES ('CLOUDINARY','menu-exact-contract','https://res.cloudinary.com/menu-test/image/upload/contract.png','image/png',10)");
+        try {
+            Long mediaId = jdbc.queryForObject("SELECT id FROM media_assets WHERE provider_asset_id='menu-exact-contract'", Long.class);
+            var created = mvc.perform(post("/api/v1/menu/items").with(csrf()).contentType("application/json").content("""
+                    {"code":"CF09","name":"Exact coffee","price":"999999999999999999","categoryCode":"CF",
+                     "imageMediaId":"%s","version":"0","available":true}
+                    """.formatted(mediaId))).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+            assertThat(created).contains("\"price\":999999999999999999", "\"version\":0", "\"imageMediaId\":" + mediaId);
+            assertThat(jdbc.queryForObject("SELECT CAST(price AS CHAR) FROM menu_items WHERE code='CF09'", String.class)).isEqualTo("999999999999999999");
+            jdbc.update("UPDATE menu_items SET version=9223372036854775806 WHERE code='CF09'");
+            mvc.perform(put("/api/v1/menu/items/CF09").with(csrf()).contentType("application/json").content("""
+                    {"code":"CF09","name":"Exact coffee","price":"999999999999999999","categoryCode":"CF",
+                     "imageMediaId":null,"version":"9223372036854775806"}
+                    """)).andExpect(status().isOk());
+            assertThat(jdbc.queryForObject("SELECT version FROM menu_items WHERE code='CF09'", Long.class)).isEqualTo(Long.MAX_VALUE);
+            mvc.perform(post("/api/v1/menu/categories").with(csrf()).contentType("application/json")
+                    .content("{\"code\":\"EX\",\"name\":\"Exact category\",\"version\":\"0\"}"))
+                    .andExpect(status().isCreated());
+            jdbc.update("UPDATE menu_categories SET version=9007199254740993 WHERE code='EX'");
+            mvc.perform(put("/api/v1/menu/categories/EX").with(csrf()).contentType("application/json")
+                    .content("{\"code\":\"EX\",\"name\":\"Updated category\",\"version\":\"9007199254740993\"}"))
+                    .andExpect(status().isOk());
+            assertThat(jdbc.queryForObject("SELECT version FROM menu_categories WHERE code='EX'", Long.class)).isEqualTo(9007199254740994L);
+        } finally {
+            jdbc.update("DELETE FROM menu_items WHERE code='CF09'");
+            jdbc.update("DELETE FROM media_assets WHERE provider_asset_id='menu-exact-contract'");
+        }
+    }
+
+    @Test @WithMockUser(roles = "ADMIN")
+    void decimalStringInputsStillRejectFractionsBoundsAndInt64Overflow() throws Exception {
+        fixtures();
+        for (String price : List.of("5000", "5000.5", "1000000000000000000")) {
+            mvc.perform(post("/api/v1/menu/items").with(csrf()).contentType("application/json")
+                    .content(item("CF09", "Exact coffee", 15000, "CF", 0).replace("15000", "\"" + price + "\"")))
+                    .andExpect(status().isBadRequest());
+        }
+        for (String field : List.of("version", "imageMediaId")) {
+            String body = item("CF09", "Exact coffee", 15000, "CF", 0);
+            body = field.equals("version") ? body.replace("\"version\":0", "\"version\":\"9223372036854775808\"")
+                    : body.replace("}", ",\"imageMediaId\":\"9223372036854775808\"}");
+            mvc.perform(post("/api/v1/menu/items").with(csrf()).contentType("application/json").content(body))
+                    .andExpect(status().isBadRequest());
+        }
+        mvc.perform(post("/api/v1/menu/categories").with(csrf()).contentType("application/json")
+                .content("{\"code\":\"EX\",\"name\":\"Exact category\",\"version\":\"9223372036854775808\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
     @Test @WithMockUser(roles = "ADMIN") void searchPaginationAndLiteralWildcards() throws Exception {
         fixtures();
         for (String[] search : new String[][] {{"code", "cf01"}, {"name", "BLACK"}, {"price", "15000"}, {"category", "ca phe"}}) {

@@ -1,9 +1,10 @@
 import { afterEach, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadCategories, saveMenu } from '../src/menu/menuApi.js';
+import { loadCategories, readMenu, saveMenu } from '../src/menu/menuApi.js';
 
 const originalFetch = globalThis.fetch;
-afterEach(() => { globalThis.fetch = originalFetch; });
+const originalParse = JSON.parse;
+afterEach(() => { globalThis.fetch = originalFetch; JSON.parse = originalParse; });
 const json = data => new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } });
 const groups = (start, end) => Array.from({ length: end - start }, (_, index) => ({
   code: `C${String(start + index).padStart(3, '0')}`, name: 'Coffee', version: '0', itemCount: 0,
@@ -100,4 +101,16 @@ test('a CSRF failure occurs before any upload and leaves the File retryable', as
   assert.equal(csrf, 2);
   assert.equal(uploads, 0);
   assert.equal(cache.has(file), false);
+});
+
+test('without reviver source context, unsafe wire numbers fail instead of rounding', async () => {
+  JSON.parse = (text, reviver) => originalParse(text, function (key, value) {
+    return reviver ? reviver.call(this, key, value) : value;
+  });
+  globalThis.fetch = async () => new Response('{"price":999999999999999999,"version":0,"imageMediaId":null}');
+  await assert.rejects(readMenu('items', 'CF01', 'Bearer test'), /không đọc được số nguyên chính xác/);
+  globalThis.fetch = async () => new Response('{"price":45000,"version":9007199254740991,"imageMediaId":null}');
+  assert.deepEqual(await readMenu('items', 'CF01', 'Bearer test'), { price: '45000', version: '9007199254740991', imageMediaId: null });
+  globalThis.fetch = async () => new Response('{"price":"999999999999999999","version":"9223372036854775807","imageMediaId":null}');
+  assert.deepEqual(await readMenu('items', 'CF01', 'Bearer test'), { price: '999999999999999999', version: '9223372036854775807', imageMediaId: null });
 });
