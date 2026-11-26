@@ -120,6 +120,22 @@ test("a different article found at the same slug requires confirmation to leave 
   expect(await page.evaluate(() => sessionStorage.getItem("lecker_news_pending:1"))).toBeNull();
 });
 
+test("incompatible recovery data stays exportable without breaking the editor", async ({ page }) => {
+  await setup(page);
+  const saved = { slug: fixture.slug, body: { ...fixture, summary: 123, imageMediaIds: [] } };
+  await page.addInitScript(record => sessionStorage.setItem("lecker_news_pending:1", JSON.stringify(record)), saved);
+  await page.route(`**/api/v1/news/by-slug/${fixture.slug}`, route => route.fulfill({ json: fixture }));
+  await page.goto("/#news/new");
+  await expect(page.getByLabel("Tiêu đề")).toBeDisabled();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Tải bản sao JSON" }).click();
+  const backup = await download;
+  expect(JSON.parse(await readFile(await backup.path(), "utf8"))).toEqual(saved);
+  await page.getByRole("button", { name: "Kiểm tra bài đã lưu" }).click();
+  await expect(page.getByRole("button", { name: "Mở bài tìm thấy" })).toBeVisible();
+  await expect(page).toHaveURL(/#news\/new$/);
+});
+
 test("a storage failure preserves the draft before sending a creation", async ({ page }) => {
   await setup(page);
   await page.addInitScript(() => {
@@ -238,13 +254,13 @@ test("a lost PUT response allows checking the newer version while preserving the
   expect(writes).toBe(1);
 });
 
-test("a lost DELETE response requires reading the article before another archive", async ({ page }) => {
+for (const response of ["connection reset", "unexpected success status"]) test(`DELETE with ${response} requires reading the article before another archive`, async ({ page }) => {
   await setup(page);
   let writes = 0;
   await page.route(`**/api/v1/news/${fixture.id}`, route => {
     if (route.request().method() === "DELETE") {
       writes++;
-      return route.abort("connectionreset");
+      return response === "connection reset" ? route.abort("connectionreset") : route.fulfill({ status: 202, json: {} });
     }
     return route.fulfill({ json: { ...fixture, status: writes ? "ARCHIVED" : "PUBLISHED", version: writes },
       headers: { ETag: `"${writes}"` } });
@@ -517,12 +533,16 @@ for (const failure of ["connection reset", "HTTP 503"]) test(`upload ${failure} 
   expect(uploads).toBe(1);
 });
 
-test("an incomplete upload response keeps verified images and excludes the unknown image from saving", async ({ page }) => {
+const invalidUploads = {
+  "incomplete data": {},
+  "out-of-range ID": { mediaId: "9223372036854775808", url: "/api/v1/news/images/9223372036854775808" },
+};
+for (const [reason, invalidResponse] of Object.entries(invalidUploads)) test(`upload with ${reason} keeps verified images`, async ({ page }) => {
   await setup(page);
   let uploaded = 0;
   let submitted;
   await page.route("**/api/v1/news/images", route => route.fulfill({
-    status: 201, json: ++uploaded === 1 ? { mediaId: "42", url: "/api/v1/news/images/42" } : {},
+    status: 201, json: ++uploaded === 1 ? { mediaId: "42", url: "/api/v1/news/images/42" } : invalidResponse,
   }));
   await page.route("**/api/v1/news/images/42", route => route.fulfill({ status: 404 }));
   await page.route("**/api/v1/news", route => {

@@ -1,19 +1,27 @@
 import { useEffect, useRef, useState } from "react";
 import NewsImage from "./NewsImage.jsx";
-import { newsError, isUncertainNewsWrite } from "./newsApi.js";
+import { audienceNames, isNewsId, newsError, isUncertainNewsWrite } from "./newsApi.js";
 
 const emptyDraft = () => ({ title: "", summary: "", body: "", slug: "", status: "DRAFT", audiences: [], images: [] });
 const length = value => [...value].length;
 const slugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const validPost = post => typeof post?.id === "string" && /^\d+$/.test(post.id);
 const sameList = (first, second) => Array.isArray(first) && first.length === second.length
   && first.every((value, index) => value === second[index]);
 
+function canPreviewRecovery({ slug, body }) {
+  return body?.slug === slug && typeof body.title === "string" && typeof body.body === "string"
+    && (body.summary == null || typeof body.summary === "string")
+    && (body.status === "DRAFT" || body.status === "PUBLISHED")
+    && Array.isArray(body.audiences) && body.audiences.length > 0
+    && body.audiences.every(audience => typeof audience === "string" && Object.hasOwn(audienceNames, audience))
+    && Array.isArray(body.imageMediaIds) && body.imageMediaIds.every(isNewsId);
+}
+
 function matchesCreation(post, body) {
   return body && post.version === 0 && post.slug === body.slug && post.title === body.title
-    && (post.summary || null) === body.summary && post.body === body.body && post.status === body.status
-    && sameList(post.audiences?.slice().sort(), body.audiences.slice().sort())
-    && sameList(post.images?.map(image => image.mediaId), body.imageMediaIds);
+    && (post.summary || null) === (body.summary || null) && post.body === body.body && post.status === body.status
+    && Array.isArray(post.audiences) && sameList(post.audiences.slice().sort(), body.audiences.slice().sort())
+    && Array.isArray(post.images) && sameList(post.images.map(image => image?.mediaId), body.imageMediaIds);
 }
 
 function autoSlug(title) {
@@ -35,10 +43,7 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
     try {
       const saved = JSON.parse(sessionStorage.getItem(storageKey));
       if (typeof saved?.slug !== "string" || saved.slug.length > 180 || !slugPattern.test(saved.slug)) return null;
-      const body = saved.body;
-      const hasBody = body?.slug === saved.slug && typeof body.title === "string" && typeof body.body === "string"
-        && Array.isArray(body.audiences) && Array.isArray(body.imageMediaIds);
-      return { slug: saved.slug, body: hasBody ? body : null };
+      return { slug: saved.slug, body: saved.body ?? null };
     } catch { return null; }
   });
   const [uploadUncertain, setUploadUncertain] = useState(false);
@@ -86,8 +91,8 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
   async function lookupCreation(creation, signal) {
     const { data } = await request(`/by-slug/${creation.slug}`, { signal });
     if (signal.aborted) return;
-    if (!validPost(data)) throw new Error("Invalid news response");
-    if (matchesCreation(data, creation.body)) {
+    if (!isNewsId(data?.id)) throw new Error("Invalid news response");
+    if (canPreviewRecovery(creation) && matchesCreation(data, creation.body)) {
       clearPending();
       openPost(data);
     } else {
@@ -168,7 +173,7 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
     try {
       const { data } = await request(id ? `/${id}` : "", { method: id ? "PUT" : "POST", body, etag, signal });
       if (signal.aborted) return;
-      if (!validPost(data)) throw new Error("Invalid news response");
+      if (!isNewsId(data?.id) || (id && data.id !== id.replace(/^0+/, ""))) throw new Error("Invalid news response");
       if (creationSlug) clearPending();
       openPost(data);
     } catch (e) {
@@ -197,7 +202,7 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
         const body = new FormData(); body.append("file", file);
         const { data } = await request("/images", { method: "POST", body, signal: controller.current.signal });
         if (controller.current.signal.aborted) return;
-        if (typeof data?.mediaId !== "string" || !/^[1-9]\d{0,18}$/.test(data.mediaId)
+        if (!isNewsId(data?.mediaId)
           || data.url !== `/api/v1/news/images/${data.mediaId}`) throw new Error("Invalid upload response");
         setDraft(current => ({ ...current, images: [...current.images, { mediaId: data.mediaId, url: data.url }] }));
       }
@@ -215,8 +220,9 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
     setDraft(current => { const images = [...current.images]; [images[index], images[index + delta]] = [images[index + delta], images[index]]; return { ...current, images }; });
   }
   const fieldsLocked = busy || Boolean(pending);
-  const shownDraft = pending?.body ?? draft;
-  const shownImages = pending?.body ? pending.body.imageMediaIds.map(mediaId => ({
+  const recoveryBody = pending && canPreviewRecovery(pending) ? pending.body : null;
+  const shownDraft = recoveryBody ?? draft;
+  const shownImages = recoveryBody ? recoveryBody.imageMediaIds.map(mediaId => ({
     mediaId, url: `/api/v1/news/images/${mediaId}`,
   })) : draft.images;
   const saveDisabled = fieldsLocked || uploading || conflict || editUncertain;
@@ -247,6 +253,7 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
     }}>Tải bản mới</button>}</div>}
     {pending && !busy && <div className="news-error">
       <p role="status">Chưa xác nhận được kết quả lần lưu trước. Kiểm tra bài có đường dẫn <strong>{pending.slug}</strong>.</p>
+      {pending.body != null && !recoveryBody && <p>Không thể hiển thị nội dung đối soát. Bạn vẫn có thể tải bản sao JSON.</p>}
       <button type="button" className="news-button" onClick={resolvePending}>Kiểm tra bài đã lưu</button>
       <button type="button" className="news-button subtle" onClick={downloadRecovery}>Tải bản sao JSON</button>
       <button type="button" className="news-button subtle" onClick={discardRecovery}>Bỏ đối soát và soạn bài khác</button>
