@@ -1,5 +1,11 @@
 # DT2-11 — bản thử giao diện quản lý bàn
 
+## Chuẩn bị PR — 27/11/2026
+
+Người dùng yêu cầu tạo PR cho phần này, thay giới hạn không push/PR trước đó. Đã merge `origin/develop@4f65894` vào nhánh task, giữ luồng AuthProvider/useAuth mới và các mục tài liệu của develop. Diff với develop chỉ gồm 7 file DT2-11; cấu hình review local và Graphify không nằm trong commit/PR. Không merge PR hoặc triển khai.
+
+Kiểm chứng trên nền đã đồng bộ: frontend lint đạt; production build đạt qua Playwright webServer; 5/5 unit tests và 12/12 Playwright desktop/mobile đạt (38,0 giây). `git diff origin/develop...HEAD --check` đạt. Registry/routing local kiểm tra đạt (18 skills/17 routes, 10 tests), có chứa preference local không được publish; CI kiểm cây Git riêng. Không chạy backend/MySQL vì diff không đổi backend/API/schema. Skills phase này: `cafe-quality` và `cafe-review` tại `.agents/skills/`; self-review không thay hai reviewer độc lập. Phạm vi vẫn là preview UI, chưa nghiệm thu toàn bộ DT2-11 và chưa chốt các câu hỏi QA.
+
 Ngày: 17/11/2026. Nguồn: [DT2-11](https://duymanhdnvn20092005.atlassian.net/browse/DT2-11), DT2-73/74/75; yêu cầu trực tiếp làm code thử trên nhánh riêng, không push/tạo PR, sau đó chọn giao diện độc lập và lưu câu hỏi. Nhánh local: `feature/dt2-11_table-management`, từ `origin/develop@ffa4d95`. Chưa nghiệm thu nghiệp vụ, chưa thay đổi Jira hay schema.
 
 ## Mở bản thử
