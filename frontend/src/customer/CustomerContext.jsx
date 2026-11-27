@@ -211,7 +211,8 @@ export function CustomerProvider({ children }) {
 
       const csrf = await fetchCsrfToken();
       if (signal.aborted) return;
-      if (!csrf?.headerName || !csrf?.token) {
+      if (typeof csrf?.headerName !== "string" || !csrf.headerName
+          || typeof csrf.token !== "string" || !csrf.token) {
         throw new Error("Chưa lấy được mã xác thực yêu cầu. Vui lòng thử lại.");
       }
 
@@ -257,6 +258,14 @@ export function CustomerProvider({ children }) {
       });
     } catch (err) {
       if (signal.aborted) return;
+      if (err.name === "TimeoutError") {
+        setOrderModalResult({
+          status: "failure",
+          title: "Chưa nhận được kết quả gửi đơn",
+          detail: "Đơn có thể đã được ghi nhận. Thử lại để kiểm tra bằng cùng mã đơn.",
+        });
+        return;
+      }
       if (attempt && !replay && err.requestRejected) {
         try {
           finishOrderAttempt(session, attempt, cart, latestOrders.current);

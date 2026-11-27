@@ -453,6 +453,47 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     await expect(page.getByText(/#1002/)).toHaveCount(1);
   });
 
+  test("a silent order response times out and retry uses the same request", async ({ page }) => {
+    const attempts = [];
+    let finishFirst;
+    const firstResponse = new Promise(resolve => { finishFirst = resolve; });
+    await page.route("**/api/v1/customer/sessions/10/orders", async route => {
+      attempts.push({
+        key: route.request().headers()["idempotency-key"],
+        body: route.request().postDataJSON(),
+      });
+      const first = attempts.length === 1;
+      if (first) await firstResponse;
+      try {
+        await route.fulfill({ json: {
+          id: "1002", sessionId: "10", totalAmount: "45000", sessionTotalAmount: "45000",
+          editableUntil: new Date(Date.now() + 180000).toISOString(),
+          items: [{ id: "501", menuItemId: "101", name: "Caramel Latte", unitPrice: "45000",
+            lineTotal: "45000", quantity: 1, version: "0", status: "SUBMITTED" }],
+        } });
+      } catch (error) {
+        if (!first) throw error;
+      }
+    });
+    await page.goto("/#customer");
+    await page.getByLabel("Thêm Caramel Latte vào giỏ hàng").click();
+    await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+    await page.evaluate(() => {
+      const original = AbortSignal.timeout.bind(AbortSignal);
+      AbortSignal.timeout = ms => original(ms === 12000 ? 600 : ms);
+    });
+    try {
+      await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+      await expect(page.getByText(/Chưa nhận được kết quả gửi đơn/)).toBeVisible({ timeout: 3000 });
+      expect(attempts).toHaveLength(1);
+    } finally {
+      finishFirst();
+    }
+    await page.getByRole("button", { name: "THỬ LẠI" }).click();
+    await expect(page.locator(".c-result-title")).toHaveText("Đặt món thành công!");
+    expect(attempts).toEqual([attempts[0], attempts[0]]);
+  });
+
   test("keeps the retry key when a write finishes after leaving the customer page", async ({ page }) => {
     const keys = [];
     let release;
@@ -1174,9 +1215,12 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
   test("22. Requires price confirmation and blocks submission when price lookup fails", async ({ page }, testInfo) => {
     let price = "45000";
     let unavailable = false;
+    let wrongMenuItem = false;
     let posts = 0;
     const attempts = [];
-    await page.route("**/api/v1/customer/menu/items/101", (route) => unavailable ? route.abort() : route.fulfill({ json: { ...mockMenuItems.content[0], price } }));
+    await page.route("**/api/v1/customer/menu/items/101", (route) => unavailable ? route.abort() : route.fulfill({
+      json: wrongMenuItem ? { ...mockMenuItems.content[1], price: "1000" } : { ...mockMenuItems.content[0], price },
+    }));
     await page.route("**/api/v1/customer/sessions/10/orders", (route) => {
       posts++;
       attempts.push({ key: route.request().headers()["idempotency-key"], payload: route.request().postDataJSON() });
@@ -1203,6 +1247,13 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     expect(posts).toBe(0);
     await page.getByRole("button", { name: "ĐÓNG", exact: true }).click();
     unavailable = false;
+    wrongMenuItem = true;
+    await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+    await expect(page.getByText("Chưa xác minh được giá")).toBeVisible();
+    expect(posts).toBe(0);
+    await page.getByRole("button", { name: "ĐÓNG", exact: true }).click();
+    await expect(page.locator(".c-summary-total-price")).toHaveText("50.000 đ");
+    wrongMenuItem = false;
     await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
     await expect.poll(() => posts).toBe(1);
     await expect(page.getByText("Đặt món thất bại", { exact: true })).toBeVisible();

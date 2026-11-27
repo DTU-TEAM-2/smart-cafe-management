@@ -70,6 +70,7 @@ export async function fetchCsrfToken(url = "/api/v1/customer/csrf") {
       headers: { Accept: "application/json" },
       credentials: "same-origin",
       cache: "no-store",
+      signal: AbortSignal.timeout(12000),
     });
     if (!res.ok) return null;
     return await res.json();
@@ -115,12 +116,18 @@ export async function fetchMenuItems({ categoryId, keyword, availableOnly, page 
 export async function fetchMenuItem(itemId) {
   const res = await fetch(`/api/v1/customer/menu/items/${encodeURIComponent(itemId)}`, {
     headers: { Accept: "application/json" },
+    cache: "no-store",
+    signal: AbortSignal.timeout(12000),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Không tìm thấy thông tin món.");
   }
-  return res.json();
+  const item = await res.json();
+  if (!isId(item?.id) || String(item.id) !== String(itemId) || !isDecimal(item.price)) {
+    throw new Error("Phản hồi giá món không hợp lệ. Vui lòng thử lại.");
+  }
+  return item;
 }
 
 export async function fetchOrder({ sessionId, token, batchId }) {
@@ -147,10 +154,12 @@ export async function createOrder({ sessionId, token, items, idempotencyKey, csr
     headers[csrf.headerName] = csrf.token;
   }
 
+  const signal = AbortSignal.timeout(12000);
   const res = await fetch(`/api/v1/customer/sessions/${encodeURIComponent(sessionId)}/orders`, {
     method: "POST",
     headers,
     credentials: "same-origin",
+    signal,
     body: JSON.stringify({
       items: items.map((it) => ({
         menuItemId: String(it.menuItemId ?? it.id),
@@ -160,9 +169,10 @@ export async function createOrder({ sessionId, token, items, idempotencyKey, csr
     }),
   });
 
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json().catch(() => null);
+  signal.throwIfAborted();
   if (!res.ok) {
-    const error = new Error(data.detail || data.title || "Gửi đơn gọi món thất bại.");
+    const error = new Error(data?.detail || data?.title || "Gửi đơn gọi món thất bại.");
     error.status = res.status;
     // This describes only this HTTP request. A rejection cannot settle an
     // earlier request whose outcome was unknown.
