@@ -20,6 +20,7 @@ import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.HexFormat;
 import java.util.Optional;
 
@@ -254,11 +255,8 @@ public class OtpService {
     }
 
     private record ResendReservation(
-            String challengeId,
-            Long userId,
-            String recipientEmail,
-            String purpose,
-            int expectedSends,
+            OtpChallengeRecord previous,
+            Instant nextSendAt,
             String newOtpCode,
             String newCodeHash,
             long remainingValiditySeconds
@@ -307,7 +305,7 @@ public class OtpService {
                 throw new OtpException("Không thể gửi email OTP qua dịch vụ gửi thư. Vui lòng thử lại sau.");
             }
 
-            Instant newNextSendAt = now.plusSeconds(COOLDOWN_SECONDS);
+            Instant newNextSendAt = now.plusSeconds(COOLDOWN_SECONDS).truncatedTo(ChronoUnit.MICROS);
             if (authRepository.consumeOtpResend(challengeId, now, newNextSendAt) != 1) {
                 throw new IllegalStateException("OTP resend reservation failed");
             }
@@ -323,11 +321,8 @@ public class OtpService {
             }
 
             return new ResendReservation(
-                    challengeId,
-                    challenge.userId(),
-                    challenge.email(),
-                    challenge.purpose(),
-                    challenge.sends() + 1,
+                    challenge,
+                    newNextSendAt,
                     newOtpCode,
                     newCodeHash,
                     remainingValidity
@@ -336,55 +331,19 @@ public class OtpService {
 
         // Phase 2 & 3 (Dispatch outside TX/locks, then Finalize in short CAS transaction):
         // Dummy challenges (userId == null) consume the same budget/cooldown without dispatching external mail.
-        if (reservation != null && reservation.userId() != null) {
-            if (canDispatchOtp(challengeId, reservation.userId(), reservation.recipientEmail(), reservation.expectedSends())) {
-                boolean delivered = false;
+        if (reservation != null && reservation.previous().userId() != null) {
+            try {
+                dispatchResend(reservation);
+            } catch (RuntimeException failure) {
+                // Finalization has ended. Restore only this still-pending reservation in a fresh transaction.
                 try {
-                    emailService.sendOtpEmail(
-                            reservation.recipientEmail(),
-                            reservation.newOtpCode(),
-                            reservation.purpose(),
-                            reservation.remainingValiditySeconds()
-                    );
-                    delivered = true;
-                } catch (Exception ex) {
-                    log.warn("OTP resend delivery failed for challenge {}", challengeId);
+                    requiresNewTx.executeWithoutResult(status ->
+                            authRepository.releaseOtpResend(reservation.previous(), reservation.nextSendAt()));
+                } catch (RuntimeException releaseFailure) {
+                    failure.addSuppressed(releaseFailure);
+                    log.error("OTP resend quota could not be restored for challenge {}", challengeId);
                 }
-
-                final boolean deliverySucceeded = delivered;
-                transactionTemplate.executeWithoutResult(status -> {
-                    Optional<UserRecord> userOpt = authRepository.findUserById(reservation.userId());
-                    if (userOpt.isEmpty()
-                            || !"ACTIVE".equalsIgnoreCase(userOpt.get().status())
-                            || !userOpt.get().email().equalsIgnoreCase(reservation.recipientEmail())) {
-                        // Safe no-op: user became inactive or email binding changed during SMTP dispatch.
-                        return;
-                    }
-
-                    // Keep database failures outside the SMTP catch: throw on genuine DB failure without rolling back Phase 1 quota.
-                    int updated = authRepository.recordOtpDelivery(
-                            challengeId,
-                            reservation.expectedSends(),
-                            reservation.newCodeHash(),
-                            deliverySucceeded,
-                            clock.instant()
-                    );
-                    if (updated != 1) {
-                        // Use locking current read (FOR UPDATE) so MySQL REPEATABLE READ snapshot from findUserById
-                        // does not mask a concurrent commit that consumed/revoked/expired the challenge.
-                        Optional<OtpChallengeRecord> currentOpt = authRepository.findOtpChallengeByIdForUpdate(challengeId);
-                        if (currentOpt.isPresent()) {
-                            OtpChallengeRecord current = currentOpt.get();
-                            if (current.usedAt() != null
-                                    || !clock.instant().isBefore(current.expiresAt())
-                                    || current.sends() > reservation.expectedSends()) {
-                                // Safe no-op: challenge was consumed, revoked, expired, or superseded during dispatch.
-                                return;
-                            }
-                        }
-                        throw new IllegalStateException("OTP delivery transition failed");
-                    }
-                });
+                throw failure;
             }
         }
 
@@ -394,6 +353,47 @@ public class OtpService {
                 COOLDOWN_SECONDS,
                 reservation != null ? reservation.remainingValiditySeconds() : 0L
         );
+    }
+
+    private void dispatchResend(ResendReservation reservation) {
+        OtpChallengeRecord previous = reservation.previous();
+        int expectedSends = previous.sends() + 1;
+        if (!canDispatchOtp(previous.id(), previous.userId(), previous.email(), expectedSends)) {
+            return;
+        }
+
+        boolean delivered = false;
+        try {
+            emailService.sendOtpEmail(previous.email(), reservation.newOtpCode(), previous.purpose(),
+                    reservation.remainingValiditySeconds());
+            delivered = true;
+        } catch (Exception ex) {
+            log.warn("OTP resend delivery failed for challenge {}", previous.id());
+        }
+
+        boolean deliverySucceeded = delivered;
+        transactionTemplate.executeWithoutResult(status -> {
+            Optional<UserRecord> userOpt = authRepository.findUserById(previous.userId());
+            if (userOpt.isEmpty()
+                    || !"ACTIVE".equalsIgnoreCase(userOpt.get().status())
+                    || !previous.email().equalsIgnoreCase(userOpt.get().email())) {
+                return;
+            }
+            Instant now = clock.instant();
+            int updated = authRepository.recordOtpDelivery(previous.id(), expectedSends, reservation.nextSendAt(),
+                    reservation.newCodeHash(), deliverySucceeded, now);
+            if (updated != 1) {
+                // A locking read sees concurrent changes even with an existing REPEATABLE READ snapshot.
+                var current = authRepository.findOtpChallengeByIdForUpdate(previous.id());
+                if (updated == 0 && current.filter(challenge -> challenge.usedAt() != null
+                        || !now.isBefore(challenge.expiresAt()) || challenge.sends() != expectedSends
+                        || !challenge.nextSendAt().equals(reservation.nextSendAt())
+                        || !"PENDING".equals(challenge.deliveryStatus())).isPresent()) {
+                    return;
+                }
+                throw new IllegalStateException("OTP delivery transition failed");
+            }
+        });
     }
 
     private boolean canDispatchInitialOtp(ResetReservation reservation) {

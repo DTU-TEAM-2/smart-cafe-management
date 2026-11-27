@@ -143,7 +143,7 @@ class OtpServiceTest {
                 .when(emailService).sendOtpEmail(eq("user@smartcafe.vn"), anyString(), eq("RESET"), anyLong());
 
         when(authRepository.consumeOtpResend(eq(challengeId), any(), any())).thenReturn(1);
-        when(authRepository.recordOtpDelivery(eq(challengeId), eq(2), anyString(), eq(false), any())).thenReturn(1);
+        when(authRepository.recordOtpDelivery(eq(challengeId), eq(2), any(), anyString(), eq(false), any())).thenReturn(1);
         ForgotPasswordResponse response = otpService.resendOtp(challengeId);
 
         assertThat(response).isNotNull();
@@ -152,7 +152,7 @@ class OtpServiceTest {
 
         // Delivery failure consumes one request without installing the undelivered hash.
         verify(authRepository).consumeOtpResend(eq(challengeId), any(), any());
-        verify(authRepository).recordOtpDelivery(eq(challengeId), eq(2), anyString(), eq(false), any());
+        verify(authRepository).recordOtpDelivery(eq(challengeId), eq(2), any(), anyString(), eq(false), any());
     }
 
     @Test
@@ -205,7 +205,9 @@ class OtpServiceTest {
         if (deliveryTransition) {
             when(authRepository.consumeOtpResend(eq(id), any(), any())).thenReturn(1);
             if (sqlException) {
-                when(authRepository.recordOtpDelivery(eq(id), eq(2), anyString(), eq(true), any())).thenThrow(failure);
+                when(authRepository.recordOtpDelivery(eq(id), eq(2), any(), anyString(), eq(true), any())).thenThrow(failure);
+            } else {
+                when(authRepository.findOtpChallengeByIdForUpdate(id)).thenReturn(Optional.of(challenge), Optional.empty());
             }
         } else if (sqlException) {
             when(authRepository.consumeOtpResend(eq(id), any(), any())).thenThrow(failure);
@@ -214,7 +216,8 @@ class OtpServiceTest {
                 .isInstanceOf(sqlException ? org.springframework.dao.DataAccessException.class : IllegalStateException.class);
         verify(emailService, times(deliveryTransition ? 1 : 0)).sendOtpEmail(anyString(), anyString(), anyString(), anyLong());
         verify(authRepository, times(deliveryTransition ? 1 : 0))
-                .recordOtpDelivery(eq(id), eq(2), anyString(), eq(true), any());
+                .recordOtpDelivery(eq(id), eq(2), any(), anyString(), eq(true), any());
+        verify(authRepository, times(deliveryTransition ? 1 : 0)).releaseOtpResend(eq(challenge), any());
     }
 
     @Test
@@ -501,7 +504,7 @@ class OtpServiceTest {
 
         assertThat(response.challengeId()).isEqualTo(challengeId);
         verify(emailService, never()).sendOtpEmail(anyString(), anyString(), anyString(), anyLong());
-        verify(authRepository, never()).recordOtpDelivery(anyString(), anyInt(), anyString(), anyBoolean(), any());
+        verify(authRepository, never()).recordOtpDelivery(anyString(), anyInt(), any(), anyString(), anyBoolean(), any());
     }
 
     @Test
@@ -527,13 +530,13 @@ class OtpServiceTest {
         when(authRepository.findOtpChallengeById(challengeId)).thenReturn(Optional.of(reserved));
         when(authRepository.findUserById(1L)).thenReturn(Optional.of(activeUser));
         when(authRepository.consumeOtpResend(eq(challengeId), any(), any())).thenReturn(1);
-        when(authRepository.recordOtpDelivery(eq(challengeId), eq(2), anyString(), eq(true), any())).thenReturn(0);
+        when(authRepository.recordOtpDelivery(eq(challengeId), eq(2), any(), anyString(), eq(true), any())).thenReturn(0);
 
         ForgotPasswordResponse response = otpService.resendOtp(challengeId);
 
         assertThat(response.challengeId()).isEqualTo(challengeId);
         verify(emailService, times(1)).sendOtpEmail(eq("user@smartcafe.vn"), anyString(), eq("RESET"), anyLong());
-        verify(authRepository, times(1)).recordOtpDelivery(eq(challengeId), eq(2), anyString(), eq(true), any());
+        verify(authRepository, times(1)).recordOtpDelivery(eq(challengeId), eq(2), any(), anyString(), eq(true), any());
     }
 
     @Test
@@ -558,11 +561,11 @@ class OtpServiceTest {
         when(authRepository.findOtpChallengeById(challengeId)).thenReturn(Optional.of(reservedForResend(initial)));
         when(authRepository.findUserById(1L)).thenReturn(Optional.of(activeUser));
         when(authRepository.consumeOtpResend(eq(challengeId), any(), any())).thenReturn(1);
-        when(authRepository.recordOtpDelivery(eq(challengeId), eq(2), eq("mocked-hash-value"), eq(true), any())).thenReturn(1);
+        when(authRepository.recordOtpDelivery(eq(challengeId), eq(2), any(), eq("mocked-hash-value"), eq(true), any())).thenReturn(1);
 
         deterministicService.resendOtp(challengeId);
 
         verify(emailService).sendOtpEmail(eq("user@smartcafe.vn"), eq(fixedOtp), eq("RESET"), anyLong());
-        verify(authRepository).recordOtpDelivery(eq(challengeId), eq(2), eq("mocked-hash-value"), eq(true), any());
+        verify(authRepository).recordOtpDelivery(eq(challengeId), eq(2), any(), eq("mocked-hash-value"), eq(true), any());
     }
 }

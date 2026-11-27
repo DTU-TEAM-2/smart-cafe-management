@@ -221,7 +221,7 @@ public class AuthRepository {
             """, Timestamp.from(nextSendAt), challengeId, Timestamp.from(acceptedAt), Timestamp.from(acceptedAt));
     }
 
-    public int recordOtpDelivery(String challengeId, int expectedSends, String newCodeHash,
+    public int recordOtpDelivery(String challengeId, int expectedSends, Instant reservedNextSendAt, String newCodeHash,
                                  boolean delivered, Instant sentAt) {
         Timestamp sentTs = Timestamp.from(sentAt);
         return jdbcTemplate.update("""
@@ -230,9 +230,20 @@ public class AuthRepository {
                 delivery_status = ?,
                 last_error_code = CASE WHEN ? THEN NULL ELSE 'SMTP_DELIVERY_FAILED' END,
                 sent_at = CASE WHEN ? THEN ? ELSE sent_at END
-            WHERE id = ? AND used_at IS NULL AND sends = ? AND expires_at > ?
+            WHERE id = ? AND used_at IS NULL AND sends = ? AND next_send_at = ?
+              AND delivery_status = 'PENDING' AND expires_at > ?
             """, delivered, newCodeHash, delivered ? "SENT" : "FAILED", delivered,
-                delivered, sentTs, challengeId, expectedSends, sentTs);
+                delivered, sentTs, challengeId, expectedSends, Timestamp.from(reservedNextSendAt), sentTs);
+    }
+
+    public int releaseOtpResend(OtpChallengeRecord previous, Instant reservedNextSendAt) {
+        return jdbcTemplate.update("""
+            UPDATE auth_otp_challenges
+            SET sends = ?, next_send_at = ?, delivery_status = ?, last_error_code = ?
+            WHERE id = ? AND used_at IS NULL AND sends = ? AND next_send_at = ?
+              AND delivery_status = 'PENDING' AND code_hash = ?
+            """, previous.sends(), Timestamp.from(previous.nextSendAt()), previous.deliveryStatus(), previous.lastErrorCode(),
+                previous.id(), previous.sends() + 1, Timestamp.from(reservedNextSendAt), previous.codeHash());
     }
 
     public int markOtpUsedIfCurrent(String challengeId, String expectedCodeHash, int expectedSends) {
