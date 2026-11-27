@@ -21,6 +21,10 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.sql.Timestamp;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -240,9 +244,12 @@ class OtpRetryLifecycleIntegrationTest {
         RuntimeException failure = new org.springframework.dao.DataAccessResourceFailureException("fixture failure");
         if (deliveryTransition) {
             if (sqlException) {
-                doThrow(failure).when(repository).recordOtpDelivery(eq(id), eq(2), anyString(), eq(true), any());
+                doAnswer(call -> {
+                    assertThat(call.callRealMethod()).isEqualTo(1);
+                    throw failure;
+                }).when(repository).recordOtpDelivery(eq(id), eq(2), any(), anyString(), eq(true), any());
             } else {
-                doReturn(0).when(repository).recordOtpDelivery(eq(id), eq(2), anyString(), eq(true), any());
+                doReturn(0).when(repository).recordOtpDelivery(eq(id), eq(2), any(), anyString(), eq(true), any());
             }
         } else if (sqlException) {
             doThrow(failure).when(repository).consumeOtpResend(eq(id), any(), any());
@@ -252,6 +259,44 @@ class OtpRetryLifecycleIntegrationTest {
         assertThat(resend(id).getResponse().getStatus()).isEqualTo(500);
         assertThat(state(id)).isEqualTo(before);
         verify(mail, times(deliveryTransition ? 1 : 0)).sendOtpEmail(anyString(), anyString(), anyString(), anyLong());
+        reset(repository);
+        assertThat(resend(id).getResponse().getStatus()).isEqualTo(200);
+        assertThat(state(id).get("sends")).isEqualTo(2);
+    }
+
+    @Test
+    void failedOlderResendCannotRefundANewerCompletedResend() throws Exception {
+        String id = forgot(REAL);
+        now = now.plusSeconds(60);
+        var enteredSmtp = new CountDownLatch(1);
+        var releaseSmtp = new CountDownLatch(1);
+        var first = new AtomicBoolean(true);
+        doAnswer(call -> {
+            if (first.getAndSet(false)) {
+                enteredSmtp.countDown();
+                assertThat(releaseSmtp.await(10, TimeUnit.SECONDS)).isTrue();
+            }
+            return null;
+        }).when(mail).sendOtpEmail(anyString(), anyString(), anyString(), anyLong());
+        doThrow(new org.springframework.dao.DataAccessResourceFailureException("fixture finalize failure"))
+                .when(repository).recordOtpDelivery(eq(id), eq(2), any(), anyString(), eq(true), any());
+
+        Map<String, Object> newest;
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            var oldRequest = executor.submit(() -> resend(id));
+            try {
+                assertThat(enteredSmtp.await(10, TimeUnit.SECONDS)).isTrue();
+                now = now.plusSeconds(60);
+                assertThat(resend(id).getResponse().getStatus()).isEqualTo(200);
+                newest = state(id);
+                assertThat(newest.get("sends")).isEqualTo(3);
+                assertThat(newest.get("delivery_status")).isEqualTo("SENT");
+            } finally {
+                releaseSmtp.countDown();
+            }
+            assertThat(oldRequest.get(10, TimeUnit.SECONDS).getResponse().getStatus()).isEqualTo(500);
+        }
+        assertThat(state(id)).isEqualTo(newest);
     }
 
     @org.junit.jupiter.params.ParameterizedTest

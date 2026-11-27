@@ -7,7 +7,9 @@ import com.google.firebase.cloud.StorageClient;
 import java.io.IOException;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.web.server.ResponseStatusException;
 
 @Component
 public class FirebaseFeedbackStorage {
@@ -34,6 +36,25 @@ public class FirebaseFeedbackStorage {
     public void delete(Uploaded image) {
         var blob = StorageClient.getInstance(app()).bucket(bucketName).get(image.name());
         if (blob != null) blob.delete();
+    }
+
+    public byte[] read(String name) {
+        if (name == null || name.isBlank() || name.contains("..")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Định danh ảnh không hợp lệ.");
+        }
+        try {
+            var blob = StorageClient.getInstance(app()).bucket(bucketName).get(name);
+            if (blob == null || !blob.exists()) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy ảnh trên bộ lưu trữ.");
+            }
+            return blob.getContent();
+        } catch (ResponseStatusException error) {
+            throw error;
+        } catch (IllegalStateException error) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, error.getMessage());
+        } catch (RuntimeException error) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Dịch vụ ảnh phản hồi chưa sẵn sàng.");
+        }
     }
 
     private synchronized FirebaseApp app() {

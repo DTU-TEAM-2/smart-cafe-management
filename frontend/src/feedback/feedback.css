@@ -17,7 +17,9 @@
 .feedback-table thead { color: var(--gold); }
 .feedback-table td:nth-child(3) { max-width: 180px; }
 .feedback-table th[scope="row"], .feedback-table td:nth-child(4) { white-space: nowrap; }
-.feedback-table tr.is-selected { background: color-mix(in srgb, var(--gold) 12%, transparent); }
+.feedback-table tbody tr { cursor: pointer; transition: background 0.15s ease; }
+.feedback-table tbody tr:hover { background: color-mix(in srgb, var(--gold) 8%, transparent); }
+.feedback-table tr.is-selected { background: color-mix(in srgb, var(--gold) 16%, transparent); }
 .feedback-select { border: 0; background: transparent; color: var(--gold); text-decoration: underline; min-height: 44px; font: inherit; }
 .feedback-preview { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; min-width: 100px; }
 .feedback-detail h3 { margin-top: 0; color: var(--gold); }

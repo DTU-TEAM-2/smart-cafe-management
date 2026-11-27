@@ -193,3 +193,162 @@ test("List timeout produces a recoverable error without cached rows", async ({ p
   await expect(page.getByText("Không thể tải phản hồi. Kiểm tra kết nối và thử lại.", { exact: true })).toBeVisible({ timeout: 20000 });
   await expect(page.locator(".feedback-table")).toHaveCount(0);
 });
+
+test("Row activation: clicking Creator, Email, Date, Feedback content, or pressing Enter/Space selects row", async ({ page }, info) => {
+  await page.goto("/#admin-feedback");
+
+  // 1. Click Creator cell on row 2 (Khách B)
+  await page.locator(".feedback-table tbody tr").nth(1).locator(".feedback-cell-creator").click();
+  await expect(page.locator(".feedback-detail")).toContainText("Khách B");
+  await expect(page.locator(".feedback-table tbody tr").nth(1)).toHaveClass(/is-selected/);
+
+  // 2. Click Email cell on row 1 (Khách A)
+  await page.locator(".feedback-table tbody tr").nth(0).locator(".feedback-cell-email").click();
+  await expect(page.locator(".feedback-detail")).toContainText("Khách A");
+  await expect(page.locator(".feedback-table tbody tr").nth(0)).toHaveClass(/is-selected/);
+
+  // 3. Click Date cell on row 2 (Khách B)
+  await page.locator(".feedback-table tbody tr").nth(1).locator(".feedback-cell-date").click();
+  await expect(page.locator(".feedback-detail")).toContainText("Khách B");
+
+  // 4. Click Feedback content cell on row 1 (Khách A)
+  await page.locator(".feedback-table tbody tr").nth(0).locator(".feedback-cell-content").click();
+  await expect(page.locator(".feedback-detail")).toContainText("Khách A");
+
+  // 5. Click ID button directly
+  await page.getByRole("button", { name: "Xem phản hồi 95002" }).click();
+  await expect(page.locator(".feedback-detail")).toContainText("Khách B");
+
+  // 6. Keyboard navigation: Focus row 1 and press Enter
+  await page.locator(".feedback-table tbody tr").nth(0).press("Enter");
+  await expect(page.locator(".feedback-detail")).toContainText("Khách A");
+
+  // 7. Keyboard navigation: Focus row 2 and press Space
+  await page.locator(".feedback-table tbody tr").nth(1).press("Space");
+  await expect(page.locator(".feedback-detail")).toContainText("Khách B");
+
+  await evidence(page, info, "08-row-activation");
+});
+
+test("Row activation works on mobile viewport", async ({ page }, info) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/#admin-feedback");
+
+  // Click Creator cell on row 2
+  await page.locator(".feedback-table tbody tr").nth(1).locator(".feedback-cell-creator").click();
+  await expect(page.locator(".feedback-detail")).toContainText("Khách B");
+
+  // Click Content cell on row 1
+  await page.locator(".feedback-table tbody tr").nth(0).locator(".feedback-cell-content").click();
+  await expect(page.locator(".feedback-detail")).toContainText("Khách A");
+
+  await evidence(page, info, "09-row-activation-mobile");
+});
+
+test("Admin loads private Firebase image via authenticated backend proxy endpoint", async ({ page }, info) => {
+  let authHeader = null;
+  await page.route(`${API}/${rows[0].id}/images/img-1/content`, async route => {
+    authHeader = route.request().headers()["authorization"];
+    return route.fulfill({
+      status: 200,
+      contentType: "image/png",
+      headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" },
+      path: "../docs/qa/postman/fixtures/feedback-test.png",
+    });
+  });
+
+  await page.route(`${API}/${rows[0].id}`, route => route.fulfill({
+    json: {
+      ...rows[0],
+      images: [
+        { id: "img-1", url: "https://storage.googleapis.com/smart-cafe-private/feedback/img-1.png", mimeType: "image/png" }
+      ]
+    }
+  }));
+
+  await page.goto("/#admin-feedback");
+  await page.getByRole("button", { name: `Xem phản hồi ${rows[0].id}` }).click();
+
+  const image = page.getByRole("img", { name: "Ảnh đính kèm phản hồi img-1", exact: true });
+  await expect(image).toBeVisible();
+  await expect.poll(() => image.evaluate(img => img.complete && img.naturalWidth > 0)).toBe(true);
+  expect(authHeader).toBe("Bearer synthetic-feedback-test-only");
+
+  await evidence(page, info, "10-private-firebase-proxy");
+});
+
+test("Detail 401 expires session, clears list PII and shows login prompt", async ({ page }) => {
+  await page.goto("/#admin-feedback");
+  await expect(page.locator(".feedback-table")).toContainText("guest-a@example.invalid");
+
+  // Revoke token / simulate 401 on detail request
+  await page.route(`${API}/${rows[0].id}`, route => route.fulfill({
+    status: 401,
+    json: { title: "Unauthorized", status: 401, detail: "Phiên đăng nhập đã hết hạn." }
+  }));
+
+  // Click row 1
+  await page.locator(".feedback-table tbody tr").nth(0).locator(".feedback-cell-creator").click();
+
+  // List PII must be completely cleared from DOM
+  await expect(page.locator(".feedback-table")).toHaveCount(0);
+  await expect(page.locator("text=guest-a@example.invalid")).toHaveCount(0);
+
+  // Auth session in storage must be expired
+  const token = await page.evaluate(() => sessionStorage.getItem("smart_cafe_token"));
+  expect(token).toBeFalsy();
+});
+
+test("Late 401 from old session does not log out fresh session", async ({ page }) => {
+  let releaseOldDetail;
+  const oldGate = new Promise(resolve => { releaseOldDetail = resolve; });
+
+  await page.route(`${API}/${rows[0].id}`, async route => {
+    await oldGate;
+    await route.fulfill({ status: 401, json: { title: "Unauthorized" } }).catch(() => {});
+  });
+
+  await page.goto("/#admin-feedback");
+  await expect(page.locator(".feedback-table")).toContainText("guest-a@example.invalid");
+
+  // Click row 1 while detail is delayed
+  await page.locator(".feedback-table tbody tr").nth(0).locator(".feedback-cell-creator").click();
+
+  // Now simulate user logging in fresh as session B (generation + 1)
+  await page.evaluate(() => {
+    sessionStorage.setItem("smart_cafe_token", "fresh-token-session-b");
+    sessionStorage.setItem("smart_cafe_user", JSON.stringify({ id: "95001", role: "ADMIN", fullName: "Admin B" }));
+    window.dispatchEvent(new CustomEvent("smart-cafe-auth-change"));
+  });
+
+  // Release old delayed 401
+  releaseOldDetail();
+
+  // The fresh token must NOT be cleared by the delayed 401 of the previous session
+  await page.waitForTimeout(200);
+  const currentToken = await page.evaluate(() => sessionStorage.getItem("smart_cafe_token"));
+  expect(currentToken).toBe("fresh-token-session-b");
+});
+
+test("Detail 403 (Forbidden) does not expire session or wipe table", async ({ page }) => {
+  await page.goto("/#admin-feedback");
+  await expect(page.locator(".feedback-table")).toContainText("guest-a@example.invalid");
+
+  // Route 403 for detail
+  await page.route(`${API}/${rows[0].id}`, route => route.fulfill({
+    status: 403,
+    json: { title: "Forbidden", status: 403, detail: "Bạn không có quyền xem phản hồi này." }
+  }));
+
+  // Click row 1
+  await page.locator(".feedback-table tbody tr").nth(0).locator(".feedback-cell-creator").click();
+
+  // Table must remain visible
+  await expect(page.locator(".feedback-table")).toHaveCount(1);
+  // Detail shows error
+  await expect(page.locator(".feedback-detail")).toContainText("Bạn không có quyền xem phản hồi");
+
+  // Token remains active
+  const token = await page.evaluate(() => sessionStorage.getItem("smart_cafe_token"));
+  expect(token).toBe("synthetic-feedback-test-only");
+});

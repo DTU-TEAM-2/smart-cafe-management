@@ -5,21 +5,30 @@ import java.sql.Timestamp;
 import java.time.*;
 import java.util.List;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import vn.codegym.smartcafe.customerfeedback.FirebaseFeedbackStorage;
 
 @Service
 public class FeedbackReadService {
     private static final ZoneId CAFE_ZONE = ZoneId.of("Asia/Ho_Chi_Minh");
+    private static final long MAX_IMAGE_BYTES = 10L * 1024 * 1024;
     private final JdbcTemplate jdbc;
-    public FeedbackReadService(JdbcTemplate jdbc) { this.jdbc = jdbc; }
+    private final FirebaseFeedbackStorage storage;
+
+    public FeedbackReadService(JdbcTemplate jdbc, FirebaseFeedbackStorage storage) {
+        this.jdbc = jdbc;
+        this.storage = storage;
+    }
 
     public record Summary(String id, String creator, String email, String createdAt, String date, String content, int rating) { }
     public record Image(String id, String url, String mimeType) { }
     public record Detail(String id, String creator, String email, String createdAt, String date, String content, int rating, List<Image> images) { }
     public record Page(List<Summary> content, long totalElements, int page, int size) { }
+    public record ImageContent(String mimeType, byte[] bytes) { }
 
     @Transactional(readOnly = true)
     public Page list(LocalDate date, int page, int size, String sort) {
@@ -66,4 +75,56 @@ public class FeedbackReadService {
             return "https".equalsIgnoreCase(uri.getScheme()) && uri.getHost() != null && uri.getRawUserInfo() == null ? value : null;
         } catch (IllegalArgumentException | NullPointerException error) { return null; }
     }
+
+    @Transactional(readOnly = true)
+    public ImageContent imageContent(long feedbackId, long mediaId) {
+        var feedbackRows = jdbc.query("SELECT id FROM feedback WHERE id=?", (r, n) -> r.getLong("id"), feedbackId);
+        if (feedbackRows.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy phản hồi.");
+        }
+
+        var mediaRows = jdbc.query("""
+                SELECT m.id, m.provider, m.provider_asset_id, m.mime_type, m.size_bytes
+                FROM feedback_images f
+                JOIN media_assets m ON m.id = f.media_id
+                WHERE f.feedback_id = ? AND f.media_id = ? AND m.deleted_at IS NULL
+                """, (r, n) -> new AssetMeta(
+                        r.getLong("id"),
+                        r.getString("provider"),
+                        r.getString("provider_asset_id"),
+                        r.getString("mime_type"),
+                        r.getLong("size_bytes")
+                ), feedbackId, mediaId);
+
+        if (mediaRows.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy ảnh hoặc ảnh đã bị xóa.");
+        }
+
+        var asset = mediaRows.getFirst();
+        if (!"FIREBASE".equalsIgnoreCase(asset.provider())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Nhà cung cấp lưu trữ ảnh không được hỗ trợ.");
+        }
+
+        String assetName = asset.providerAssetId();
+        if (assetName == null || !assetName.startsWith("feedback/") || assetName.contains("..")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Định danh ảnh không hợp lệ.");
+        }
+
+        byte[] bytes = storage.read(assetName);
+        if (bytes == null || bytes.length == 0) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Dữ liệu ảnh trống hoặc không tồn tại.");
+        }
+        if (bytes.length > MAX_IMAGE_BYTES) {
+            throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE, "Kích thước ảnh vượt quá giới hạn cho phép.");
+        }
+
+        String mimeType = asset.mimeType();
+        if (mimeType == null || mimeType.isBlank()) {
+            mimeType = MediaType.APPLICATION_OCTET_STREAM_VALUE;
+        }
+
+        return new ImageContent(mimeType, bytes);
+    }
+
+    private record AssetMeta(long id, String provider, String providerAssetId, String mimeType, long sizeBytes) { }
 }

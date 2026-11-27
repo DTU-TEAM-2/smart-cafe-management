@@ -44,6 +44,14 @@ Không tạo release cho mỗi feature. Chỉ tạo release từ develop khi nh�
 
 ## CI và dọn nhánh
 
+Khi mở PR, chọn đúng một nhãn `type:*` hoặc `dependencies`, ít nhất một nhãn `area:*` và đúng một nhãn `risk:*` từ danh sách nhãn của repo. Thêm nhiều nhãn `area:*` khi PR ảnh hưởng nhiều phần.
+
+- `risk:low` cho thay đổi nhỏ, biệt lập và dễ hoàn tác.
+- `risk:medium` cho thay đổi cần kiểm thử hồi quy hoặc kiểm tra release.
+- `risk:high` cho dữ liệu nhạy cảm, phân quyền, migration, thanh toán hoặc thay đổi lớn.
+
+Check bắt buộc `PR title` kiểm tiêu đề và các nhãn trên. Thêm hoặc gỡ nhãn chỉ chạy lại workflow `PR metadata`.
+
 Workflow hỗ trợ PR vào main/develop/release, push main/develop/release và kiểm nhánh nguồn/đích qua `scripts/git-flow.mjs`. Required checks và quyền GitHub xem tại [thiết lập GitHub](docs/engineering/github-settings.md). CI xanh không thay review/AC hoặc chứng minh nguồn tách nhánh và phạm vi nghiệp vụ.
 
 GitHub tự xóa head sau merge; main/develop được bảo vệ và không xóa. Khi cần nhiều đích release/hotfix, ghi SHA và hoàn tất đồng bộ theo git-flow.md. Sau merge task: chuyển về develop, pull --ff-only, fetch --prune; xác minh PR/commit rồi mới `git branch -d <task>`. Squash có thể khiến `-d` từ chối: không xóa cưỡng bức khi chưa kiểm chứng. Nhánh local/PR có công việc chưa tích hợp phải giữ nguyên.

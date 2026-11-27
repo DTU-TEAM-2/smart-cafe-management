@@ -26,3 +26,21 @@ export async function readFeedback(path, token, signal) {
     throw new Error("Không thể tải phản hồi. Kiểm tra kết nối và thử lại.");
   }
 }
+
+export async function fetchFeedbackImageContent(feedbackId, imageId, token, signal) {
+  try {
+    const response = await fetch(`/api/v1/admin/feedbacks/${encodeURIComponent(feedbackId)}/images/${encodeURIComponent(imageId)}/content`, {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+      signal: AbortSignal.any([signal, AbortSignal.timeout(15000)]),
+    });
+    if (!response.ok) {
+      throw Object.assign(new Error("Không thể tải ảnh phản hồi."), { status: response.status });
+    }
+    const blob = await response.blob();
+    return typeof URL.createObjectURL === "function" ? URL.createObjectURL(blob) : "";
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    throw error;
+  }
+}

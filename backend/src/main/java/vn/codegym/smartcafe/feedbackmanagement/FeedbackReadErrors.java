@@ -12,7 +12,13 @@ import org.springframework.web.server.ResponseStatusException;
 class FeedbackReadErrors {
     @ExceptionHandler(ResponseStatusException.class)
     ProblemDetail request(ResponseStatusException error) {
-        return problem(error.getStatusCode(), error.getStatusCode().value() == 404 ? "FEEDBACK_NOT_FOUND" : "INVALID_FEEDBACK_QUERY", error.getReason());
+        String code = switch (error.getStatusCode().value()) {
+            case 404 -> "FEEDBACK_NOT_FOUND";
+            case 413 -> "PAYLOAD_TOO_LARGE";
+            case 503 -> "FEEDBACK_UNAVAILABLE";
+            default -> "INVALID_FEEDBACK_QUERY";
+        };
+        return problem(error.getStatusCode(), code, error.getReason());
     }
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     ProblemDetail invalid() { return problem(HttpStatus.BAD_REQUEST, "INVALID_FEEDBACK_QUERY", "Ngày hoặc tham số tìm kiếm không hợp lệ."); }

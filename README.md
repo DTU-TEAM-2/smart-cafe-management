@@ -50,7 +50,7 @@ DB_PASSWORD="your-local-password#"
 SERVER_PORT=8080
 ```
 
-`start-be.ps1` đọc các biến trên và `AUTH_TOKEN_SECRET` từ `backend/.env`; biến đã đặt trong terminal có ưu tiên. AUTH_TOKEN_SECRET phải trùng khóa của module đăng nhập thật, không tự sinh token/tài khoản trong task Header. Dấu `#` trong giá trị được giữ nguyên; nháy đơn/kép đều được. Comment nằm trên dòng riêng. `.env` không lên Git. Chạy Maven/IDE trực tiếp cần cấp biến môi trường tương đương, Spring không tự đọc file `.env` này.
+`start-be.ps1` đọc các biến trên, `AUTH_TOKEN_SECRET`, profile và cấu hình Firebase từ `backend/.env` hoặc file chỉ định bằng `-EnvFile`; biến đã đặt trong terminal có ưu tiên. AUTH_TOKEN_SECRET phải trùng khóa của module đăng nhập thật, không tự sinh token/tài khoản trong task Header. Dấu `#` trong giá trị được giữ nguyên; nháy đơn/kép đều được. Comment nằm trên dòng riêng. `.env` không lên Git. Chạy Maven/IDE trực tiếp cần cấp biến môi trường tương đương, Spring không tự đọc file `.env` này.
 
 Terminal thứ nhất, tại thư mục gốc:
 
@@ -70,6 +70,12 @@ Mở địa chỉ Vite in ra, mặc định [localhost:5173](http://localhost:51
 
 Navicat kết nối bằng host/port/tài khoản tương ứng. Máy khác dùng được nếu cùng schema MySQL và đổi cấu hình; PostgreSQL/schema khác không tương thích tự động. Database rỗng có schema trả danh sách rỗng; thiếu schema/sai kết nối trả 503, UI cho thử lại, không trả món mock.
 
+## Firebase tin tức trên máy mới
+
+Mọi thành viên có thể chạy upload/đọc ảnh local miễn phí bằng Storage Emulator, không cần Firebase login hoặc key của tác giả. Xem [cấu hình Firebase cho nhóm](docs/handover/dt2-7-firebase-setup.md) và [quickstart local](backend/firebase-emulator/README.md): `npm ci`/`npm start` trong thư mục emulator, copy cấu hình mẫu, rồi chạy `start-be.ps1 -EnvFile backend/.env.emulator`. Cần MySQL `_test` riêng đúng schema và module auth DT2-2 thật. Ảnh local được lưu/khôi phục qua export, không nằm trong Git.
+
+Nếu nhóm có backend dev chung, FE chỉ cấu hình base URL API; không chia service-account key cho frontend. Chủ repo cấm tuyệt đối billing/thẻ/Blaze hoặc trial yêu cầu thanh toán. Live Storage được tắt mặc định, kể cả có tên bucket trong env; phần ảnh hiện dùng emulator miễn phí. Task 7 được chủ repo cho phép đẩy nhánh và mở PR ngày 13/11/2026; chỉ có trong develop sau khi PR được review và merge.
+
 ## Kiểm chứng ứng dụng
 
 ```powershell
@@ -86,7 +92,7 @@ CI bổ sung Backend MySQL và Frontend UI cùng Governance/PR title. Header đ�
 
 ## Tích hợp tài khoản và thông báo
 
-Trang sử dụng chính là `/`; nút Đăng nhập mở `#login`. Hiện chỉ chuẩn bị UI, chưa nối backend đăng nhập; nút submit chưa khả dụng. Không có tài khoản mẫu, chọn vai trò hoặc cơ chế đăng nhập giả. Xem [bàn giao UI đăng nhập](docs/handover/dt2-1-login-ui.md).
+Trang sử dụng chính là `/`; nút Đăng nhập mở `#login`. Theo yêu cầu full Task 7, form gọi endpoint login thật của DT2-2 rồi xác minh token qua consumer trước khi giữ phiên. Không có tài khoản mẫu, chọn vai trò hoặc cơ chế đăng nhập giả; cần module DT2-2 chung BE hoặc cấu hình `VITE_AUTH_PROXY_TARGET` nếu chạy riêng. Xem [bàn giao UI đăng nhập](docs/handover/dt2-1-login-ui.md).
 
 Với xác thực thật, `HomeShell` nhận token từ module đăng nhập; entry hiện tại đọc key `smart_cafe_token` trong sessionStorage theo hợp đồng của module cũ. Khi login/logout đổi token, module auth phát sự kiện `smart-cafe-auth-change` để Header xóa state cũ ngay. Người phụ trách auth tích hợp xác thực/phân quyền trong task riêng.
 

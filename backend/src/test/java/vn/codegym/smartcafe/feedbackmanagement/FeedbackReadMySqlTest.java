@@ -7,11 +7,17 @@ import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 import vn.codegym.smartcafe.auth.TokenService;
+import vn.codegym.smartcafe.customerfeedback.FirebaseFeedbackStorage;
 import static org.assertj.core.api.Assertions.*;
+import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
@@ -24,6 +30,7 @@ class FeedbackReadMySqlTest {
     @Autowired JdbcTemplate jdbc;
     @Autowired MockMvc mvc;
     @Autowired TokenService tokens;
+    @MockitoBean FirebaseFeedbackStorage storage;
 
     @BeforeEach void fixture() {
         assertThat(jdbc.queryForObject("SELECT DATABASE()", String.class)).endsWith("_test");
@@ -94,5 +101,55 @@ class FeedbackReadMySqlTest {
         mvc.perform(get(API+"/not-an-id").header("Authorization", auth(1))).andExpect(status().isBadRequest());
         mvc.perform(post(API).header("Authorization", auth(1))).andExpect(status().isMethodNotAllowed());
         mvc.perform(delete(API+"/95103").header("Authorization", auth(1))).andExpect(status().isMethodNotAllowed());
+    }
+
+    @Test void adminCanReadPrivateFirebaseImageContentViaProxy() throws Exception {
+        byte[] mockBytes = new byte[] { (byte) 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
+        jdbc.update("INSERT INTO media_assets(id,provider,provider_asset_id,secure_url,mime_type,size_bytes) VALUES(?, 'FIREBASE',?,?, 'image/png',?)",
+                95299, "feedback/mock-private-95299.png", "https://storage.googleapis.com/private-bucket/feedback/mock-private-95299.png", mockBytes.length);
+        jdbc.update("INSERT INTO feedback_images(feedback_id,media_id,sort_order) VALUES(95103,?,0)", 95299);
+        given(storage.read("feedback/mock-private-95299.png")).willReturn(mockBytes);
+
+        // ADMIN can read image content
+        mvc.perform(get(API+"/95103/images/95299/content").header("Authorization", auth(1)))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Cache-Control", "no-store"))
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(content().contentType("image/png"))
+                .andExpect(content().bytes(mockBytes));
+
+        // Anonymous is 401
+        mvc.perform(get(API+"/95103/images/95299/content")).andExpect(status().isUnauthorized());
+
+        // STAFF and CUSTOMER are 403
+        mvc.perform(get(API+"/95103/images/95299/content").header("Authorization", auth(2))).andExpect(status().isForbidden());
+        mvc.perform(get(API+"/95103/images/95299/content").header("Authorization", auth(3))).andExpect(status().isForbidden());
+
+        // Missing feedback is 404
+        mvc.perform(get(API+"/999999/images/95299/content").header("Authorization", auth(1)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("FEEDBACK_NOT_FOUND"));
+
+        // Media not linked to feedback is 404
+        mvc.perform(get(API+"/95101/images/95299/content").header("Authorization", auth(1)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("FEEDBACK_NOT_FOUND"));
+
+        // Deleted media asset is 404
+        jdbc.update("UPDATE media_assets SET deleted_at=CURRENT_TIMESTAMP WHERE id=95299");
+        mvc.perform(get(API+"/95103/images/95299/content").header("Authorization", auth(1)))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("FEEDBACK_NOT_FOUND"));
+
+        // Storage not found or unavailable returns proper error
+        jdbc.update("UPDATE media_assets SET deleted_at=NULL WHERE id=95299");
+        given(storage.read("feedback/mock-private-95299.png")).willThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Không tìm thấy ảnh trên bộ lưu trữ."));
+        mvc.perform(get(API+"/95103/images/95299/content").header("Authorization", auth(1)))
+                .andExpect(status().isNotFound());
+
+        given(storage.read("feedback/mock-private-95299.png")).willThrow(new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Dịch vụ ảnh phản hồi chưa sẵn sàng."));
+        mvc.perform(get(API+"/95103/images/95299/content").header("Authorization", auth(1)))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.code").value("FEEDBACK_UNAVAILABLE"));
     }
 }

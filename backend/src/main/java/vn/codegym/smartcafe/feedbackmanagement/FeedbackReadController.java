@@ -3,6 +3,8 @@ package vn.codegym.smartcafe.feedbackmanagement;
 import java.time.LocalDate;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.CacheControl;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -21,5 +23,15 @@ public class FeedbackReadController {
     @GetMapping("/{feedbackId}")
     ResponseEntity<FeedbackReadService.Detail> detail(@PathVariable long feedbackId) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(feedback.detail(feedbackId));
+    }
+    @GetMapping("/{feedbackId}/images/{mediaId}/content")
+    ResponseEntity<byte[]> imageContent(@PathVariable long feedbackId, @PathVariable long mediaId) {
+        var content = feedback.imageContent(feedbackId, mediaId);
+        return ResponseEntity.ok()
+                .cacheControl(CacheControl.noStore())
+                .header("X-Content-Type-Options", "nosniff")
+                .contentType(MediaType.parseMediaType(content.mimeType()))
+                .contentLength(content.bytes().length)
+                .body(content.bytes());
     }
 }

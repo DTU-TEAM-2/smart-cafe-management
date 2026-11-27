@@ -22,9 +22,14 @@ jobs:
           node-version: '22.19.0'
       - run: node --test scripts/git-flow.test.mjs
       - run: node scripts/git-flow.mjs
-  backend:
-    name: Backend MySQL
+  backend-verify:
+    name: Maven verification on MySQL (${{ matrix.suite }})
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [auth, database, migrations, application]
     services:
       mysql:
         image: mysql:8.0
@@ -44,17 +49,116 @@ jobs:
           cache: maven
           cache-dependency-path: backend/pom.xml
       - name: Prepare isolated schema contract fixture
-        run: docker exec -i $(docker ps -q --filter ancestor=mysql:8.0) mysql --protocol=TCP --host=127.0.0.1 -uroot smart_cafe_ci_test < backend/src/test/resources/schema.sql
+        env:
+          MYSQL_CONTAINER: ${{ job.services.mysql.id }}
+        run: docker exec -i "$MYSQL_CONTAINER" mysql --protocol=TCP --host=127.0.0.1 -uroot smart_cafe_ci_test < backend/src/test/resources/schema.sql
       - name: Verify API on MySQL
         working-directory: backend
         env:
+          MAVEN_SUITE: ${{ matrix.suite }}
           TEST_DB_URL: jdbc:mysql://127.0.0.1:3306/smart_cafe_ci_test?connectionTimeZone=UTC
           TEST_DB_USERNAME: root
           TEST_DB_PASSWORD: ''
-        run: sh mvnw -B -ntp verify
-  frontend:
-    name: Frontend UI
+        run: |
+          # Keep Surefire's default test-name patterns within each selected package.
+          suite_patterns() {
+            printf '%s/Test*.java,%s/*Test.java,%s/*Tests.java,%s/*TestCase.java' "$1" "$1" "$1" "$1"
+          }
+          migrations='**/database/DatabaseMigrationSafetyTest.java,**/database/VerifiedDatabaseMigrationTest.java'
+          case "$MAVEN_SUITE" in
+            auth) tests="$(suite_patterns '**/auth/**')" ;;
+            database) tests="$(suite_patterns '**/database/**'),!${migrations//,/,!}" ;;
+            migrations) tests="$migrations" ;;
+            application) tests="$(suite_patterns '**'),!**/auth/**,!**/database/**" ;;
+            *) echo "::error::Unknown Maven suite"; exit 1 ;;
+          esac
+          sh mvnw -B -ntp "-Dtest=$tests" verify
+  production-smoke:
+    name: Production menu smoke
     runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ALLOW_EMPTY_PASSWORD: 'yes'
+          MYSQL_DATABASE: smart_cafe_postman_test
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping --host=127.0.0.1 --protocol=TCP --silent"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+      - name: Package Spring Boot for the smoke test
+        working-directory: backend
+        run: sh mvnw -B -ntp -Dmaven.test.skip=true package
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build production frontend and install Chromium for smoke test
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+          npx playwright install --with-deps --only-shell chromium
+      - name: Prepare isolated smoke database with synthetic menu
+        env:
+          MYSQL_CONTAINER: ${{ job.services.mysql.id }}
+        run: |
+          test "$(docker exec "$MYSQL_CONTAINER" mysql -uroot -N smart_cafe_postman_test -e 'SELECT DATABASE()')" = smart_cafe_postman_test
+          docker exec -i "$MYSQL_CONTAINER" mysql -uroot smart_cafe_postman_test < backend/src/test/resources/schema.sql
+          docker exec -i "$MYSQL_CONTAINER" mysql -uroot smart_cafe_postman_test < docs/qa/postman/dt2-4-menu-test-fixture.sql
+      - name: Smoke test production menu through Spring Boot and MySQL
+        env:
+          DB_URL: jdbc:mysql://127.0.0.1:3306/smart_cafe_postman_test?connectionTimeZone=UTC
+          DB_USERNAME: root
+          DB_PASSWORD: ''
+          SERVER_PORT: '18084'
+          # The isolated fixture already has the system schema. Maven verify tests migration behavior separately.
+          SPRING_FLYWAY_ENABLED: 'false'
+          VITE_API_PROXY_TARGET: http://127.0.0.1:18084
+        run: bash scripts/ci-production-smoke.sh
+      - name: Upload production smoke failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-smoke-failure-${{ github.run_attempt }}
+          path: |
+            frontend/smoke/playwright-report/
+            frontend/smoke/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+  backend:
+    name: Backend MySQL
+    needs: [backend-verify, production-smoke]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Require Maven verification and the production smoke test to pass
+        env:
+          MAVEN_RESULT: ${{ needs.backend-verify.result }}
+          SMOKE_RESULT: ${{ needs.production-smoke.result }}
+        run: |
+          test "$MAVEN_RESULT" = success
+          test "$SMOKE_RESULT" = success
+  frontend-browser:
+    name: Frontend UI (${{ matrix.project }} ${{ matrix.shard }}/4)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [desktop, mobile]
+        shard: [1, 2, 3, 4]
     defaults:
       run:
         working-directory: frontend
@@ -66,14 +170,92 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - run: npm run lint
+      - if: matrix.project == 'desktop' && matrix.shard == 1
+        run: |
+          npm run lint
+          npm run test:unit
       - run: npm run build
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:ui -- --workers=2
+      - run: npx playwright install --with-deps --only-shell chromium
+      - run: npx playwright test --project "$PLAYWRIGHT_PROJECT" --fully-parallel --shard "$PLAYWRIGHT_SHARD" --workers=2
+        env:
+          PLAYWRIGHT_PROJECT: ${{ matrix.project }}
+          PLAYWRIGHT_SHARD: ${{ matrix.shard }}/4
+          PLAYWRIGHT_USE_EXISTING_BUILD: '1'
+      - name: Upload Playwright failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-ui-${{ matrix.project }}-${{ matrix.shard }}-failure-${{ github.run_attempt }}
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+  frontend:
+    name: Frontend UI
+    needs: frontend-browser
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Require all browser shards and frontend checks to pass
+        env:
+          BROWSER_RESULT: ${{ needs.frontend-browser.result }}
+        run: test "$BROWSER_RESULT" = success
+  launcher-scope:
+    name: Detect Windows launcher changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      changed: ${{ steps.paths.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: paths
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          changed=true
+          if git cat-file -e "$BASE_SHA^{commit}" 2>/dev/null; then
+            if git diff --quiet "$BASE_SHA" HEAD -- '*.ps1' '*.bat' '*.cmd' \
+                scripts/launchers.test.cjs backend/.env.example .gitattributes .github/workflows/ci.yml; then
+              changed=false
+            else
+              status=$?
+              if [ "$status" -ne 1 ]; then exit "$status"; fi
+            fi
+          fi
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+  windows-launcher:
+    name: Windows launcher contracts
+    needs: launcher-scope
+    if: needs.launcher-scope.outputs.changed == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - run: node --test scripts/launchers.test.cjs
   governance:
     name: Governance
+    needs: [launcher-scope, windows-launcher]
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
+      - name: Verify the Windows launcher result
+        env:
+          SCOPE_RESULT: ${{ needs.launcher-scope.result }}
+          LAUNCHERS_CHANGED: ${{ needs.launcher-scope.outputs.changed }}
+          WINDOWS_RESULT: ${{ needs.windows-launcher.result }}
+        run: |
+          case "$SCOPE_RESULT:$LAUNCHERS_CHANGED:$WINDOWS_RESULT" in
+            success:true:success|success:false:skipped) ;;
+            *) echo '::error::Windows launcher scope or test failed.'; exit 1 ;;
+          esac
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -100,16 +282,3 @@ jobs:
           else
             git show --format= --check HEAD -- . ':(exclude).agents/skills/**'
           fi
-  pr-title:
-    name: PR title
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '22.19.0'
-      - name: Check title format
-        env:
-          PR_TITLE: ${{ github.event.pull_request.title }}
-        run: |
-          node -e "if (!/^(feat|fix|chore|docs|refactor|test|ci|build|perf|revert)\([a-z0-9-]+\): CF-[0-9]+ .+/.test(process.env.PR_TITLE)) { console.error('Use type(scope): CF-01 description'); process.exit(1); }"
