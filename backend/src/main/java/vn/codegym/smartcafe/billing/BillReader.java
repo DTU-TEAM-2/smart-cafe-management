@@ -3,6 +3,7 @@ package vn.codegym.smartcafe.billing;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -12,7 +13,7 @@ public class BillReader {
 
     public BillReader(JdbcClient jdbc) { this.jdbc = jdbc; }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public BillSnapshot get(long id) {
         var header = jdbc.sql("""
                 SELECT b.id,b.bill_code,b.creator_name_snapshot,b.table_code_snapshot,b.table_name_snapshot,

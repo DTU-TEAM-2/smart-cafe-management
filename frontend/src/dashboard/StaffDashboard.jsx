@@ -46,8 +46,8 @@ export default function StaffDashboard({ onNavigate }) {
           <p style={{ color: "var(--muted)", fontSize: "13px", lineHeight: "1.5" }}>Theo dõi chuông gọi từ khách tại các bàn và xử lý yêu cầu trực tiếp.</p>
         </div>
         <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "8px", padding: "24px" }}>
-          <h3 style={{ color: "var(--gold)", margin: "0 0 8px" }}>🧾 Lập Hóa đơn & Thanh toán</h3>
-          <p style={{ color: "var(--muted)", fontSize: "13px", lineHeight: "1.5" }}>Chốt danh sách món, lập hóa đơn, nhận thanh toán và hoàn tất phiên phục vụ.</p>
+          <h3 style={{ color: "var(--gold)", margin: "0 0 8px" }}><a href="#bills">Xem hóa đơn</a></h3>
+          <p style={{ color: "var(--muted)", fontSize: "13px", lineHeight: "1.5" }}>Tra cứu danh sách và chi tiết hóa đơn.</p>
         </div>
       </div>
     </div>

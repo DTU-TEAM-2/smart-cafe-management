@@ -41,7 +41,7 @@ function Icon({ name }) {
 }
 
 export default function SiteLayout({ children, account = null, notifications = null, links = {},
-  currentPage = "home", isAuthPage = false, notificationState = "ready", onRetryNotifications, onNotificationsOpen, onLogout }) {
+  currentPage = "home", isAuthPage = false, notificationState = "ready", onRetryNotifications, onNotificationsOpen, onLogout, management = false }) {
   const [panel, setPanel] = useState(null);
   const regionId = useId();
   const menuButton = useRef(null);
@@ -67,10 +67,11 @@ export default function SiteLayout({ children, account = null, notifications = n
       event.preventDefault();
       document.getElementById("main")?.focus();
     }}>Bỏ qua điều hướng</a>
-    <header className={`site-header ${isAuthPage ? "site-header-auth" : ""}`} onKeyDown={handleHeaderKey} onBlur={(event) => {
+    <header className={`site-header${management ? " billing-header" : ""}${isAuthPage ? " site-header-auth" : ""}`} onKeyDown={handleHeaderKey} onBlur={(event) => {
       if (!event.currentTarget.contains(event.relatedTarget)) setPanel(null);
     }}>
       <div className="header-inner">
+        {management ? <strong className="billing-header-title">{account?.role === "ADMIN" ? "KHU VỰC QUẢN TRỊ" : "KHÔNG GIAN NHÂN VIÊN"}</strong> : <>
         <a className="brand" href="#top" aria-label="LECKER Coffee Cafe Trang chủ">
           <strong>LECKER</strong>{" "}<span>Coffee Cafe</span>
         </a>
@@ -79,20 +80,27 @@ export default function SiteLayout({ children, account = null, notifications = n
           <Icon name="menu" />
         </button>
         <nav id={`${regionId}-nav`} className={`header-nav ${panel === "menu" ? "is-open" : ""}`} aria-label="Điều hướng chính">
-          {navigation.map(({ label, href, key }, index) => (
+          {[
+            ...navigation,
+            ...(isStaff ? [{ label: "Quản lý hóa đơn", href: "#bills" }] : []),
+          ].map(({ label, href, key }, index) => (
             <SiteLink key={label} href={links[key] ?? href} aria-current={(index === 0 && currentPage === "home") || key === currentPage ? "page" : undefined}
               onClick={() => { if (panel === "menu") menuButton.current?.focus(); setPanel(null); }}>{label}</SiteLink>
           ))}
         </nav>
+        </>}
         <div className="header-actions">
+          {!management && <>
           <a className="icon-button" href="#newest" aria-label="Khám phá danh sách món"><Icon name="search" /></a>
           <a className="icon-button" href="#most-ordered" aria-label="Món được gọi nhiều"><Icon name="heart" /></a>
+          </>}
           {isStaff && <div className="header-control">
             <button type="button" ref={notificationButton} className="icon-button"
               aria-label={unread ? `Thông báo, ${unread} chưa đọc` : "Thông báo"}
               aria-expanded={panel === "notifications"} aria-controls={`${regionId}-notifications`}
               onClick={() => { toggle("notifications"); onNotificationsOpen?.(); }}>
               <Icon name="bell" />{unread > 0 && <span className="notification-dot" />}
+              {management && <span className="billing-header-action-label">Thông báo</span>}
             </button>
             <section className="header-panel" id={`${regionId}-notifications`} hidden={panel !== "notifications"} aria-label="Thông báo phục vụ">
               <h2>Thông báo</h2>
@@ -113,6 +121,7 @@ export default function SiteLayout({ children, account = null, notifications = n
             <button type="button" ref={accountButton} className="icon-button" aria-label={account ? `Tài khoản ${account.name}` : "Tài khoản"}
               aria-expanded={panel === "account"} aria-controls={`${regionId}-account`} onClick={() => toggle("account")}>
               <AccountAvatar name={account?.name} url={account?.avatarUrl} />
+              {management && <span className="billing-header-action-label">Tài khoản</span>}
             </button>
             <section className="header-panel" id={`${regionId}-account`} hidden={panel !== "account"} aria-label="Thông tin tài khoản">
               <h2>{account?.name ?? "Tài khoản"}</h2>
@@ -127,7 +136,7 @@ export default function SiteLayout({ children, account = null, notifications = n
       </div>
     </header>
     <main id="main" tabIndex={-1}>{children}</main>
-    <footer className={`site-footer ${isAuthPage ? "site-footer-auth" : ""}`}>
+    {!management && <footer className={`site-footer${isAuthPage ? " site-footer-auth" : ""}`}>
       <div className="footer-inner">
         <a className="brand footer-brand" href="#top" aria-label="LECKER Coffee Cafe Về đầu trang">
           <strong>LECKER</strong>{" "}<span>COFFEE CAFE</span>
@@ -137,6 +146,6 @@ export default function SiteLayout({ children, account = null, notifications = n
         </nav>
         <small>© 2026 LECKER Coffee Cafe</small>
       </div>
-    </footer>
+    </footer>}
   </>;
 }
