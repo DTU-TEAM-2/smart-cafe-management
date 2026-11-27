@@ -15,6 +15,7 @@ import java.util.*;
 import java.util.concurrent.TimeUnit;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -58,6 +59,20 @@ class StaffHttpReportTest {
     private String suffix;
     private Long adminUserId;
     private Long staffUserId;
+
+    @AfterEach
+    void removeReportFixtures() {
+        if (suffix == null) return;
+        StaffTestDatabaseGuard.requireTestCatalog(jdbc);
+        // HTTP requests commit on the server thread, outside JUnit rollback.
+        String fixtureNames = "^(adm|stf|cust|nv_moi|adm2|adm3|sal19|cadm[01])_"
+                + suffix + "$|^extra_" + suffix + "_[0-9]{2}$";
+        jdbc.update("""
+                DELETE p FROM staff_profiles p JOIN users u ON u.id = p.user_id
+                WHERE u.username REGEXP ?
+                """, fixtureNames);
+        jdbc.update("DELETE FROM users WHERE username REGEXP ?", fixtureNames);
+    }
 
     private String token(String username, String role) throws Exception {
         Long id = jdbc.queryForObject("SELECT id FROM users WHERE username=?", Long.class, username);

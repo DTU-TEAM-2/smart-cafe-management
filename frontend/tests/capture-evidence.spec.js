@@ -1,4 +1,4 @@
-import { test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import path from "node:path";
 import fs from "node:fs";
 
@@ -55,7 +55,8 @@ test("Capture high-fidelity screenshots for DT2-4 Frontend Evidence", async ({ p
   );
   await page.route(/\/api\/v1\/customer\/sessions\/10\/orders\/[^/?]+$/, async (route) => {
     const id = route.request().url().split("/").pop();
-    const order = await page.evaluate((batchId) => JSON.parse(sessionStorage.getItem("lecker_customer_orders:10:evidence-client") || "[]").find((batch) => String(batch.id) === batchId), id);
+    const order = await page.evaluate((batchId) =>
+      JSON.parse(sessionStorage.getItem("lecker_customer_checkout:10:evidence-client"))?.orders.find(batch => String(batch.id) === batchId), id);
     return route.fulfill({ json: order, headers: { Date: new Date().toUTCString() } });
   });
   await page.route("**/api/v1/customer/feedback/csrf", (route) =>
@@ -106,12 +107,12 @@ test("Capture high-fidelity screenshots for DT2-4 Frontend Evidence", async ({ p
         totalAmount: "45000",
         sessionTotalAmount: "45000",
         editableUntil: new Date(Date.now() + 180000).toISOString(),
-        items: [{ id: "item-1", menuItemId: "101", name: "Caramel Latte", unitPrice: "45000", lineTotal: "45000", quantity: 1, version: "0", status: "SUBMITTED" }],
+        items: [{ id: "501", menuItemId: "101", name: "Caramel Latte", unitPrice: "45000", lineTotal: "45000", quantity: 1, version: "0", status: "SUBMITTED" }],
       }),
     })
   );
   await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
-  await page.waitForTimeout(500);
+  await expect(page.locator(".c-result-title")).toHaveText("Đặt món thành công!");
   await page.screenshot({ path: path.join(outputDir, "04-fe-order-success.png") });
 
   // 5. Active orders view

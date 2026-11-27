@@ -15,7 +15,26 @@ function requireIdempotencyKey(key) {
   return key;
 }
 
-function normalizeOrder(data, response = null) {
+const isCount = value => Number.isSafeInteger(value) && value >= 0;
+const isDecimal = value => typeof value === "string" ? /^\d+$/.test(value) : isCount(value);
+const isId = value => typeof value === "string" ? /^[1-9]\d*$/.test(value) : isCount(value) && value > 0;
+const itemStatuses = ["SUBMITTED", "PREPARING", "SERVED", "CANCELLED"];
+
+function validOrderItem(item) {
+  return item != null && isId(item.id) && isId(item.menuItemId) && typeof item.name === "string"
+    && isDecimal(item.unitPrice) && isDecimal(item.lineTotal) && isDecimal(item.version)
+    && Number.isSafeInteger(item.quantity) && item.quantity > 0 && itemStatuses.includes(item.status)
+    && BigInt(item.unitPrice) * BigInt(item.quantity) === BigInt(item.lineTotal);
+}
+
+function normalizeOrder(data, response, sessionId, batchId = null) {
+  if (!isId(data?.id) || !isId(data.sessionId) || String(data.sessionId) !== String(sessionId)
+      || (batchId !== null && String(data.id) !== String(batchId))
+      || !Array.isArray(data.items) || !data.items.length || !data.items.every(validOrderItem)
+      || !isDecimal(data.totalAmount) || !isDecimal(data.sessionTotalAmount)
+      || typeof data.editableUntil !== "string" || !Number.isFinite(Date.parse(data.editableUntil))) {
+    throw new Error("Chưa xác minh được đơn món. Vui lòng thử lại.");
+  }
   const receivedAt = Date.now();
   const serverDate = response?.headers?.get("Date");
   const serverNow = serverDate ? Date.parse(serverDate) : Number.NaN;
@@ -31,18 +50,16 @@ function normalizeOrder(data, response = null) {
     editableUntil: data.editableUntil,
     editableClientDeadline,
     message: data.message,
-    items: Array.isArray(data.items)
-      ? data.items.map((item) => ({
-          id: String(item.id),
-          menuItemId: String(item.menuItemId),
-          name: item.name,
-          unitPrice: String(item.unitPrice),
-          quantity: Number(item.quantity),
-          lineTotal: String(item.lineTotal),
-          status: item.status,
-          version: String(item.version),
-        }))
-      : [],
+    items: data.items.map((item) => ({
+      id: String(item.id),
+      menuItemId: String(item.menuItemId),
+      name: item.name,
+      unitPrice: String(item.unitPrice),
+      quantity: item.quantity,
+      lineTotal: String(item.lineTotal),
+      status: item.status,
+      version: String(item.version),
+    })),
   };
 }
 
@@ -53,6 +70,7 @@ export async function fetchCsrfToken(url = "/api/v1/customer/csrf") {
       headers: { Accept: "application/json" },
       credentials: "same-origin",
       cache: "no-store",
+      signal: AbortSignal.timeout(12000),
     });
     if (!res.ok) return null;
     return await res.json();
@@ -87,18 +105,29 @@ export async function fetchMenuItems({ categoryId, keyword, availableOnly, page 
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Không thể tải danh sách món ăn.");
   }
-  return res.json();
+  const data = await res.json().catch(() => null);
+  if (!Array.isArray(data?.content) || data.page !== page || !isCount(data.totalElements)
+      || !data.content.every(item => isId(item?.id) && typeof item.name === "string" && isDecimal(item.price))) {
+    throw new Error("Phản hồi thực đơn không hợp lệ. Vui lòng thử lại.");
+  }
+  return data;
 }
 
 export async function fetchMenuItem(itemId) {
   const res = await fetch(`/api/v1/customer/menu/items/${encodeURIComponent(itemId)}`, {
     headers: { Accept: "application/json" },
+    cache: "no-store",
+    signal: AbortSignal.timeout(12000),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Không tìm thấy thông tin món.");
   }
-  return res.json();
+  const item = await res.json();
+  if (!isId(item?.id) || String(item.id) !== String(itemId) || !isDecimal(item.price)) {
+    throw new Error("Phản hồi giá món không hợp lệ. Vui lòng thử lại.");
+  }
+  return item;
 }
 
 export async function fetchOrder({ sessionId, token, batchId }) {
@@ -109,7 +138,7 @@ export async function fetchOrder({ sessionId, token, batchId }) {
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || "Không thể tải lại đơn món. Vui lòng thử lại.");
-  return normalizeOrder(data, res);
+  return normalizeOrder(data, res, sessionId, batchId);
 }
 
 export async function createOrder({ sessionId, token, items, idempotencyKey, csrf = null }) {
@@ -125,10 +154,12 @@ export async function createOrder({ sessionId, token, items, idempotencyKey, csr
     headers[csrf.headerName] = csrf.token;
   }
 
+  const signal = AbortSignal.timeout(12000);
   const res = await fetch(`/api/v1/customer/sessions/${encodeURIComponent(sessionId)}/orders`, {
     method: "POST",
     headers,
     credentials: "same-origin",
+    signal,
     body: JSON.stringify({
       items: items.map((it) => ({
         menuItemId: String(it.menuItemId ?? it.id),
@@ -138,16 +169,29 @@ export async function createOrder({ sessionId, token, items, idempotencyKey, csr
     }),
   });
 
-  const data = await res.json().catch(() => ({}));
+  const data = await res.json().catch(() => null);
+  signal.throwIfAborted();
   if (!res.ok) {
-    const error = new Error(data.detail || data.title || "Gửi đơn gọi món thất bại.");
+    const error = new Error(data?.detail || data?.title || "Gửi đơn gọi món thất bại.");
     error.status = res.status;
-    // A received business 4xx proves the server rejected this payload. Network
-    // failures, 5xx and request-timeout responses can still hide a committed write.
-    error.outcomeCertain = res.status >= 400 && res.status < 500 && res.status !== 408;
+    // This describes only this HTTP request. A rejection cannot settle an
+    // earlier request whose outcome was unknown.
+    error.requestRejected = [400, 409].includes(res.status) && typeof data?.detail === "string"
+      && (data.status === res.status || res.headers.get("Content-Type")?.includes("application/problem+json"));
     throw error;
   }
-  return normalizeOrder(data, res);
+  const order = normalizeOrder(data, res, sessionId);
+  const expectedMenuIds = new Set(items.map(item => String(item.menuItemId ?? item.id)));
+  const actualMenuIds = new Set(order.items.map(item => item.menuItemId));
+  const batchTotal = order.items.reduce((sum, item) =>
+    item.status === "CANCELLED" ? sum : sum + BigInt(item.lineTotal), 0n);
+  if (order.items.length !== expectedMenuIds.size || actualMenuIds.size !== expectedMenuIds.size
+      || !order.items.every(item => expectedMenuIds.has(item.menuItemId))
+      || new Set(order.items.map(item => item.id)).size !== order.items.length
+      || BigInt(order.totalAmount) !== batchTotal || BigInt(order.sessionTotalAmount) < batchTotal) {
+    throw new Error("Chưa xác minh được đơn món. Vui lòng thử lại.");
+  }
+  return order;
 }
 
 export async function updateOrderItem({ sessionId, token, itemId, quantity, expectedVersion, csrf = null }) {
@@ -176,7 +220,7 @@ export async function updateOrderItem({ sessionId, token, itemId, quantity, expe
   if (!res.ok) {
     throw new Error(data.detail || data.title || "Không thể cập nhật số lượng món.");
   }
-  return normalizeOrder(data, res);
+  return normalizeOrder(data, res, sessionId);
 }
 
 export async function cancelOrderItem({ sessionId, token, itemId, expectedVersion, csrf = null }) {
@@ -204,7 +248,7 @@ export async function cancelOrderItem({ sessionId, token, itemId, expectedVersio
   if (!res.ok) {
     throw new Error(data.detail || data.title || "Không thể hủy món.");
   }
-  return normalizeOrder(data, res);
+  return normalizeOrder(data, res, sessionId);
 }
 
 export async function sendWaiterRequest({ sessionId, token, idempotencyKey, csrf = null }) {
