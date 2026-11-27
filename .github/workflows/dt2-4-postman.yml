@@ -1,4 +1,4 @@
-name: DT2-4 Postman
+name: API Tests
 on:
   pull_request:
     branches: [main, develop, 'release/**']
