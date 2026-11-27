@@ -1,0 +1,29 @@
+name: PR metadata
+on:
+  pull_request:
+    branches: [main, develop, 'release/**']
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+permissions: {}
+concurrency:
+  group: pr-metadata-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  pr-title:
+    name: PR title
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check title format and require a label
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_LABEL: ${{ github.event.pull_request.labels[0].name }}
+        run: |
+          title_pattern='^(feat|fix|chore|docs|refactor|test|ci|build|perf|revert)\([a-z0-9-]+\): CF-[0-9]+ .+'
+          if [[ ! "$PR_TITLE" =~ $title_pattern ]]; then
+            echo '::error::Use type(scope): CF-01 description.'
+            exit 1
+          fi
+          if [ -z "$PR_LABEL" ]; then
+            echo '::error::Add at least one relevant GitHub label to this pull request before merging.'
+            exit 1
+          fi
