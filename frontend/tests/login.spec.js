@@ -49,7 +49,7 @@ test("login verifies Auth identity, opens news through navigation and logout cle
   await page.getByLabel("Mật khẩu", { exact: true }).fill("UI-fixture-password");
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
   await expect(page).toHaveURL(/#top$/);
-  const newsLink = page.getByRole("link", { name: "Tin tức", exact: true });
+  const newsLink = page.getByRole("banner").getByRole("link", { name: "Tin tức", exact: true });
   if (!(await newsLink.isVisible())) await page.getByRole("button", { name: "Điều hướng" }).click();
   await newsLink.click();
   await expect(page).toHaveURL(/#news$/);

@@ -15,7 +15,8 @@ async function setToken(page, token) {
   }, token);
 }
 
-test("account route shares one layout; polling deduplicates notices and logout clears the old account", async ({ page }) => {
+test("account route shares one layout; polling deduplicates notices and logout clears the old account", async ({ page, isMobile }) => {
+  if (isMobile) await page.setViewportSize({ width: 320, height: 720 });
   await page.clock.install();
   let current = null;
   let notices = [{ id: "order:1", message: "Bàn 01 vừa gọi món" }];
@@ -47,13 +48,17 @@ test("account route shares one layout; polling deduplicates notices and logout c
   await page.goto("/");
   await setToken(page, "test-staff-token");
   await page.getByRole("button", { name: "Tài khoản Nhân viên kiểm thử" }).click();
-  await page.getByRole("link", { name: "Thông tin tài khoản", exact: true }).click();
+  await page.getByRole("button", { name: "Thông tin tài khoản", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Thông tin cá nhân" })).toBeVisible();
   await expect(page.getByText("Đà Nẵng", { exact: true })).toBeVisible();
   await expect(page.getByText("8.000.000", { exact: false })).toBeVisible();
   await expect(page.getByRole("banner")).toHaveCount(1);
   await expect(page.getByRole("contentinfo")).toHaveCount(1);
   await page.getByRole("button", { name: /Thông báo/ }).click();
+  const notificationPanel = page.getByRole("region", { name: "Thông báo phục vụ" });
+  const bounds = await notificationPanel.boundingBox();
+  expect(bounds.x).toBeGreaterThanOrEqual(0);
+  expect(bounds.x + bounds.width).toBeLessThanOrEqual(page.viewportSize().width);
   await expect(page.getByText("Bàn 01 vừa gọi món", { exact: true })).toHaveCount(1);
   notices = [...notices, { id: "waiter:2", message: "Bàn 02 đang gọi phục vụ" }];
   await page.clock.runFor(5100);

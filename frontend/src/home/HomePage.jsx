@@ -1,11 +1,8 @@
 ﻿import { useEffect, useState } from "react";
+import HomeStories from "./HomeStories.jsx";
 
 const currency = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" });
-const specials = [
-  { title: "Đồ uống nổi bật", description: "Sáng tạo hương vị", image: "/images/iced-coffee.jpg" },
-  { title: "Không gian quán", description: "Ấm áp và thư giãn", image: "/images/cafe-interior.jpg" },
-  { title: "Đội ngũ Barista", description: "Chuyên tâm từng tách", image: "/images/coffee-cup.jpg" },
-];
+const quantity = new Intl.NumberFormat("vi-VN");
 
 function validList(items, amount) {
   return Array.isArray(items) && items.length <= 5 && items.every((item) =>
@@ -14,7 +11,6 @@ function validList(items, amount) {
 }
 
 function Rankings({ status, data, retry }) {
-  const max = Number(data?.mostOrdered[0]?.orderedQuantity ?? 1);
   return <>
     {status === "error" && <div className="error-banner" role="alert">
       <span>Chưa tải được danh sách món.</span><button type="button" onClick={retry}>Thử lại</button>
@@ -28,8 +24,7 @@ function Rankings({ status, data, retry }) {
       <section id="most-ordered" aria-labelledby="most-ordered-title">
         <h2 id="most-ordered-title">5 món được gọi nhiều</h2>
         <RankingList status={status} items={data?.mostOrdered} empty="Chưa có lượt gọi món."
-          value={(item) => <meter className="rank-meter" min="0" max={max} value={Number(item.orderedQuantity)}
-            aria-label={`${item.orderedQuantity} món đã gọi`} />} />
+          value={(item) => <strong>{quantity.format(BigInt(item.orderedQuantity))} món</strong>} />
       </section>
     </div>
   </>;
@@ -42,19 +37,10 @@ function RankingList({ status, items = [], empty, value }) {
   return <ol className="ranking-panel ranking-list">
     {items.map((item, index) => <li key={item.id}>
       <span className="rank-number" aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
-      <MenuThumbnail url={item.imageUrl} />
       <span className="rank-name">{item.name}</span>
       {value(item)}
     </li>)}
   </ol>;
-}
-
-function MenuThumbnail({ url }) {
-  const [failed, setFailed] = useState(null);
-  const safe = typeof url === "string" && (/^https:\/\//i.test(url) || /^\/(?!\/)/.test(url)) && !/[\\\r\n]/.test(url);
-  return safe && failed !== url
-    ? <img className="rank-image" src={url} width="52" height="52" alt="" loading="lazy" onError={() => setFailed(url)} />
-    : <span className="rank-image missing-image" role="img" aria-label="Chưa có ảnh món">—</span>;
 }
 
 export default function HomePage({ tableMenuHref } = {}) {
@@ -84,28 +70,18 @@ export default function HomePage({ tableMenuHref } = {}) {
 
   return <div className="home">
     <section className="hero" aria-labelledby="hero-title">
-      <div className="hero-art" aria-hidden="true">
-        <img src="/images/latte.jpg" alt="" width="700" height="1050" fetchPriority="high" />
-        <span className="hero-image-caption">Một chút cà phê, một chút thảnh thơi.</span>
+      <div className="hero-art">
+        <img src="/images/home-coffee-hero.jpg" alt="" width="1942" height="809" fetchPriority="high" />
       </div>
       <div className="hero-copy">
         <p className="eyebrow">Bản sắc cà phê</p>
         <h1 id="hero-title"><span>High Quality</span> COFFEE</h1>
         <p className="hero-subtitle">Mỗi tách cà phê là một câu chuyện</p>
-        <a className="hero-cta" href={tableMenuHref ?? "#newest"}>{tableMenuHref ? "Về thực đơn tại bàn" : "Khám phá menu"} <span aria-hidden="true">→</span></a>
-        <span className="hero-note">Pha bằng cả sự tận tâm.</span>
+        <a className="hero-cta" href={tableMenuHref ?? "#customer"}>{tableMenuHref ? "Về thực đơn tại bàn" : "Khám phá thực đơn"} <span aria-hidden="true">→</span></a>
       </div>
     </section>
 
-    <section id="about" className="specials" aria-labelledby="specials-title">
-      <h2 id="specials-title">Our Specials — Câu chuyện Lecker</h2>
-      <div className="special-grid">
-        {specials.map(({ title, description, image }) => <article className="special" key={title}>
-          <img className="special-tile" src={image} alt="" width="116" height="116" loading="lazy" />
-          <div><h3>{title}</h3><p>{description}</p></div>
-        </article>)}
-      </div>
-    </section>
+    <HomeStories />
 
     <Rankings status={result.status} data={result.data} retry={() => {
       setResult({ status: "loading", data: null });

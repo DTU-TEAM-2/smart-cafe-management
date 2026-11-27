@@ -293,6 +293,20 @@ test("dirty editor protects cancel and browser back navigation", async ({ page }
   await expect(page.getByRole("heading", { name: "Quản lý tin tức", exact: true })).toBeVisible();
 });
 
+test("scrolling to the top of a dirty editor keeps the draft without asking to leave", async ({ page }) => {
+  await setup(page);
+  let prompts = 0;
+  page.on("dialog", dialog => { prompts++; return dialog.dismiss(); });
+  await page.goto("/#news/new");
+  const title = page.getByLabel("Tiêu đề", { exact: false });
+  await title.fill("Bản nháp cần giữ");
+  await page.getByRole("button", { name: "Về đầu trang", exact: true }).click();
+  await expect(page.getByRole("main")).toBeFocused();
+  expect(prompts).toBe(0);
+  await expect(title).toHaveValue("Bản nháp cần giữ");
+  await expect(page).toHaveURL(/#news\/new$/);
+});
+
 test("archive confirmation traps focus, restores it and sends the current version", async ({ page }) => {
   await setup(page);
   let archived = false;
@@ -407,6 +421,9 @@ test("guest gate, empty feed, retry and mobile layout remain usable", async ({ p
   await setup(page, "CUSTOMER", { empty: true });
   await page.goto("/#news");
   await expect(page.getByRole("heading", { name: "Chưa có câu chuyện nào" })).toBeVisible();
+  await page.getByRole("button", { name: "Về đầu trang", exact: true }).click();
+  await expect(page).toHaveURL(/#news$/);
+  await expect(page.getByRole("main")).toBeFocused();
   await page.route("**/api/v1/news?*", route => route.fulfill({ status: 503, json: {} }));
   await page.getByRole("button", { name: "Làm mới" }).click();
   await expect(page.getByRole("alert")).toContainText("Chưa tải được tin tức");
@@ -457,6 +474,33 @@ test("policy-close reconnects only after the server confirms the STAFF identity 
   socket.close({ code: 1008, reason: "Revalidate current identity" });
   await expect.poll(() => accountChecks).toBeGreaterThan(1);
   await expect.poll(() => connections).toBe(2);
+  await expect(page.getByText("Tin tức tự cập nhật khi có thay đổi.")).toBeVisible();
+});
+
+test("a temporary identity failure after policy-close recovers without reconnecting early", async ({ page }) => {
+  await page.clock.install();
+  await setup(page, "STAFF");
+  let failNextCheck = false;
+  const sockets = [];
+  await page.route("**/api/v1/home/account", route => {
+    if (failNextCheck) {
+      failNextCheck = false;
+      return route.fulfill({ status: 503, json: {} });
+    }
+    return route.fulfill({ json: { id: "1", name: "Staff fixture", role: "STAFF" } });
+  });
+  await page.routeWebSocket("**/api/v1/news/events", ws => {
+    sockets.push(ws);
+    ws.onMessage(() => ws.send('{"type":"READY"}'));
+  });
+  await page.goto("/#news");
+  await expect(page.getByText("Tin tức tự cập nhật khi có thay đổi.")).toBeVisible();
+  failNextCheck = true;
+  sockets[0].close({ code: 1008 });
+  await expect(page.getByText("Chưa tải được thông tin tài khoản.")).toBeVisible();
+  expect(sockets).toHaveLength(1);
+  await page.clock.fastForward(5500);
+  await expect.poll(() => sockets.length).toBe(2);
   await expect(page.getByText("Tin tức tự cập nhật khi có thay đổi.")).toBeVisible();
 });
 

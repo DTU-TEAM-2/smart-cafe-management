@@ -81,6 +81,23 @@ test("Cancel restores snapshot and never writes; leaving a dirty form requires a
   await expect(page).toHaveURL(/#account$/);
 });
 
+test("logout from the header confirms before discarding a dirty profile", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: "Cập nhật thông tin" }).click();
+  await page.getByLabel("Họ và tên", { exact: true }).fill("Bản nháp");
+  const trigger = page.getByRole("button", { name: /^Tài khoản / });
+  const signOut = page.getByRole("button", { name: "Đăng xuất", exact: true });
+  const confirmation = page.getByRole("dialog", { name: "Rời trang đang chỉnh sửa?" });
+  await trigger.click();
+  await signOut.click();
+  await confirmation.getByRole("button", { name: "Tiếp tục chỉnh sửa" }).click();
+  await expect(page.getByLabel("Họ và tên", { exact: true })).toHaveValue("Bản nháp");
+  await trigger.click();
+  await signOut.click();
+  await confirmation.getByRole("button", { name: "Rời trang" }).click();
+  await expect(page).toHaveURL(/#login$/);
+});
+
 test("validation has field links, focus and no mutation", async ({ page }, info) => {
   const api = await open(page);
   await page.getByRole("button", { name: "Cập nhật thông tin" }).click();

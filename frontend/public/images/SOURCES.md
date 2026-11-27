@@ -1,5 +1,10 @@
 # Local imagery
 
+- `story-drinks.jpg` uses the existing ImageGen strawberry matcha menu image. `story-space.jpg` and `story-barista.jpg` are editorial photos from Pexels. [Café seating](https://www.pexels.com/photo/tables-and-chairs-in-restaurant-20158939/) · [Latte preparation](https://www.pexels.com/photo/anonymous-person-preparing-coffee-to-client-in-cafe-4349766/) · [Pexels license](https://www.pexels.com/license/).
+
+- `home-coffee-hero.jpg` was generated with OpenAI ImageGen for the homepage banner. The prompt requested a panoramic cappuccino and croissant composition on a cream stone tabletop in soft morning light. It is a decorative brand image.
+- `footer-latte.jpg` and `footer-cafe.jpg` are decorative footer photos. [Maksim Goncharenok’s latte photo](https://www.pexels.com/photo/close-up-shot-of-a-ceramic-cup-of-coffee-with-latte-art-4823589/) · [Nadia Vasil'eva’s café photo](https://www.pexels.com/photo/cafe-table-in-a-wooden-interior-lit-by-the-sunlight-13696472/) · [Pexels license](https://www.pexels.com/license/).
+
 Downloaded 04/11/2026 and visually inspected. Files are local assets, not remote hotlinks.
 
 - `cafe-interior.jpg`: https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb. Decorative cafe atmosphere.

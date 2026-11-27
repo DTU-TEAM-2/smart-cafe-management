@@ -44,6 +44,6 @@ export async function loginFromPage(page, username = staffProfile.username, pass
 
 export async function profileFromHeader(page) {
   await page.getByRole("button", { name: /^Tài khoản / }).click();
-  await page.getByRole("link", { name: "Thông tin tài khoản", exact: true }).click();
+  await page.getByRole("button", { name: "Thông tin tài khoản", exact: true }).click();
   await page.getByRole("heading", { name: "Thông tin tài khoản", exact: true }).waitFor();
 }

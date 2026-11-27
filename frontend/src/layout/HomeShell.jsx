@@ -24,6 +24,9 @@ const NewsPage = lazy(() => import("../news/NewsPage.jsx"));
 
 const roles = { ADMIN: "Quản trị viên", STAFF: "Nhân viên phục vụ", CUSTOMER: "Khách hàng thân thiết" };
 const money = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" });
+const logoutNavigation = Symbol("logout");
+const headerRequestTimeoutMs = 10000;
+const staffRecheckRetryMs = 5000;
 
 export default function HomeShell({ authorization, credentials, loginHref = "#login" }) {
   const { sessionGeneration } = useAuth();
@@ -43,7 +46,11 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
   const onDirtyChange = useCallback(value => { dirty.current = value; }, []);
   const [identity, setIdentity] = useState({ status: "loading", account: null });
   const [accountAttempt, setAccountAttempt] = useState(0);
-  const recheckIdentity = useCallback(() => setAccountAttempt(value => value + 1), []);
+  const staffRecheckPending = useRef(false);
+  const recheckIdentity = useCallback(() => {
+    staffRecheckPending.current = true;
+    setAccountAttempt(value => value + 1);
+  }, []);
   const news = useNewsSocket(authorization, identity.account, recheckIdentity);
   const [feed, setFeed] = useState({ status: "idle", data: null });
   const [feedAttempt, setFeedAttempt] = useState(0);
@@ -90,34 +97,47 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
     }
     function onUnload(event) { if (dirty.current) { event.preventDefault(); event.returnValue = ""; } }
     window.addEventListener("hashchange", onHash);
-    document.addEventListener("click", onLink, true);
+    document.addEventListener("click", onLink);
     window.addEventListener("beforeunload", onUnload);
-    return () => { window.removeEventListener("hashchange", onHash); document.removeEventListener("click", onLink, true); window.removeEventListener("beforeunload", onUnload); };
+    return () => { window.removeEventListener("hashchange", onHash); document.removeEventListener("click", onLink); window.removeEventListener("beforeunload", onUnload); };
   }, []);
 
   useEffect(() => {
     let active = true;
+    let retryTimer;
     const controller = new AbortController();
     const expectedAuthority = profileAuthority.current;
+    const isCurrent = () => active && expectedAuthority === profileAuthority.current;
     async function loadAccount() {
       setIdentity(current => (current.status === "ready" ? current : { status: "loading", account: null }));
       try {
         const headers = { Accept: "application/json" };
         if (authorization) headers.Authorization = authorization;
-        const response = await fetch("/api/v1/home/account", { headers, credentials, signal: controller.signal });
+        const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(headerRequestTimeoutMs)]);
+        const response = await fetch("/api/v1/home/account", { headers, credentials, signal });
         if (response.status === 401 || response.status === 403) {
-          if (active && expectedAuthority === profileAuthority.current) setIdentity({ status: "ready", account: null });
+          if (isCurrent()) {
+            staffRecheckPending.current = false;
+            setIdentity({ status: "ready", account: null });
+          }
           return;
         }
         if (!response.ok) throw new Error("Account unavailable");
         const account = await response.json();
-        if (active && expectedAuthority === profileAuthority.current) setIdentity({ status: "ready", account });
+        if (isCurrent()) {
+          staffRecheckPending.current = false;
+          setIdentity({ status: "ready", account });
+        }
       } catch {
-        if (active && expectedAuthority === profileAuthority.current) setIdentity({ status: "error", account: null });
+        if (!isCurrent()) return;
+        setIdentity({ status: "error", account: null });
+        if (staffRecheckPending.current) retryTimer = window.setTimeout(() => {
+          if (isCurrent()) setAccountAttempt(value => value + 1);
+        }, staffRecheckRetryMs);
       }
     }
     void loadAccount();
-    return () => { active = false; controller.abort(); };
+    return () => { active = false; controller.abort(); window.clearTimeout(retryTimer); };
   }, [authorization, credentials, accountAttempt]);
 
   useEffect(() => {
@@ -132,7 +152,8 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
       try {
         const headers = { Accept: "application/json" };
         if (authorization) headers.Authorization = authorization;
-        const response = await fetch("/api/v1/home/notifications", { headers, credentials, signal: controller.signal });
+        const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(headerRequestTimeoutMs)]);
+        const response = await fetch("/api/v1/home/notifications", { headers, credentials, signal });
         if (!response.ok) throw new Error("Feed unavailable");
         const data = await response.json();
         if (data.recipientId !== account.id || !Array.isArray(data.items)
@@ -185,7 +206,7 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
 
   if (onCustomerPage) return <CustomerApp onNavigateHome={() => handleNavigate("#top")} />;
   const tableMenuHref = readCustomerSession() ? "#customer" : undefined;
-  const account = identity.account ? { ...identity.account, profileHref: "#account" } : null;
+  const account = identity.account;
   if (onMenuAdminPage) {
     if (identity.status === "loading") return <main><p role="status">Đang xác minh tài khoản…</p></main>;
     if (identity.status === "error") return <main><p role="alert">Chưa xác minh được tài khoản.</p>
@@ -202,14 +223,19 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
     authorization={authorization} credentials={credentials} income={hash === "#sale-income"}
     retryIdentity={() => { setIdentity({ status: "loading", account: null }); setAccountAttempt(value => value + 1); }} />;
   const notifications = feed.data && { ...feed.data, items: feed.data.items.map(item => ({ ...item, read: readIds.has(item.id) })) };
+  function logout() {
+    void auth.logout();
+    if (!onNewsPage) window.location.hash = "#login";
+  }
   const layout = {
     account, notifications, links: { login: loginHref, news: "#news", menu: tableMenuHref }, notificationState: feed.status,
+    onNavigate: handleNavigate,
     onRetryNotifications: () => { setFeed({ status: "loading", data: null }); setFeedAttempt(value => value + 1); },
     onNotificationsOpen: () => setReadIds(previous => new Set([...previous, ...(feed.data?.items.map(item => item.id) ?? [])])),
     onLogout: () => {
+      if (dirty.current) { setPendingNavigation(logoutNavigation); return; }
       if (newsGuard.current && !newsGuard.current()) return;
-      void auth.logout();
-      if (!onNewsPage) window.location.hash = "#login";
+      logout();
     },
   };
   const isAdmin = account?.role === "ADMIN";
@@ -219,7 +245,7 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
     return <BillsWorkspace layout={layout} authorization={authorization} credentials={credentials} statistics={onStatistics}
       isAdmin={isAdmin} expiryNotice={expiryNotice} />;
   }
-  return <SiteLayout {...layout}
+  return <SiteLayout {...layout} homepage={!isSpecialPage || onNewsPage}
     currentPage={onAccountPage ? "account" : onLoginPage ? "login" : onNewsPage ? "news" : "home"} isAuthPage={isAuthPage}>
     {expiryNotice}
     {identity.status === "error" && <div className="identity-error" role="alert">Chưa tải được thông tin tài khoản.
@@ -249,7 +275,7 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
       <StaffDashboard onNavigate={handleNavigate} />
     ) : onAccountPage ? (
       identity.account?.role === "CUSTOMER" && hash !== "#account-password"
-        ? <CustomerAccountPage status={identity.status} account={identity.account} />
+        ? <CustomerAccountPage status={identity.status} account={identity.account} onNavigate={handleNavigate} />
         : <PersonnelAccountPage key={hash === "#account-password" ? "password" : "profile"} changingPassword={hash === "#account-password"} onProfileLoaded={onProfileLoaded} onDirtyChange={onDirtyChange} />
     ) : onBillsPage ? (
       <section className="account-page">
@@ -268,6 +294,7 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
       const target = pendingNavigation;
       dirty.current = false;
       setPendingNavigation(null);
+      if (target === logoutNavigation) { logout(); return; }
       currentHash.current = target;
       setHash(target);
       if (window.location.hash !== target) window.location.hash = target;
@@ -275,7 +302,7 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
   </SiteLayout>;
 }
 
-function CustomerAccountPage({ status, account }) {
+function CustomerAccountPage({ status, account, onNavigate }) {
   if (status === "loading") return <section className="account-page"><p role="status">Đang tải thông tin tài khoản…</p></section>;
   if (!account) return <section className="account-page"><h1>Thông tin tài khoản</h1><p>Bạn chưa đăng nhập hoặc phiên đã hết hạn.</p><a href="#top">Về trang chủ</a></section>;
   const birthday = account.birthday ? account.birthday.split("-").reverse().join("/") : null;
@@ -286,11 +313,13 @@ function CustomerAccountPage({ status, account }) {
     ["Địa chỉ", account.address], ["Điện thoại", account.phone], ["Vai trò", roles[account.role]],
     ["Ngày sinh", birthday], ["Giới tính", gender], ...(account.role !== "CUSTOMER" ? [["Lương", salary]] : []),
   ];
-  return <section className="account-page" aria-labelledby="account-title">
-    <p className="eyebrow">LECKER • Tài khoản của bạn</p>
-    <h1 id="account-title">Thông tin cá nhân</h1>
-    <p className="account-greeting">Xin chào, {account.name}.</p>
+  return <section className="account-page customer-account-page" aria-labelledby="account-title">
+    <header className="customer-account-summary">
+      <p className="eyebrow">Tài khoản LECKER</p>
+      <h1 id="account-title">Thông tin cá nhân</h1>
+      <p className="account-greeting">Xin chào, {account.name}.</p>
+    </header>
     <dl className="account-details">{fields.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value || "Chưa cập nhật"}</dd></div>)}</dl>
-    <a className="hero-cta" href="#top">Về trang chủ <span aria-hidden="true">→</span></a>
+    <button className="hero-cta" type="button" onClick={() => onNavigate("#top")}>Về trang chủ <span aria-hidden="true">→</span></button>
   </section>;
 }
