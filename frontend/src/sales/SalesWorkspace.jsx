@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import IncomePanel, { LoadState } from "./IncomePanel.jsx";
 import { postSales, readApi, useSalesResource, vnd } from "./salesApi.js";
+import { checkedPaymentAmount, clearConfirmedPayment, clearRejectedPayment, normalizePaymentReference,
+  paymentAttemptKey, persistPaymentAttempt, readPaymentAttempt, verifiedPaymentBill } from "./paymentAttempt.js";
 import "./sales.css";
 
 export default function SalesWorkspace({ account, identityStatus, authorization, credentials, income, retryIdentity }) {
@@ -50,8 +52,8 @@ export default function SalesWorkspace({ account, identityStatus, authorization,
             </section>}
             {showOrders && <>
               <button type="button" className="sale-back" onClick={() => setSelected(null)}>← Về sơ đồ bàn</button>
-              {table && <TableOrders key={table.id} table={table} isAdmin={isAdmin} authorization={authorization} credentials={credentials}
-                keys={keys} refreshTables={tables.reload} />}
+              {table && <TableOrders key={`${account.id}:${table.id}`} table={table} isAdmin={isAdmin} authorization={authorization} credentials={credentials}
+                keys={keys} accountId={account.id} tablesStale={Boolean(tables.error) || tables.refreshing} refreshTables={tables.reload} />}
               {tables.data && !table && <p role="alert">Bàn này không còn trong danh sách.</p>}
             </>}
           </>}
@@ -60,7 +62,7 @@ export default function SalesWorkspace({ account, identityStatus, authorization,
   </div>;
 }
 
-function TableOrders({ table, isAdmin, authorization, credentials, keys, refreshTables }) {
+function TableOrders({ table, isAdmin, authorization, credentials, keys, accountId, tablesStale, refreshTables }) {
   const path = `/api/v1/sales/tables/${encodeURIComponent(table.id)}`;
   const resource = useSalesResource(`${path}/services`, authorization, credentials, 8000);
   const data = resource.data;
@@ -73,6 +75,7 @@ function TableOrders({ table, isAdmin, authorization, credentials, keys, refresh
       <p className="sale-total">Tổng tiền <strong>{vnd(data.totalAmount)}</strong></p>
       {data.sessionCode && <OrderActions key={data.sessionCode} path={path} data={data} table={table}
         isAdmin={isAdmin} authorization={authorization} credentials={credentials} keys={keys}
+        accountId={accountId} stale={tablesStale || Boolean(resource.error) || resource.refreshing}
         refresh={() => { resource.reload(); refreshTables(); }} />}
     </>}
   </section>;
@@ -80,29 +83,43 @@ function TableOrders({ table, isAdmin, authorization, credentials, keys, refresh
 
 function ItemTable({ items }) {
   return <div className="sale-table-wrap"><table>
+    <colgroup><col className="sale-item-name" /><col className="sale-item-quantity" /><col /><col /></colgroup>
     <thead><tr><th scope="col">Tên món</th><th scope="col">Số lượng</th><th scope="col">Đơn giá</th><th scope="col">Thành tiền</th></tr></thead>
     <tbody>{items.map(item => <tr key={item.id ?? item.orderItemId}><th scope="row">{item.itemName}</th>
       <td>{item.quantity}</td><td>{vnd(item.unitPrice)}</td><td>{vnd(item.lineTotal)}</td></tr>)}</tbody>
   </table></div>;
 }
 
-function OrderActions({ path, data, table, isAdmin, authorization, credentials, keys, refresh }) {
+function OrderActions({ path, data, table, isAdmin, authorization, credentials, keys, accountId, stale, refresh }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [snapshot, setSnapshot] = useState(null);
   const [dialog, setDialog] = useState(null);
-  const [method, setMethod] = useState("CASH");
-  const [reference, setReference] = useState("");
   const active = useRef(null);
-  useEffect(() => () => active.current?.abort(), []);
+  useEffect(() => () => active.current?.abort(), [authorization, credentials]);
   const bill = data.currentBill;
+  const attemptKey = paymentAttemptKey(accountId, data.sessionCode, bill?.id);
+  const paid = bill?.status === "PAID";
   const currentSnapshot = snapshot?.id === bill?.id && snapshot?.sessionCode === data.sessionCode ? snapshot : null;
+  const paymentConfirmed = paid || (bill?.status === "PENDING" && currentSnapshot?.status === "PAID");
+  let paymentAttempt = null;
+  let storageError = "";
+  if (isAdmin && bill?.status === "PENDING" && !paymentConfirmed) {
+    try { paymentAttempt = readPaymentAttempt(attemptKey); }
+    catch (failure) { storageError = failure.message; }
+  }
+  const visibleDialog = dialog && (dialog.type === "reset" ? paid
+    : dialog.billId === bill?.id && bill?.status === "PENDING" && !paymentConfirmed);
+  const writesDisabled = busy || stale;
+  useEffect(() => {
+    if (isAdmin && paid && attemptKey) clearConfirmedPayment(attemptKey);
+  }, [isAdmin, paid, attemptKey]);
   function keyFor(name) {
     if (!keys.current.has(name)) keys.current.set(name, crypto.randomUUID());
     return keys.current.get(name);
   }
-  async function execute(action, success) {
+  async function execute(action, success, onFailure) {
     if (active.current) return;
     const controller = new AbortController();
     active.current = controller; setBusy(true); setError(""); setNotice("");
@@ -111,60 +128,131 @@ function OrderActions({ path, data, table, isAdmin, authorization, credentials, 
       const result = await action(options);
       if (!controller.signal.aborted) success(result);
     } catch (failure) {
-      if (!controller.signal.aborted) { setError(failure.message); setDialog(null); if (failure.status === 409) refresh(); }
+      if (!controller.signal.aborted) {
+        setError(failure.message);
+        onFailure?.(failure);
+        if (failure.status === 409) {
+          setDialog(null);
+          refresh();
+        }
+      }
     } finally {
       active.current = null;
       if (!controller.signal.aborted) setBusy(false);
     }
   }
   const session = { expectedSessionCode: data.sessionCode };
-  const paid = bill?.status === "PAID";
   const pending = data.activeRequests.filter(request => request.status === "PENDING");
+  function openDialog(command) {
+    setError("");
+    setDialog(command);
+  }
+
+  function dismissDialog() {
+    setError("");
+    setDialog(null);
+  }
+
   return <>
     {pending.length > 0 && <ul className="sale-request-list">{pending.map(request => <li key={request.id}>
       <span>{request.type === "BILL" ? "Yêu cầu thanh toán" : "Gọi phục vụ"}</span>
-      <button type="button" disabled={busy} onClick={() => void execute(options =>
+      <button type="button" disabled={writesDisabled} onClick={() => void execute(options =>
         postSales(`${path}/requests/${encodeURIComponent(request.id)}/acknowledge`, session, options), () => { setNotice("Đã tiếp nhận yêu cầu."); refresh(); })}>Tiếp nhận {request.type === "BILL" ? "yêu cầu thanh toán" : "gọi phục vụ"}</button>
     </li>)}</ul>}
     <div className="sale-actions">
-      <button className="sale-primary" type="button" disabled={busy || data.items.length === 0 || Boolean(bill)}
+      <button className="sale-primary" type="button" disabled={writesDisabled || data.items.length === 0 || Boolean(bill)}
         onClick={() => void execute(options => postSales(`${path}/bill`, { ...session, idempotencyKey: keyFor(`bill:${data.sessionCode}`) }, options), result => {
           setSnapshot(result); setNotice("Đã tạo hóa đơn chờ xác nhận thanh toán."); refresh();
         })}>Tạo hóa đơn</button>
-      {isAdmin && bill && <button type="button" disabled={busy} onClick={() => void execute(options => readApi(`/api/v1/bills/${encodeURIComponent(bill.id)}`, options), setSnapshot)}>Xem hóa đơn hiện tại</button>}
-      {isAdmin && paid && <button type="button" disabled={busy} onClick={() => setDialog({ type: "reset", code: data.sessionCode })}>Đặt lại bàn</button>}
+      {isAdmin && bill && <button type="button" disabled={busy} onClick={() => void execute(options =>
+        readApi(`/api/v1/bills/${encodeURIComponent(bill.id)}`, options), result => {
+          if (result?.id !== bill.id || result.sessionCode !== data.sessionCode) throw new Error("Phản hồi hóa đơn không khớp với phiên bàn.");
+          setSnapshot(previous => previous?.id === result.id && previous.sessionCode === result.sessionCode
+            && previous.status === "PAID" && result.status === "PENDING" ? previous : result);
+        })}>Xem hóa đơn hiện tại</button>}
+      {isAdmin && paid && <button type="button" disabled={writesDisabled} onClick={() => openDialog({ type: "reset", code: data.sessionCode })}>Đặt lại bàn</button>}
     </div>
-    {bill && <p className="sale-muted">{paid ? "Hóa đơn đã thanh toán." : "Phiên đã có hóa đơn chờ xử lý."}</p>}
+    {bill && <p className="sale-muted">{paymentConfirmed ? "Hóa đơn đã thanh toán." : "Phiên đã có hóa đơn chờ xử lý."}</p>}
     {busy && <p role="status">Đang xử lý…</p>}
-    {error && <p role="alert" className="sale-error">{error}</p>}
+    {error && !visibleDialog && <p role="alert" className="sale-error">{error}</p>}
     {notice && <p role="status">{notice}</p>}
+    {storageError && !visibleDialog && <p role="alert" className="sale-error">{storageError}</p>}
     {isAdmin && currentSnapshot && <section className={`sale-invoice${currentSnapshot.status === "PAID" ? " sale-receipt" : ""}`} aria-label="Nội dung hóa đơn">
       <h3>Hóa đơn {currentSnapshot.billCode}</h3>
       <p>{currentSnapshot.tableName} · {currentSnapshot.creatorName}</p>
       <ItemTable items={currentSnapshot.items} />
       <p className="sale-total">Tổng hóa đơn <strong>{vnd(currentSnapshot.totalAmount)}</strong></p>
       {currentSnapshot.status === "PAID" ? <button className="sale-print-button" type="button" onClick={() => window.print()}>In hóa đơn</button>
-        : !paid && <button className="sale-primary" type="button" disabled={busy} onClick={() => setDialog({ type: "pay", code: data.sessionCode, billId: currentSnapshot.id })}>Xác nhận thu tiền</button>}
+        : !paymentConfirmed && <button className="sale-primary" type="button" disabled={writesDisabled || Boolean(storageError)} onClick={() => openDialog({
+          type: "pay", code: data.sessionCode, billId: currentSnapshot.id,
+          expectedAmount: paymentAttempt?.expectedAmount ?? currentSnapshot.totalAmount,
+          method: paymentAttempt?.method ?? "CASH", reference: paymentAttempt?.referenceCode ?? "",
+        })}>{paymentAttempt ? "Đối soát thu tiền" : "Xác nhận thu tiền"}</button>}
     </section>}
-    {dialog && <ConfirmDialog title={dialog.type === "reset" ? "Đặt lại bàn" : "Xác nhận thu tiền"} busy={busy} onDismiss={() => setDialog(null)}
+    {visibleDialog && <ConfirmDialog title={dialog.type === "reset" ? "Đặt lại bàn" : "Xác nhận thu tiền"} busy={busy} stale={stale} onDismiss={dismissDialog}
       onConfirm={() => {
-        if (dialog.code !== data.sessionCode || (dialog.type === "pay" && dialog.billId !== bill?.id)) { setDialog(null); setError("Phiên bàn hoặc hóa đơn đã thay đổi."); return; }
+        if (dialog.code !== data.sessionCode || (dialog.type === "pay" && (dialog.billId !== bill?.id || bill.status !== "PENDING"))) {
+          setDialog(null);
+          setError("Phiên bàn hoặc hóa đơn đã thay đổi.");
+          return;
+        }
         if (dialog.type === "reset") void execute(options => postSales(`${path}/reset`, { expectedSessionCode: dialog.code }, options), () => { setDialog(null); setNotice("Đã đặt lại bàn."); refresh(); });
-        else void execute(options => postSales(`/api/v1/bills/${encodeURIComponent(dialog.billId)}/payments`, {
-          method, referenceCode: reference.trim() || null,
-          idempotencyKey: keyFor(`pay:${dialog.billId}:${method}:${reference.trim()}`),
-        }, options), result => { setSnapshot(result.bill); setDialog(null); setNotice("Đã xác nhận thu tiền. Có thể in hóa đơn."); refresh(); });
+        else {
+          const { method, reference } = dialog;
+          if (active.current) return;
+          let dispatched = false;
+          let firstKey;
+          void execute(async options => {
+            const saved = readPaymentAttempt(attemptKey);
+            const expectedAmount = checkedPaymentAmount(saved?.expectedAmount ?? dialog.expectedAmount);
+            const attempt = saved ?? {
+              method, referenceCode: normalizePaymentReference(method, reference),
+              idempotencyKey: crypto.randomUUID(), expectedAmount,
+            };
+            const command = { method: attempt.method, referenceCode: attempt.referenceCode, idempotencyKey: attempt.idempotencyKey };
+            const receipt = await postSales(`/api/v1/bills/${encodeURIComponent(dialog.billId)}/payments`, command, options, () => {
+              const current = readPaymentAttempt(attemptKey);
+              if (current?.idempotencyKey !== saved?.idempotencyKey) throw new Error("Giao dịch đã thay đổi. Mở lại hóa đơn để đối soát.");
+              if (!current || current.expectedAmount == null) persistPaymentAttempt(attemptKey, { ...attempt, expectedAmount });
+              if (!current) firstKey = command.idempotencyKey;
+              dispatched = true;
+            });
+            return verifiedPaymentBill(receipt, dialog.billId, dialog.code, command, expectedAmount);
+          }, confirmedBill => {
+            setSnapshot(confirmedBill); setDialog(null); setNotice("Đã xác nhận thu tiền. Có thể in hóa đơn."); refresh();
+          }, failure => {
+            // Checkout validates a new command before any write. A 400 on
+            // replay cannot settle an earlier request that may have committed.
+            if (firstKey && failure.status === 400) {
+              try { clearRejectedPayment(attemptKey, firstKey); }
+              catch { setError("Máy chủ đã từ chối giao dịch, nhưng chưa xóa được mã trên thiết bị. Kiểm tra bộ nhớ phiên trước khi thử lại."); }
+              return;
+            }
+            if (dispatched && failure.status !== 409) refresh();
+          });
+        }
       }}>
       {dialog.type === "reset" ? <p>Kết thúc phiên đã thanh toán của {table.name}?</p> : <>
-        <p>Chỉ xác nhận khi đã nhận đủ {vnd(currentSnapshot?.totalAmount)}.</p>
-        <label>Phương thức<select value={method} onChange={event => setMethod(event.target.value)}><option value="CASH">Tiền mặt</option><option value="BANK_TRANSFER">Chuyển khoản</option></select></label>
-        {method === "BANK_TRANSFER" && <label>Mã tham chiếu (nếu có)<input value={reference} maxLength={128} onChange={event => setReference(event.target.value)} /></label>}
+        <div className="sale-payment-summary">
+          <span>Số tiền cần thu</span>
+          <strong>{vnd(dialog.expectedAmount)}</strong>
+        </div>
+        {!paymentAttempt && <p className="sale-muted">Chỉ xác nhận khi đã nhận đủ số tiền trên.</p>}
+        {paymentAttempt && !busy && <p role="status">Chưa xác nhận kết quả thu tiền. Chỉ gửi lại giao dịch đã nhập để đối soát.</p>}
+        <label>Phương thức<select value={dialog.method} disabled={busy || Boolean(paymentAttempt)} onChange={event => {
+          const method = event.target.value;
+          setDialog(previous => ({ ...previous, method, reference: method === "CASH" ? "" : previous.reference }));
+        }}><option value="CASH">Tiền mặt</option><option value="BANK_TRANSFER">Chuyển khoản</option></select></label>
+        {dialog.method === "BANK_TRANSFER" && <label>Mã tham chiếu (nếu có)<input value={dialog.reference} disabled={busy || Boolean(paymentAttempt)} maxLength={128}
+          onChange={event => { const reference = event.target.value; setDialog(previous => ({ ...previous, reference })); }} /></label>}
       </>}
+      {stale && <p role="status">Đang chờ cập nhật trạng thái bàn và hóa đơn.</p>}
+      {error && <p role="alert" className="sale-error">{error}</p>}
     </ConfirmDialog>}
   </>;
 }
 
-function ConfirmDialog({ title, busy, onDismiss, onConfirm, children }) {
+function ConfirmDialog({ title, busy, stale, onDismiss, onConfirm, children }) {
   const dialogRef = useRef(null);
   useEffect(() => {
     const element = dialogRef.current;
@@ -175,10 +263,10 @@ function ConfirmDialog({ title, busy, onDismiss, onConfirm, children }) {
   return <dialog className="sale-dialog" ref={dialogRef} aria-labelledby="sale-confirm-title"
     onCancel={event => { event.preventDefault(); if (!busy) onDismiss(); }}>
     <h2 id="sale-confirm-title">{title}</h2>
-    <form onSubmit={event => { event.preventDefault(); if (!busy) onConfirm(); }}>
+    <form onSubmit={event => { event.preventDefault(); if (!busy && !stale) onConfirm(); }}>
       {children}
       <div className="sale-actions"><button type="button" disabled={busy} onClick={onDismiss}>Hủy</button>
-        <button type="submit" className="sale-primary" disabled={busy}>{busy ? "Đang xử lý…" : "Xác nhận"}</button></div>
+        <button type="submit" className="sale-primary" disabled={busy || stale}>{busy ? "Đang xử lý…" : "Xác nhận"}</button></div>
     </form>
   </dialog>;
 }
