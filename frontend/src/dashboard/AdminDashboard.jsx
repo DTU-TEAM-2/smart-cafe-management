@@ -2,15 +2,15 @@ import { useEffect } from "react";
 import { useAuth } from "../auth/useAuth.js";
 
 export default function AdminDashboard({ onNavigate }) {
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
 
   useEffect(() => {
-    if (!user) {
+    if (!user && !token) {
       onNavigate("#login");
-    } else if (user.role !== "ADMIN") {
+    } else if (user && user.role !== "ADMIN") {
       onNavigate("#top");
     }
-  }, [user, onNavigate]);
+  }, [user, token, onNavigate]);
 
   if (!user || user.role !== "ADMIN") {
     return null;
@@ -44,6 +44,7 @@ export default function AdminDashboard({ onNavigate }) {
         <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "8px", padding: "24px" }}>
           <h3 style={{ color: "var(--gold)", margin: "0 0 8px" }}>☕ Quản lý Món & Menu</h3>
           <p style={{ color: "var(--muted)", fontSize: "13px", lineHeight: "1.5" }}>Cập nhật danh mục đồ uống, giá cả, hình ảnh món và trạng thái phục vụ.</p>
+          <a href="#admin-menu">Mở quản lý thực đơn</a>
         </div>
         <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "8px", padding: "24px" }}>
           <h3 style={{ color: "var(--gold)", margin: "0 0 8px" }}>🪑 Quản lý Bàn phục vụ</h3>

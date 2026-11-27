@@ -16,6 +16,7 @@ import java.util.concurrent.TimeUnit;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -58,6 +59,17 @@ class StaffHttpReportTest {
     private String suffix;
     private Long adminUserId;
     private Long staffUserId;
+
+    @AfterEach
+    void removeReportFixtures() {
+        if (suffix == null) return;
+        StaffTestDatabaseGuard.requireTestCatalog(jdbc);
+        // HTTP requests commit outside the test thread; rollback cannot clean them up.
+        jdbc.update("DELETE p FROM staff_profiles p JOIN users u ON u.id=p.user_id WHERE LOCATE(?,u.username)>0", suffix);
+        jdbc.update("DELETE o FROM auth_otp_challenges o JOIN users u ON u.id=o.user_id WHERE LOCATE(?,u.username)>0", suffix);
+        jdbc.update("DELETE FROM users WHERE LOCATE(?,username)>0", suffix);
+        assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE LOCATE(?,username)>0", Integer.class, suffix)).isZero();
+    }
 
     private String token(String username, String role) throws Exception {
         Long id = jdbc.queryForObject("SELECT id FROM users WHERE username=?", Long.class, username);
