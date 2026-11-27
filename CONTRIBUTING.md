@@ -35,8 +35,8 @@ Không tạo release cho mỗi feature. Chỉ tạo release từ develop khi nh�
 - PR có title `type(scope): CF-xx mô tả`, link Jira thật và điền ba dòng Link Jira, Mã CF trong tiêu đề và Nguồn xác nhận mã CF theo mẫu PR. Mở [bảng Jira DT2](https://duymanhdnvn20092005.atlassian.net/jira/software/projects/DT2/boards/35) để tìm thẻ và nguồn mã đã chốt. Check PR Jira metadata đối chiếu định dạng và mã CF trong tiêu đề. PR phải nêu mục tiêu/kết quả, tests/ảnh, tác động/rủi ro và việc nhóm cần làm sau merge; assignee đúng người làm, reviewer đúng người cần xem.
 - Nhờ người review duyệt sau khi CI/bot checks đạt. Hiện GitHub Actions có Git Flow, Governance, PR title, PR Jira metadata, Backend MySQL, Frontend UI; không giả báo đã có bot AI review code riêng.
 - Mọi PR vào nhánh chung cần **2 reviewer khác tác giả approve**, không dùng nhiều tài khoản của một người để đủ số lượng. Commit mới yêu cầu review lại và hủy approval cũ.
-- Nếu đổi file CI/validator/policy được CODEOWNERS bảo vệ, một trong hai reviewer phải là NV-DuyManh hoặc haitan2408, khác tác giả. CODEOWNERS lấy từ base; PR bootstrap thêm file này cần owner review thủ công trước merge, không giả có enforcement khi file chưa vào base.
-- Hết blocker, xử lý thảo luận; ai comment xác nhận/resolve comment đó. Chỉ NV-DuyManh hoặc haitan2408 quyết định merge qua PR khi đạt điều kiện, không bypass số approval/CI.
+- Nếu đổi file CI/validator/policy được bảo vệ, một trong hai reviewer phê duyệt phải là CODEOWNER khác tác giả. GitHub đọc `.github/CODEOWNERS` từ nhánh đích.
+- Người mở thảo luận xác nhận và đóng thảo luận đó. Chỉ NV-DuyManh được merge qua PR khi đủ phê duyệt và CI.
 - Task có thể squash vào develop. Release/hotfix và đồng bộ main → develop dùng merge commit để giữ ancestry; không rebase/force-push nhánh chung hoặc rewrite lịch sử của người khác.
 - Giữ attribution; cherry-pick chọn lọc có `-x` và ghi nguồn. Không bịa Co-authored-by.
 - Tuân thủ [rule công nghệ](.agents/rules/technology-constraints.md): Spring Boot / ReactJS / MySQL bắt buộc, công cụ khác tùy chọn theo task.
