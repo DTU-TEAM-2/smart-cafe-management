@@ -84,3 +84,11 @@ Skills follow-up: `cafe-review`, `vercel-react-best-practices`, `fixing-accessib
 - Frontend lint và unit **14/14 PASS**. Test bỏ reviver source context để mô phỏng parser cũ: số unsafe báo lỗi, số safe giữ đúng chữ số; quoted strings không bị làm tròn. Đây là mô phỏng khả năng parser, **không phải kiểm thử browser/version cũ thực tế**; không tuyên bố hỗ trợ thêm browser. Frontend production không đổi, không chạy lại Playwright local chỉ vì sửa tài liệu/test.
 - YAML parse PASS, 78 local `$ref` được resolve và ví dụ request khớp biến thể kiểu; đây là kiểm tra cấu trúc/tham chiếu/ví dụ, không phải chứng nhận OpenAPI validator đầy đủ. `git diff --check` PASS.
 - Phần nghiệm thu Cloudinary live, browser matrix đầy đủ, Aikido authentication/scan và hai human approvals vẫn giữ đúng trạng thái chưa hoàn tất; không coi việc sửa P3 là đã đạt các phần này.
+
+## Follow-up response contract — 27/11/2026
+
+- Thread 4715360896: JSON hợp lệ nhưng body 2xx rỗng/sai dữ liệu trước đây đóng form và báo thành công. POST nay yêu cầu 201, PUT yêu cầu 200; code/name/version và các trường item categoryCode/price/available/imageMediaId phải khớp payload đã chuẩn hóa bởi editor. So sánh số chính xác bằng decimal text/BigInt, không qua Number. DELETE yêu cầu 204.
+- Body/status không khớp sau mutation chuyển sang uncertain/pendingSave, giữ draft, khóa gửi lại; GET reconciliation dùng cùng kiểm tra nội dung. Không coi phản hồi sai là bằng chứng server chưa commit. Không sửa backend/schema/provider.
+- Lint/build và 19 unit tests đạt. Unit matrix kiểm tra create/update cả category/item: {}, null, 204, status sai, thiếu trường, sai code/name/version, nhóm/giá/mediaId/available khác; dữ liệu đúng và GET đối chiếu chỉ một mutation. DELETE 200/201 uncertain, 204 thành công.
+- Lượt Playwright đầy đủ: 390 đạt/4 lỗi do hai fixture cũ (201 {} và PUT không tăng version), mỗi fixture chạy desktop/mobile. Đã sửa fixture theo MenuController/MenuCatalog và chạy lại toàn bộ menu-admin: 76/76 đạt. Các ca UI mới xác minh draft/nút lưu bị khóa, GET đối chiếu thành công và chỉ một PUT. Log local: graphify-out/pr23-success-contract-{unit,ui,menu}.log (không commit output).
+- Skills áp dụng: cafe-review (.agents/skills/cafe-review/SKILL.md), cafe-quality (.agents/skills/cafe-quality/SKILL.md). Giới hạn Cloudinary live/Aikido và human approvals giữ nguyên.

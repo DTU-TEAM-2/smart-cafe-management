@@ -121,7 +121,7 @@ test('upload failure retains draft and a rejected save reuses the uploaded media
       expect(request.postDataJSON()).toEqual({ code: 'TEST42', name: 'Coffee test', version: 0,
         categoryCode: 'CF', price: '45000', available: true, imageMediaId: '42' });
       if (writes === 1) return route.fulfill({ status: 409, json: { code: 'MENU_CONFLICT' } });
-      return route.fulfill({ status: 201, json: {} });
+      return route.fulfill({ status: 201, json: { ...request.postDataJSON(), version: 0 } });
     }
     return route.fulfill({ json: { content: [], totalElements: 0 } });
   });
@@ -223,7 +223,7 @@ test('a delayed old-session 401 cannot clear a replacement login', async ({ page
   expect(await page.evaluate(() => sessionStorage.getItem('smart_cafe_token'))).toBe('replacement-token');
 });
 
-for (const outcome of ['dropped', 'invalid-json', 'changed-by-another-admin']) {
+for (const outcome of ['dropped', 'invalid-json', 'empty-object', 'null-body', 'no-content', 'wrong-code', 'wrong-version', 'changed-by-another-admin']) {
   test(`uncertain save reconciles without a second write: ${outcome}`, async ({ page }) => {
     let writes = 0;
     await menuFixture(page, async (route, path, item) => {
@@ -232,6 +232,11 @@ for (const outcome of ['dropped', 'invalid-json', 'changed-by-another-admin']) {
       Object.assign(item, route.request().postDataJSON(), { version: outcome === 'changed-by-another-admin' ? '9' : '8' });
       if (outcome === 'changed-by-another-admin') item.name = 'Other admin coffee';
       if (outcome === 'invalid-json') await route.fulfill({ status: 200, contentType: 'application/json', body: '{' });
+      else if (outcome === 'empty-object') await route.fulfill({ status: 200, json: {} });
+      else if (outcome === 'null-body') await route.fulfill({ status: 200, json: null });
+      else if (outcome === 'no-content') await route.fulfill({ status: 204 });
+      else if (outcome === 'wrong-code') await route.fulfill({ json: { ...item, code: 'OTHER' } });
+      else if (outcome === 'wrong-version') await route.fulfill({ json: { ...item, version: '7' } });
       else await route.abort('failed');
       return true;
     });
@@ -453,6 +458,7 @@ test('a group missing from options does not prevent editing its item from fresh 
       if (route.request().method() === 'PUT') {
         expect(route.request().postDataJSON().categoryCode).toBe('TE');
         written = true;
+        tea.version = (BigInt(tea.version) + 1n).toString();
       }
       await route.fulfill({ json: tea }); return true;
     }

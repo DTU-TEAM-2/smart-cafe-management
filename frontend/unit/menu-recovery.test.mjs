@@ -1,6 +1,6 @@
 import { afterEach, test } from 'node:test';
 import assert from 'node:assert/strict';
-import { loadCategories, readMenu, saveMenu } from '../src/menu/menuApi.js';
+import { deleteMenu, loadCategories, readMenu, reconcileMenuSave, saveMenu } from '../src/menu/menuApi.js';
 
 const originalFetch = globalThis.fetch;
 const originalParse = JSON.parse;
@@ -9,6 +9,64 @@ const json = data => new Response(JSON.stringify(data), { headers: { 'Content-Ty
 const groups = (start, end) => Array.from({ length: end - start }, (_, index) => ({
   code: `C${String(start + index).padStart(3, '0')}`, name: 'Coffee', version: '0', itemCount: 0,
 }));
+
+for (const editing of [false, true]) {
+  for (const kind of ['categories', 'items']) {
+    test(`${kind} ${editing ? 'update' : 'create'} validates success before accepting the write`, async () => {
+      const value = { code: 'CF01', name: 'Coffee fixture', categoryCode: 'CF', price: '999999999999999999',
+        available: false, imageMediaId: '9007199254740993', version: '9007199254740993' };
+      const expected = kind === 'items' ? { ...value } : { code: value.code, name: value.name };
+      expected.version = editing ? '9007199254740994' : '0';
+      const bad = [{}, null, { ...expected, code: 'OTHER' }, { ...expected, version: '1' },
+        { ...expected, name: 'Other name' }, { ...expected, version: 'invalid' }];
+      if (kind === 'items') bad.push({ ...expected, categoryCode: 'OTHER' }, { ...expected, price: '999999999999999998' },
+        { ...expected, imageMediaId: '9007199254740992' }, { ...expected, available: true });
+      for (const field of Object.keys(expected)) {
+        const missing = { ...expected };
+        delete missing[field];
+        bad.push(missing);
+      }
+      for (const body of [...bad, 'no-content', 'wrong-status', expected]) {
+        let writes = 0;
+        let reads = 0;
+        globalThis.fetch = async (url, options) => {
+          if (url.endsWith('/csrf')) return json({ headerName: 'X-CSRF-TOKEN', token: 'test' });
+          if (options.method === 'GET') { reads++; return json(expected); }
+          writes++;
+          if (body === 'no-content') return new Response(null, { status: 204 });
+          return new Response(JSON.stringify(body === 'wrong-status' ? expected : body),
+            { status: body === 'wrong-status' ? (editing ? 201 : 200) : (editing ? 200 : 201) });
+        };
+        if (body === expected) assert.deepEqual(await saveMenu(kind, value, editing, 'Bearer test'), expected);
+        else {
+          let pending;
+          await assert.rejects(saveMenu(kind, value, editing, 'Bearer test'), error => {
+            pending = error.pendingSave;
+            return error.uncertain && Boolean(pending);
+          });
+          assert.deepEqual(await reconcileMenuSave(pending, 'Bearer test'), expected);
+          assert.equal(reads, 1);
+        }
+        assert.equal(writes, 1);
+      }
+    });
+  }
+}
+
+test('DELETE accepts only the contracted 204 and marks other successes uncertain', async () => {
+  for (const status of [200, 201, 204]) {
+    let writes = 0;
+    globalThis.fetch = async url => {
+      if (url.endsWith('/csrf')) return json({ headerName: 'X-CSRF-TOKEN', token: 'test' });
+      writes++;
+      return new Response(status === 204 ? null : '{}', { status });
+    };
+    const result = deleteMenu('items', { code: 'CF01', version: '7' }, 'Bearer test');
+    if (status === 204) assert.equal(await result, null);
+    else await assert.rejects(result, error => error.uncertain === true);
+    assert.equal(writes, 1);
+  }
+});
 
 test('category paging restarts after 101 groups shrink to 100 between pages', async () => {
   let calls = 0;

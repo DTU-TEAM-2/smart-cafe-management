@@ -15,12 +15,15 @@ export function menuPath(kind, code) {
 }
 
 async function request(path, authorization, options = {}) {
-  const { method = 'GET', headers, body, signal } = options;
+  const { method = 'GET', headers, body, signal, expectedStatus } = options;
   const response = await fetch(root + path, {
     method, signal, credentials: 'same-origin', cache: 'no-store', body,
     headers: { Accept: 'application/json', Authorization: authorization.header ?? authorization, ...headers },
   });
-  if (response.ok) return response.status === 204 ? null : parseMenuJson(await response.text());
+  if (response.ok) {
+    if (expectedStatus !== undefined && response.status !== expectedStatus) throw new Error('Phản hồi không đúng hợp đồng thực đơn.');
+    return response.status === 204 ? null : parseMenuJson(await response.text());
+  }
   if (response.status === 401 && !signal?.aborted) authorization.onUnauthorized?.();
   const problem = await response.json().catch(() => ({}));
   const messages = {
@@ -65,12 +68,12 @@ export async function loadCategories(authorization, signal) {
   throw new Error('Danh sách nhóm món đang thay đổi. Vui lòng tải lại nhóm món rồi thử lại.');
 }
 
-async function writeMenu(path, method, body, authorization, signal) {
+async function writeMenu(path, method, body, authorization, signal, expectedStatus) {
   const csrf = await request('/csrf', authorization, { signal });
   const headers = { [csrf.headerName]: csrf.token };
   if (body !== undefined && !(body instanceof FormData)) headers['Content-Type'] = 'application/json';
   try {
-    return await request(path, authorization, { method, body, headers, signal });
+    return await request(path, authorization, { method, body, headers, signal, expectedStatus });
   } catch (error) {
     error.mutationAttempted = true;
     if (!signal?.aborted && (!error.status || error.status >= 500)) error.uncertain = true;
@@ -109,11 +112,15 @@ export async function saveMenu(kind, value, editing, authorization, signal, uplo
   const payload = { code, name, version: editing ? value.version : 0 };
   if (kind === 'items') Object.assign(payload, { categoryCode, price, available, imageMediaId });
   try {
-    return await writeMenu(menuPath(kind, editing ? code : undefined), editing ? 'PUT' : 'POST',
-      JSON.stringify(payload), authorization, signal);
+    const actual = await writeMenu(menuPath(kind, editing ? code : undefined), editing ? 'PUT' : 'POST',
+      JSON.stringify(payload), authorization, signal, editing ? 200 : 201);
+    if (!matchesSavedMenu(actual, kind, payload, editing)) {
+      throw Object.assign(new Error('Phản hồi lưu không khớp dữ liệu đã gửi.'), { uncertain: true });
+    }
+    return actual;
   } catch (error) {
     if (!error.uncertain) throw error;
-    // A dropped response (including an unreadable success body) is not a rejected write.
+    // A missing, unreadable or mismatched success response is not a rejected write.
     error.pendingSave = { kind, payload, editing };
     error.message = 'Chưa xác nhận được kết quả lưu. Hãy kiểm tra kết quả trước khi tiếp tục; không gửi lại thao tác lưu.';
     throw error;
@@ -122,16 +129,21 @@ export async function saveMenu(kind, value, editing, authorization, signal, uplo
 
 export function deleteMenu(kind, row, authorization, signal) {
   return writeMenu(`${menuPath(kind, row.code)}?${new URLSearchParams({ version: row.version })}`,
-    'DELETE', undefined, authorization, signal);
+    'DELETE', undefined, authorization, signal, 204);
+}
+
+function matchesSavedMenu(actual, kind, payload, editing) {
+  if (!actual || typeof actual !== 'object' || Array.isArray(actual)
+    || !/^(0|[1-9]\d*)$/.test(actual.version ?? '')) return false;
+  const expectedVersion = editing ? BigInt(payload.version) + 1n : 0n;
+  const fields = kind === 'items' ? ['code', 'name', 'categoryCode', 'price', 'available', 'imageMediaId'] : ['code', 'name'];
+  return fields.every(field => (actual[field] ?? null) === (payload[field] ?? null))
+    && BigInt(actual.version) === expectedVersion;
 }
 
 export async function reconcileMenuSave(pending, authorization, signal) {
   const { kind, payload, editing } = pending;
   const actual = await readMenu(kind, payload.code, authorization, signal);
-  const expectedVersion = editing ? BigInt(payload.version) + 1n : 0n;
-  const fields = kind === 'items' ? ['code', 'name', 'categoryCode', 'price', 'available', 'imageMediaId'] : ['code', 'name'];
-  const matches = fields.every(field => (actual[field] ?? null) === (payload[field] ?? null))
-    && BigInt(actual.version) === expectedVersion;
-  if (!matches) throw new Error('Dữ liệu trên máy chủ khác bản vừa gửi hoặc đã thay đổi tiếp. Hãy hủy biểu mẫu và tải lại để kiểm tra; không tự ghi đè.');
+  if (!matchesSavedMenu(actual, kind, payload, editing)) throw new Error('Dữ liệu trên máy chủ khác bản vừa gửi hoặc đã thay đổi tiếp. Hãy hủy biểu mẫu và tải lại để kiểm tra; không tự ghi đè.');
   return actual;
 }
