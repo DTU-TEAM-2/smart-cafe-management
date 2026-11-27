@@ -99,7 +99,9 @@ test("manager prints only confirmed server snapshot and reset dialog restores fo
     }
     if (url.pathname.endsWith("/bills/91")) { await route.fulfill({ json: bill(paid ? "PAID" : "PENDING") }); return true; }
     if (url.pathname.endsWith("/bills/91/payments")) {
-      expect(route.request().postDataJSON()).not.toHaveProperty("amount");
+      const payment = route.request().postDataJSON();
+      expect(payment).toMatchObject({ method: "CASH", referenceCode: null });
+      expect(payment).not.toHaveProperty("amount");
       paid = true; await route.fulfill({ json: { bill: bill("PAID"), payment: { amount: "91000" } } }); return true;
     }
     return false;
@@ -110,12 +112,18 @@ test("manager prints only confirmed server snapshot and reset dialog restores fo
   await page.getByRole("button", { name: "Xem hóa đơn hiện tại" }).click();
   await expect(page.getByRole("button", { name: "In hóa đơn" })).toHaveCount(0);
   await page.getByRole("button", { name: "Xác nhận thu tiền" }).click();
+  await page.getByLabel("Phương thức").selectOption("BANK_TRANSFER");
+  await page.getByLabel(/Mã tham chiếu/).fill("REF-TEST");
+  await page.getByLabel("Phương thức").selectOption("CASH");
+  await expect(page.getByLabel(/Mã tham chiếu/)).toHaveCount(0);
   await page.getByRole("dialog").getByRole("button", { name: "Xác nhận", exact: true }).click();
   await page.getByRole("button", { name: "In hóa đơn" }).click();
   expect(await page.evaluate(() => window.printedBill)).toContain("Món snapshot");
   expect(await page.evaluate(() => window.printedBill)).not.toContain("Giá xem trước");
   await page.emulateMedia({ media: "print" });
   await expect(page.locator(".sale-receipt")).toHaveCSS("visibility", "visible");
+  await expect(page.locator(".sale-receipt table")).toHaveCSS("table-layout", "fixed");
+  await expect(page.getByRole("heading", { name: /Chi tiết đơn hàng/ })).toBeHidden();
   await page.emulateMedia({ media: "screen" });
   const reset = page.getByRole("button", { name: "Đặt lại bàn" });
   await reset.click();
@@ -149,6 +157,7 @@ test("new session during polling invalidates an open reset confirmation", async 
 });
 
 test("income shows real zero and validates a custom range before querying", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 700 });
   let customQueries = 0;
   await setup(page, "ADMIN", async (route, url) => {
     if (!url.pathname.endsWith("/income")) return false;
@@ -160,6 +169,7 @@ test("income shows real zero and validates a custom range before querying", asyn
   await page.goto("/#sale-income");
   await expect(page.getByRole("heading", { name: "Doanh thu hôm nay" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Biểu đồ doanh thu" })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
   await page.getByLabel("Từ ngày").fill("2026-11-12");
   await page.getByLabel("Đến ngày").fill("2026-11-11");
   await page.getByRole("button", { name: "Tính thu nhập" }).click();

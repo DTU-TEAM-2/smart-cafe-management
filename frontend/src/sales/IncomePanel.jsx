@@ -27,18 +27,18 @@ export default function IncomePanel({ authorization, credentials }) {
     <h1>Thu nhập</h1>
     <p className="sale-muted">Doanh thu từ hóa đơn đã xác nhận thanh toán · Giờ Việt Nam</p>
     <div className="sale-panel">
-      <div className="sale-actions" aria-label="Kỳ thu nhập">{periods.map(([key, label]) => <button type="button"
+      <div className="sale-periods" role="group" aria-label="Kỳ thu nhập">{periods.map(([key, label]) => <button type="button"
         aria-pressed={period === key} key={key} onClick={() => { setPeriod(key); setQuery(`period=${key}`); setInvalid(false); }}>{label}</button>)}</div>
-      <form className="sale-actions sale-date-form" onSubmit={event => {
+      <form className="sale-date-form" onSubmit={event => {
         event.preventDefault();
         if (!from || !to || from > to) { setInvalid(true); return; }
         setInvalid(false); setPeriod("custom"); setQuery(new URLSearchParams({ from, to }).toString());
       }}>
-        <label>Từ ngày<input type="date" required value={from} onChange={event => setFrom(event.target.value)} aria-invalid={invalid} aria-describedby={invalid ? "sale-date-error" : undefined} /></label>
-        <label>Đến ngày<input type="date" required value={to} onChange={event => setTo(event.target.value)} aria-invalid={invalid} aria-describedby={invalid ? "sale-date-error" : undefined} /></label>
+        <label>Từ ngày<input type="date" required value={from} onChange={event => { setFrom(event.target.value); setInvalid(false); }} aria-invalid={invalid} aria-describedby={invalid ? "sale-date-error" : undefined} /></label>
+        <label>Đến ngày<input type="date" required value={to} onChange={event => { setTo(event.target.value); setInvalid(false); }} aria-invalid={invalid} aria-describedby={invalid ? "sale-date-error" : undefined} /></label>
         <button className="sale-primary" type="submit">Tính thu nhập</button>
       </form>
-      {invalid && <p id="sale-date-error" role="alert">Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.</p>}
+      {invalid && <p className="sale-error" id="sale-date-error" role="alert">Ngày bắt đầu phải trước hoặc bằng ngày kết thúc.</p>}
     </div>
     <LoadState resource={resource} />
     {data && <div className="sale-metrics">

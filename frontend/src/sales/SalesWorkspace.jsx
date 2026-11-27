@@ -80,6 +80,7 @@ function TableOrders({ table, isAdmin, authorization, credentials, keys, refresh
 
 function ItemTable({ items }) {
   return <div className="sale-table-wrap"><table>
+    <colgroup><col className="sale-item-name" /><col className="sale-item-quantity" /><col /><col /></colgroup>
     <thead><tr><th scope="col">Tên món</th><th scope="col">Số lượng</th><th scope="col">Đơn giá</th><th scope="col">Thành tiền</th></tr></thead>
     <tbody>{items.map(item => <tr key={item.id ?? item.orderItemId}><th scope="row">{item.itemName}</th>
       <td>{item.quantity}</td><td>{vnd(item.unitPrice)}</td><td>{vnd(item.lineTotal)}</td></tr>)}</tbody>
@@ -150,15 +151,25 @@ function OrderActions({ path, data, table, isAdmin, authorization, credentials, 
       onConfirm={() => {
         if (dialog.code !== data.sessionCode || (dialog.type === "pay" && dialog.billId !== bill?.id)) { setDialog(null); setError("Phiên bàn hoặc hóa đơn đã thay đổi."); return; }
         if (dialog.type === "reset") void execute(options => postSales(`${path}/reset`, { expectedSessionCode: dialog.code }, options), () => { setDialog(null); setNotice("Đã đặt lại bàn."); refresh(); });
-        else void execute(options => postSales(`/api/v1/bills/${encodeURIComponent(dialog.billId)}/payments`, {
-          method, referenceCode: reference.trim() || null,
-          idempotencyKey: keyFor(`pay:${dialog.billId}:${method}:${reference.trim()}`),
-        }, options), result => { setSnapshot(result.bill); setDialog(null); setNotice("Đã xác nhận thu tiền. Có thể in hóa đơn."); refresh(); });
+        else {
+          const referenceCode = method === "BANK_TRANSFER" ? reference.trim() || null : null;
+          void execute(options => postSales(`/api/v1/bills/${encodeURIComponent(dialog.billId)}/payments`, {
+            method, referenceCode,
+            idempotencyKey: keyFor(`pay:${dialog.billId}:${method}:${referenceCode ?? ""}`),
+          }, options), result => { setSnapshot(result.bill); setDialog(null); setNotice("Đã xác nhận thu tiền. Có thể in hóa đơn."); refresh(); });
+        }
       }}>
       {dialog.type === "reset" ? <p>Kết thúc phiên đã thanh toán của {table.name}?</p> : <>
-        <p>Chỉ xác nhận khi đã nhận đủ {vnd(currentSnapshot?.totalAmount)}.</p>
-        <label>Phương thức<select value={method} onChange={event => setMethod(event.target.value)}><option value="CASH">Tiền mặt</option><option value="BANK_TRANSFER">Chuyển khoản</option></select></label>
-        {method === "BANK_TRANSFER" && <label>Mã tham chiếu (nếu có)<input value={reference} maxLength={128} onChange={event => setReference(event.target.value)} /></label>}
+        <div className="sale-payment-summary">
+          <span>Số tiền cần thu</span>
+          <strong>{vnd(currentSnapshot?.totalAmount)}</strong>
+        </div>
+        <p className="sale-muted">Chỉ xác nhận khi đã nhận đủ số tiền trên.</p>
+        <label>Phương thức<select value={method} disabled={busy} onChange={event => {
+          setMethod(event.target.value);
+          if (event.target.value === "CASH") setReference("");
+        }}><option value="CASH">Tiền mặt</option><option value="BANK_TRANSFER">Chuyển khoản</option></select></label>
+        {method === "BANK_TRANSFER" && <label>Mã tham chiếu (nếu có)<input value={reference} disabled={busy} maxLength={128} onChange={event => setReference(event.target.value)} /></label>}
       </>}
     </ConfirmDialog>}
   </>;
