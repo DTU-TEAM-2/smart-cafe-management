@@ -3,6 +3,7 @@ package vn.codegym.smartcafe.auth;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataAccessException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -151,20 +152,18 @@ public class OtpService {
                         now
                 );
                 authRepository.saveOtpChallenge(dummyChallenge);
-                log.info("Password reset dummy challenge created for non-existent or modified email: {}", email);
             }
 
             return new ResetReservation(challengeId, recipientId, recipientEmail, otpCode);
         });
 
         // Dispatch email OUTSIDE the database transaction and without holding any user row locks
-        if (reservation != null && reservation.recipientId() != null) {
+        if (reservation != null && reservation.recipientId() != null
+                && canDispatchInitialOtp(reservation)) {
             try {
-                if (canDispatchOtp(reservation.challengeId(), reservation.recipientId(), reservation.recipientEmail(), 1)) {
-                    emailService.sendOtpEmail(reservation.recipientEmail(), reservation.otpCode(), "RESET", otpValiditySeconds);
-                }
+                emailService.sendOtpEmail(reservation.recipientEmail(), reservation.otpCode(), "RESET", otpValiditySeconds);
             } catch (Exception ex) {
-                log.error("Failed to send OTP email to {}: {}", reservation.recipientEmail(), ex.getMessage());
+                log.warn("OTP initial mail delivery failed");
             }
         }
 
@@ -395,6 +394,16 @@ public class OtpService {
                 COOLDOWN_SECONDS,
                 reservation != null ? reservation.remainingValiditySeconds() : 0L
         );
+    }
+
+    private boolean canDispatchInitialOtp(ResetReservation reservation) {
+        try {
+            return canDispatchOtp(reservation.challengeId(), reservation.recipientId(), reservation.recipientEmail(), 1);
+        } catch (DataAccessException ex) {
+            // The reservation is committed. Suppress dispatch without changing the neutral response.
+            log.error("OTP initial dispatch blocked by database read failure");
+            return false;
+        }
     }
 
     private boolean canDispatchOtp(String challengeId, Long userId, String email, int expectedSends) {

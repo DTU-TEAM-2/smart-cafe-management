@@ -23,7 +23,7 @@
 		},
 		{
 			"key": "createdStaffId",
-			"value": "1",
+			"value": "",
 			"type": "string"
 		}
 	],
@@ -61,6 +61,13 @@
 		},
 		{
 			"name": "02. Lấy danh sách nhân viên (Phân trang mặc định)",
+			"event": [{
+				"listen": "test",
+				"script": {
+					"type": "text/javascript",
+					"exec": ["pm.test('Status is 200', function () { pm.response.to.have.status(200); });"]
+				}
+			}],
 			"request": {
 				"method": "GET",
 				"header": [
@@ -83,6 +90,13 @@
 		},
 		{
 			"name": "03. Tìm kiếm nhân viên (OR: Username / Tên / SĐT)",
+			"event": [{
+				"listen": "test",
+				"script": {
+					"type": "text/javascript",
+					"exec": ["pm.test('Status is 200', function () { pm.response.to.have.status(200); });"]
+				}
+			}],
 			"request": {
 				"method": "GET",
 				"header": [
@@ -109,11 +123,18 @@
 					"listen": "test",
 					"script": {
 						"exec": [
+							"pm.collectionVariables.unset('createdStaffId');",
+							"let createdId;",
 							"if (pm.response.code === 201) {",
-							"    var data = pm.response.json();",
-							"    pm.expect(data.id).to.be.a('string');",
-							"    pm.collectionVariables.set('createdStaffId', data.id);",
-							"}"
+							"    try { createdId = pm.response.json()?.id; } catch { createdId = null; }",
+							"}",
+							"const validId = typeof createdId === 'string' && /^[1-9][0-9]*$/.test(createdId);",
+							"if (!validId) pm.execution.setNextRequest(null);",
+							"pm.test('Create succeeds with an exact decimal staff ID', function () {",
+							"    pm.response.to.have.status(201);",
+							"    pm.expect(validId).to.equal(true);",
+							"});",
+							"if (validId) pm.collectionVariables.set('createdStaffId', createdId);"
 						],
 						"type": "text/javascript"
 					}
@@ -150,6 +171,13 @@
 		},
 		{
 			"name": "05. Xem chi tiết nhân viên (GET by ID)",
+			"event": [{
+				"listen": "test",
+				"script": {
+					"type": "text/javascript",
+					"exec": ["pm.test('Status is 200', function () { pm.response.to.have.status(200); });"]
+				}
+			}],
 			"request": {
 				"method": "GET",
 				"header": [
@@ -168,6 +196,13 @@
 		},
 		{
 			"name": "06. Cập nhật thông tin nhân viên (PUT by ID)",
+			"event": [{
+				"listen": "test",
+				"script": {
+					"type": "text/javascript",
+					"exec": ["pm.test('Status is 200', function () { pm.response.to.have.status(200); });"]
+				}
+			}],
 			"request": {
 				"method": "PUT",
 				"header": [
@@ -199,6 +234,13 @@
 		},
 		{
 			"name": "07. Xóa nhân viên - Soft Delete (DELETE by ID)",
+			"event": [{
+				"listen": "test",
+				"script": {
+					"type": "text/javascript",
+					"exec": ["pm.test('Status is 204', function () { pm.response.to.have.status(204); });"]
+				}
+			}],
 			"request": {
 				"method": "DELETE",
 				"header": [

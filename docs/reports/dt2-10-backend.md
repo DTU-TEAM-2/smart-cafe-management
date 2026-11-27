@@ -86,6 +86,15 @@
     3. **Phase 3 — Finalize (short CAS TX via `TransactionTemplate` `REQUIRED`):** Kiểm tra plain read user binding và gọi `recordOtpDelivery` (`WHERE id = ? AND used_at IS NULL AND sends = ? AND expires_at > ?`). Nếu SMTP thất bại, giữ nguyên `code_hash` cũ và ghi `delivery_status = 'FAILED'`, `last_error_code = 'SMTP_DELIVERY_FAILED'`. Nếu challenge bị `Staff PUT` thu hồi, `verifyOtp` tiêu thụ, hết hạn hoặc superseded trong lúc gửi mail (`updated == 0` kiểm tra lại qua locking read `findOtpChallengeByIdForUpdate`), thực hiện no-op an toàn để không hồi sinh credential.
   - **Giới hạn và trạng thái bất định:** Timeout SMTP hiện cấu hình riêng lẻ 5000 ms cho connection/read/write (không phải tổng timeout cho cả quá trình gửi). Nếu SMTP đã gửi nhưng DB Finalize lỗi hoặc process crash giữa Phase 1 và Phase 3, hệ thống **không tự rollback quota `sends` đã commit**, **không tự retry mù**, **không đánh dấu `SENT`**, giữ nguyên `code_hash` cũ và để challenge tiếp tục có thể verify bằng mã cũ (nếu còn hạn) hoặc resend lại sau cooldown 60s (nếu `sends < 3`), hoặc tạo yêu cầu `/forgot-password` mới. Quy ước hậu kiểm trong `OtpRetryLifecycleIntegrationTest.failedDatabaseTransitionRollsBackResend` (nhánh `deliveryTransition=true`) được cập nhật theo semantic bảo toàn quota này để Auth owner xem xét xác nhận.
 
+### Nghiệm thu hợp đồng OTP khi finalize lỗi
+
+**Chờ Auth owner xác nhận.** [Hợp đồng DT2-2 đã merge](../handover/dt2-2-otp-retry-lifecycle.md) yêu cầu rollback quota và cooldown nếu cập nhật kết quả gửi lỗi. PR #11 trả HTTP 500 và giữ reservation đã commit. Khi finalize thất bại trước commit, hash cũ còn nguyên. Khi kết quả commit chưa xác định, cần đối soát trạng thái trước khi kết luận mã nào có hiệu lực.
+
+- Giữ reservation như PR đang làm giúp nhả khóa trước SMTP và hạn chế gửi lại khi thư có thể đã ra ngoài. Một lần gửi vẫn tính vào quota dù người dùng có thể chưa nhận được mã mới dùng được.
+- Nếu giữ yêu cầu hoàn quota của hợp đồng cũ, cần chốt cách xác định khi nào bù reservation an toàn, nhất là khi SMTP hoặc commit có kết quả chưa rõ. Cách này cần thiết kế và kiểm thử riêng để tránh gửi trùng hoặc hoàn quota của lượt mới.
+
+Nguồn đối chiếu là [thread review OTP](https://github.com/DTU-TEAM-2/smart-cafe-management/pull/11#discussion_r4691836900).
+
 ### Định danh trong JSON
 
 Response danh sách, chi tiết và upload trả ID nhân viên và ID ảnh dưới dạng chuỗi thập phân. Giữ nguyên chuỗi khi đưa vào URL hoặc gửi `avatarMediaId`. Request nhận chuỗi chữ số hoặc số nguyên JSON dương trong phạm vi `BIGINT` có dấu, và nhận `null` khi không có ảnh. Giá trị như `501.9`, `5.01e2`, chuỗi rỗng hoặc ID vượt phạm vi trả HTTP 400.

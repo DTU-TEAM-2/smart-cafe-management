@@ -2,6 +2,10 @@ package vn.codegym.smartcafe.auth;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
+import org.springframework.dao.DataAccessResourceFailureException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.PlatformTransactionManager;
 import vn.codegym.smartcafe.auth.dto.ForgotPasswordResponse;
@@ -211,6 +215,24 @@ class OtpServiceTest {
         verify(emailService, times(deliveryTransition ? 1 : 0)).sendOtpEmail(anyString(), anyString(), anyString(), anyLong());
         verify(authRepository, times(deliveryTransition ? 1 : 0))
                 .recordOtpDelivery(eq(id), eq(2), anyString(), eq(true), any());
+    }
+
+    @Test
+    @ExtendWith(OutputCaptureExtension.class)
+    void initialOtpDispatchDatabaseFailureIsNotTreatedAsMailFailure(CapturedOutput output) {
+        String email = "existing@example.test";
+        UserRecord user = createUser(1L, "existing_user", email, "STAFF", "ACTIVE", 0L);
+        when(authRepository.findUserByEmail(email)).thenReturn(Optional.of(user));
+        when(authRepository.findUserByIdForUpdate(user.id())).thenReturn(Optional.of(user));
+        when(authRepository.checkAndIncrementLimit(anyString(), eq("RESET"), any(), any(), any()))
+                .thenReturn(true);
+        var failure = new DataAccessResourceFailureException("fixture database unavailable");
+        when(authRepository.findUserById(user.id())).thenThrow(failure);
+
+        assertThat(otpService.initiatePasswordResetOtp(email).challengeId()).isEqualTo("mocked-random-hex-id");
+        verifyNoInteractions(emailService);
+        assertThat(output.getAll()).contains("OTP initial dispatch blocked by database read failure")
+                .doesNotContain(email, failure.getMessage(), "Failed to send OTP email");
     }
 
     @Test
