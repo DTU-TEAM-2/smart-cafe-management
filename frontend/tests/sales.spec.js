@@ -426,6 +426,39 @@ test("requires CSRF and durable storage before sending and separates accounts", 
   await expect(dialog.getByLabel(/Mã tham chiếu/)).toHaveValue("REF-ACCOUNT-1");
 });
 
+test("a stale table response cannot show a verified payment as pending", async ({ page }) => {
+  let paid = false;
+  let paymentCount = 0;
+  await setup(page, "ADMIN", async (route, url) => {
+    if (url.pathname.endsWith("/1/services")) {
+      await route.fulfill({ json: services("1", "SESSION-OLD", "Cà phê", 1, { id: "91", status: paid ? "PAID" : "PENDING" }) });
+    } else if (url.pathname.endsWith("/bills/91")) {
+      await route.fulfill({ json: bill("PENDING") });
+    } else if (url.pathname.endsWith("/bills/91/payments")) {
+      paymentCount++;
+      await route.fulfill({ json: receipt(route.request().postDataJSON()) });
+    } else return false;
+    return true;
+  });
+  await page.clock.install();
+  await page.goto("/#sale");
+  await page.getByRole("button", { name: /Bàn 01/ }).click();
+  const viewBill = page.getByRole("button", { name: "Xem hóa đơn hiện tại" });
+  await viewBill.click();
+  await page.getByRole("button", { name: "Xác nhận thu tiền" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Xác nhận", exact: true }).click();
+  await expect(page.getByText("Hóa đơn đã thanh toán.")).toBeVisible({ timeout: 3000 });
+  await expect(page.getByText("Phiên đã có hóa đơn chờ xử lý.")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Đặt lại bàn" })).toHaveCount(0);
+  await viewBill.click();
+  await expect(page.getByRole("button", { name: "In hóa đơn" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Xác nhận thu tiền|Đối soát thu tiền/ })).toHaveCount(0);
+  paid = true;
+  await page.clock.runFor(8500);
+  await expect(page.getByRole("button", { name: "Đặt lại bàn" })).toBeEnabled();
+  expect(paymentCount).toBe(1);
+});
+
 test("new session during polling invalidates an open reset confirmation", async ({ page }) => {
   let session = "SESSION-OLD";
   let resets = 0;

@@ -101,18 +101,20 @@ function OrderActions({ path, data, table, isAdmin, authorization, credentials, 
   const bill = data.currentBill;
   const attemptKey = paymentAttemptKey(accountId, data.sessionCode, bill?.id);
   const paid = bill?.status === "PAID";
+  const currentSnapshot = snapshot?.id === bill?.id && snapshot?.sessionCode === data.sessionCode ? snapshot : null;
+  const paymentConfirmed = paid || (bill?.status === "PENDING" && currentSnapshot?.status === "PAID");
   let paymentAttempt = null;
   let storageError = "";
-  if (isAdmin && bill?.status === "PENDING") {
+  if (isAdmin && bill?.status === "PENDING" && !paymentConfirmed) {
     try { paymentAttempt = readPaymentAttempt(attemptKey); }
     catch (failure) { storageError = failure.message; }
   }
-  const visibleDialog = dialog && (dialog.type !== "pay" || (dialog.billId === bill?.id && bill.status === "PENDING"));
+  const visibleDialog = dialog && (dialog.type === "reset" ? paid
+    : dialog.billId === bill?.id && bill?.status === "PENDING" && !paymentConfirmed);
   const writesDisabled = busy || stale;
   useEffect(() => {
     if (isAdmin && paid && attemptKey) clearConfirmedPayment(attemptKey);
   }, [isAdmin, paid, attemptKey]);
-  const currentSnapshot = snapshot?.id === bill?.id && snapshot?.sessionCode === data.sessionCode ? snapshot : null;
   function keyFor(name) {
     if (!keys.current.has(name)) keys.current.set(name, crypto.randomUUID());
     return keys.current.get(name);
@@ -162,12 +164,17 @@ function OrderActions({ path, data, table, isAdmin, authorization, credentials, 
         onClick={() => void execute(options => postSales(`${path}/bill`, { ...session, idempotencyKey: keyFor(`bill:${data.sessionCode}`) }, options), result => {
           setSnapshot(result); setNotice("Đã tạo hóa đơn chờ xác nhận thanh toán."); refresh();
         })}>Tạo hóa đơn</button>
-      {isAdmin && bill && <button type="button" disabled={busy} onClick={() => void execute(options => readApi(`/api/v1/bills/${encodeURIComponent(bill.id)}`, options), setSnapshot)}>Xem hóa đơn hiện tại</button>}
+      {isAdmin && bill && <button type="button" disabled={busy} onClick={() => void execute(options =>
+        readApi(`/api/v1/bills/${encodeURIComponent(bill.id)}`, options), result => {
+          if (result?.id !== bill.id || result.sessionCode !== data.sessionCode) throw new Error("Phản hồi hóa đơn không khớp với phiên bàn.");
+          setSnapshot(previous => previous?.id === result.id && previous.sessionCode === result.sessionCode
+            && previous.status === "PAID" && result.status === "PENDING" ? previous : result);
+        })}>Xem hóa đơn hiện tại</button>}
       {isAdmin && paid && <button type="button" disabled={writesDisabled} onClick={() => openDialog({ type: "reset", code: data.sessionCode })}>Đặt lại bàn</button>}
     </div>
-    {bill && <p className="sale-muted">{paid ? "Hóa đơn đã thanh toán." : "Phiên đã có hóa đơn chờ xử lý."}</p>}
+    {bill && <p className="sale-muted">{paymentConfirmed ? "Hóa đơn đã thanh toán." : "Phiên đã có hóa đơn chờ xử lý."}</p>}
     {busy && <p role="status">Đang xử lý…</p>}
-    {error && !dialog && <p role="alert" className="sale-error">{error}</p>}
+    {error && !visibleDialog && <p role="alert" className="sale-error">{error}</p>}
     {notice && <p role="status">{notice}</p>}
     {storageError && !visibleDialog && <p role="alert" className="sale-error">{storageError}</p>}
     {isAdmin && currentSnapshot && <section className={`sale-invoice${currentSnapshot.status === "PAID" ? " sale-receipt" : ""}`} aria-label="Nội dung hóa đơn">
@@ -176,7 +183,7 @@ function OrderActions({ path, data, table, isAdmin, authorization, credentials, 
       <ItemTable items={currentSnapshot.items} />
       <p className="sale-total">Tổng hóa đơn <strong>{vnd(currentSnapshot.totalAmount)}</strong></p>
       {currentSnapshot.status === "PAID" ? <button className="sale-print-button" type="button" onClick={() => window.print()}>In hóa đơn</button>
-        : !paid && <button className="sale-primary" type="button" disabled={writesDisabled || Boolean(storageError)} onClick={() => openDialog({
+        : !paymentConfirmed && <button className="sale-primary" type="button" disabled={writesDisabled || Boolean(storageError)} onClick={() => openDialog({
           type: "pay", code: data.sessionCode, billId: currentSnapshot.id,
           expectedAmount: paymentAttempt?.expectedAmount ?? currentSnapshot.totalAmount,
           method: paymentAttempt?.method ?? "CASH", reference: paymentAttempt?.referenceCode ?? "",
@@ -230,7 +237,7 @@ function OrderActions({ path, data, table, isAdmin, authorization, credentials, 
           <span>Số tiền cần thu</span>
           <strong>{vnd(dialog.expectedAmount)}</strong>
         </div>
-        <p className="sale-muted">Chỉ xác nhận khi đã nhận đủ số tiền trên.</p>
+        {!paymentAttempt && <p className="sale-muted">Chỉ xác nhận khi đã nhận đủ số tiền trên.</p>}
         {paymentAttempt && !busy && <p role="status">Chưa xác nhận kết quả thu tiền. Chỉ gửi lại giao dịch đã nhập để đối soát.</p>}
         <label>Phương thức<select value={dialog.method} disabled={busy || Boolean(paymentAttempt)} onChange={event => {
           const method = event.target.value;
