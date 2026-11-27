@@ -19,6 +19,27 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.*;
 
 class MenuImagesTest {
+    @Test void providerSuccessCanPrecedeMetadataFailuresMappedToConflict() throws Exception {
+        for (var failure : java.util.List.of(
+                new org.springframework.dao.CannotAcquireLockException("test metadata lock failure"),
+                new org.springframework.dao.DataIntegrityViolationException("test metadata constraint failure"))) {
+            var builder = RestClient.builder();
+            var server = MockRestServiceServer.bindTo(builder).build();
+            server.expect(anything()).andRespond(withSuccess("{\"asset_id\":\"partial-test-asset\",\"secure_url\":\"https://res.cloudinary.com/menu-test/image/upload/v1/coffee.png\"}", MediaType.APPLICATION_JSON));
+            var media = mock(MenuMedia.class);
+            when(media.register(anyString(), anyString(), anyString(), anyLong(), anyInt(), anyInt())).thenThrow(failure);
+            var images = new MenuImages(new MenuImageConfiguration.Cloudinary("menu-test", "test-key", "test-only-secret"), builder.build(), media);
+            byte[] bytes = png();
+            assertThatThrownBy(() -> images.upload(file(bytes))).isSameAs(failure);
+            server.verify();
+            verify(media).register(eq("partial-test-asset"), anyString(), anyString(), anyLong(), anyInt(), anyInt());
+            var problem = failure instanceof org.springframework.dao.TransientDataAccessException
+                    ? new MenuErrors().retry() : new MenuErrors().conflict();
+            assertThat(problem.getStatus()).isEqualTo(409);
+            assertThat(problem.getProperties().get("code")).isEqualTo(failure instanceof org.springframework.dao.TransientDataAccessException ? "RETRY_MENU" : "MENU_CONFLICT");
+        }
+    }
+
     private byte[] png() throws Exception {
         var bytes = new ByteArrayOutputStream();
         ImageIO.write(new BufferedImage(2, 2, BufferedImage.TYPE_INT_RGB), "png", bytes);

@@ -140,6 +140,58 @@ class MenuIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT price FROM menu_items WHERE code='CF03'", Long.class)).isEqualTo(50000);
     }
 
+    @Test @WithMockUser(roles = "ADMIN")
+    void decimalStringInputsPreserveExactPriceMediaAndVersionsWhileResponsesRemainNumbers() throws Exception {
+        fixtures();
+        jdbc.update("INSERT INTO media_assets(provider,provider_asset_id,secure_url,mime_type,size_bytes) VALUES ('CLOUDINARY','menu-exact-contract','https://res.cloudinary.com/menu-test/image/upload/contract.png','image/png',10)");
+        try {
+            Long mediaId = jdbc.queryForObject("SELECT id FROM media_assets WHERE provider_asset_id='menu-exact-contract'", Long.class);
+            var created = mvc.perform(post("/api/v1/menu/items").with(csrf()).contentType("application/json").content("""
+                    {"code":"CF09","name":"Exact coffee","price":"999999999999999999","categoryCode":"CF",
+                     "imageMediaId":"%s","version":"0","available":true}
+                    """.formatted(mediaId))).andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
+            assertThat(created).contains("\"price\":999999999999999999", "\"version\":0", "\"imageMediaId\":" + mediaId);
+            assertThat(jdbc.queryForObject("SELECT CAST(price AS CHAR) FROM menu_items WHERE code='CF09'", String.class)).isEqualTo("999999999999999999");
+            jdbc.update("UPDATE menu_items SET version=9223372036854775806 WHERE code='CF09'");
+            mvc.perform(put("/api/v1/menu/items/CF09").with(csrf()).contentType("application/json").content("""
+                    {"code":"CF09","name":"Exact coffee","price":"999999999999999999","categoryCode":"CF",
+                     "imageMediaId":null,"version":"9223372036854775806"}
+                    """)).andExpect(status().isOk());
+            assertThat(jdbc.queryForObject("SELECT version FROM menu_items WHERE code='CF09'", Long.class)).isEqualTo(Long.MAX_VALUE);
+            mvc.perform(post("/api/v1/menu/categories").with(csrf()).contentType("application/json")
+                    .content("{\"code\":\"EX\",\"name\":\"Exact category\",\"version\":\"0\"}"))
+                    .andExpect(status().isCreated());
+            jdbc.update("UPDATE menu_categories SET version=9007199254740993 WHERE code='EX'");
+            mvc.perform(put("/api/v1/menu/categories/EX").with(csrf()).contentType("application/json")
+                    .content("{\"code\":\"EX\",\"name\":\"Updated category\",\"version\":\"9007199254740993\"}"))
+                    .andExpect(status().isOk());
+            assertThat(jdbc.queryForObject("SELECT version FROM menu_categories WHERE code='EX'", Long.class)).isEqualTo(9007199254740994L);
+        } finally {
+            jdbc.update("DELETE FROM menu_items WHERE code='CF09'");
+            jdbc.update("DELETE FROM media_assets WHERE provider_asset_id='menu-exact-contract'");
+        }
+    }
+
+    @Test @WithMockUser(roles = "ADMIN")
+    void decimalStringInputsStillRejectFractionsBoundsAndInt64Overflow() throws Exception {
+        fixtures();
+        for (String price : List.of("5000", "5000.5", "1000000000000000000")) {
+            mvc.perform(post("/api/v1/menu/items").with(csrf()).contentType("application/json")
+                    .content(item("CF09", "Exact coffee", 15000, "CF", 0).replace("15000", "\"" + price + "\"")))
+                    .andExpect(status().isBadRequest());
+        }
+        for (String field : List.of("version", "imageMediaId")) {
+            String body = item("CF09", "Exact coffee", 15000, "CF", 0);
+            body = field.equals("version") ? body.replace("\"version\":0", "\"version\":\"9223372036854775808\"")
+                    : body.replace("}", ",\"imageMediaId\":\"9223372036854775808\"}");
+            mvc.perform(post("/api/v1/menu/items").with(csrf()).contentType("application/json").content(body))
+                    .andExpect(status().isBadRequest());
+        }
+        mvc.perform(post("/api/v1/menu/categories").with(csrf()).contentType("application/json")
+                .content("{\"code\":\"EX\",\"name\":\"Exact category\",\"version\":\"9223372036854775808\"}"))
+                .andExpect(status().isBadRequest());
+    }
+
     @Test @WithMockUser(roles = "ADMIN") void searchPaginationAndLiteralWildcards() throws Exception {
         fixtures();
         for (String[] search : new String[][] {{"code", "cf01"}, {"name", "BLACK"}, {"price", "15000"}, {"category", "ca phe"}}) {
@@ -205,6 +257,27 @@ class MenuIntegrationTest {
         mvc.perform(post("/api/v1/menu/items").with(csrf()).contentType("application/json").content(item("CF09", "New coffee", 15000, "CF", 0))).andExpect(status().isConflict());
     }
 
+    @Test @WithMockUser(roles = "ADMIN")
+    void staleCategoryConfirmationRejectsCommittedMembershipChangesIncludingSameCountReplacement() throws Exception {
+        fixtures();
+        var confirmation = catalog.category("CF");
+        catalog.createItem(new MenuModels.ItemInput("CF09", "Added coffee", new java.math.BigDecimal("15000"), "CF", null, 0L, true));
+        mvc.perform(delete("/api/v1/menu/categories/CF").param("version", Long.toString(confirmation.version())).with(csrf()))
+                .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("STALE_MENU"));
+        assertThat(catalog.category("CF").itemCount()).isEqualTo(3);
+        catalog.deleteItem("CF01", 0);
+        assertThat(catalog.category("CF").itemCount()).isEqualTo(confirmation.itemCount());
+        mvc.perform(delete("/api/v1/menu/categories/CF").param("version", Long.toString(confirmation.version())).with(csrf()))
+                .andExpect(status().isConflict());
+        assertThat(catalog.item("CF09").code()).isEqualTo("CF09");
+        long current = catalog.category("CF").version();
+        assertThat(current).isEqualTo(confirmation.version() + 2);
+        assertThatThrownBy(() -> catalog.deleteItem("CF09", 9)).isInstanceOf(MenuException.class);
+        assertThat(catalog.category("CF").version()).isEqualTo(current);
+        mvc.perform(delete("/api/v1/menu/categories/CF").param("version", Long.toString(current)).with(csrf()))
+                .andExpect(status().isNoContent());
+    }
+
     @Test void simultaneousUpdatesHaveOneWinner() throws Exception {
         fixtures();
         var gate = new CountDownLatch(1);
@@ -221,6 +294,32 @@ class MenuIntegrationTest {
             catalog.updateItem("CF01", new MenuModels.ItemInput("CF01", name, new java.math.BigDecimal("20000"), "CF", null, 0L, true));
             return "saved";
         } catch (MenuException error) { return error.status().value() == 409 ? "conflict" : "unexpected"; }
+    }
+
+    @Test void insertionHoldingCategoryLockInvalidatesWaitingDeleteConfirmation() throws Exception {
+        fixtures();
+        long confirmation = catalog.category("CF").version();
+        var inserted = new CountDownLatch(1);
+        var release = new CountDownLatch(1);
+        try (var pool = Executors.newFixedThreadPool(2)) {
+            var insertion = pool.submit(() -> transaction.executeWithoutResult(status -> {
+                catalog.createItem(new MenuModels.ItemInput("CF09", "Added coffee", new java.math.BigDecimal("15000"), "CF", null, 0L, true));
+                inserted.countDown();
+                try { if (!release.await(10, TimeUnit.SECONDS)) throw new IllegalStateException("timeout"); }
+                catch (InterruptedException error) { Thread.currentThread().interrupt(); throw new IllegalStateException(error); }
+            }));
+            assertThat(inserted.await(5, TimeUnit.SECONDS)).isTrue();
+            var deletion = pool.submit(() -> {
+                try { catalog.deleteCategory("CF", confirmation); return "deleted"; }
+                catch (MenuException error) { return error.code(); }
+            });
+            try { assertThatThrownBy(() -> deletion.get(200, TimeUnit.MILLISECONDS)).isInstanceOf(java.util.concurrent.TimeoutException.class); }
+            finally { release.countDown(); }
+            insertion.get(5, TimeUnit.SECONDS);
+            assertThat(deletion.get(5, TimeUnit.SECONDS)).isEqualTo("STALE_MENU");
+        }
+        assertThat(catalog.category("CF").itemCount()).isEqualTo(3);
+        assertThat(catalog.item("CF09").code()).isEqualTo("CF09");
     }
 
     @Test void deleteGroupLockBlocksNewItemsUntilDeletionCommits() throws Exception {

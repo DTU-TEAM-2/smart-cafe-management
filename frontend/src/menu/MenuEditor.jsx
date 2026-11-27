@@ -1,12 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { imageDimensions } from './imageDimensions.js';
+import { stripMenuText } from './menuText.js';
 
-export default function MenuEditor({ kind, value, categories, onSave, onCancel }) {
+export default function MenuEditor({ kind, value, categories, categoriesLoading, categoryError, onReloadCategories, onSave, onReconcile, onCancel }) {
   const isItem = kind === 'items';
   const [form, setForm] = useState(value ?? { code: '', name: '', categoryCode: '', price: '', imageUrl: '', available: true });
   const [errors, setErrors] = useState({});
   const [imageError, setImageError] = useState('');
   const [reading, setReading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const [pendingSave, setPendingSave] = useState(null);
+  const [pendingUpload, setPendingUpload] = useState(false);
+  const editorCategories = isItem && value && !categories.some(category => category.code === value.categoryCode)
+    ? [...categories, { code: value.categoryCode, name: value.categoryName ?? value.categoryCode }] : categories;
   const firstField = useRef(null);
   const reader = useRef(null);
   const imageRequest = useRef(0);
@@ -23,11 +30,12 @@ export default function MenuEditor({ kind, value, categories, onSave, onCancel }
   function clearImage() {
     imageRequest.current += 1;
     reader.current?.abort();
-    setReading(false); setImageError(''); update('imageUrl', '');
+    setReading(false); setImageError('');
+    setForm(current => ({ ...current, imageUrl: '', imageFile: null, imageMediaId: null }));
   }
 
   async function readImage(file) {
-    if (!file) return;
+    if (!file || saving || pendingSave || pendingUpload) return;
     const request = ++imageRequest.current;
     reader.current?.abort();
     setReading(false);
@@ -52,34 +60,66 @@ export default function MenuEditor({ kind, value, categories, onSave, onCancel }
     if (request !== imageRequest.current) return;
     const nextReader = new FileReader();
     reader.current = nextReader;
-    nextReader.onload = () => { if (request === imageRequest.current) { update('imageUrl', nextReader.result); setReading(false); } };
+    nextReader.onload = () => {
+      if (request === imageRequest.current) {
+        setForm(current => ({ ...current, imageUrl: nextReader.result, imageFile: file }));
+        setReading(false);
+      }
+    };
     nextReader.onerror = () => { if (request === imageRequest.current) { setImageError('Không đọc được ảnh. Vui lòng chọn lại.'); setReading(false); } };
     nextReader.readAsDataURL(file);
   }
 
-  function submit(event) {
+  async function submit(event) {
     event.preventDefault();
-    if (reading || imageError) return;
-    const next = { ...form, code: form.code.trim().toUpperCase(), name: form.name.trim(), price: String(form.price ?? '').trim() };
+    if (reading || imageError || saving || pendingSave || pendingUpload) return;
+    const fields = event.currentTarget.elements;
+    const next = { ...form, code: stripMenuText(form.code).toUpperCase(), name: stripMenuText(form.name), price: String(form.price ?? '').trim() };
     const failures = {};
     if (!(isItem ? /^[A-Z0-9_-]{4,40}$/ : /^[A-Z0-9_-]{1,32}$/).test(next.code)) failures.code = `Mã gồm ${isItem ? '4–40' : '1–32'} ký tự Latin, số, gạch ngang hoặc gạch dưới.`;
     if (next.name.length < (isItem ? 6 : 1) || next.name.length > (isItem ? 160 : 120)) failures.name = `Tên sau khi bỏ khoảng trắng phải dài ${isItem ? '6–160' : '1–120'} ký tự.`;
     if (isItem) {
-      if (!categories.some(category => category.code === next.categoryCode)) failures.categoryCode = 'Chọn nhóm món đang hoạt động.';
+      if (value ? next.categoryCode !== value.categoryCode : !categories.some(category => category.code === next.categoryCode)) failures.categoryCode = 'Chọn nhóm món đang hoạt động.';
       if (!/^\d{1,18}$/.test(next.price) || BigInt(next.price) <= 5000n) failures.price = 'Giá VND phải là số nguyên lớn hơn 5.000, tối đa 18 chữ số.';
       else next.price = BigInt(next.price).toString();
     }
-    const result = Object.keys(failures).length ? failures : onSave(isItem ? next : { code: next.code, name: next.name });
+    let result = failures;
+    setSaveError('');
+    if (!Object.keys(failures).length) {
+      setSaving(true);
+      try {
+        result = await onSave(isItem ? next : { code: next.code, name: next.name, version: next.version });
+      } catch (error) {
+        if (error.name !== 'AbortError') setSaveError(error.message);
+        if (error.pendingSave) setPendingSave(error.pendingSave);
+        if (error.pendingUpload) setPendingUpload(true);
+        result = error.fields;
+      } finally {
+        setSaving(false);
+      }
+    }
     if (result) {
       setErrors(result);
-      event.currentTarget.elements.namedItem(Object.keys(result)[0])?.focus();
+      fields.namedItem(Object.keys(result)[0])?.focus();
     }
+  }
+
+  async function checkSave() {
+    if (saving) return;
+    setSaving(true);
+    try { await onReconcile(pendingSave); }
+    catch (error) {
+      if (error.name !== 'AbortError') setSaveError(error.status === 404
+        ? 'Chưa tìm thấy bản ghi trên máy chủ. Kết quả lưu vẫn chưa xác định; hãy kiểm tra lại hoặc hủy biểu mẫu để tải lại.' : error.message);
+    } finally { setSaving(false); }
   }
 
   return <form className="panel editor" noValidate onSubmit={submit}>
     <h2>{value ? 'Chỉnh sửa' : 'Thêm'} {isItem ? 'món' : 'nhóm món'}</h2>
     <p className="panel-description">{isItem ? 'Ảnh sản phẩm / Xem trước ảnh' : 'Thông tin nhóm món trong thực đơn'}</p>
-    <div className="form-grid">
+    {isItem && !value && categoriesLoading ? <p role="status">Đang tải nhóm món…</p> : null}
+    {isItem && !value && categoryError ? <p role="alert">{categoryError} <button type="button" disabled={saving} onClick={onReloadCategories}>Tải lại nhóm món</button></p> : null}
+    <fieldset className="form-grid" disabled={saving || Boolean(pendingSave) || pendingUpload}>
       <label>Mã {isItem ? 'món' : 'nhóm món'} *
         <input ref={firstField} name="code" required minLength={isItem ? 4 : 1} maxLength={isItem ? 40 : 32} pattern="[A-Za-z0-9_-]+" title="Chữ Latin, số, dấu gạch ngang hoặc gạch dưới" readOnly={Boolean(value)} {...errorProps('code')} value={form.code} onChange={e => update('code', e.target.value)} placeholder={isItem ? 'VD: CF104' : 'VD: CF'} />
         {fieldError('code')}
@@ -92,7 +132,7 @@ export default function MenuEditor({ kind, value, categories, onSave, onCancel }
         <label>Danh mục *
           <select name="categoryCode" required disabled={Boolean(value)} {...errorProps('categoryCode')} value={form.categoryCode} onChange={e => update('categoryCode', e.target.value)}>
             <option value="">Chọn nhóm món</option>
-            {categories.map(category => <option key={category.code} value={category.code}>{category.name}</option>)}
+            {editorCategories.map(category => <option key={category.code} value={category.code}>{category.name}</option>)}
           </select>
           {value ? <small>Nhóm món đã gán không thay đổi khi sửa.</small> : null}
           {fieldError('categoryCode')}
@@ -112,7 +152,15 @@ export default function MenuEditor({ kind, value, categories, onSave, onCancel }
         </div>
         <label className="availability"><input type="checkbox" checked={form.available} onChange={e => update('available', e.target.checked)} />Có sẵn</label>
       </> : null}
-    </div>
-    <div className="form-actions"><button type="button" onClick={onCancel}>HỦY</button><button className="primary" disabled={reading || Boolean(imageError)}>{isItem ? 'LƯU MÓN' : 'LƯU NHÓM MÓN'}</button></div>
+    </fieldset>
+    {saveError ? <p className="error" role="alert">{saveError}</p> : null}
+    {pendingUpload ? <button type="button" disabled={saving} onClick={() => {
+      setForm(current => ({ ...current, imageFile: null, imageMediaId: value?.imageMediaId ?? null, imageUrl: value?.imageUrl ?? '' }));
+      setPendingUpload(false);
+      setSaveError('Đã bỏ ảnh mới khỏi biểu mẫu. Ảnh có thể đã được tải lên; chưa tự động xóa trên dịch vụ ảnh.');
+    }}>TIẾP TỤC KHÔNG DÙNG ẢNH MỚI</button> : null}
+    {pendingSave ? <button type="button" disabled={saving} onClick={() => void checkSave()}>KIỂM TRA KẾT QUẢ LƯU</button> : null}
+    {saving ? <p role="status">Đang lưu thực đơn…</p> : null}
+    <div className="form-actions"><button type="button" disabled={saving} onClick={() => onCancel(Boolean(pendingSave) || pendingUpload)}>HỦY</button><button className="primary" disabled={saving || reading || Boolean(imageError) || Boolean(pendingSave) || pendingUpload || (isItem && !value && (categoriesLoading || Boolean(categoryError)))}>{isItem ? 'LƯU MÓN' : 'LƯU NHÓM MÓN'}</button></div>
   </form>;
 }

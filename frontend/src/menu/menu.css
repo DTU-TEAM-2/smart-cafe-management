@@ -23,6 +23,7 @@
 .menu-preview input::placeholder, .menu-preview textarea::placeholder { color: #b8ab99; }
 .menu-preview input[readonly] { color: var(--muted); border-color: var(--border); }
 .menu-preview textarea { resize: vertical; min-height: 59px; }
+.menu-preview fieldset.form-grid { border: 0; padding: 0; min-width: 0; }
 .menu-preview h1, .menu-preview h2, .menu-preview p { margin: 0; }
 .menu-preview.admin-shell { display: flex; min-height: 100vh; max-width: 1920px; margin: auto; border: 1px solid var(--border); border-radius: 17px; overflow: clip; }
 .menu-preview .sidebar { width: 253px; flex-shrink: 0; background: var(--surface); padding: 30px 12px 20px; display: flex; flex-direction: column; }
