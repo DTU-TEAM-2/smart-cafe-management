@@ -51,8 +51,8 @@ export default function AdminDashboard({ onNavigate }) {
           <p style={{ color: "var(--muted)", fontSize: "13px", lineHeight: "1.5" }}>Sơ đồ bàn, trạng thái bàn trống, kích hoạt bàn và phiên phục vụ.</p>
         </div>
         <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "8px", padding: "24px" }}>
-          <h3 style={{ color: "var(--gold)", margin: "0 0 8px" }}>📊 Thống kê Doanh thu</h3>
-          <p style={{ color: "var(--muted)", fontSize: "13px", lineHeight: "1.5" }}>Báo cáo doanh thu theo ngày, biểu đồ hóa đơn và thống kê món bán chạy.</p>
+          <h3 style={{ color: "var(--gold)", margin: "0 0 8px" }}><a href="#statistics">Thống kê doanh thu</a></h3>
+          <p style={{ color: "var(--muted)", fontSize: "13px", lineHeight: "1.5" }}>Doanh thu theo kỳ và tỷ trọng theo phương thức thanh toán.</p>
         </div>
       </div>
     </div>
