@@ -9,7 +9,7 @@ function formattedTime(value) {
 
 const navigation = [
   { label: "Trang chủ", href: "#top" },
-  { label: "Menu", href: "#newest" },
+  { label: "Menu", key: "menu", href: "#newest" },
   { label: "Tin tức", key: "news" },
   { label: "Về chúng tôi", href: "#about" },
 ];
@@ -84,7 +84,7 @@ export default function SiteLayout({ children, account = null, notifications = n
             ...navigation,
             ...(isStaff ? [{ label: "Quản lý hóa đơn", href: "#bills" }] : []),
           ].map(({ label, href, key }, index) => (
-            <SiteLink key={label} href={href ?? links[key]} aria-current={index === 0 && currentPage === "home" ? "page" : undefined}
+            <SiteLink key={label} href={links[key] ?? href} aria-current={(index === 0 && currentPage === "home") || key === currentPage ? "page" : undefined}
               onClick={() => { if (panel === "menu") menuButton.current?.focus(); setPanel(null); }}>{label}</SiteLink>
           ))}
         </nav>

@@ -8,7 +8,6 @@ import java.time.Clock;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -22,8 +21,6 @@ import org.springframework.security.web.servlet.util.matcher.PathPatternRequestM
 import org.springframework.security.web.savedrequest.NullRequestCache;
 import vn.codegym.smartcafe.customerfeedback.FeedbackAdmissionFilter;
 
-import vn.codegym.smartcafe.auth.TokenService;
-
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -35,15 +32,15 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, JdbcClient jdbc,
-            TokenService tokenService, Clock clock,
+    public SecurityFilterChain securityFilterChain(HttpSecurity http, BearerTokenAuthenticator authenticator,
+            Clock clock,
             @Value("${feedback.limits.per-source-per-minute:20}") int perSource,
             @Value("${feedback.limits.total-per-minute:120}") int total,
             @Value("${feedback.limits.concurrent-multipart:2}") int multipart,
             @Value("${feedback.limits.csrf-per-source-per-minute:12}") int csrfPerSource,
             @Value("${feedback.limits.csrf-total-per-minute:60}") int csrfTotal,
             @Value("${feedback.limits.max-json-bytes:131072}") int maxJsonBytes) throws Exception {
-        var tokenFilter = new HeaderTokenFilter(jdbc, tokenService.getSecretKey());
+        var tokenFilter = new HeaderTokenFilter(authenticator);
 
         var feedbackPost = PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.POST, "/api/v1/customer/feedback");
         var feedbackCsrf = PathPatternRequestMatcher.withDefaults().matcher(HttpMethod.GET, "/api/v1/customer/feedback/csrf");
@@ -51,6 +48,7 @@ public class SecurityConfig {
         org.springframework.security.web.util.matcher.RequestMatcher guestCsrf =
                 request -> feedbackCsrf.matches(request) || customerCsrf.matches(request);
         return http
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/v1/news", "/api/v1/news/**"))
                 .csrf(csrf -> csrf.ignoringRequestMatchers(
                         // These exact endpoints authenticate only explicit bearer headers, never cookies.
                         request -> ("PATCH".equals(request.getMethod()) && "/api/v1/profiles/me".equals(request.getServletPath()))
@@ -108,6 +106,14 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/profiles/me").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers(HttpMethod.POST, "/api/v1/profiles/me/password").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers(HttpMethod.GET, "/api/v1/home/notifications").hasAnyRole("STAFF", "ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/news/by-slug/{slug}").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/news/events").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/news/images").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/news/images/{id}").hasAnyRole("ADMIN", "STAFF", "CUSTOMER")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/news", "/api/v1/news/{id}").hasAnyRole("ADMIN", "STAFF", "CUSTOMER")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/news").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/news/{id}").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/news/{id}").hasRole("ADMIN")
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers("/api/v1/staff/**").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers(HttpMethod.GET, "/api/v1/sales/csrf", "/api/v1/sales/tables", "/api/v1/sales/tables/*/services").hasAnyRole("STAFF", "ADMIN")

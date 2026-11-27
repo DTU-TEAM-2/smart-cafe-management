@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import HomePage from "../home/HomePage.jsx";
 import SiteLayout from "./SiteLayout.jsx";
 import LoginPage from "../auth/LoginPage.jsx";
@@ -16,6 +16,11 @@ import PersonnelAccountPage from "../account/AccountPage.jsx";
 import PasswordExpiryNotice from "../account/PasswordExpiryNotice.jsx";
 import LeaveProfileDialog from "../account/LeaveProfileDialog.jsx";
 
+import useNewsSocket from "../news/useNewsSocket.js";
+import { readCustomerSession } from "../customer/customerSession.js";
+
+const NewsPage = lazy(() => import("../news/NewsPage.jsx"));
+
 const roles = { ADMIN: "Quản trị viên", STAFF: "Nhân viên phục vụ", CUSTOMER: "Khách hàng thân thiết" };
 const money = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" });
 
@@ -30,10 +35,15 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
   const [hash, setHash] = useState(() => window.location.hash || "#top");
   const currentHash = useRef(hash);
   const dirty = useRef(false);
+  const newsGuard = useRef(null);
+  const approvedNewsHash = useRef(null);
+  const setNavigationGuard = useCallback(guard => { newsGuard.current = guard; }, []);
   const [pendingNavigation, setPendingNavigation] = useState(null);
   const onDirtyChange = useCallback(value => { dirty.current = value; }, []);
   const [identity, setIdentity] = useState({ status: "loading", account: null });
   const [accountAttempt, setAccountAttempt] = useState(0);
+  const recheckIdentity = useCallback(() => setAccountAttempt(value => value + 1), []);
+  const news = useNewsSocket(authorization, identity.account, recheckIdentity);
   const [feed, setFeed] = useState({ status: "idle", data: null });
   const [feedAttempt, setFeedAttempt] = useState(0);
   const [readIds, setReadIds] = useState(() => new Set());
@@ -47,18 +57,35 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
     function onHash() {
       const next = window.location.hash || "#top";
       if (dirty.current && next !== currentHash.current) { setPendingNavigation(next); return; }
+      const approved = approvedNewsHash.current === next;
+      approvedNewsHash.current = null;
+      if (!approved && next !== currentHash.current && newsGuard.current && !newsGuard.current()) {
+        history.replaceState(history.state, "", currentHash.current);
+        return;
+      }
       currentHash.current = next;
       setHash(next);
     }
     function onLink(event) {
-      if (!dirty.current || event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      if ((!dirty.current && !newsGuard.current) || event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
       const link = event.target.closest?.("a[href]");
       if (!link || link.target === "_blank" || link.hasAttribute("download")) return;
       const url = new URL(link.href, window.location.href);
+      if (newsGuard.current && url.origin === location.origin && url.hash === "#main") {
+        event.preventDefault();
+        document.getElementById("main")?.focus();
+        return;
+      }
       if (url.origin !== location.origin || url.pathname !== location.pathname || url.search !== location.search
         || !url.hash || url.hash === "#main" || url.hash === currentHash.current || link.closest(".account-feedback")) return;
-      event.preventDefault();
-      setPendingNavigation(url.hash);
+      if (dirty.current) {
+        event.preventDefault();
+        setPendingNavigation(url.hash);
+      } else if (!newsGuard.current()) {
+        event.preventDefault();
+      } else {
+        approvedNewsHash.current = url.hash;
+      }
     }
     function onUnload(event) { if (dirty.current) { event.preventDefault(); event.returnValue = ""; } }
     window.addEventListener("hashchange", onHash);
@@ -130,13 +157,14 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
   const onResetPasswordPage = hash.startsWith("#reset-password");
   const onAdminPage = hash.startsWith("#admin");
   const onStaffPage = hash.startsWith("#staff");
+  const onNewsPage = /^#news(?:\/|$)/.test(hash);
   const onSalesPage = hash === "#sale" || hash === "#sale-income";
   const onCustomerPage = hash.startsWith("#customer");
   const onStatistics = hash === "#statistics";
   const onBillsPage = onStatistics || ["#bills", "#manage/bills", "#manage-bills"].includes(hash);
 
   const isAuthPage = onLoginPage || onRegisterPage || onForgotPasswordPage || onOtpPage || onResetPasswordPage;
-  const isSpecialPage = onAccountPage || isAuthPage || onAdminPage || onStaffPage || onSalesPage || onCustomerPage || onBillsPage;
+  const isSpecialPage = onAccountPage || isAuthPage || onAdminPage || onStaffPage || onSalesPage || onCustomerPage || onNewsPage || onBillsPage;
 
   useEffect(() => {
     if (!isSpecialPage && hash) {
@@ -154,16 +182,21 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
   }
 
   if (onCustomerPage) return <CustomerApp onNavigateHome={() => handleNavigate("#top")} />;
+  const tableMenuHref = readCustomerSession() ? "#customer" : undefined;
   const account = identity.account ? { ...identity.account, profileHref: "#account" } : null;
   if (onSalesPage) return <SalesWorkspace account={account} identityStatus={identity.status}
     authorization={authorization} credentials={credentials} income={hash === "#sale-income"}
     retryIdentity={() => { setIdentity({ status: "loading", account: null }); setAccountAttempt(value => value + 1); }} />;
   const notifications = feed.data && { ...feed.data, items: feed.data.items.map(item => ({ ...item, read: readIds.has(item.id) })) };
   const layout = {
-    account, notifications, links: { login: loginHref }, notificationState: feed.status,
+    account, notifications, links: { login: loginHref, news: "#news", menu: tableMenuHref }, notificationState: feed.status,
     onRetryNotifications: () => { setFeed({ status: "loading", data: null }); setFeedAttempt(value => value + 1); },
     onNotificationsOpen: () => setReadIds(previous => new Set([...previous, ...(feed.data?.items.map(item => item.id) ?? [])])),
-    onLogout: () => { void auth.logout(); window.location.hash = "#login"; },
+    onLogout: () => {
+      if (newsGuard.current && !newsGuard.current()) return;
+      void auth.logout();
+      if (!onNewsPage) window.location.hash = "#login";
+    },
   };
   const isAdmin = account?.role === "ADMIN";
   const expiryNotice = auth.token && ["ADMIN", "STAFF"].includes(auth.user?.role)
@@ -172,19 +205,21 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
     return <BillsWorkspace layout={layout} authorization={authorization} credentials={credentials} statistics={onStatistics}
       isAdmin={isAdmin} expiryNotice={expiryNotice} />;
   }
-  return <SiteLayout account={account} notifications={notifications} links={{ login: loginHref }}
-    currentPage={onAccountPage ? "account" : onLoginPage ? "login" : "home"} isAuthPage={isAuthPage} notificationState={feed.status}
-    onRetryNotifications={() => { setFeed({ status: "loading", data: null }); setFeedAttempt(value => value + 1); }}
-    onNotificationsOpen={() => setReadIds(previous => new Set([...previous, ...(feed.data?.items.map(item => item.id) ?? [])]))}
-    onLogout={() => { void auth.logout(); window.location.hash = "#login"; }}>
+  return <SiteLayout {...layout}
+    currentPage={onAccountPage ? "account" : onLoginPage ? "login" : onNewsPage ? "news" : "home"} isAuthPage={isAuthPage}>
     {expiryNotice}
     {identity.status === "error" && <div className="identity-error" role="alert">Chưa tải được thông tin tài khoản.
       <button type="button" onClick={() => setAccountAttempt(value => value + 1)}>Thử lại</button></div>}
-    {onLoginPage ? (
+    {onNewsPage ? (
+      <Suspense fallback={<section className="account-page"><p role="status">Đang mở tin tức…</p></section>}>
+        <NewsPage authorization={authorization} account={identity.account} identityStatus={identity.status}
+          route={hash} revision={news.revision} connection={news.connection} setNavigationGuard={setNavigationGuard} />
+      </Suspense>
+    ) : onLoginPage ? (
       account ? (
         <section className="account-page"><h1>Bạn đã đăng nhập</h1><a href="#account">Xem thông tin tài khoản</a></section>
       ) : (
-        <LoginPage onNavigate={handleNavigate} />
+        <LoginPage onNavigate={handleNavigate} returnHref={tableMenuHref} />
       )
     ) : onRegisterPage ? (
       <RegisterPage onNavigate={handleNavigate} />
@@ -210,7 +245,7 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
         <a href={account ? "#top" : loginHref}>{account ? "Về trang chủ" : "Đăng nhập"}</a>
       </section>
     ) : (
-      <HomePage />
+      <HomePage tableMenuHref={tableMenuHref} />
     )}
     {pendingNavigation && <LeaveProfileDialog onCancel={() => {
       history.replaceState(history.state, "", `${location.pathname}${location.search}${currentHash.current}`);
