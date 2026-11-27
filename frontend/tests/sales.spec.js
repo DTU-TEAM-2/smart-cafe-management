@@ -281,6 +281,14 @@ test("restores an uncertain payment after reload and rejects a wrong receipt", a
       payments.push(command);
       if (payments.length === 1) await route.abort("failed");
       else if (payments.length === 2) await route.fulfill({ status: 403, json: {} });
+      else if (payments.length === 3) {
+        const wrongTotal = receipt(command);
+        wrongTotal.bill.totalAmount = "1";
+        wrongTotal.bill.items[0].unitPrice = "1";
+        wrongTotal.bill.items[0].lineTotal = "1";
+        wrongTotal.payment.amount = "1";
+        await route.fulfill({ json: wrongTotal });
+      } else if (payments.length === 4) await route.fulfill({ status: 400, json: {} });
       else await route.fulfill({ json: { bill: { ...bill("PAID"), id: "92" } } });
       return true;
     }
@@ -308,8 +316,51 @@ test("restores an uncertain payment after reload and rejects a wrong receipt", a
   await expect(dialog.getByRole("alert")).toContainText("không có quyền");
   await confirm.click();
   await expect(dialog.getByRole("alert")).toContainText("Chưa xác minh được kết quả thu tiền");
+  await confirm.click();
+  await expect(dialog.getByRole("alert")).toContainText("Dữ liệu chưa hợp lệ");
+  await expect(dialog.getByLabel("Phương thức")).toBeDisabled();
+  await confirm.click();
+  await expect(dialog.getByRole("alert")).toContainText("Chưa xác minh được kết quả thu tiền");
   await expect(page.getByText("Đã xác nhận thu tiền. Có thể in hóa đơn.")).toHaveCount(0);
-  expect(payments).toEqual([payments[0], payments[0], payments[0]]);
+  expect(payments).toEqual(Array(5).fill(payments[0]));
+});
+
+test("a first rejected payment can be corrected and uses Java-compatible reference trimming", async ({ page }) => {
+  const payments = [];
+  let paid = false;
+  await setup(page, "ADMIN", async (route, url) => {
+    if (url.pathname.endsWith("/1/services")) {
+      await route.fulfill({ json: services("1", "SESSION-OLD", "Cà phê", 1, { id: "91", status: paid ? "PAID" : "PENDING" }) });
+    } else if (url.pathname.endsWith("/bills/91")) {
+      await route.fulfill({ json: bill() });
+    } else if (url.pathname.endsWith("/bills/91/payments")) {
+      payments.push(route.request().postDataJSON());
+      if (payments.length === 1) await route.fulfill({ status: 400, json: {} });
+      else {
+        paid = true;
+        await route.fulfill({ json: receipt(payments.at(-1)) });
+      }
+    } else return false;
+    return true;
+  });
+  await page.goto("/#sale");
+  await page.getByRole("button", { name: /Bàn 01/ }).click();
+  await page.getByRole("button", { name: "Xem hóa đơn hiện tại" }).click();
+  await page.getByRole("button", { name: "Xác nhận thu tiền" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Phương thức").selectOption("BANK_TRANSFER");
+  const reference = dialog.getByLabel(/Mã tham chiếu/);
+  await reference.fill("\u001c\u2003\u001f");
+  const confirm = dialog.getByRole("button", { name: "Xác nhận", exact: true });
+  await confirm.click();
+  await expect(dialog.getByRole("alert")).toContainText("Dữ liệu chưa hợp lệ");
+  await expect(reference).toBeEnabled();
+  await reference.fill("\u001cREF-CORRECT\u001f");
+  await confirm.click();
+  await expect(page.getByRole("button", { name: "In hóa đơn" })).toBeVisible();
+  expect(payments.map(command => command.referenceCode)).toEqual([null, "REF-CORRECT"]);
+  expect(payments[1].idempotencyKey).not.toBe(payments[0].idempotencyKey);
+  for (const command of payments) expect(command).not.toHaveProperty("expectedAmount");
 });
 
 test("requires CSRF and durable storage before sending and separates accounts", async ({ page }) => {

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import IncomePanel, { LoadState } from "./IncomePanel.jsx";
 import { postSales, readApi, useSalesResource, vnd } from "./salesApi.js";
-import { clearConfirmedPayment, paymentAttemptKey, persistPaymentAttempt, readPaymentAttempt, verifiedPaymentBill } from "./paymentAttempt.js";
+import { checkedPaymentAmount, clearConfirmedPayment, clearRejectedPayment, normalizePaymentReference,
+  paymentAttemptKey, persistPaymentAttempt, readPaymentAttempt, verifiedPaymentBill } from "./paymentAttempt.js";
 import "./sales.css";
 
 export default function SalesWorkspace({ account, identityStatus, authorization, credentials, income, retryIdentity }) {
@@ -177,6 +178,7 @@ function OrderActions({ path, data, table, isAdmin, authorization, credentials, 
       {currentSnapshot.status === "PAID" ? <button className="sale-print-button" type="button" onClick={() => window.print()}>In hóa đơn</button>
         : !paid && <button className="sale-primary" type="button" disabled={writesDisabled || Boolean(storageError)} onClick={() => openDialog({
           type: "pay", code: data.sessionCode, billId: currentSnapshot.id,
+          expectedAmount: paymentAttempt?.expectedAmount ?? currentSnapshot.totalAmount,
           method: paymentAttempt?.method ?? "CASH", reference: paymentAttempt?.referenceCode ?? "",
         })}>{paymentAttempt ? "Đối soát thu tiền" : "Xác nhận thu tiền"}</button>}
     </section>}
@@ -190,22 +192,35 @@ function OrderActions({ path, data, table, isAdmin, authorization, credentials, 
         if (dialog.type === "reset") void execute(options => postSales(`${path}/reset`, { expectedSessionCode: dialog.code }, options), () => { setDialog(null); setNotice("Đã đặt lại bàn."); refresh(); });
         else {
           const { method, reference } = dialog;
-          const referenceCode = method === "BANK_TRANSFER" ? reference.trim() || null : null;
           if (active.current) return;
           let dispatched = false;
+          let firstKey;
           void execute(async options => {
             const saved = readPaymentAttempt(attemptKey);
-            const command = saved ?? { method, referenceCode, idempotencyKey: crypto.randomUUID() };
+            const expectedAmount = checkedPaymentAmount(saved?.expectedAmount ?? dialog.expectedAmount);
+            const attempt = saved ?? {
+              method, referenceCode: normalizePaymentReference(method, reference),
+              idempotencyKey: crypto.randomUUID(), expectedAmount,
+            };
+            const command = { method: attempt.method, referenceCode: attempt.referenceCode, idempotencyKey: attempt.idempotencyKey };
             const receipt = await postSales(`/api/v1/bills/${encodeURIComponent(dialog.billId)}/payments`, command, options, () => {
               const current = readPaymentAttempt(attemptKey);
               if (current?.idempotencyKey !== saved?.idempotencyKey) throw new Error("Giao dịch đã thay đổi. Mở lại hóa đơn để đối soát.");
-              if (!current) persistPaymentAttempt(attemptKey, command);
+              if (!current || current.expectedAmount == null) persistPaymentAttempt(attemptKey, { ...attempt, expectedAmount });
+              if (!current) firstKey = command.idempotencyKey;
               dispatched = true;
             });
-            return verifiedPaymentBill(receipt, dialog.billId, dialog.code, command);
+            return verifiedPaymentBill(receipt, dialog.billId, dialog.code, command, expectedAmount);
           }, confirmedBill => {
             setSnapshot(confirmedBill); setDialog(null); setNotice("Đã xác nhận thu tiền. Có thể in hóa đơn."); refresh();
           }, failure => {
+            // Checkout validates a new command before any write. A 400 on
+            // replay cannot settle an earlier request that may have committed.
+            if (firstKey && failure.status === 400) {
+              try { clearRejectedPayment(attemptKey, firstKey); }
+              catch { setError("Máy chủ đã từ chối giao dịch, nhưng chưa xóa được mã trên thiết bị. Kiểm tra bộ nhớ phiên trước khi thử lại."); }
+              return;
+            }
             if (dispatched && failure.status !== 409) refresh();
           });
         }
@@ -213,7 +228,7 @@ function OrderActions({ path, data, table, isAdmin, authorization, credentials, 
       {dialog.type === "reset" ? <p>Kết thúc phiên đã thanh toán của {table.name}?</p> : <>
         <div className="sale-payment-summary">
           <span>Số tiền cần thu</span>
-          <strong>{vnd(currentSnapshot?.totalAmount)}</strong>
+          <strong>{vnd(dialog.expectedAmount)}</strong>
         </div>
         <p className="sale-muted">Chỉ xác nhận khi đã nhận đủ số tiền trên.</p>
         {paymentAttempt && !busy && <p role="status">Chưa xác nhận kết quả thu tiền. Chỉ gửi lại giao dịch đã nhập để đối soát.</p>}
