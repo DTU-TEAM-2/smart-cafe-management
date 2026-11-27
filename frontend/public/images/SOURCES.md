@@ -10,3 +10,5 @@ Image source: Unsplash. License reference: https://unsplash.com/license. SRS scr
 Demo-only coffee photographs: `espresso.jpg` — https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd; `latte.jpg` — https://images.unsplash.com/photo-1509042239860-f550ce710b93; `iced-coffee.jpg` — https://images.unsplash.com/photo-1461023058943-07fcbe16d735. These are illustrative seed images, not verified photographs of a real cafe menu.
 
 Reused 06/11/2026 by explicit user request to reference the previous project: five coffee/interior photographs listed above. No logo or Angus badge is imported. Static photos illustrate the hero/story sections; menu thumbnails come from the API's media relation, with a neutral missing-image state rather than an arbitrary photo fallback.
+
+- `news-journal.jpg` is an OpenAI ImageGen illustration for the news banner, showing a café counter, notebook, and cappuccino.

@@ -43,6 +43,25 @@ test("admin creates news with explicit recipients and safe text content", async 
   expect(await page.evaluate(() => window.__unsafe)).toBeUndefined();
 });
 
+test("editor validates and submits the same normalized Unicode text as the server", async ({ page }) => {
+  await setup(page);
+  let posted;
+  await page.route("**/api/v1/news", route => {
+    posted = route.request().postDataJSON();
+    return route.fulfill({ status: 201, json: { ...fixture, ...posted } });
+  });
+  await page.goto("/#news/new");
+  const title = "ế".repeat(200);
+  const summary = "à".repeat(500);
+  await page.getByLabel("Tiêu đề").fill(` ${title}\u3000`);
+  await page.getByLabel("Tóm tắt").fill(` ${summary}\u3000`);
+  await page.getByLabel("Nội dung").fill("\u00a0Nội dung\u00a0");
+  await page.getByRole("checkbox", { name: /Khách hàng/ }).check();
+  await page.getByRole("button", { name: "Lưu bản nháp", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`#news/${fixture.id}$`));
+  expect(posted).toMatchObject({ title, summary, body: "\u00a0Nội dung\u00a0" });
+});
+
 test("lost create response and missing old slug never replay a POST", async ({ page }) => {
   await setup(page);
   const article = { slug: "duong-dan-cu", title: "Bài đang đối soát", summary: null, body: "Nội dung cũ",
@@ -198,7 +217,7 @@ test("an auth check for the old News token cannot clear its replacement", async 
     return route.fulfill({ json: { id: 1, username: "ui-fixture", role: "ADMIN" } });
   });
   await page.route("**/api/v1/news?*", route => route.fulfill(route.request().headers().authorization === "Bearer replacement"
-    ? { json: { content: [fixture], totalElements: 1, totalPages: 1, last: true } }
+    ? { json: { content: [fixture], totalElements: 1, totalPages: 1, last: true, page: 0, size: 6 } }
     : { status: 403, json: {} }));
   await page.getByRole("button", { name: "Làm mới" }).click();
   await expect.poll(() => Boolean(delayed)).toBe(true);
@@ -231,6 +250,34 @@ test("editing sends If-Match and keeps unsaved text after a conflict", async ({ 
   await expect(page.getByLabel("Tiêu đề", { exact: false })).toHaveValue("Nội dung tôi chưa muốn mất");
   expect(ifMatch).toBe('"0"');
   await expect(page.getByRole("button", { name: "Lưu thay đổi" })).toBeDisabled();
+});
+
+test("a failed conflict reload keeps the draft visible and a successful retry replaces it", async ({ page }) => {
+  await setup(page);
+  let phase = "original";
+  await page.route(`**/api/v1/news/${fixture.id}`, route => {
+    if (route.request().method() === "PUT") return route.fulfill({ status: 412, json: {} });
+    if (phase === "unavailable") return route.fulfill({ status: 503, json: {} });
+    const latest = phase === "latest";
+    return route.fulfill({ json: { ...fixture, title: latest ? "Bài đã cập nhật" : fixture.title, version: latest ? 1 : 0 },
+      headers: { ETag: latest ? '"1"' : '"0"' } });
+  });
+  await page.goto(`/#news/${fixture.id}/edit`);
+  const title = page.getByLabel("Tiêu đề");
+  await title.fill("Bản nháp cần giữ");
+  await page.getByRole("button", { name: "Lưu thay đổi" }).click();
+  await expect(page.getByRole("alert")).toContainText("Bài viết đã được thay đổi ở nơi khác");
+  phase = "unavailable";
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Tải bản mới" }).click();
+  await expect(page.getByRole("alert")).toContainText("Dịch vụ chưa sẵn sàng");
+  await expect(title).toHaveValue("Bản nháp cần giữ");
+  await expect(page.getByRole("button", { name: "Lưu thay đổi" })).toBeDisabled();
+  phase = "latest";
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Tải bản mới" }).click();
+  await expect(title).toHaveValue("Bài đã cập nhật");
+  await expect(page.getByRole("button", { name: "Lưu thay đổi" })).toBeEnabled();
 });
 
 test("a lost PUT response allows checking the newer version while preserving the edit", async ({ page }) => {
@@ -320,6 +367,44 @@ test("archive confirmation traps focus, restores it and sends the current versio
   expect(archived).toBe(true);
 });
 
+test("stale archive requires loading the latest version before retrying", async ({ page }) => {
+  await setup(page);
+  const versions = [];
+  await page.route(`**/api/v1/news/${fixture.id}`, route => {
+    if (route.request().method() === "DELETE") {
+      versions.push(route.request().headers()["if-match"]);
+      return route.fulfill({ status: versions.length === 1 ? 412 : 204 });
+    }
+    return route.fulfill({ json: { ...fixture, version: versions.length }, headers: { ETag: `"${versions.length}"` } });
+  });
+  await page.goto(`/#news/${fixture.id}`);
+  const archive = page.getByRole("button", { name: "Lưu trữ tin", exact: true });
+  const confirm = page.getByRole("button", { name: "Xác nhận lưu trữ" });
+  await archive.click();
+  await confirm.click();
+  await expect(page.getByRole("alert")).toContainText("Phiên bản bài viết đã thay đổi");
+  await expect(archive).toBeDisabled();
+  await page.getByRole("button", { name: "Tải bản mới" }).click();
+  await archive.click();
+  await confirm.click();
+  await expect(page).toHaveURL(/#news$/);
+  expect(versions).toEqual(['"0"', '"1"']);
+});
+
+test("admin read without an ETag offers a retry before opening the editor", async ({ page }) => {
+  await setup(page);
+  let tag;
+  await page.route(`**/api/v1/news/${fixture.id}`, route => route.fulfill({
+    json: fixture, headers: tag ? { ETag: tag } : {},
+  }));
+  await page.goto(`/#news/${fixture.id}/edit`);
+  await expect(page.getByRole("alert")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Lưu thay đổi" })).toHaveCount(0);
+  tag = '"0"';
+  await page.getByRole("button", { name: "Thử lại" }).click();
+  await expect(page.getByLabel("Tiêu đề")).toHaveValue(fixture.title);
+});
+
 test("private images use bearer, uploading preserves images and invalid files are rejected", async ({ page }) => {
   await setup(page);
   let auth, posted;
@@ -392,7 +477,7 @@ test("staff socket refreshes the feed and reconnects without putting tokens in U
   await setup(page, "STAFF");
   let socket, title = fixture.title;
   await page.routeWebSocket("**/api/v1/news/events", ws => { socket = ws; ws.onMessage(() => ws.send('{"type":"READY"}')); });
-  await page.route("**/api/v1/news?*", route => route.fulfill({ json: { content: [{ ...fixture, title }], totalElements: 1, totalPages: 1, last: true } }));
+  await page.route("**/api/v1/news?*", route => route.fulfill({ json: { content: [{ ...fixture, title }], totalElements: 1, totalPages: 1, last: true, page: 0, size: 6 } }));
   await page.goto("/#news");
   await expect(page.getByText("Tin tức tự cập nhật khi có thay đổi.")).toBeVisible();
   title = "Tin vừa được cập nhật"; socket.send('{"type":"NEWS_CHANGED"}');
@@ -403,14 +488,37 @@ test("staff socket refreshes the feed and reconnects without putting tokens in U
   await expect(page.getByText("Tin tức tự cập nhật khi có thay đổi.")).toBeVisible();
 });
 
+test("staff reconnects when the socket opens but never confirms it is ready", async ({ page }) => {
+  await page.clock.install();
+  await setup(page, "STAFF");
+  let connections = 0;
+  let bearerFrames = 0;
+  await page.routeWebSocket("**/api/v1/news/events", socket => {
+    const attempt = ++connections;
+    socket.onMessage(() => {
+      bearerFrames++;
+      if (attempt > 1) socket.send('{"type":"READY"}');
+    });
+  });
+  await page.goto("/#news");
+  await expect.poll(() => bearerFrames).toBe(1);
+  await page.clock.runFor(17000);
+  await expect.poll(() => connections).toBe(2);
+  await expect(page.getByText("Tin tức tự cập nhật khi có thay đổi.")).toBeVisible();
+  await page.clock.runFor(17000);
+  expect(connections).toBe(2);
+});
+
 test("guest gate, empty feed, retry and mobile layout remain usable", async ({ page }) => {
   await setup(page, "CUSTOMER", { empty: true });
   await page.goto("/#news");
   await expect(page.getByRole("heading", { name: "Chưa có câu chuyện nào" })).toBeVisible();
+  await expect.poll(() => page.locator(".news-banner img").evaluate(img => img.naturalWidth)).toBeGreaterThan(0);
+  await expect(page.getByRole("link", { name: "Xem thực đơn" })).toHaveAttribute("href", "#customer");
   await page.route("**/api/v1/news?*", route => route.fulfill({ status: 503, json: {} }));
   await page.getByRole("button", { name: "Làm mới" }).click();
   await expect(page.getByRole("alert")).toContainText("Chưa tải được tin tức");
-  await page.route("**/api/v1/news?*", route => route.fulfill({ json: { content: [fixture], totalElements: 1, totalPages: 1, last: true } }));
+  await page.route("**/api/v1/news?*", route => route.fulfill({ json: { content: [fixture], totalElements: 1, totalPages: 1, last: true, page: 0, size: 6 } }));
   await page.getByRole("button", { name: "Thử lại" }).click();
   await expect(page.getByRole("heading", { name: fixture.title })).toBeVisible();
   for (const width of [320, 390, 768, 1440]) {
@@ -436,7 +544,7 @@ for (const [path, broken, message] of [
   }));
   await page.goto(`/#news${path}`);
   await expect(page.getByRole("alert")).toContainText(message);
-  payload = apiPath ? fixture : { content: [fixture], totalElements: 1, totalPages: 1, last: true };
+  payload = apiPath ? fixture : { content: [fixture], totalElements: 1, totalPages: 1, last: true, page: 0, size: 6 };
   await page.getByRole("button", { name: "Thử lại" }).click();
   if (path.endsWith("/edit")) await expect(page.getByLabel("Tiêu đề")).toHaveValue(fixture.title);
   else await expect(page.getByRole("heading", { name: fixture.title })).toBeVisible();
@@ -479,6 +587,7 @@ test("policy-close stops reconnecting when the current session is revoked", asyn
 
 test("repeated policy-close uses backoff across successful identity rechecks", async ({ page }) => {
   await page.clock.install({ time: new Date("2026-11-12T00:00:00Z") });
+  await page.clock.pauseAt(new Date("2026-11-12T00:01:00Z"));
   await setup(page, "STAFF");
   let accountChecks = 0, identityRevision = 0;
   const sockets = [];
@@ -488,8 +597,9 @@ test("repeated policy-close uses backoff across successful identity rechecks", a
   });
   await page.routeWebSocket("**/api/v1/news/events", ws => { sockets.push(ws); ws.onMessage(() => {}); });
   await page.goto("/#news");
+  await expect(page.getByRole("button", { name: "Tài khoản Staff fixture 0", exact: true })).toBeVisible();
+  await page.clock.runFor(10);
   await expect.poll(() => sockets.length).toBe(1);
-  await page.clock.pauseAt(new Date("2026-11-12T00:01:00Z"));
   for (let attempt = 0; attempt < 3; attempt++) {
     identityRevision = attempt + 1;
     const previousChecks = accountChecks;
@@ -535,6 +645,47 @@ test("admin filters and pagination retain query boundaries", async ({ page }) =>
   await expect(page.getByText("Trang 2 / 2", { exact: true })).toBeVisible();
   await page.getByLabel("Sắp xếp", { exact: true }).selectOption("updatedAt,desc");
   await expect.poll(() => queries.at(-1)).toEqual({ page: "0", size: "6", sort: "updatedAt,desc", status: "ARCHIVED" });
+});
+
+test("an empty in-range page offers retry and an out-of-range page returns to the last available page", async ({ page }) => {
+  await setup(page);
+  let contracted = false;
+  const pages = [];
+  await page.route("**/api/v1/news?*", route => {
+    const index = Number(new URL(route.request().url()).searchParams.get("page"));
+    pages.push(index);
+    return route.fulfill({ json: {
+      content: index ? [] : [fixture], totalElements: contracted ? 1 : 7,
+      totalPages: contracted ? 1 : 2, last: contracted || index === 1, page: index, size: 6,
+    } });
+  });
+  await page.goto("/#news");
+  await page.getByRole("button", { name: "Trang sau →" }).click();
+  await expect(page.getByRole("alert")).toContainText("Chưa tải được tin tức");
+  contracted = true;
+  await page.getByRole("button", { name: "Thử lại" }).click();
+  await expect(page.getByRole("heading", { name: fixture.title })).toBeVisible();
+  expect(pages.slice(-3)).toEqual([1, 1, 0]);
+});
+
+test("list rejects a response for a different page and retries the selected page", async ({ page }) => {
+  await setup(page);
+  let wrongPage = true;
+  await page.route("**/api/v1/news?*", route => {
+    const index = Number(new URL(route.request().url()).searchParams.get("page"));
+    return route.fulfill({ json: {
+      content: [{ ...fixture, title: index && !wrongPage ? "Bài ở trang sau" : fixture.title }],
+      totalElements: 7, totalPages: 2, last: !!index, size: 6, page: wrongPage ? 0 : index,
+    } });
+  });
+  await page.goto("/#news");
+  await page.getByRole("button", { name: "Trang sau →" }).click();
+  await expect(page.getByRole("alert")).toContainText("Chưa tải được tin tức");
+  await expect(page.getByRole("heading", { name: fixture.title })).toHaveCount(0);
+  wrongPage = false;
+  await page.getByRole("button", { name: "Thử lại" }).click();
+  await expect(page.getByRole("heading", { name: "Bài ở trang sau" })).toBeVisible();
+  await expect(page.getByText("Trang 2 / 2")).toBeVisible();
 });
 
 for (const failure of ["connection reset", "HTTP 503"]) test(`upload ${failure} locks further uploads in the editor`, async ({ page }) => {

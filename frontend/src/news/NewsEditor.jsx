@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { stripJavaText } from "../javaText.js";
 import NewsImage from "./NewsImage.jsx";
-import { audienceNames, isNewsDetail, isNewsId, newsError, isUncertainNewsWrite } from "./newsApi.js";
+import { audienceNames, isNewsDetail, isNewsId, isNewsVersionTag, newsError, isUncertainNewsWrite } from "./newsApi.js";
 
 const emptyDraft = () => ({ title: "", summary: "", body: "", slug: "", status: "DRAFT", audiences: [], images: [] });
 const length = value => [...value].length;
@@ -74,10 +75,11 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
     setState("loading"); setError("");
     request(`/${id}`, { signal: abort.signal }).then(({ data, etag: tag }) => {
       if (abort.signal.aborted) return;
-      if (!isNewsDetail(data, id)) throw new Error("Invalid news detail response");
+      if (!isNewsDetail(data, id) || !isNewsVersionTag(tag)) throw new Error("Invalid news detail response");
       const loaded = { title: data.title, summary: data.summary || "", body: data.body, slug: data.slug, status: data.status,
         audiences: data.audiences, images: data.images.map(image => ({ mediaId: image.mediaId, url: image.secureUrl })) };
       setDraft(loaded); setOriginal(JSON.stringify(loaded)); setEtag(tag); setState("ready"); setConflict(false); setInvalid({});
+      setUploadUncertain(false);
     }).catch(e => { if (!abort.signal.aborted) { setState("error"); setError(newsError(e)); } });
     return () => abort.abort();
   }, [id, request, attempt]);
@@ -142,20 +144,23 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
   }
   async function submit(event) {
     event.preventDefault();
-    if (saving.current || busy || uploading || conflict || pending || editUncertain) return;
+    if (state !== "ready" || saving.current || busy || uploading || conflict || pending || editUncertain) return;
+    const title = stripJavaText(draft.title);
+    const summary = stripJavaText(draft.summary);
+    const content = stripJavaText(draft.body);
     const errors = {};
-    if (!draft.title.trim() || length(draft.title) > 200) errors.title = "Nhập tiêu đề từ 1 đến 200 ký tự.";
-    if (length(draft.summary) > 500) errors.summary = "Tóm tắt tối đa 500 ký tự.";
-    if (!draft.body.trim()) errors.body = "Nhập nội dung bài viết.";
+    if (!title || length(title) > 200) errors.title = "Nhập tiêu đề từ 1 đến 200 ký tự.";
+    if (length(summary) > 500) errors.summary = "Tóm tắt tối đa 500 ký tự.";
+    if (!content) errors.body = "Nhập nội dung bài viết.";
     if (!draft.audiences.length) errors.audiences = "Chọn ít nhất một nhóm người nhận.";
     if (Object.keys(errors).length) { setInvalid(errors); showError("Vui lòng kiểm tra các trường được đánh dấu."); return; }
-    const slug = draft.slug.trim().toLowerCase();
+    const slug = stripJavaText(draft.slug).toLowerCase();
     if (slug && (slug.length > 180 || !slugPattern.test(slug))) {
       showError("Đường dẫn chỉ gồm chữ thường, chữ số và dấu gạch ngang, tối đa 180 ký tự.");
       return;
     }
-    const creationSlug = id ? null : slug || autoSlug(draft.title);
-    const body = { title: draft.title.trim(), summary: draft.summary.trim() || null, body: id ? draft.body : draft.body.trim(),
+    const creationSlug = id ? null : slug || autoSlug(title);
+    const body = { title, summary: summary || null, body: content,
       slug: creationSlug || slug || null, status: draft.status, audiences: draft.audiences,
       imageMediaIds: draft.images.map(image => image.mediaId) };
     if (creationSlug) {
@@ -181,7 +186,7 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
       if (signal.aborted) return;
       const rejected = !isUncertainNewsWrite(e);
       if (creationSlug && rejected) clearPending();
-      if (e.status === 412) setConflict(true);
+      if ([412, 428].includes(e.status)) setConflict(true);
       if (id && !rejected) setEditUncertain(true);
       showError(!rejected ? "Chưa xác nhận được kết quả lưu bài." : newsError(e));
     } finally {
@@ -191,7 +196,7 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
   }
   async function upload(event) {
     const files = [...event.target.files]; event.target.value = "";
-    if (!files.length || uploading || busy || uploadUncertain || pending || editUncertain) return;
+    if (!files.length || state !== "ready" || uploading || busy || uploadUncertain || pending || conflict || editUncertain) return;
     if (draft.images.length + files.length > 20) { showError("Mỗi bài viết có tối đa 20 ảnh."); return; }
     if (files.some(file => !["image/png", "image/jpeg"].includes(file.type) || file.size > 5 * 1024 * 1024 || file.size === 0)) {
       showError("Chọn ảnh PNG/JPEG, mỗi ảnh lớn hơn 0 byte và không quá 5 MiB."); return;
@@ -220,13 +225,13 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
   function move(index, delta) {
     setDraft(current => { const images = [...current.images]; [images[index], images[index + delta]] = [images[index + delta], images[index]]; return { ...current, images }; });
   }
-  const fieldsLocked = busy || Boolean(pending);
+  const fieldsLocked = busy || state === "loading" || Boolean(pending);
   const recoveryBody = pending && canPreviewRecovery(pending) ? pending.body : null;
   const shownDraft = recoveryBody ?? draft;
   const shownImages = recoveryBody ? recoveryBody.imageMediaIds.map(mediaId => ({
     mediaId, url: `/api/v1/news/images/${mediaId}`,
   })) : draft.images;
-  const saveDisabled = fieldsLocked || uploading || conflict || editUncertain;
+  const saveDisabled = state !== "ready" || fieldsLocked || uploading || conflict || editUncertain;
   async function checkEdit() {
     if (saving.current) return;
     const signal = controller.current.signal;
@@ -235,6 +240,7 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
     try {
       const current = await request(`/${id}`, { signal });
       if (!signal.aborted) {
+        if (!isNewsDetail(current.data, id) || !isNewsVersionTag(current.etag)) throw new Error("Invalid news detail response");
         showError(current.etag === etag
           ? "Máy chủ vẫn đang hiển thị phiên bản cũ. Kiểm tra lại nếu lần lưu còn đang xử lý."
           : "Phiên bản trên máy chủ đã thay đổi. Mở bài để đối chiếu với nội dung đang soạn.");
@@ -248,7 +254,7 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
   }
   return <section className="news-page news-editor" aria-labelledby="editor-title">
     <a className="news-text-link" href={id ? `#news/${id}` : "#news"}>← {id ? "Về bài viết" : "Danh sách tin tức"}</a>
-    <div className="news-heading"><div><p className="eyebrow">LECKER • Biên tập</p><h1 id="editor-title">{id ? "Chỉnh sửa tin tức" : "Một câu chuyện mới."}</h1><p>Những điều bạn chia sẻ làm nên câu chuyện LECKER.</p></div></div>
+    <div className="news-heading"><h1 id="editor-title">{id ? "Chỉnh sửa tin tức" : "Một câu chuyện mới."}</h1></div>
     {error && <div className="news-error" role="alert" tabIndex={-1} ref={errorRef}><p>{error}</p>{conflict && <button type="button" className="news-button" onClick={() => {
       if (window.confirm("Tải bản mới sẽ thay nội dung bạn đang soạn. Bạn đã sao chép phần cần giữ chưa?")) setAttempt(v => v + 1);
     }}>Tải bản mới</button>}</div>}
@@ -269,14 +275,15 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
       <button type="button" className="news-button" disabled={busy} onClick={checkEdit}>Kiểm tra phiên bản máy chủ</button>{" "}
       <a href={`#news/${id}`}>Mở bài hiện tại</a>
     </div>}
-    {state === "loading" ? <p role="status">Đang tải nội dung biên tập…</p> : state === "error" ? <button className="news-button" onClick={() => setAttempt(v => v + 1)}>Thử lại</button>
-      : <form onSubmit={submit} noValidate aria-busy={busy || uploading}>
+    {state === "loading" && <p role="status">Đang tải nội dung biên tập…</p>}
+    {state === "error" && !conflict && <button className="news-button" onClick={() => setAttempt(v => v + 1)}>Thử lại</button>}
+    {(state === "ready" || etag) && <form onSubmit={submit} noValidate aria-busy={busy || uploading || state === "loading"}>
         <div className="news-editor-grid"><div className="news-editor-main"><section className="news-form-panel"><h2>Nội dung bài viết</h2>
           <label htmlFor="news-title-input">Tiêu đề <span aria-hidden="true">*</span></label>
           <input id="news-title-input" value={shownDraft.title} required disabled={fieldsLocked} aria-invalid={!!invalid.title} aria-describedby="news-title-help" onChange={e => field("title", e.target.value)} placeholder="Bạn muốn chia sẻ điều gì?" />
-          <p className={invalid.title ? "news-field-error" : "news-field-help"} id="news-title-help">{invalid.title || `${length(shownDraft.title)}/200 ký tự`}</p>
+          <p className={invalid.title ? "news-field-error" : "news-field-help"} id="news-title-help">{invalid.title || `${length(stripJavaText(shownDraft.title))}/200 ký tự`}</p>
           <label htmlFor="news-summary">Tóm tắt</label><textarea id="news-summary" rows={3} disabled={fieldsLocked} value={shownDraft.summary ?? ""} aria-invalid={!!invalid.summary} aria-describedby="news-summary-help" onChange={e => field("summary", e.target.value)} placeholder="Một lời mở đầu để người đọc muốn khám phá thêm…" />
-          <p className={invalid.summary ? "news-field-error" : "news-field-help"} id="news-summary-help">{invalid.summary || `${length(shownDraft.summary ?? "")}/500 ký tự`}</p>
+          <p className={invalid.summary ? "news-field-error" : "news-field-help"} id="news-summary-help">{invalid.summary || `${length(stripJavaText(shownDraft.summary ?? ""))}/500 ký tự`}</p>
           <label htmlFor="news-body">Nội dung <span aria-hidden="true">*</span></label><textarea id="news-body" className="news-body-input" rows={13} disabled={fieldsLocked} required value={shownDraft.body} aria-invalid={!!invalid.body} aria-describedby="news-body-help" onChange={e => field("body", e.target.value)} placeholder="Viết câu chuyện của bạn tại đây…" />
           <p id="news-body-help" className={invalid.body ? "news-field-error" : "news-field-help"}>{invalid.body || "Nội dung văn bản, giữ nguyên xuống dòng."}</p>
         </section>
@@ -306,7 +313,7 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
           {saveDisabled && <p id="news-save-help" className="news-field-help">{pending && !busy ? "Cần kiểm tra kết quả lần lưu trước." : editUncertain ? "Cần đối chiếu phiên bản trên máy chủ." : conflict ? "Cần tải bản mới trước khi lưu tiếp." : uploading ? "Đang tải ảnh lên." : "Đang lưu tin tức."}</p>}
           <a className="news-cancel" href={id ? `#news/${id}` : "#news"}>Hủy và quay lại</a>
           <p className="news-editor-note">{dirty ? "Bạn có thay đổi chưa lưu." : "Mọi thay đổi sẽ được lưu khi bạn xác nhận."}</p>
-        </section><p className="news-editor-caption">Một câu chuyện hay bắt đầu<br />từ những điều giản dị.</p></aside></div>
+        </section></aside></div>
       </form>}
   </section>;
 }

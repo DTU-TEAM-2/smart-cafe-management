@@ -1,4 +1,4 @@
-import { stripMenuText } from './menuText.js';
+import { stripJavaText as stripMenuText } from '../javaText.js';
 
 const root = '/api/v1/menu';
 const exactFields = new Set(['price', 'imageMediaId', 'mediaId', 'version']);

@@ -34,6 +34,11 @@ export function isNewsId(value) {
     && (value.length < 19 || value <= "9223372036854775807");
 }
 
+export function isNewsVersionTag(value) {
+  const version = typeof value === "string" ? /^"([0-9]+)"$/.exec(value)?.[1] : undefined;
+  return version === "0" || isNewsId(version);
+}
+
 const isOptionalText = value => value == null || typeof value === "string";
 
 function isNewsSummary(post) {
@@ -45,10 +50,14 @@ function isNewsSummary(post) {
       typeof audience === "string" && Object.hasOwn(audienceNames, audience));
 }
 
-export function isNewsPage(page) {
+export function isNewsPage(page, index, size) {
   return Array.isArray(page?.content) && page.content.every(isNewsSummary)
+    && page.page === index && page.size === size && page.content.length <= size
     && Number.isSafeInteger(page.totalElements) && page.totalElements >= 0
-    && Number.isSafeInteger(page.totalPages) && page.totalPages >= 0 && typeof page.last === "boolean";
+    && page.content.length <= page.totalElements
+    && page.totalPages === Math.ceil(page.totalElements / size)
+    && page.last === (index + 1 >= page.totalPages)
+    && (page.content.length === 0 || index < page.totalPages);
 }
 
 export function isNewsDetail(post, id) {
