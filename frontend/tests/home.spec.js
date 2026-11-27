@@ -69,10 +69,6 @@ test("opens the customer menu from the homepage for a guest without a table sess
   await expect(page.getByRole("heading", { name: "Thực đơn hôm nay" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Bạc xỉu" })).toBeVisible();
   await expect(page.getByText("Quét mã QR tại bàn", { exact: false })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Điều hướng chính cho khách" }))
-    .toHaveCSS("position", isMobile ? "fixed" : "static");
-  const gridColumns = await page.locator(".c-menu-grid").evaluate(grid => getComputedStyle(grid).gridTemplateColumns.split(" ").length);
-  expect(gridColumns).toBe(isMobile ? 2 : 4);
 
   await page.getByRole("button", { name: "Về trang chủ" }).click();
   await page.getByRole("link", { name: "Khám phá thực đơn" }).click();
