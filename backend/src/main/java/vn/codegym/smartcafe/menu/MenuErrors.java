@@ -16,7 +16,7 @@ import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
-@RestControllerAdvice
+@RestControllerAdvice(assignableTypes = MenuController.class)
 class MenuErrors {
     @ExceptionHandler(MenuException.class)
     ProblemDetail menu(MenuException error) { return problem(error.status(), error.code(), error.getMessage()); }

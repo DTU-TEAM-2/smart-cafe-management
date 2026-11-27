@@ -304,10 +304,12 @@ test.describe("Figma DT2-2 Authentication Pixel-Perfect Verification", () => {
         await expect(card).toBeVisible();
 
         if (r.label === "login") {
-          // Verify 2-column mobile layout (Image 5 / Figma)
-          await expect(page.locator(".auth-sidebar-mobile-brand")).toBeVisible();
-          await expect(page.locator(".mobile-brand-title")).toHaveText("LECKER");
-          await expect(page.locator(".mobile-tagline-cafe")).toHaveText("CAFE");
+          await expect(page.locator(".login-split-card .auth-sidebar")).toBeHidden();
+          const formPanel = await page.locator(".login-content-card").boundingBox();
+          const loginCard = await card.boundingBox();
+          expect(formPanel.width).toBeGreaterThan(loginCard.width - 4);
+          await expect(page.getByLabel(/Tên đăng nhập/)).toHaveValue("");
+          await expect(page.getByLabel(/Tên đăng nhập/)).not.toHaveAttribute("placeholder");
 
           const loginBtn = page.getByRole("button", { name: /ĐĂNG NHẬP/i });
           await expect(loginBtn).toBeVisible();
