@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { getOrCreateOrderAttempt, readOrderAttempt, getOrCreateAttempt, clearAttempt } from "../src/customer/customerSession.js";
 
-test("attempts survive failed storage writes and stale storage cannot override memory", () => {
+test("orders require durable storage while service requests can use memory", () => {
   const values = new Map();
   globalThis.sessionStorage = {
     getItem: (key) => values.get(key) || null,
@@ -10,16 +10,19 @@ test("attempts survive failed storage writes and stale storage cannot override m
     removeItem: () => { throw new Error("Storage disabled"); },
   };
   const session = { sessionId: "storage-test", token: "test-only", clientStorageId: "a" };
-  const first = getOrCreateOrderAttempt(session, [{ menuItemId: "9007199254740993", quantity: 1 }]);
-  assert.deepEqual(readOrderAttempt(session).payload, first.payload);
-  assert.equal(getOrCreateOrderAttempt(session, [{ menuItemId: "2", quantity: 2 }]).idempotencyKey, first.idempotencyKey);
+  const payload = [{ menuItemId: "9007199254740993", quantity: 1 }];
+  assert.throws(() => getOrCreateOrderAttempt(session, payload), /Không thể lưu mã gửi đơn/);
+  assert.equal(readOrderAttempt(session), null);
   for (const operation of ["waiter", "bill"]) {
     const key = getOrCreateAttempt(session, operation);
     assert.equal(getOrCreateAttempt(session, operation), key);
     clearAttempt(session, operation);
     assert.notEqual(getOrCreateAttempt(session, operation), key);
   }
-  values.set("lecker_customer_attempt:order:storage-test:a", JSON.stringify(first));
+  globalThis.sessionStorage.setItem = (key, value) => values.set(key, value);
+  const first = getOrCreateOrderAttempt(session, payload);
+  assert.deepEqual(readOrderAttempt(session).payload, first.payload);
+  assert.equal(getOrCreateOrderAttempt(session, [{ menuItemId: "2", quantity: 2 }]).idempotencyKey, first.idempotencyKey);
   clearAttempt(session, "order");
   assert.equal(readOrderAttempt(session), null);
   assert.notEqual(getOrCreateOrderAttempt(session, first.payload).idempotencyKey, first.idempotencyKey);

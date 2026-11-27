@@ -170,7 +170,18 @@ export async function createOrder({ sessionId, token, items, idempotencyKey, csr
       && (data.status === res.status || res.headers.get("Content-Type")?.includes("application/problem+json"));
     throw error;
   }
-  return normalizeOrder(data, res, sessionId);
+  const order = normalizeOrder(data, res, sessionId);
+  const expectedMenuIds = new Set(items.map(item => String(item.menuItemId ?? item.id)));
+  const actualMenuIds = new Set(order.items.map(item => item.menuItemId));
+  const batchTotal = order.items.reduce((sum, item) =>
+    item.status === "CANCELLED" ? sum : sum + BigInt(item.lineTotal), 0n);
+  if (order.items.length !== expectedMenuIds.size || actualMenuIds.size !== expectedMenuIds.size
+      || !order.items.every(item => expectedMenuIds.has(item.menuItemId))
+      || new Set(order.items.map(item => item.id)).size !== order.items.length
+      || BigInt(order.totalAmount) !== batchTotal || BigInt(order.sessionTotalAmount) < batchTotal) {
+    throw new Error("Chưa xác minh được đơn món. Vui lòng thử lại.");
+  }
+  return order;
 }
 
 export async function updateOrderItem({ sessionId, token, itemId, quantity, expectedVersion, csrf = null }) {

@@ -100,7 +100,13 @@ export function getOrCreateOrderAttempt(session, newPayload) {
   }
 
   const idempotencyKey = createStorageId();
-  writeJson(key, { idempotencyKey, payload: newPayload });
+  const attempt = { idempotencyKey, payload: newPayload };
+  try {
+    sessionStorage.setItem(key, JSON.stringify(attempt));
+  } catch {
+    throw new Error("Không thể lưu mã gửi đơn an toàn. Giỏ hàng vẫn còn, vui lòng bật bộ nhớ phiên hoặc giải phóng dung lượng rồi thử lại.");
+  }
+  memoryFallback.set(key, attempt);
   return {
     idempotencyKey,
     payload: newPayload,

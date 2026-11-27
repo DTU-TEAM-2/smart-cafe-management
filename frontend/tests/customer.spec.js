@@ -333,7 +333,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     expect(keys[1]).toBe(keys[0]);
   });
 
-  for (const firstResponse of ["invalid-body", "invalid-item", "network-error", "rejected-retry", "readded-item"]) {
+  for (const firstResponse of ["invalid-body", "invalid-item", "wrong-menu-item", "wrong-batch-total", "wrong-session-total", "network-error", "rejected-retry", "readded-item"]) {
     test(`recovers a pending order after ${firstResponse} and an empty cart`, async ({ page }) => {
       const attempts = [];
       await page.route("**/api/v1/customer/sessions/10/orders", (route) => {
@@ -346,15 +346,18 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
           if (firstResponse === "invalid-item") return route.fulfill({ json: {
             id: "1002", sessionId: "10", totalAmount: "45000", sessionTotalAmount: "45000", items: [{}],
           } });
-          return route.abort("connectionfailed");
+          if (["network-error", "rejected-retry", "readded-item"].includes(firstResponse)) return route.abort("connectionfailed");
         }
         if (firstResponse === "rejected-retry" && attempts.length === 2) {
           return route.fulfill({ status: 403, json: { detail: "Yêu cầu chưa qua kiểm tra phiên." } });
         }
+        const first = attempts.length === 1;
         return route.fulfill({ json: {
-          id: "1002", sessionId: "10", totalAmount: "45000", sessionTotalAmount: "45000",
+          id: "1002", sessionId: "10",
+          totalAmount: first && firstResponse === "wrong-batch-total" ? "1" : "45000",
+          sessionTotalAmount: first && firstResponse === "wrong-session-total" ? "1" : "45000",
           editableUntil: new Date(Date.now() + 180000).toISOString(),
-          items: [{ id: "501", menuItemId: "101", name: "Caramel Latte", unitPrice: "45000",
+          items: [{ id: "501", menuItemId: first && firstResponse === "wrong-menu-item" ? "102" : "101", name: "Caramel Latte", unitPrice: "45000",
             lineTotal: "45000", quantity: 1, version: "0", status: "SUBMITTED" }],
         } });
       });
@@ -954,15 +957,11 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     await expect(page.getByText("Trà đúng bộ lọc")).toBeVisible();
   });
 
-  test("17. Reuses attempt and idempotency key even when sessionStorage throws quota error", async ({ page }) => {
-    let orderRequests = [];
+  test("17. Blocks order dispatch when the attempt cannot be saved across reload", async ({ page }) => {
+    const orderRequests = [];
     await page.route(/\/api\/v1\/customer\/sessions\/10\/orders$/, async (route) => {
-      const body = JSON.parse(route.request().postData());
       const key = route.request().headers()["idempotency-key"];
-      orderRequests.push({ key, body });
-      if (orderRequests.length === 1) {
-        return route.abort("failed");
-      }
+      orderRequests.push(key);
       return route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -980,7 +979,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     await page.addInitScript(() => {
       const origSetItem = sessionStorage.setItem.bind(sessionStorage);
       sessionStorage.setItem = (k, v) => {
-        if (typeof k === "string" && k.includes("attempt")) {
+        if (k.startsWith("lecker_customer_attempt:order:") && !sessionStorage.getItem("allow-order-attempt")) {
           throw new DOMException("QuotaExceededError", "QuotaExceededError");
         }
         return origSetItem(k, v);
@@ -992,16 +991,19 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     await page.getByRole("button", { name: /Giỏ hàng/ }).click();
     await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
 
-    await expect(page.getByText(/Đặt món thất bại/)).toBeVisible();
-    await page.getByRole("button", { name: "ĐÓNG", exact: true }).click();
+    await expect(page.getByText(/Không thể lưu mã gửi đơn an toàn/)).toBeVisible();
+    expect(orderRequests).toHaveLength(0);
 
-    // Retry sending order
-    await page.getByRole("button", { name: "GỬI LẠI ĐƠN CHỜ" }).click();
+    await page.reload();
+    await page.getByRole("button", { name: "Giỏ hàng, 1 món" }).click();
+    await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+    await expect(page.getByText(/Không thể lưu mã gửi đơn an toàn/)).toBeVisible();
+    expect(orderRequests).toHaveLength(0);
+    await page.evaluate(() => sessionStorage.setItem("allow-order-attempt", "true"));
+    await page.getByRole("button", { name: "THỬ LẠI" }).click();
     await expect(page.getByText(/Đặt món thành công/)).toBeVisible();
-
-    expect(orderRequests).toHaveLength(2);
-    expect(orderRequests[0].key).toBe(orderRequests[1].key);
-    expect(orderRequests[0].body).toEqual(orderRequests[1].body);
+    expect(orderRequests).toHaveLength(1);
+    expect(orderRequests[0]).toBeTruthy();
   });
 
   test("18. Cart mount cannot start a stale price writer while submit checks current prices", async ({ page }) => {
