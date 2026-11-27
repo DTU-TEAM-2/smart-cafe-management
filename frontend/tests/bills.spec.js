@@ -335,9 +335,9 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
 
   test("Invalid list and mismatched detail responses offer retry without displaying wrong bills", async ({ page }) => {
     await page.route("**/api/v1/home/account", route => route.fulfill({ json: admin }));
-    let invalidList = true;
+    let list = {};
     await page.route("**/api/v1/bills?**", route => route.fulfill({
-      json: invalidList ? {} : { content: mockBills, totalElements: 2, totalPages: 1, page: 0 },
+      json: list,
     }));
     let wrongDetail = true;
     await page.route("**/api/v1/bills/1", route => route.fulfill({
@@ -347,7 +347,10 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
     await page.goto("/#bills");
     await setToken(page, "admin-token");
     await expect(page.getByRole("alert")).toContainText("Phản hồi danh sách hóa đơn không hợp lệ");
-    invalidList = false;
+    list = { content: [{ ...mockBills[0], creatorName: { invalid: true } }], totalElements: 1, totalPages: 1, page: 0 };
+    await page.getByRole("button", { name: "Thử lại", exact: true }).click();
+    await expect(page.getByRole("alert")).toContainText("Phản hồi danh sách hóa đơn không hợp lệ");
+    list = { content: mockBills, totalElements: 2, totalPages: 1, page: 0 };
     await page.getByRole("button", { name: "Thử lại", exact: true }).click();
     await page.getByRole("button", { name: "BILL-2026-001" }).click();
     await page.getByRole("button", { name: "Xem chi tiết", exact: true }).click();

@@ -42,8 +42,12 @@ export function formatDateTime(isoString) {
 
 const isCount = value => Number.isSafeInteger(value) && value >= 0;
 const isAmount = value => typeof value === "string" ? /^\d+$/.test(value) : isCount(value);
-const isBill = bill => bill != null && /^\d+$/.test(bill.id ?? "")
-  && typeof bill.billCode === "string" && Object.hasOwn(billStatusLabels, bill.status) && isAmount(bill.totalAmount);
+const isBillId = value => typeof value === "string" ? /^[1-9]\d*$/.test(value) : isCount(value) && value > 0;
+const isOptionalText = value => value == null || typeof value === "string";
+const isBill = bill => bill != null && isBillId(bill.id)
+  && typeof bill.billCode === "string" && typeof bill.status === "string"
+  && Object.hasOwn(billStatusLabels, bill.status) && isAmount(bill.totalAmount)
+  && [bill.creatorName, bill.tableName, bill.tableCode, bill.sessionCode, bill.createdAt, bill.paidAt].every(isOptionalText);
 const validPage = page => page != null && isCount(page.page) && isCount(page.totalElements)
   && isCount(page.totalPages) && Array.isArray(page.content) && page.content.every(isBill);
 const validItem = item => item != null && typeof item.itemName === "string" && isCount(item.quantity)
