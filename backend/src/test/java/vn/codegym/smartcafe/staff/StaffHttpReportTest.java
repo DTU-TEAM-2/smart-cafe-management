@@ -19,8 +19,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
-import org.springframework.context.ApplicationContextInitializer;
-import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ContextConfiguration;
 import tools.jackson.databind.JsonNode;
@@ -36,18 +34,8 @@ import static org.assertj.core.api.Assertions.assertThat;
                 "spring.datasource.password=${TEST_DB_PASSWORD:123456}",
                 "smartcafe.auth.token-secret=dt210-staff-http-test-signing-secret-only-2026"
         })
-@ContextConfiguration(initializers = StaffHttpReportTest.TestDatabaseGuard.class)
+@ContextConfiguration(initializers = StaffTestDatabaseGuard.class)
 class StaffHttpReportTest {
-
-    static class TestDatabaseGuard implements ApplicationContextInitializer<ConfigurableApplicationContext> {
-        @Override
-        public void initialize(ConfigurableApplicationContext context) {
-            String url = context.getEnvironment().getProperty("spring.datasource.url", "");
-            if (!url.matches("jdbc:mysql://[^/]+/[A-Za-z0-9_]+_test(?:\\?.*)?")) {
-                throw new IllegalStateException("A dedicated MySQL *_test URL is required before integration tests run");
-            }
-        }
-    }
 
     @LocalServerPort
     int port;
@@ -142,6 +130,7 @@ class StaffHttpReportTest {
         String staffUser = "stf_" + suffix;
 
         // Cleanup any leftovers in dedicated test database
+        StaffTestDatabaseGuard.requireTestCatalog(jdbc);
         jdbc.update("DELETE FROM staff_profiles");
         jdbc.update("DELETE FROM users");
 
