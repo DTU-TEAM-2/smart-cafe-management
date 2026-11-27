@@ -127,6 +127,49 @@ class OtpPoolIntegrationTest {
         String healthy = fixture();
         assertThat(request("verify-otp", "{\"challengeId\":\""+healthy+"\",\"otp\":\"123456\"}").getResponse().getStatus()).isEqualTo(200);
     }
+
+    // T03: Slow SMTP in resend-otp does NOT hold Hikari pool connections (3 concurrent resends > poolSize=2 + concurrent verify)
+    @org.junit.jupiter.api.Test
+    void slowResendDoesNotHoldPoolConnectionsDuringSmtpDispatch() throws Exception {
+        List<String> resendIds = List.of(fixture(), fixture(), fixture());
+        String independentId = fixture();
+        HikariDataSource pool = source.unwrap(HikariDataSource.class);
+
+        var allThreeEnteredSmtp = new CountDownLatch(3);
+        var releaseSmtp = new CountDownLatch(1);
+        doAnswer(call -> {
+            allThreeEnteredSmtp.countDown();
+            assertThat(releaseSmtp.await(10, TimeUnit.SECONDS)).isTrue();
+            return null;
+        }).when(mail).sendOtpEmail(eq(EMAIL), anyString(), eq("RESET"), anyLong());
+
+        try (var executor = Executors.newFixedThreadPool(4)) {
+            List<Future<MvcResult>> resendFutures = new ArrayList<>();
+            for (String id : resendIds) {
+                resendFutures.add(executor.submit(() -> request("resend-otp", "{\"challengeId\":\"" + id + "\"}")));
+            }
+            try {
+                // With maximum-pool-size=2, reaching 3 simultaneous SMTP calls already proves DB connections were released!
+                assertThat(allThreeEnteredSmtp.await(8, TimeUnit.SECONDS))
+                        .as("All 3 concurrent resend requests must enter SMTP without exhausting pool of size 2").isTrue();
+                assertThat(pool.getHikariPoolMXBean().getActiveConnections()).isZero();
+                assertThat(pool.getHikariPoolMXBean().getThreadsAwaitingConnection()).isZero();
+
+                // An independent DB-backed request must still complete immediately while all 3 resends wait in SMTP
+                Future<MvcResult> concurrentVerify = executor.submit(() ->
+                        request("verify-otp", "{\"challengeId\":\"" + independentId + "\",\"otp\":\"123456\"}"));
+                assertThat(concurrentVerify.get(5, TimeUnit.SECONDS).getResponse().getStatus()).isEqualTo(200);
+            } finally {
+                releaseSmtp.countDown();
+            }
+            for (Future<MvcResult> future : resendFutures) {
+                assertThat(future.get(10, TimeUnit.SECONDS).getResponse().getStatus()).isEqualTo(200);
+            }
+        }
+        assertThat(pool.getHikariPoolMXBean().getActiveConnections()).isZero();
+        assertThat(pool.getHikariPoolMXBean().getThreadsAwaitingConnection()).isZero();
+    }
+
     private MvcResult request(String route, String body) throws Exception {
         return mvc.perform(post("/api/v1/auth/"+route).contentType(MediaType.APPLICATION_JSON).content(body)).andReturn();
     }

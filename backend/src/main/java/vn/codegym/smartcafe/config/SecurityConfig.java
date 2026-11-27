@@ -55,8 +55,7 @@ public class SecurityConfig {
                                 || ("POST".equals(request.getMethod()) && "/api/v1/profiles/me/password".equals(request.getServletPath()))
                 ).ignoringRequestMatchers(
                         "/api/v1/auth/**",
-                        "/api/v1/admin/**",
-                        "/api/v1/staff/**"
+                        "/api/v1/admin/**"
                 ))
                 .sessionManagement(session -> session.requireExplicitAuthenticationStrategy(true))
                 .securityContext(context -> context.securityContextRepository(new NullSecurityContextRepository()))
@@ -115,7 +114,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/v1/news/{id}").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.DELETE, "/api/v1/news/{id}").hasRole("ADMIN")
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/staff/**").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/staff/dashboard").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers("/api/v1/staff", "/api/v1/staff/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/sales/csrf", "/api/v1/sales/tables", "/api/v1/sales/tables/*/services").hasAnyRole("STAFF", "ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/v1/sales/tables/*/bill", "/api/v1/sales/tables/*/requests/*/acknowledge").hasAnyRole("STAFF", "ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/income", "/api/v1/bills/*").hasRole("ADMIN")
