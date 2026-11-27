@@ -1,5 +1,11 @@
 # Database hệ thống — nguồn chuẩn
 
+## DT2-11 — bản thử UI độc lập, 17/11/2026
+
+Đối chiếu hai nguồn DDL đang có trong repo: snapshot legacy `backend/src/test/resources/db/current-shared-2026-11-13.sql` có `cafe_tables` thiếu `code`, `qr_public_id`, `updated_at`, `version` so với ảnh chuẩn; `table_number` NOT NULL và CHECK `EMPTY/ACTIVE`. Gói verified `backend/src/main/resources/db/smart-cafe/V20261113_01__smart_cafe_schema.sql` có các trường theo ảnh, PK tự tăng, unique code/number/QR, nullable table_number và CHECK `ACTIVE/OUT_OF_SERVICE/ARCHIVED`. Đây là **hai môi trường/lineage khác nhau**, không phải thiếu DDL bàn giao toàn dự án. Không kiểm tra lại DB đang chạy ngày 17/11, không tự chuyển profile hoặc sửa schema.
+
+Người dùng chọn làm giao diện độc lập và lưu câu hỏi ID, State/On, Remove. Vì vậy bản thử không có persistence/API hay ánh xạ trạng thái; các quyết định nghiệp vụ và môi trường đích vẫn cần chốt trước tích hợp. [Câu hỏi](../product/open-questions.md#dt2-11--id-stateon-và-xóa-bàn-17112026), [bàn giao](../handover/dt2-11-table-ui-preview.md).
+
 **Cập nhật 13/11/2026:** đã nhận và kiểm chứng DDL bàn giao 20 bảng/4 view, gồm News audience. Xem [tích hợp và ma trận lineage mới](../handover/dt2-2-verified-database-integration.md). Profile opt-in `verified-db` phục vụ rehearsal/đích sau phê duyệt; mặc định giữ Auth-local. Quan sát legacy bên dưới vẫn thuộc môi trường riêng. Gói bàn giao không tự cấp quyền ghi database chung hoặc triển khai.
 
 **Bản chuẩn chủ repo cung cấp ngày 11/11/2026:** [sơ đồ database](../handover/evidence/system-database-reference-2026-11-11.jpg). Áp dụng cho toàn bộ dự án theo [rule database bắt buộc](../../.agents/rules/database-source-of-truth.md), không chỉ DT2-1. Runtime hiện được cấu hình dùng MySQL `smart_cafe`.

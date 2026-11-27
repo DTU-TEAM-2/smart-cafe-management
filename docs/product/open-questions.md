@@ -1,5 +1,20 @@
 # Các quyết định cần chốt lại
 
+## DT2-11 — ID, State/On và xóa bàn, 17/11/2026
+
+Nguồn: [DT2-11](https://duymanhdnvn20092005.atlassian.net/browse/DT2-11), các task con DT2-73/74/75 và trao đổi trực tiếp ngày 17/11/2026. Người dùng chọn **làm giao diện độc lập và lưu lại câu hỏi**, chưa chốt các phương án nghiệp vụ dưới đây. PO/mentor xác nhận nghiệp vụ; chủ repo/người phụ trách DB xác nhận ánh xạ và DDL.
+
+| Câu hỏi | Phương án cần xác nhận | Phần bị ảnh hưởng |
+| --- | --- | --- |
+| ID trên giao diện là gì? | `cafe_tables.id`, `code` hay `table_number`; định dạng, tính duy nhất, trường bắt buộc và quyền sửa? | Add, validation, tìm ID và API payload |
+| State và On có nghĩa gì? | Trạng thái hoạt động của bàn, trạng thái có khách hay trạng thái phiên; tập giá trị hợp lệ; On chỉ hiển thị hay có quyền mở/reset phiên? | Edit, tìm State, hiển thị On, phối hợp DT2-4/6 và QA-02/08 |
+| Remove xử lý thế nào? | Xóa vật lý bàn chưa có lịch sử, lưu trữ/ngừng sử dụng, hay từ chối; bàn có phiên đang mở/đang thanh toán/hóa đơn xử lý ra sao? | Delete, khóa giao dịch, lịch sử bill DT2-8 và hành vi QR cũ |
+| Ai được xem/thêm/sửa/xóa? | Ma trận quyền từng thao tác và các trường cho phép sửa; cách đối sánh ID/State chính xác hay một phần? | API authorization, UI và tìm kiếm |
+
+DDL-only legacy tại `backend/src/test/resources/db/current-shared-2026-11-13.sql` khác sơ đồ chuẩn: `cafe_tables` thiếu `code`, `qr_public_id`, `updated_at`, `version`; `table_number` NOT NULL và trạng thái `EMPTY/ACTIVE`. Repo cũng đã có DDL bàn giao verified tại `backend/src/main/resources/db/smart-cafe/V20261113_01__smart_cafe_schema.sql` với các trường theo sơ đồ và CHECK `ACTIVE/OUT_OF_SERVICE/ARCHIVED`, thuộc môi trường/lineage khác. Không lấy snapshot legacy để kết luận toàn dự án thiếu DDL. Chưa kiểm lại DB ngày 17/11 hoặc chọn môi trường tích hợp DT2-11; giữ persistence ngoài phạm vi UI theo lựa chọn người dùng. Xem [database contract](../architecture/database-contract.md).
+
+Bản thử tại `/preview/tables` chỉ có trong Vite development, không gọi API, không lưu browser storage, không tạo người dùng/phiên. ID/State là chuỗi nhập thử, On ghi “Chưa chốt”. Tìm một phần không phân biệt hoa/thường, kiểm ID trùng và Remove khỏi bộ nhớ chỉ phục vụ review tương tác; chúng **không phải quyết định nghiệp vụ đã được duyệt**. Xem [bàn giao bản thử](../handover/dt2-11-table-ui-preview.md).
+
 ## DT2-2 — phản hồi Database về baseline, 13/11/2026
 
 Phản hồi mới báo cáo một DB local20 bảng/4 view, News audience và chưa có history. Workspace đang kết nối môi trường13 bảng có history riêng. Cần xác nhận môi trường đích, quyết định xử lý legacy, DDL-only được duyệt cùng Git ref/checksum, migration location và marker/version/script/checksum. Cần bổ sung inventory các instance đã dùng Auth V001/V002 và legacy V001–V010. Chi tiết nguồn, quy trình đề xuất và kết quả186 Backend tests cùng rehearsal được ghi ở [bàn giao follow-up](../handover/dt2-2-flyway-baseline-followup.md). Runtime chấp nhận baseline và provision đầy đủ còn **BLOCKED** theo các đầu vào đó.

@@ -1,0 +1,56 @@
+.table-preview { max-width: 1280px; margin: 0 auto; padding: 32px; color: #f4ede2; line-height: 1.6; }
+.table-preview h1, .table-preview h2, .table-preview h3 { line-height: 1.25; }
+.table-preview h1 { margin: 6px 0 12px; font: bold clamp(28px, 4vw, 40px)/1.25 var(--serif); }
+.table-preview h2 { margin-top: 0; font-size: 21px; }
+.table-preview-header, .table-preview-toolbar, .table-pagination { display: flex; align-items: center; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.table-preview-header p { margin: 0; color: var(--muted); }
+.table-preview-header a { color: var(--gold); }
+.table-preview .table-eyebrow { font-size: 12px; letter-spacing: .12em; color: var(--gold); }
+.table-preview-note { margin: 26px 0; padding: 18px 22px; border: 1px solid #806d51; border-radius: 12px; background: #292219; }
+.table-preview-note strong { color: var(--gold); }
+.table-preview-note p { margin: 6px 0 0; }
+.table-preview-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.table-preview button, .table-preview input, .table-preview select { font: inherit; min-height: 44px; border: 1px solid #806d51; border-radius: 7px; padding: 10px 14px; background: #171310; color: #f4ede2; }
+.table-preview button { cursor: pointer; }
+.table-preview button:hover:not(:disabled) { background: #3b2d21; }
+.table-preview button:disabled { opacity: .55; cursor: default; }
+.table-preview button.table-primary { background: var(--gold); color: #21170d; border-color: var(--gold); font-weight: 600; }
+.table-preview button.table-primary:hover { background: #edcb8c; }
+.table-preview button.table-danger { color: #ffb8ac; border-color: #bc7868; }
+.table-preview input, .table-preview select { width: 100%; min-width: 0; }
+.table-preview input[readonly] { color: var(--muted); background: #2b241e; }
+.table-preview-grid { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(280px, 1fr); align-items: start; gap: 24px; }
+.table-panel { min-width: 0; border: 1px solid #66523b; border-radius: 12px; padding: 22px; background: var(--surface); }
+.table-search { display: flex; align-items: end; flex-wrap: wrap; gap: 12px; }
+.table-search label { display: grid; gap: 6px; flex: 1 1 140px; }
+.table-search label:nth-child(2) { flex-grow: 2; }
+.table-list-summary, .table-empty, .table-empty-info, .table-editor small { color: var(--muted); }
+.table-list-scroll { overflow-x: auto; }
+.table-preview table { border-collapse: collapse; width: 100%; text-align: left; table-layout: fixed; }
+.table-preview td, .table-preview th { padding: 12px 8px; border-bottom: 1px solid #66523b; overflow-wrap: anywhere; vertical-align: middle; }
+.table-preview thead { color: var(--muted); font-size: 13px; }
+.table-preview th button { max-width: 100%; overflow-wrap: anywhere; text-align: left; color: var(--gold); }
+.table-selected { background: #d9b57314; }
+.table-preview .table-selected th button { border-color: var(--gold); }
+.table-pending { font-size: 12px; color: var(--muted); }
+.table-empty { text-align: center; padding: 28px 0; }
+.table-empty h3 { color: #f4ede2; }
+.table-pagination { margin-top: 20px; font-size: 13px; gap: 10px; }
+.table-editor { display: grid; gap: 10px; }
+.table-editor label:not(:first-child), .table-editor .table-preview-actions { margin-top: 14px; }
+.table-feedback { min-height: 26px; color: #d4e6ba; }
+.table-preview .table-error { color: #ffb8ac; margin: 6px 0 16px; }
+.table-preview [aria-invalid="true"] { border-color: #ffb8ac; }
+.table-remove-dialog { width: min(500px, calc(100% - 32px)); border: 1px solid #806d51; border-radius: 12px; background: var(--surface); overflow-wrap: anywhere; }
+.table-remove-dialog::backdrop { background: #000b; }
+.table-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 850px) { .table-preview-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 480px) {
+  .table-preview { padding: 20px 14px; }
+  .table-preview-header { align-items: start; }
+  .table-panel { padding: 16px; }
+  .table-preview-toolbar > .table-preview-actions { width: 100%; }
+  .table-preview-toolbar button { flex: 1 1 140px; }
+  .table-preview td, .table-preview th { padding: 10px 4px; }
+  .table-remove-dialog { padding: 22px; }
+}
