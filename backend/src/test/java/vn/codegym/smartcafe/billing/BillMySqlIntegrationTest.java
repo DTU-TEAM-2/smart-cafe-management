@@ -7,11 +7,8 @@ import java.security.MessageDigest;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
-import java.util.Base64;
 import java.util.HexFormat;
 import java.util.List;
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
@@ -26,6 +23,7 @@ import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
+import vn.codegym.smartcafe.auth.TokenService;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -44,11 +42,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @EnabledIfEnvironmentVariable(named = "TEST_DB_URL", matches = "jdbc:mysql:.*")
 @Transactional
 class BillMySqlIntegrationTest {
-    private static final String SECRET = "test-secret-at-least-32-bytes-long-for-testing!";
-
     @Autowired JdbcTemplate jdbc;
     @Autowired MockMvc mvc;
     @Autowired PasswordEncoder passwordEncoder;
+    @Autowired TokenService tokens;
 
     @TestConfiguration
     static class FixedClockConfig {
@@ -60,13 +57,8 @@ class BillMySqlIntegrationTest {
         }
     }
 
-    private String bearer(int id, String username) throws Exception {
-        long expiry = Instant.now().plusSeconds(3600).toEpochMilli();
-        String payload = Base64.getUrlEncoder().withoutPadding().encodeToString(
-                (id + ":" + username + ":ANY:" + expiry).getBytes(StandardCharsets.UTF_8));
-        Mac mac = Mac.getInstance("HmacSHA256");
-        mac.init(new SecretKeySpec(SECRET.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
-        return "Bearer " + payload + "." + HexFormat.of().formatHex(mac.doFinal(payload.getBytes(StandardCharsets.UTF_8)));
+    private String bearer(long id, String username, String role) {
+        return "Bearer " + tokens.generateToken(id, username, role, 0);
     }
 
     @BeforeEach
@@ -149,7 +141,7 @@ class BillMySqlIntegrationTest {
 
     @Test
     void staffCanReadBillsButCannotReadRevenue() throws Exception {
-        String staffAuth = bearer(2, "staff_u");
+        String staffAuth = bearer(2, "staff_u", "STAFF");
         mvc.perform(get("/api/v1/bills").header("Authorization", staffAuth)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(2));
         mvc.perform(get("/api/v1/bills/1").header("Authorization", staffAuth)).andExpect(status().isOk())
@@ -159,7 +151,7 @@ class BillMySqlIntegrationTest {
 
     @Test
     void customerRoleIsForbidden() throws Exception {
-        String custAuth = bearer(3, "cust_u");
+        String custAuth = bearer(3, "cust_u", "CUSTOMER");
         mvc.perform(get("/api/v1/bills").header("Authorization", custAuth)).andExpect(status().isForbidden());
         mvc.perform(get("/api/v1/bills/1").header("Authorization", custAuth)).andExpect(status().isForbidden());
         mvc.perform(get("/api/v1/statistics/revenue").header("Authorization", custAuth)).andExpect(status().isForbidden());
@@ -197,8 +189,8 @@ class BillMySqlIntegrationTest {
         String guestAuth = "Bearer " + guestToken;
         String guestHash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
                 .digest(guestToken.getBytes(StandardCharsets.UTF_8)));
-        String staffAuth = bearer(2, "staff_u");
-        String adminAuth = bearer(1, "admin_u");
+        String staffAuth = bearer(2, "staff_u", "STAFF");
+        String adminAuth = bearer(1, "admin_u", "ADMIN");
         jdbc.update("INSERT INTO cafe_tables(id,code,name,qr_public_id) VALUES(3,'T003','Bàn tích hợp',UUID())");
         jdbc.update("""
                 INSERT INTO table_sessions(id,table_id,session_code,opened_by_user_id,started_at)
@@ -286,7 +278,7 @@ class BillMySqlIntegrationTest {
 
     @Test
     void listBillsWithDefaultPaginationAndSort() throws Exception {
-        String adminAuth = bearer(1, "admin_u");
+        String adminAuth = bearer(1, "admin_u", "ADMIN");
         mvc.perform(get("/api/v1/bills").header("Authorization", adminAuth))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", containsString("no-store")))
@@ -306,7 +298,7 @@ class BillMySqlIntegrationTest {
 
     @Test
     void searchBillByCodeExactAndPartial() throws Exception {
-        String adminAuth = bearer(1, "admin_u");
+        String adminAuth = bearer(1, "admin_u", "ADMIN");
         mvc.perform(get("/api/v1/bills").header("Authorization", adminAuth).param("code", "BILL-20261110-001"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
@@ -329,7 +321,7 @@ class BillMySqlIntegrationTest {
     @Test
     void wildcardCharactersInBillSearchAreLiteral() throws Exception {
         for (String keyword : new String[] {"%", "_", "!"}) {
-            mvc.perform(get("/api/v1/bills").header("Authorization", bearer(1, "admin_u"))
+            mvc.perform(get("/api/v1/bills").header("Authorization", bearer(1, "admin_u", "ADMIN"))
                     .param("code", keyword))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.totalElements").value(0));
@@ -338,7 +330,7 @@ class BillMySqlIntegrationTest {
 
     @Test
     void searchBillByCreatedDate() throws Exception {
-        String adminAuth = bearer(1, "admin_u");
+        String adminAuth = bearer(1, "admin_u", "ADMIN");
         // Bill 1 was created on 2026-11-10
         mvc.perform(get("/api/v1/bills").header("Authorization", adminAuth)
                 .param("from", "2026-11-10")
@@ -364,7 +356,7 @@ class BillMySqlIntegrationTest {
 
     @Test
     void filterBillByStatus() throws Exception {
-        String adminAuth = bearer(1, "admin_u");
+        String adminAuth = bearer(1, "admin_u", "ADMIN");
         mvc.perform(get("/api/v1/bills").header("Authorization", adminAuth).param("status", "PAID"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.totalElements").value(1))
@@ -383,7 +375,7 @@ class BillMySqlIntegrationTest {
 
     @Test
     void getBillDetailReturnsCompleteSnapshot() throws Exception {
-        String adminAuth = bearer(1, "admin_u");
+        String adminAuth = bearer(1, "admin_u", "ADMIN");
         mvc.perform(get("/api/v1/bills/1").header("Authorization", adminAuth))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Cache-Control", containsString("no-store")))
@@ -407,7 +399,7 @@ class BillMySqlIntegrationTest {
 
     @Test
     void billDetailRetainsHistoricalSnapshotEvenIfCurrentMenuOrTableChanges() throws Exception {
-        String adminAuth = bearer(1, "admin_u");
+        String adminAuth = bearer(1, "admin_u", "ADMIN");
         // Change current table name and menu price in database
         jdbc.update("UPDATE cafe_tables SET name='Bàn VIP Mới' WHERE id=1");
         jdbc.update("UPDATE menu_items SET name='Cà phê sữa Sài Gòn', price=99000 WHERE id=1");
@@ -422,7 +414,7 @@ class BillMySqlIntegrationTest {
 
     @Test
     void billDetailReturnsNotFoundForNonExistentId() throws Exception {
-        String adminAuth = bearer(1, "admin_u");
+        String adminAuth = bearer(1, "admin_u", "ADMIN");
         mvc.perform(get("/api/v1/bills/99999").header("Authorization", adminAuth))
                 .andExpect(status().isNotFound());
     }
@@ -431,7 +423,7 @@ class BillMySqlIntegrationTest {
 
     @Test
     void statisticsCalculatesRevenueFromPaidAtNotCreatedAt() throws Exception {
-        String adminAuth = bearer(1, "admin_u");
+        String adminAuth = bearer(1, "admin_u", "ADMIN");
         // Bill 1 was created on Nov 10, but paid on Nov 11 at 09:00:00 (UTC 09:00:00 -> 16:00:00 VN)
         // Bill 2 was created on Nov 11, but is PENDING -> excluded from revenue!
 
@@ -471,7 +463,7 @@ class BillMySqlIntegrationTest {
                 VALUES (1,'CASH',110000,1,'2026-11-11 09:00:00','tender-1',REPEAT('0',64)),
                        (2,'BANK_TRANSFER',90000,1,'2026-11-10 17:00:00','tender-2',REPEAT('1',64))
                 """);
-        mvc.perform(get("/api/v1/statistics/revenue").header("Authorization", bearer(1, "admin_u"))
+        mvc.perform(get("/api/v1/statistics/revenue").header("Authorization", bearer(1, "admin_u", "ADMIN"))
                 .param("period", "today"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.summary.totalRevenue").value("200000"))
@@ -485,7 +477,7 @@ class BillMySqlIntegrationTest {
 
     @Test
     void statisticsFillsMissingDaysWithZero() throws Exception {
-        String adminAuth = bearer(1, "admin_u");
+        String adminAuth = bearer(1, "admin_u", "ADMIN");
         // Query Nov 08 to Nov 11 (4 days)
         mvc.perform(get("/api/v1/statistics/revenue").header("Authorization", adminAuth)
                 .param("from", "2026-11-08")
