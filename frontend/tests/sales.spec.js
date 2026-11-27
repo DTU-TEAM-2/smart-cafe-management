@@ -183,6 +183,81 @@ for (const scenario of ["cancel", "retry"]) {
   });
 }
 
+for (const outcome of ["pending", "paid"]) {
+  test(`reconciles a ${outcome} payment after a polling outage and lost response`, async ({ page }) => {
+    let unavailable = false;
+    let paid = false;
+    const payments = [];
+    let releaseResponse;
+    const delayedResponse = new Promise(resolve => { releaseResponse = resolve; });
+    await page.clock.install();
+    await setup(page, "ADMIN", async (route, url) => {
+      if (unavailable && (url.pathname.endsWith("/sales/tables") || url.pathname.endsWith("/1/services"))) {
+        await route.fulfill({ status: 503, json: {} });
+        return true;
+      }
+      if (url.pathname.endsWith("/1/services")) {
+        await route.fulfill({ json: services("1", "SESSION-OLD", "Cà phê", 1,
+          { id: "91", status: paid ? "PAID" : "PENDING" }) });
+        return true;
+      }
+      if (url.pathname.endsWith("/bills/91")) {
+        await route.fulfill({ json: bill(paid ? "PAID" : "PENDING") });
+        return true;
+      }
+      if (url.pathname.endsWith("/bills/91/payments")) {
+        payments.push(route.request().postDataJSON());
+        if (payments.length === 1) {
+          await delayedResponse;
+          paid = outcome === "paid";
+          await route.abort("failed");
+        } else {
+          paid = true;
+          await route.fulfill({ json: { bill: bill("PAID") } });
+        }
+        return true;
+      }
+      return false;
+    });
+    await page.goto("/#sale");
+    await page.getByRole("button", { name: /Bàn 01/ }).click();
+    const viewBill = page.getByRole("button", { name: "Xem hóa đơn hiện tại" });
+    await viewBill.click();
+    await page.getByRole("button", { name: "Xác nhận thu tiền" }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel("Phương thức").selectOption("BANK_TRANSFER");
+    await dialog.getByLabel(/Mã tham chiếu/).fill("REF-POLL");
+    await dialog.getByRole("button", { name: "Xác nhận", exact: true }).click();
+    try {
+      await expect.poll(() => payments.length).toBe(1);
+      unavailable = true;
+      await page.clock.runFor(8500);
+      await expect(dialog.getByText("Đang chờ cập nhật trạng thái bàn và hóa đơn.")).toBeVisible();
+      await expect(dialog.getByLabel(/Mã tham chiếu/)).toHaveValue("REF-POLL");
+    } finally {
+      unavailable = false;
+      releaseResponse();
+    }
+    if (outcome === "paid") {
+      await expect(dialog).toHaveCount(0);
+      await expect(page.getByText("Hóa đơn đã thanh toán.")).toBeVisible();
+      await viewBill.click();
+      await expect(page.getByRole("button", { name: "In hóa đơn" })).toBeVisible();
+      expect(payments).toHaveLength(1);
+    } else {
+      await expect(dialog.getByText(/Chưa xác nhận kết quả thu tiền/)).toBeVisible();
+      await dialog.getByRole("button", { name: "Hủy", exact: true }).click();
+      await page.getByRole("button", { name: "Đối soát thu tiền" }).click();
+      await expect(dialog.getByLabel("Phương thức")).toBeDisabled();
+      await expect(dialog.getByLabel(/Mã tham chiếu/)).toHaveValue("REF-POLL");
+      await dialog.getByRole("button", { name: "Xác nhận", exact: true }).click();
+      await expect(page.getByRole("button", { name: "In hóa đơn" })).toBeVisible();
+      expect(payments).toHaveLength(2);
+      expect(payments[1]).toEqual(payments[0]);
+    }
+  });
+}
+
 test("new session during polling invalidates an open reset confirmation", async ({ page }) => {
   let session = "SESSION-OLD";
   let resets = 0;

@@ -36,9 +36,16 @@ export function useSalesResource(path, authorization, credentials, poll = 0) {
     async function refresh() {
       try {
         const data = await readApi(path, { authorization, credentials, signal: controller.signal });
-        if (!controller.signal.aborted) setResult({ path, data, error: null });
+        if (!controller.signal.aborted) setResult({ path, authorization, credentials, key, data, error: null });
       } catch (error) {
-        if (!controller.signal.aborted) setResult({ path, data: null, error });
+        if (!controller.signal.aborted) {
+          const transient = !error.status || error.status === 429 || error.status >= 500;
+          setResult(previous => ({
+            path, authorization, credentials, key, error,
+            data: poll > 0 && transient && previous?.path === path
+              && previous.authorization === authorization && previous.credentials === credentials ? previous.data : null,
+          }));
+        }
       } finally {
         if (!controller.signal.aborted && poll > 0) timer = setTimeout(refresh, poll);
       }
@@ -46,8 +53,10 @@ export function useSalesResource(path, authorization, credentials, poll = 0) {
     void refresh();
     return () => { controller.abort(); clearTimeout(timer); };
   }, [path, authorization, credentials, poll, key]);
-  const current = path && result?.path === path ? result : null;
+  const current = path && result?.path === path && result.authorization === authorization
+    && result.credentials === credentials ? result : null;
   return { data: current?.data ?? null, error: current?.error ?? null, loading: Boolean(path && !current),
+    refreshing: Boolean(current && current.key !== key),
     reload: () => setAttempt(value => value + 1) };
 }
 
