@@ -92,3 +92,10 @@ Skills follow-up: `cafe-review`, `vercel-react-best-practices`, `fixing-accessib
 - Lint/build và 19 unit tests đạt. Unit matrix kiểm tra create/update cả category/item: {}, null, 204, status sai, thiếu trường, sai code/name/version, nhóm/giá/mediaId/available khác; dữ liệu đúng và GET đối chiếu chỉ một mutation. DELETE 200/201 uncertain, 204 thành công.
 - Lượt Playwright đầy đủ: 390 đạt/4 lỗi do hai fixture cũ (201 {} và PUT không tăng version), mỗi fixture chạy desktop/mobile. Đã sửa fixture theo MenuController/MenuCatalog và chạy lại toàn bộ menu-admin: 76/76 đạt. Các ca UI mới xác minh draft/nút lưu bị khóa, GET đối chiếu thành công và chỉ một PUT. Log local: graphify-out/pr23-success-contract-{unit,ui,menu}.log (không commit output).
 - Skills áp dụng: cafe-review (.agents/skills/cafe-review/SKILL.md), cafe-quality (.agents/skills/cafe-quality/SKILL.md). Giới hạn Cloudinary live/Aikido và human approvals giữ nguyên.
+
+## Follow-up Java strip — 27/11/2026
+
+- Khắc phục P3 được ghi trong review 6083158409 và 6083193474: trim() của JS giữ U+001C trong khi String.strip() Java loại bỏ, làm success/reconciliation không khớp tên đã lưu.
+- menuText.js dùng tập Character.isWhitespace của Java 21; editor và payload menuApi dùng cùng hàm cho tên/mã, categoryCode cũng chuẩn hóa theo backend. Không thay backend hay quy tắc nghiệp vụ; giữ whitespace bên trong tên và các ký tự Java không strip (NBSP/figure space/narrow NBSP/BOM).
+- Lint/build, 20 unit và 78 menu-admin Playwright desktop/mobile đạt. Unit kiểm tập whitespace, các ký tự phải giữ, lưu thành công và pendingSave → GET đối chiếu với code/tên chuẩn hóa, chỉ một mutation. UI nhập tên có U+001C ở hai đầu, xác minh payload và thông báo thành công. Log local: graphify-out/pr23-java-strip-ui.log. API UI dùng HTTP fixtures, không phải test Cloudinary/MySQL live.
+- Không có inline thread mới cho P3; phản hồi tại conversation, không mở lại 10 thread đã resolve. Skills tiếp tục cafe-review và cafe-quality theo các đường dẫn đã ghi ở trên.

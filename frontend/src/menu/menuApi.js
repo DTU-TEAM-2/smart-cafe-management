@@ -1,3 +1,5 @@
+import { stripMenuText } from './menuText.js';
+
 const root = '/api/v1/menu';
 const exactFields = new Set(['price', 'imageMediaId', 'mediaId', 'version']);
 
@@ -109,10 +111,10 @@ export async function saveMenu(kind, value, editing, authorization, signal, uplo
     }
     imageMediaId = uploadedImages.get(imageFile);
   }
-  const payload = { code, name, version: editing ? value.version : 0 };
-  if (kind === 'items') Object.assign(payload, { categoryCode, price, available, imageMediaId });
+  const payload = { code: stripMenuText(code).toUpperCase(), name: stripMenuText(name), version: editing ? value.version : 0 };
+  if (kind === 'items') Object.assign(payload, { categoryCode: stripMenuText(categoryCode).toUpperCase(), price, available, imageMediaId });
   try {
-    const actual = await writeMenu(menuPath(kind, editing ? code : undefined), editing ? 'PUT' : 'POST',
+    const actual = await writeMenu(menuPath(kind, editing ? payload.code : undefined), editing ? 'PUT' : 'POST',
       JSON.stringify(payload), authorization, signal, editing ? 200 : 201);
     if (!matchesSavedMenu(actual, kind, payload, editing)) {
       throw Object.assign(new Error('Phản hồi lưu không khớp dữ liệu đã gửi.'), { uncertain: true });

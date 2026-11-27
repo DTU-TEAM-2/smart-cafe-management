@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { imageDimensions } from './imageDimensions.js';
+import { stripMenuText } from './menuText.js';
 
 export default function MenuEditor({ kind, value, categories, categoriesLoading, categoryError, onReloadCategories, onSave, onReconcile, onCancel }) {
   const isItem = kind === 'items';
@@ -73,7 +74,7 @@ export default function MenuEditor({ kind, value, categories, categoriesLoading,
     event.preventDefault();
     if (reading || imageError || saving || pendingSave || pendingUpload) return;
     const fields = event.currentTarget.elements;
-    const next = { ...form, code: form.code.trim().toUpperCase(), name: form.name.trim(), price: String(form.price ?? '').trim() };
+    const next = { ...form, code: stripMenuText(form.code).toUpperCase(), name: stripMenuText(form.name), price: String(form.price ?? '').trim() };
     const failures = {};
     if (!(isItem ? /^[A-Z0-9_-]{4,40}$/ : /^[A-Z0-9_-]{1,32}$/).test(next.code)) failures.code = `Mã gồm ${isItem ? '4–40' : '1–32'} ký tự Latin, số, gạch ngang hoặc gạch dưới.`;
     if (next.name.length < (isItem ? 6 : 1) || next.name.length > (isItem ? 160 : 120)) failures.name = `Tên sau khi bỏ khoảng trắng phải dài ${isItem ? '6–160' : '1–120'} ký tự.`;

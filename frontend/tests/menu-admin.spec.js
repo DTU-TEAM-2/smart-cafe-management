@@ -223,6 +223,20 @@ test('a delayed old-session 401 cannot clear a replacement login', async ({ page
   expect(await page.evaluate(() => sessionStorage.getItem('smart_cafe_token'))).toBe('replacement-token');
 });
 
+test('menu editor strips Java boundary whitespace before saving', async ({ page }) => {
+  await menuFixture(page, async (route, path, item) => {
+    if (route.request().method() !== 'PUT') return false;
+    const payload = route.request().postDataJSON();
+    expect(payload.name).toBe('Coffee normalized');
+    Object.assign(item, payload, { version: '8' });
+    await route.fulfill({ json: item });
+    return true;
+  });
+  await page.getByLabel('Tên món *').fill('\u001cCoffee normalized\u001c');
+  await page.getByRole('button', { name: 'LƯU MÓN', exact: true }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Đã lưu món.' })).toBeVisible();
+});
+
 for (const outcome of ['dropped', 'invalid-json', 'empty-object', 'null-body', 'no-content', 'wrong-code', 'wrong-version', 'changed-by-another-admin']) {
   test(`uncertain save reconciles without a second write: ${outcome}`, async ({ page }) => {
     let writes = 0;

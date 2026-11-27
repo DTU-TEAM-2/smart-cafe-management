@@ -1,11 +1,39 @@
 import { afterEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { deleteMenu, loadCategories, readMenu, reconcileMenuSave, saveMenu } from '../src/menu/menuApi.js';
+import { stripMenuText } from '../src/menu/menuText.js';
 
 const originalFetch = globalThis.fetch;
 const originalParse = JSON.parse;
 afterEach(() => { globalThis.fetch = originalFetch; JSON.parse = originalParse; });
 const json = data => new Response(JSON.stringify(data), { headers: { 'Content-Type': 'application/json' } });
+
+test('menu normalization matches Java strip and preserves non-Java whitespace', async () => {
+  const whitespace = '\t\n\v\f\r\u001c\u001d\u001e\u001f \u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2008\u2009\u200a\u2028\u2029\u205f\u3000';
+  assert.equal(stripMenuText(`${whitespace}Coffee${whitespace}`), 'Coffee');
+  for (const char of ['\u00a0', '\u2007', '\u202f', '\ufeff', '\u0085', '\u200b']) {
+    assert.equal(stripMenuText(`${char}Coffee${char}`), `${char}Coffee${char}`);
+  }
+  assert.equal(stripMenuText(`Coffee\u001cfixture`), 'Coffee\u001cfixture');
+  for (const uncertain of [false, true]) {
+    let pending;
+    let writes = 0;
+    const expected = { code: 'CF', name: 'Coffee fixture', version: '0' };
+    globalThis.fetch = async (url, options) => {
+      if (url.endsWith('/csrf')) return json({ headerName: 'X-CSRF-TOKEN', token: 'test' });
+      if (options.method === 'GET') { assert.ok(url.endsWith('/categories/CF')); return json(expected); }
+      writes++;
+      assert.deepEqual(JSON.parse(options.body), { ...expected, version: 0 });
+      return new Response(JSON.stringify(uncertain ? {} : expected), { status: 201 });
+    };
+    const saved = saveMenu('categories', { code: '\u001ccf\u001c', name: '\u001cCoffee fixture\u001c' }, false, 'Bearer test');
+    if (uncertain) {
+      await assert.rejects(saved, error => { pending = error.pendingSave; return Boolean(pending); });
+      assert.deepEqual(await reconcileMenuSave(pending, 'Bearer test'), expected);
+    } else assert.deepEqual(await saved, expected);
+    assert.equal(writes, 1);
+  }
+});
 const groups = (start, end) => Array.from({ length: end - start }, (_, index) => ({
   code: `C${String(start + index).padStart(3, '0')}`, name: 'Coffee', version: '0', itemCount: 0,
 }));
