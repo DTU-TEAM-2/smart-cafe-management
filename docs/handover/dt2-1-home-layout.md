@@ -32,9 +32,9 @@ Highlights: `{newest:[{id,name,price,imageUrl}], mostOrdered:[{id,name,orderedQu
 
 ## Xác thực và luồng Header
 
-HeaderTokenFilter chỉ tiêu thụ contract bearer hiện có của module auth đã tham khảo từ TokenService ở dự án trước: base64url của `id:username:role:expiryEpochMillis`, dấu chấm, chữ ký HMAC-SHA256 dạng hex. AUTH_TOKEN_SECRET phải trùng khóa thực của module auth, tối thiểu 32 byte. Header không phát hành token và không dựng tài khoản thay thế.
+HeaderTokenFilter chỉ tiêu thụ bearer của module auth, không phát hành token hoặc dựng tài khoản thay thế. Consumer dùng chung với Task 7 đã được cập nhật ngày 11/11 theo module DT2-2 PR #7 revision `4c5d7d8`: base64url của `id:username:role:authVersion:expiryEpochMillis`, dấu chấm, chữ ký HMAC-SHA256 dạng hex. AUTH_TOKEN_SECRET phải trùng khóa thực của module auth, tối thiểu 32 byte. Chi tiết tương thích token cũ tại [hợp đồng Task 7](dt2-7-backend-contract.md).
 
-Server kiểm chữ ký/thời hạn, rồi đọc lại id/username/status/role/auth_version ở users; không cấp quyền theo role tự khai trong payload. Contract token cũ chưa mang version nên chỉ được dùng khi auth_version=0. Khi version đã tăng, token cũ bị từ chối; module auth phải cung cấp contract token có version trước khi dùng lại sau thu hồi. Không tự thay đổi schema/token issuer trong task Header.
+Server kiểm chữ ký/thời hạn, rồi đọc lại id/username/status/role/auth_version ở users; không cấp quyền theo role tự khai trong payload. Token có version chỉ được dùng khi khớp auth_version hiện hành, kể cả lớn hơn 0. Legacy không mang version chỉ dùng khi auth_version=0. Không thay đổi schema/token issuer trong phần consumer này.
 
 Frontend entry đọc token `smart_cafe_token` do module đăng nhập đặt trong sessionStorage. Module auth phát `smart-cafe-auth-change` khi đổi phiên; Header remount state theo token, abort request/timer cũ. Có cập nhật khi storage/focus thay đổi. `HomeShell` cũng nhận Authorization trực tiếp để app auth tích hợp theo context.
 

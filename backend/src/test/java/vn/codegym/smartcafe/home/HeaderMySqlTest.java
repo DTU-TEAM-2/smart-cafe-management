@@ -27,6 +27,7 @@ class HeaderMySqlTest {
     private static final String SECRET = "header-test-signing-secret-only-2026";
     @Autowired JdbcTemplate jdbc;
     @Autowired MockMvc mvc;
+    @Autowired vn.codegym.smartcafe.config.BearerTokenAuthenticator authenticator;
 
     @BeforeEach
     void seedIsolatedDatabase() {
@@ -99,6 +100,68 @@ class HeaderMySqlTest {
     }
 
     @Test
+    void unifiedIssuerTokenWorksAtPositiveVersionAndUsesDatabaseRole() throws Exception {
+        jdbc.update("UPDATE users SET auth_version=7 WHERE id=2");
+        String token = signedPayload("2:header-2:ADMIN:7:" + java.time.Instant.now().plusSeconds(60).toEpochMilli());
+        var identity = authenticator.authenticate(token);
+        assertThat(identity).isNotNull();
+        assertThat(identity.getAuthorities()).extracting(Object::toString).containsExactly("ROLE_STAFF");
+        assertThat(authenticator.isCurrentStaff(identity)).isTrue();
+        mvc.perform(get("/api/v1/home/account").header("Authorization", token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value("2"));
+        jdbc.update("UPDATE users SET auth_version=8 WHERE id=2");
+        assertThat(authenticator.isCurrentStaff(identity)).isFalse();
+        mvc.perform(get("/api/v1/home/account").header("Authorization", token)).andExpect(status().isForbidden());
+        mvc.perform(get("/api/v1/home/account").header("Authorization",
+                signedPayload("2:header-2:STAFF:8:" + java.time.Instant.now().plusSeconds(60).toEpochMilli())))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void earlierIssuerFormatUsesCanonicalUsernameAndSecondsExpiry() throws Exception {
+        jdbc.update("UPDATE users SET auth_version=3 WHERE id=2");
+        String token = signedPayload("2:STAFF:3:" + java.time.Instant.now().plusSeconds(60).getEpochSecond());
+        var identity = authenticator.authenticate(token);
+        assertThat(identity.getName()).isEqualTo("header-2");
+        assertThat(authenticator.isCurrentStaff(identity)).isTrue();
+        mvc.perform(get("/api/v1/home/account").header("Authorization", token))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value("2"));
+    }
+
+    @Test
+    void unifiedOverloadWithoutUsernameResolvesDatabaseIdentity() throws Exception {
+        mvc.perform(get("/api/v1/home/account").header("Authorization",
+                signedPayload("2::STAFF:0:" + java.time.Instant.now().plusSeconds(60).toEpochMilli())))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value("2"));
+    }
+
+    @Test
+    void resetGrantsAndMalformedOrExpiredVersionedClaimsCannotAuthenticate() throws Exception {
+        long future = java.time.Instant.now().plusSeconds(60).toEpochMilli();
+        for (String payload : new String[]{"RESET:challenge:2:0:" + future,
+                "2:header-2:STAFF:-1:" + future, "2:header-2:STAFF:1:" + future,
+                "2:header-1:STAFF:0:" + future, "0:header-2:STAFF:0:" + future,
+                "2:header-2:ROOT:0:" + future, "2:header-2:STAFF:0:1",
+                "2:header-2:STAFF:0:" + future + ":extra", "2:STAFF:-1:" + future}) {
+            mvc.perform(get("/api/v1/home/account").header("Authorization", signedPayload(payload)))
+                    .andExpect(status().isForbidden());
+        }
+    }
+
+    @Test
+    void unifiedIdentityCannotRetainStaffSocketRightsAfterRoleOrStatusChange() throws Exception {
+        String token = signedPayload("2:header-2:STAFF:0:" + java.time.Instant.now().plusSeconds(60).toEpochMilli());
+        var identity = authenticator.authenticate(token);
+        assertThat(authenticator.isCurrentStaff(identity)).isTrue();
+        jdbc.update("UPDATE users SET role='CUSTOMER' WHERE id=2");
+        assertThat(authenticator.isCurrentStaff(identity)).isFalse();
+        mvc.perform(get("/api/v1/home/notifications").header("Authorization", token)).andExpect(status().isForbidden());
+        jdbc.update("UPDATE users SET role='STAFF',status='INACTIVE' WHERE id=2");
+        assertThat(authenticator.authenticate(token)).isNull();
+        assertThat(authenticator.isCurrentStaff(identity)).isFalse();
+    }
+
+    @Test
     void menuUsesSharedSignatureAndCurrentDatabasePermissions() throws Exception {
         String admin = bearer(1);
         mvc.perform(get("/api/v1/menu/items").header("Authorization", admin)).andExpect(status().isOk());
@@ -114,10 +177,14 @@ class HeaderMySqlTest {
     }
 
     private String signed(int id, String username, long expiry) throws Exception {
-        // Matches the existing authentication module's four-field bearer contract.
+        // Legacy compatibility; real issuer integration is exercised separately over HTTP.
         // The payload always claims ADMIN to ensure the server uses the current database role instead.
+        return signedPayload(id + ":" + username + ":ADMIN:" + expiry);
+    }
+
+    private String signedPayload(String claims) throws Exception {
         String payload = java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(
-                (id + ":" + username + ":ADMIN:" + expiry).getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                claims.getBytes(java.nio.charset.StandardCharsets.UTF_8));
         var mac = javax.crypto.Mac.getInstance("HmacSHA256");
         mac.init(new javax.crypto.spec.SecretKeySpec(SECRET.getBytes(java.nio.charset.StandardCharsets.UTF_8), "HmacSHA256"));
         return "Bearer " + payload + "." + java.util.HexFormat.of().formatHex(mac.doFinal(payload.getBytes(java.nio.charset.StandardCharsets.UTF_8)));

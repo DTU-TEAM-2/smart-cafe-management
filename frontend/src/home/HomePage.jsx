@@ -57,7 +57,7 @@ function MenuThumbnail({ url }) {
     : <span className="rank-image missing-image" role="img" aria-label="Chưa có ảnh món">—</span>;
 }
 
-export default function HomePage() {
+export default function HomePage({ tableMenuHref } = {}) {
   const [result, setResult] = useState({ status: "loading", data: null });
   const [attempt, setAttempt] = useState(0);
 
@@ -92,7 +92,7 @@ export default function HomePage() {
         <p className="eyebrow">Bản sắc cà phê</p>
         <h1 id="hero-title"><span>High Quality</span> COFFEE</h1>
         <p className="hero-subtitle">Mỗi tách cà phê là một câu chuyện</p>
-        <a className="hero-cta" href="#newest">Khám phá menu <span aria-hidden="true">→</span></a>
+        <a className="hero-cta" href={tableMenuHref ?? "#newest"}>{tableMenuHref ? "Về thực đơn tại bàn" : "Khám phá menu"} <span aria-hidden="true">→</span></a>
         <span className="hero-note">Pha bằng cả sự tận tâm.</span>
       </div>
     </section>

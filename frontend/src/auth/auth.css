@@ -1206,3 +1206,25 @@
     gap: 4px;
   }
 }
+
+@media (max-width: 768px) {
+  .login-split-card .auth-sidebar.login-story-side {
+    display: none !important;
+  }
+
+  .login-split-card .login-content-card {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    min-width: 0;
+    padding: 24px 20px !important;
+  }
+
+  .login-split-card .login-content-card .form-input {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .login-split-card .login-content-card .auth-submit-btn {
+    min-height: 44px !important;
+  }
+}

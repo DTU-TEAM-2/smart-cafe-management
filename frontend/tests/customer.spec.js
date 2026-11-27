@@ -115,6 +115,18 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     expect(page.url()).toMatch(/#customer$/);
   });
 
+  test("guest can return to the current table menu from home", async ({ page }) => {
+    await page.route("**/api/v1/home/account", route => route.fulfill({ status: 401, json: {} }));
+    await page.route("**/api/v1/home/highlights", route => route.fulfill({ json: { newest: [], mostOrdered: [] } }));
+    await page.goto("/#customer");
+    await page.getByRole("button", { name: "Về trang chủ" }).click();
+    await expect(page).toHaveURL(/#top$/);
+    await page.getByRole("link", { name: "Về thực đơn tại bàn" }).click();
+    await expect(page).toHaveURL(/#customer$/);
+    await expect(page.locator(".c-table-badge")).toContainText("BÀN 04");
+    await expect(page.getByText("Caramel Latte")).toBeVisible();
+  });
+
   test("2. Adds item to cart via item detail modal and verifies cart badge", async ({ page }) => {
     await page.goto("/#customer");
 
