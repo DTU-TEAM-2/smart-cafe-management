@@ -22,6 +22,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -347,6 +348,179 @@ class OtpVerifyResendRaceIntegrationTest {
                 continueUpdate.countDown();
             }
         }
+    }
+
+    // T07a: Verifying old OTP during in-flight resend consumes challenge; late finalize is a safe no-op and new OTP cannot verify
+    @Test
+    void verifyOldOtpDuringInFlightResendConsumesChallengeAndMakesLateFinalizeSafeNoOp() throws Exception {
+        String id = forgot();
+        String code1 = deliveredCodes.getFirst();
+        String hash1 = challenge(id).codeHash();
+
+        var smtpStarted = new CountDownLatch(1);
+        var smtpResume = new CountDownLatch(1);
+        doAnswer(call -> {
+            deliveredCodes.add(call.getArgument(1));
+            smtpStarted.countDown();
+            await(smtpResume);
+            return null;
+        }).when(mail).sendOtpEmail(eq(EMAIL), anyString(), eq("RESET"), anyLong());
+
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            var resendFuture = executor.submit(() -> resend(id));
+            try {
+                await(smtpStarted);
+                // Phase 1 reserve committed sends=2, code_hash=H(code1). Verify old OTP now:
+                MvcResult verified = verifyOtp(id, code1);
+                assertThat(verified.getResponse().getStatus()).isEqualTo(200);
+                assertThat(body(verified)).containsKey("token");
+                assertThat(challenge(id).usedAt()).isNotNull();
+
+                smtpResume.countDown();
+                assertThat(resendFuture.get(10, TimeUnit.SECONDS).getResponse().getStatus()).isEqualTo(200);
+            } finally {
+                smtpResume.countDown();
+            }
+        }
+
+        OtpChallengeRecord finalState = challenge(id);
+        assertThat(finalState.usedAt()).isNotNull();
+        assertThat(finalState.codeHash()).isEqualTo(hash1);
+        String code2 = deliveredCodes.getLast();
+        assertThat(verifyOtp(id, code2).getResponse().getStatus()).isEqualTo(400);
+    }
+
+    // T07b: Wrong/in-flight newCode verify before finalize increments attempts on generation 2 and preserves attempts after finalize
+    @Test
+    void wrongVerifyDuringInFlightResendPreservesAttemptsAcrossFinalize() throws Exception {
+        String id = forgot();
+        var smtpStarted = new CountDownLatch(1);
+        var smtpResume = new CountDownLatch(1);
+        doAnswer(call -> {
+            deliveredCodes.add(call.getArgument(1));
+            smtpStarted.countDown();
+            await(smtpResume);
+            return null;
+        }).when(mail).sendOtpEmail(eq(EMAIL), anyString(), eq("RESET"), anyLong());
+
+        String code2;
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            var resendFuture = executor.submit(() -> resend(id));
+            try {
+                await(smtpStarted);
+                code2 = deliveredCodes.getLast();
+                // code2 is not finalized in DB yet; attempting verify against committed H(code1) increments attempts unless code2==code1
+                if (!code2.equals(deliveredCodes.getFirst())) {
+                    assertThat(verifyOtp(id, code2).getResponse().getStatus()).isEqualTo(400);
+                    assertThat(challenge(id).attempts()).isEqualTo(1);
+                }
+                smtpResume.countDown();
+                assertThat(resendFuture.get(10, TimeUnit.SECONDS).getResponse().getStatus()).isEqualTo(200);
+            } finally {
+                smtpResume.countDown();
+            }
+        }
+
+        OtpChallengeRecord afterFinalize = challenge(id);
+        assertThat(afterFinalize.sends()).isEqualTo(2);
+        assertThat(afterFinalize.deliveryStatus()).isEqualTo("SENT");
+        if (!code2.equals(deliveredCodes.getFirst())) {
+            assertThat(afterFinalize.attempts()).isEqualTo(1);
+        }
+        assertThat(verifyOtp(id, code2).getResponse().getStatus()).isEqualTo(200);
+    }
+
+    // T08: Expiry or user deactivation during SMTP dispatch causes late finalize to no-op safely without installing new OTP
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"EXPIRED", "INACTIVE"})
+    void expiryOrInactiveUserDuringResendDispatchMakesFinalizeSafeNoOp(String reason) throws Exception {
+        String id = forgot();
+        String hash1 = challenge(id).codeHash();
+        String code1 = deliveredCodes.getFirst();
+
+        var smtpStarted = new CountDownLatch(1);
+        var smtpResume = new CountDownLatch(1);
+        doAnswer(call -> {
+            deliveredCodes.add(call.getArgument(1));
+            smtpStarted.countDown();
+            await(smtpResume);
+            return null;
+        }).when(mail).sendOtpEmail(eq(EMAIL), anyString(), eq("RESET"), anyLong());
+
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            var resendFuture = executor.submit(() -> resend(id));
+            try {
+                await(smtpStarted);
+                if (reason.equals("EXPIRED")) {
+                    update("UPDATE auth_otp_challenges SET created_at = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 HOUR), expires_at = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND) WHERE id = ?", id);
+                } else {
+                    update("UPDATE users SET status = 'INACTIVE' WHERE username = 'otp_race'");
+                }
+                smtpResume.countDown();
+                assertThat(resendFuture.get(10, TimeUnit.SECONDS).getResponse().getStatus()).isEqualTo(200);
+            } finally {
+                smtpResume.countDown();
+            }
+        }
+
+        OtpChallengeRecord after = challenge(id);
+        assertThat(after.codeHash()).isEqualTo(hash1);
+        assertThat(after.deliveryStatus()).isEqualTo("PENDING");
+        String code2 = deliveredCodes.getLast();
+        assertThat(verifyOtp(id, code1).getResponse().getStatus()).isEqualTo(400);
+        assertThat(verifyOtp(id, code2).getResponse().getStatus()).isEqualTo(400);
+    }
+
+    // T09: Abandoned reservation (crash after TX1 Reserve before TX2 Finalize) does not permanently lock recovery
+    @Test
+    void supersededResendDoesNotSendAnObsoleteCode() throws Exception {
+        String id = forgot();
+        var beforeDispatchCheck = new CountDownLatch(1);
+        var resumeDispatchCheck = new CountDownLatch(1);
+        var firstRead = new AtomicBoolean(true);
+        doAnswer(call -> {
+            if (firstRead.getAndSet(false)) {
+                beforeDispatchCheck.countDown();
+                await(resumeDispatchCheck);
+            }
+            return call.callRealMethod();
+        }).when(repository).findOtpChallengeById(id);
+
+        try (var executor = Executors.newSingleThreadExecutor()) {
+            var firstResend = executor.submit(() -> resend(id));
+            try {
+                await(beforeDispatchCheck);
+                assertThat(challenge(id).sends()).isEqualTo(2);
+                update("UPDATE auth_otp_challenges SET next_send_at = DATE_SUB(NOW(6), INTERVAL 5 SECOND) WHERE id = ?", id);
+                assertThat(resend(id).getResponse().getStatus()).isEqualTo(200);
+                assertThat(challenge(id).sends()).isEqualTo(3);
+                assertThat(challenge(id).deliveryStatus()).isEqualTo("SENT");
+            } finally {
+                resumeDispatchCheck.countDown();
+            }
+            assertThat(firstResend.get(10, TimeUnit.SECONDS).getResponse().getStatus()).isEqualTo(200);
+        }
+
+        assertThat(deliveredCodes).hasSize(2); // Initial OTP and latest resend only.
+        assertThat(verifyOtp(id, deliveredCodes.getLast()).getResponse().getStatus()).isEqualTo(200);
+    }
+
+    @Test
+    void abandonedResendReservationDoesNotPermanentlyLockRecovery() throws Exception {
+        String id1 = forgot();
+        String code1 = deliveredCodes.getFirst();
+        // Simulate crash state after TX1 Reserve: sends=2, delivery_status=PENDING, code_hash=H(code1)
+        update("UPDATE auth_otp_challenges SET sends = 2, delivery_status = 'PENDING', next_send_at = DATE_ADD(UTC_TIMESTAMP(6), INTERVAL 60 SECOND) WHERE id = ?", id1);
+        assertThat(verifyOtp(id1, code1).getResponse().getStatus()).isEqualTo(200);
+
+        // Also verify another challenge in abandoned reservation state can resend once cooldown expires
+        update("DELETE FROM auth_otp_limits WHERE email_key = ? AND purpose = 'RESET'", tokens.hmacSha256("LIMIT:" + EMAIL));
+        String id2 = forgot();
+        update("UPDATE auth_otp_challenges SET sends = 2, delivery_status = 'PENDING', next_send_at = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 5 SECOND) WHERE id = ?", id2);
+        assertThat(resend(id2).getResponse().getStatus()).isEqualTo(200);
+        assertThat(challenge(id2).sends()).isEqualTo(3);
+        assertThat(challenge(id2).deliveryStatus()).isEqualTo("SENT");
+        assertThat(verifyOtp(id2, deliveredCodes.getLast()).getResponse().getStatus()).isEqualTo(200);
     }
 
     private MvcResult reset(String grant) throws Exception {
