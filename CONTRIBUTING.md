@@ -44,7 +44,13 @@ Không tạo release cho mỗi feature. Chỉ tạo release từ develop khi nh�
 
 ## CI và dọn nhánh
 
-Gắn ít nhất một GitHub label phù hợp ngay khi mở PR. Check bắt buộc `PR title` kiểm cả tiêu đề và label. Thêm hoặc gỡ label chỉ chạy lại workflow `PR metadata`.
+Khi mở PR, chọn đúng một nhãn `type:*` hoặc `dependencies`, ít nhất một nhãn `area:*` và đúng một nhãn `risk:*` từ danh sách nhãn của repo. Thêm nhiều nhãn `area:*` khi PR ảnh hưởng nhiều phần.
+
+- `risk:low` cho thay đổi nhỏ, biệt lập và dễ hoàn tác.
+- `risk:medium` cho thay đổi cần kiểm thử hồi quy hoặc kiểm tra release.
+- `risk:high` cho dữ liệu nhạy cảm, phân quyền, migration, thanh toán hoặc thay đổi lớn.
+
+Check bắt buộc `PR title` kiểm tiêu đề và các nhãn trên. Thêm hoặc gỡ nhãn chỉ chạy lại workflow `PR metadata`.
 
 Workflow hỗ trợ PR vào main/develop/release, push main/develop/release và kiểm nhánh nguồn/đích qua `scripts/git-flow.mjs`. Required checks và quyền GitHub xem tại [thiết lập GitHub](docs/engineering/github-settings.md). CI xanh không thay review/AC hoặc chứng minh nguồn tách nhánh và phạm vi nghiệp vụ.
 

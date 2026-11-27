@@ -1,6 +1,6 @@
 ## Vấn đề và kết quả
 
-Khi mở PR, gắn ít nhất một GitHub label phù hợp với nội dung (ví dụ `bug`, `enhancement` hoặc `documentation`).
+Khi mở PR, gắn đúng một nhãn `type:*` hoặc `dependencies`, ít nhất một `area:*` và đúng một `risk:*`. Ví dụ `type:fix`, `area:customer` và `risk:medium`.
 
 Task CF/QA và link issue/Jira/Trello:
 

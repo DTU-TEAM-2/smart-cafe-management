@@ -21,7 +21,7 @@ Năm required check từ GitHub Actions (integration_id 15368): **Governance**, 
 
 ## CI và giới hạn
 
-- Check bắt buộc `PR title` yêu cầu đúng định dạng tiêu đề và ít nhất một GitHub label. Thêm hoặc gỡ label chỉ chạy workflow `PR metadata`.
+- Check bắt buộc `PR title` yêu cầu đúng định dạng tiêu đề, đúng một nhãn `type:*` hoặc `dependencies`, ít nhất một `area:*` và đúng một `risk:*`. Thêm hoặc gỡ nhãn chỉ chạy workflow `PR metadata`.
 - Check bắt buộc `Frontend UI` tổng hợp 8 job Playwright chạy song song, gồm 4 phần desktop và 4 phần mobile. Mỗi job dùng lại bản build đã tạo trong job.
 - Check bắt buộc `Backend MySQL` tổng hợp 4 job Maven verify và 1 job smoke test production chạy song song. Mỗi job dùng MySQL cô lập riêng. Smoke test gọi Spring Boot với fixture menu tổng hợp. Playwright lưu report, screenshot và trace khi lỗi với thời hạn 7 ngày.
 - Thay đổi file PowerShell/batch, bộ test launcher, mẫu cấu hình backend, quy tắc xuống dòng hoặc workflow CI kích hoạt test trên Windows. `Governance` yêu cầu kết quả Windows xanh khi job áp dụng.
