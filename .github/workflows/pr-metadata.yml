@@ -13,17 +13,31 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - name: Check title format and require a label
+      - name: Check title format
         env:
           PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_LABEL: ${{ github.event.pull_request.labels[0].name }}
         run: |
           title_pattern='^(feat|fix|chore|docs|refactor|test|ci|build|perf|revert)\([a-z0-9-]+\): CF-[0-9]+ .+'
           if [[ ! "$PR_TITLE" =~ $title_pattern ]]; then
             echo '::error::Use type(scope): CF-01 description.'
             exit 1
           fi
-          if [ -z "$PR_LABEL" ]; then
-            echo '::error::Add at least one relevant GitHub label to this pull request before merging.'
-            exit 1
-          fi
+      - name: Require type, area and risk labels
+        run: |
+          node <<'NODE'
+          const { readFileSync } = require('node:fs');
+          const { pull_request: pr } = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH, 'utf8'));
+          const names = new Set(pr.labels.map(({ name }) => name));
+          const areas = /^(area:(admin|backend|ci|customer|docs|portal|shared|staff))$/;
+          const types = /^(type:(docs|feature|fix|maintenance|release)|dependencies)$/;
+          const risks = /^risk:(low|medium|high)$/;
+          const count = pattern => [...names].filter(name => pattern.test(name)).length;
+          const errors = [];
+          if (count(types) !== 1) errors.push('exactly one type:* or dependencies');
+          if (count(areas) < 1) errors.push('at least one area:*');
+          if (count(risks) !== 1) errors.push('exactly one risk:low, risk:medium or risk:high');
+          if (errors.length) {
+            console.error('::error::Required PR labels: ' + errors.join('; ') + '. See CONTRIBUTING.md.');
+            process.exitCode = 1;
+          }
+          NODE
