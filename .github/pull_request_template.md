@@ -1,5 +1,7 @@
 ## Vấn đề và kết quả
 
+Khi mở PR, gắn ít nhất một GitHub label phù hợp với nội dung (ví dụ `bug`, `enhancement` hoặc `documentation`).
+
 Lấy mã CF từ thẻ Jira, backlog hoặc tài liệu bàn giao được dẫn từ thẻ. [Mở bảng Jira DT2](https://duymanhdnvn20092005.atlassian.net/jira/software/projects/DT2/boards/35).
 
 - Link Jira: https://duymanhdnvn20092005.atlassian.net/browse/DT2-xx

@@ -1,0 +1,56 @@
+name: PR metadata
+on:
+  pull_request:
+    branches: [main, develop, 'release/**']
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled]
+permissions: {}
+concurrency:
+  group: pr-metadata-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+jobs:
+  pr-title:
+    name: PR title
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Check title format and require a label
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_LABEL: ${{ github.event.pull_request.labels[0].name }}
+        run: |
+          title_pattern='^(feat|fix|chore|docs|refactor|test|ci|build|perf|revert)\([a-z0-9-]+\): CF-[0-9]+ .+'
+          if [[ ! "$PR_TITLE" =~ $title_pattern ]]; then
+            echo '::error::Use type(scope): CF-01 description.'
+            exit 1
+          fi
+          if [ -z "$PR_LABEL" ]; then
+            echo '::error::Add at least one relevant GitHub label to this pull request before merging.'
+            exit 1
+          fi
+  pr-jira-metadata:
+    name: PR Jira metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.19.0'
+      - name: Check Jira link and CF source
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          node <<'NODE'
+          const body = process.env.PR_BODY ?? "";
+          const titleCode = /^\w+\([a-z0-9-]+\): (CF-\d+) /.exec(process.env.PR_TITLE ?? "")?.[1];
+          const bodyCode = /^- Mã CF trong tiêu đề: *(CF-\d+) *$/m.exec(body)?.[1];
+          const jira = /^- Link Jira: *https:\/\/duymanhdnvn20092005\.atlassian\.net\/browse\/DT2-\d+ *$/m.test(body);
+          const source = /^- Nguồn xác nhận mã CF: *https:\/\/[^\s]+ *$/m.test(body);
+          if (jira && source && titleCode && bodyCode === titleCode) {
+            console.log("Link Jira, nguồn mã CF và tiêu đề PR đúng định dạng.");
+          } else {
+            console.error("Mở Jira DT2: https://duymanhdnvn20092005.atlassian.net/jira/software/projects/DT2/boards/35");
+            console.error("Điền Link Jira, Mã CF trong tiêu đề và Nguồn xác nhận mã CF theo mẫu PR. Mã CF lấy từ Jira, backlog hoặc tài liệu bàn giao.");
+            process.exitCode = 1;
+          }
+          NODE
