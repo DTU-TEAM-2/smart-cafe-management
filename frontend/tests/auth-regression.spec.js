@@ -27,16 +27,17 @@ test("required login fields prevent requests and Staff login reaches its dashboa
   expect(loginRequests).toBe(1);
 });
 
-test("auth screens remain accessible and usable at every required viewport", async ({ page }, testInfo) => {
-  test.setTimeout(180000);
-  const errors = [];
-  page.on("pageerror", error => errors.push(error.message));
-  await page.route("**/api/v1/auth/forgot-password", route => route.fulfill({ json: {
-    challengeId: "browser-fixture-challenge", expiresInSeconds: 600, retryAfterSeconds: 60,
-  } }));
-  await page.route("**/api/v1/auth/verify-reset-token", route => route.fulfill({ json: { valid: true } }));
-  const viewports = [[1920, 1080], [1366, 768], [768, 1024], [430, 932], [390, 844], [375, 812], [360, 800]];
-  for (const [width, height] of viewports) {
+const viewports = [[1920, 1080], [1366, 768], [768, 1024], [430, 932], [390, 844], [375, 812], [360, 800]];
+
+for (const [width, height] of viewports) {
+  test(`auth screens remain accessible and usable at ${width}x${height}`, async ({ page }, testInfo) => {
+    test.setTimeout(60000);
+    const errors = [];
+    page.on("pageerror", error => errors.push(error.message));
+    await page.route("**/api/v1/auth/forgot-password", route => route.fulfill({ json: {
+      challengeId: "browser-fixture-challenge", expiresInSeconds: 600, retryAfterSeconds: 60,
+    } }));
+    await page.route("**/api/v1/auth/verify-reset-token", route => route.fulfill({ json: { valid: true } }));
     await page.setViewportSize({ width, height });
     for (const route of ["login", "register", "forgot-password", "verify-otp", "reset-password?token=browser-fixture-grant"]) {
       if (route === "verify-otp") {
@@ -60,6 +61,6 @@ test("auth screens remain accessible and usable at every required viewport", asy
       expect(scan.violations, `${route} at ${width}x${height}`).toEqual([]);
       await page.screenshot({ path: testInfo.outputPath(`${route.split("?")[0]}-${width}x${height}.png`), fullPage: true });
     }
-  }
-  expect(errors).toEqual([]);
-});
+    expect(errors).toEqual([]);
+  });
+}
