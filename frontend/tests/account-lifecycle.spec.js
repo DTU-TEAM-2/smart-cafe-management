@@ -214,8 +214,9 @@ test("late auth verification 401 is canceled after password replacement", async 
   let release, finish;
   const pending = new Promise(resolve => { release = resolve; });
   const finished = new Promise(resolve => { finish = resolve; });
+  let initialReads = 0;
   await page.route("**/api/v1/auth/me", async route => {
-    if (route.request().headers().authorization === "Bearer initial-test-only") {
+    if (route.request().headers().authorization === "Bearer initial-test-only" && ++initialReads > 1) {
       await pending;
       await route.fulfill({ status: 401, json: { code: "UNAUTHORIZED" } }).catch(() => {});
       finish();
@@ -267,22 +268,35 @@ test("an external session switch invalidates an earlier pending login", async ({
   const started = page.waitForRequest("**/api/v1/auth/login");
   await signIn(page);
   await started;
+  const loginSettled = page.waitForEvent("requestfinished", {
+    predicate: request => request.url().endsWith("/api/v1/auth/login"),
+    timeout: 5000,
+  });
+  const loginAborted = page.waitForEvent("requestfailed", {
+    predicate: request => request.url().endsWith("/api/v1/auth/login"),
+    timeout: 5000,
+  });
+  const settled = Promise.any([loginSettled, loginAborted]);
   await page.evaluate(currentUser => {
     sessionStorage.setItem("smart_cafe_token", "switched-session-test-only");
     sessionStorage.setItem("smart_cafe_user", JSON.stringify(currentUser));
     window.dispatchEvent(new CustomEvent("smart-cafe-auth-change"));
   }, user);
   await expect(page.getByTestId("status")).toHaveText("ready");
-  const response = page.waitForResponse("**/api/v1/auth/login");
   release();
-  await (await response).finished();
+  await settled;
   await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
   expect(await page.evaluate(() => sessionStorage.getItem("smart_cafe_token"))).toBe("switched-session-test-only");
 });
 
 test("password conflict requires authentication and a transient auth GET failure preserves the session", async ({ page }) => {
   await setup(page);
-  await page.route("**/api/v1/auth/me", route => route.fulfill({ status: 503, json: {} }));
+  let verified = false;
+  await page.route("**/api/v1/auth/me", route => {
+    if (verified) return route.fulfill({ status: 503, json: {} });
+    verified = true;
+    return route.fulfill({ json: user });
+  });
   await page.goto("/tests/account-harness.html");
   await signIn(page);
   await expect(page.getByTestId("status")).toHaveText("ready");

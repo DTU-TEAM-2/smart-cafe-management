@@ -103,20 +103,32 @@ export function AuthProvider({ children }) {
     return () => controller.abort();
   }, [session.token, session.generation, commitSession, expireSession, isCurrentSession]);
 
-  async function login(username, password) {
+  async function login(username, password, { signal, onAuthenticated } = {}) {
     const attempt = ++loginAttempt.current;
     const snapshot = captureSession();
     setIsLoading(true);
     try {
-      const response = await loginApi(username, password);
-      if (attempt !== loginAttempt.current || !isCurrentSession(snapshot)) throw new Error("Yêu cầu đăng nhập đã được hủy.");
-      const token = response.accessToken || response.token;
-      if (!token || !response.user) throw new Error("Chưa xác nhận được phiên đăng nhập.");
-      commitSession({ token, user: response.user, passwordStatus: passwordStatusFrom(response),
+      const response = await loginApi(username, password, signal);
+      if (signal?.aborted || attempt !== loginAttempt.current || !isCurrentSession(snapshot)) throw new Error("Yêu cầu đăng nhập đã được hủy.");
+      const token = response?.accessToken || response?.token;
+      if (typeof token !== "string" || !token || token.length > 2048) {
+        throw new Error("Không xác minh được phiên đăng nhập.");
+      }
+      let user;
+      try {
+        const deadline = AbortSignal.timeout(15000);
+        user = await getCurrentUserApi(token, signal ? AbortSignal.any([signal, deadline]) : deadline);
+      } catch {
+        throw new Error("Không xác minh được phiên đăng nhập.");
+      }
+      if (signal?.aborted || attempt !== loginAttempt.current || !isCurrentSession(snapshot)) throw new Error("Yêu cầu đăng nhập đã được hủy.");
+      if (!["ADMIN", "STAFF", "CUSTOMER"].includes(user?.role)) throw new Error("Không xác minh được phiên đăng nhập.");
+      commitSession({ token, user, passwordStatus: passwordStatusFrom(response),
         generation: current.current.generation + 1 });
       setOtpChallenge(null);
       setRecoveryToken("");
-      return response.user;
+      onAuthenticated?.(user);
+      return user;
     } finally {
       if (attempt === loginAttempt.current) setIsLoading(false);
     }
