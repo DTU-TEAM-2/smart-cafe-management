@@ -1,0 +1,3351 @@
+{
+  "info": {
+    "name": "Smart Cafe DT2-3 Personal Account",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Run only with generated synthetic credentials on a dedicated verified MySQL *_test schema. See scripts/profile-postman-live.py. The runner revokes staff2 and deactivates the dedicated account after Login. expiryBaseUrl is the same JAR with a one-second bearer TTL. No tokens are forged."
+  },
+  "item": [
+    {
+      "name": "1. Login & Authentication",
+      "item": [
+        {
+          "name": "Login admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\": \"pm_profile_admin\", \"password\": \"{{fixturePassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Authenticated identity and expiry', () => { pm.expect(b.user.username).to.eql('pm_profile_admin'); pm.expect(b.token).to.be.a('string').and.not.empty; pm.expect(b.mustChangePassword).to.eql(false); pm.expect(Date.parse(b.passwordExpiresAt)-Date.parse(b.passwordChangedAt)).to.eql(30*24*60*60*1000); });",
+                  "pm.environment.set('adminToken', b.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login admin2",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\": \"pm_profile_admin2\", \"password\": \"{{fixturePassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Authenticated identity and expiry', () => { pm.expect(b.user.username).to.eql('pm_profile_admin2'); pm.expect(b.token).to.be.a('string').and.not.empty; pm.expect(b.mustChangePassword).to.eql(false); pm.expect(Date.parse(b.passwordExpiresAt)-Date.parse(b.passwordChangedAt)).to.eql(30*24*60*60*1000); });",
+                  "pm.environment.set('admin2Token', b.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login staff",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\": \"pm_profile_staff\", \"password\": \"{{fixturePassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Authenticated identity and expiry', () => { pm.expect(b.user.username).to.eql('pm_profile_staff'); pm.expect(b.token).to.be.a('string').and.not.empty; pm.expect(b.mustChangePassword).to.eql(false); pm.expect(Date.parse(b.passwordExpiresAt)-Date.parse(b.passwordChangedAt)).to.eql(30*24*60*60*1000); });",
+                  "pm.environment.set('staffToken', b.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login stale",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\": \"pm_profile_staff2\", \"password\": \"{{fixturePassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Authenticated identity and expiry', () => { pm.expect(b.user.username).to.eql('pm_profile_staff2'); pm.expect(b.token).to.be.a('string').and.not.empty; pm.expect(b.mustChangePassword).to.eql(false); pm.expect(Date.parse(b.passwordExpiresAt)-Date.parse(b.passwordChangedAt)).to.eql(30*24*60*60*1000); });",
+                  "pm.environment.set('staleToken', b.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login customer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\": \"pm_profile_customer\", \"password\": \"{{fixturePassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Authenticated identity and expiry', () => { pm.expect(b.user.username).to.eql('pm_profile_customer'); pm.expect(b.token).to.be.a('string').and.not.empty; pm.expect(b.mustChangePassword).to.eql(false); pm.expect(Date.parse(b.passwordExpiresAt)-Date.parse(b.passwordChangedAt)).to.eql(30*24*60*60*1000); });",
+                  "pm.environment.set('customerToken', b.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login expired",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\": \"pm_profile_expired\", \"password\": \"{{fixturePassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Authenticated identity and expiry', () => { pm.expect(b.user.username).to.eql('pm_profile_expired'); pm.expect(b.token).to.be.a('string').and.not.empty; pm.expect(b.mustChangePassword).to.eql(true); pm.expect(Date.parse(b.passwordExpiresAt)-Date.parse(b.passwordChangedAt)).to.eql(30*24*60*60*1000); });",
+                  "pm.environment.set('expiredToken', b.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login flagged",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\": \"pm_profile_flagged\", \"password\": \"{{fixturePassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Authenticated identity and expiry', () => { pm.expect(b.user.username).to.eql('pm_profile_flagged'); pm.expect(b.token).to.be.a('string').and.not.empty; pm.expect(b.mustChangePassword).to.eql(true); pm.expect(Date.parse(b.passwordExpiresAt)-Date.parse(b.passwordChangedAt)).to.eql(30*24*60*60*1000); });",
+                  "pm.environment.set('flaggedToken', b.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login missing",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\": \"pm_profile_missing\", \"password\": \"{{fixturePassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Authenticated identity and expiry', () => { pm.expect(b.user.username).to.eql('pm_profile_missing'); pm.expect(b.token).to.be.a('string').and.not.empty; pm.expect(b.mustChangePassword).to.eql(false); pm.expect(Date.parse(b.passwordExpiresAt)-Date.parse(b.passwordChangedAt)).to.eql(30*24*60*60*1000); });",
+                  "pm.environment.set('missingToken', b.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login large",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\": \"pm_profile_bigint\", \"password\": \"{{fixturePassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Authenticated identity and expiry', () => { pm.expect(b.user.username).to.eql('pm_profile_bigint'); pm.expect(b.token).to.be.a('string').and.not.empty; pm.expect(b.mustChangePassword).to.eql(false); pm.expect(Date.parse(b.passwordExpiresAt)-Date.parse(b.passwordChangedAt)).to.eql(30*24*60*60*1000); });",
+                  "pm.environment.set('largeToken', b.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login inactive",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\": \"pm_profile_deactivated\", \"password\": \"{{fixturePassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Authenticated identity and expiry', () => { pm.expect(b.user.username).to.eql('pm_profile_deactivated'); pm.expect(b.token).to.be.a('string').and.not.empty; pm.expect(b.mustChangePassword).to.eql(false); pm.expect(Date.parse(b.passwordExpiresAt)-Date.parse(b.passwordChangedAt)).to.eql(30*24*60*60*1000); });",
+                  "pm.environment.set('inactiveToken', b.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Inactive account cannot login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\": \"pm_profile_inactive\", \"password\": \"{{fixturePassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('UNAUTHORIZED'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Get Personal Profile",
+      "item": [
+        {
+          "name": "Own profile admin",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me?userId=102&role=ADMIN"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Own identity and decimal strings', () => {pm.expect(b.id).to.eql('101'); pm.expect(b.salary).to.be.a('string'); pm.expect(b.version).to.match(/^(0|[1-9][0-9]*)$/); pm.expect(b.canUpdateProfile).to.eql(true);});",
+                  "pm.test('No private authentication fields', () => { ['password_hash','passwordHash','authVersion','currentPassword','newPassword','token','otp'].forEach(k=>pm.expect(b).not.to.have.property(k)); });",
+                  "pm.environment.set('adminVersion',b.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Own profile staff",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me?userId=102&role=ADMIN"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Own identity and decimal strings', () => {pm.expect(b.id).to.eql('103'); pm.expect(b.salary).to.be.a('string'); pm.expect(b.version).to.match(/^(0|[1-9][0-9]*)$/); pm.expect(b.canUpdateProfile).to.eql(true);});",
+                  "pm.test('No private authentication fields', () => { ['password_hash','passwordHash','authVersion','currentPassword','newPassword','token','otp'].forEach(k=>pm.expect(b).not.to.have.property(k)); });",
+                  "pm.environment.set('staffVersion',b.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Own profile large",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{largeToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me?userId=102&role=ADMIN"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Own identity and decimal strings', () => {pm.expect(b.id).to.eql('9007199254740993'); pm.expect(b.salary).to.be.a('string'); pm.expect(b.version).to.match(/^(0|[1-9][0-9]*)$/); pm.expect(b.canUpdateProfile).to.eql(true);});",
+                  "pm.test('No private authentication fields', () => { ['password_hash','passwordHash','authVersion','currentPassword','newPassword','token','otp'].forEach(k=>pm.expect(b).not.to.have.property(k)); });",
+                  "pm.environment.set('largeVersion',b.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Missing personnel remains null",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{missingToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('No fabricated personnel',()=>{pm.expect(b.address).to.eql(null);pm.expect(b.salary).to.eql(null);pm.expect(b.id).to.eql('109');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Deleted avatar is hidden",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Deleted asset not exposed',()=>pm.expect(b.avatarUrl).to.eql(null));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Valid avatar and nullable values",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Existing valid media only',()=>{pm.expect(b.avatarUrl).to.eql('https://example.test/profile-visible.png');pm.expect(b.birthday).to.eql(null);pm.expect(b.gender).to.eql(null);});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3. Update Personal Profile",
+      "item": [
+        {
+          "name": "Update admin own allowed fields",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{adminVersion}}\", \"name\": \"Nguyễn Ánh admin\", \"address\": \"Đà Nẵng admin\", \"phone\": \"+84 900 000 000\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Persisted allowlist and version',()=>{pm.expect(b.name).to.eql('Nguyễn Ánh admin');pm.expect(b.address).to.eql('Đà Nẵng admin');pm.expect(b.phone).to.eql('+84 900 000 000');pm.expect(b.version).to.eql('1');});pm.environment.set('adminVersion',b.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Header reflects admin update",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/home/account"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Shared account projection',()=>{pm.expect(b.name).to.eql('Nguyễn Ánh admin');pm.expect(b.address).to.eql('Đà Nẵng admin');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update staff own allowed fields",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{staffVersion}}\", \"name\": \"Nguyễn Ánh staff\", \"address\": \"Đà Nẵng staff\", \"phone\": \"+84 900 000 000\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Persisted allowlist and version',()=>{pm.expect(b.name).to.eql('Nguyễn Ánh staff');pm.expect(b.address).to.eql('Đà Nẵng staff');pm.expect(b.phone).to.eql('+84 900 000 000');pm.expect(b.version).to.eql('1');});pm.environment.set('staffVersion',b.version);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Header reflects staff update",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/home/account"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Shared account projection',()=>{pm.expect(b.name).to.eql('Nguyễn Ánh staff');pm.expect(b.address).to.eql('Đà Nẵng staff');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stale update conflicts",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"0\", \"name\": \"Stale\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('PROFILE_CONFLICT'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Missing personnel rolls back name",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{missingToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"0\", \"name\": \"Rollback\", \"address\": \"A\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 409', () => pm.response.to.have.status(409));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('PROFILE_INCOMPLETE'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Omitted fields unchanged; SQL text is data",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"1\", \"name\": \"O'Brien; SELECT 1 --\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Literal parameterized value and preserved address',()=>{pm.expect(b.name).to.eql(\"O'Brien; SELECT 1 --\");pm.expect(b.address).to.eql('Đà Nẵng admin');pm.expect(b.version).to.eql('2');});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4. Authorization & Security",
+      "item": [
+        {
+          "name": "No token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('UNAUTHORIZED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Invalid bearer",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{invalidToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('UNAUTHORIZED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Stale auth version",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staleToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('UNAUTHORIZED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Inactive since login",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{inactiveToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('UNAUTHORIZED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Customer denied GET",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('FORBIDDEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Customer denied PATCH",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"0\", \"name\": \"Denied\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('FORBIDDEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Customer denied POST",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{customerToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"currentPassword\": \"{{fixturePassword}}\", \"newPassword\": \"{{newPassword}}\", \"confirmNewPassword\": \"{{newPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 403', () => pm.response.to.have.status(403));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('FORBIDDEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "staff cannot assign role",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{staffVersion}}\", \"role\": \"102\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "staff cannot assign salary",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{staffVersion}}\", \"salary\": \"102\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "staff cannot assign status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{staffVersion}}\", \"status\": \"102\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "staff cannot assign userId",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{staffVersion}}\", \"userId\": \"102\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "staff cannot assign username",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{staffVersion}}\", \"username\": \"102\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "staff cannot assign passwordHash",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{staffVersion}}\", \"passwordHash\": \"102\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "staff cannot assign authVersion",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{staffVersion}}\", \"authVersion\": \"102\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "staff cannot assign email",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{staffVersion}}\", \"email\": \"102\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "staff cannot assign avatarMediaId",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{staffVersion}}\", \"avatarMediaId\": \"102\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "staff cannot assign birthday",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{staffVersion}}\", \"birthday\": \"102\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "staff cannot assign gender",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{staffVersion}}\", \"gender\": \"102\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "staff cannot assign unknown",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{staffVersion}}\", \"unknown\": \"102\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "admin cannot assign role",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{adminVersion}}\", \"role\": \"102\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "admin cannot assign salary",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{adminVersion}}\", \"salary\": \"102\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "admin cannot assign status",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{adminVersion}}\", \"status\": \"102\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "admin cannot assign userId",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{adminVersion}}\", \"userId\": \"102\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "admin cannot assign username",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{adminVersion}}\", \"username\": \"102\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "admin cannot assign passwordHash",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{adminVersion}}\", \"passwordHash\": \"102\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "admin cannot assign authVersion",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{adminVersion}}\", \"authVersion\": \"102\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "admin cannot assign email",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{adminVersion}}\", \"email\": \"102\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "admin cannot assign avatarMediaId",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{adminVersion}}\", \"avatarMediaId\": \"102\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "admin cannot assign birthday",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{adminVersion}}\", \"birthday\": \"102\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "admin cannot assign gender",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{adminVersion}}\", \"gender\": \"102\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "admin cannot assign unknown",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"{{adminVersion}}\", \"unknown\": \"102\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject invalid name ",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"1\", \"name\": \"\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject invalid name    ",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"1\", \"name\": \"   \"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject invalid name aaaaaaaaaaaaaaa",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"1\", \"name\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject invalid address aaaaaaaaaaaaaaa",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"1\", \"address\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject invalid phone aaaaaaaaaaaaaaa",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"1\", \"phone\": \"aaaaaaaaaaaaaaaaaaaaa\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject invalid phone None",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": \"1\", \"phone\": null}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reject invalid version 0",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"version\": 0}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login short",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{expiryBaseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\": \"pm_profile_admin2\", \"password\": \"{{fixturePassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Authenticated identity and expiry', () => { pm.expect(b.user.username).to.eql('pm_profile_admin2'); pm.expect(b.token).to.be.a('string').and.not.empty; pm.expect(b.mustChangePassword).to.eql(false); pm.expect(Date.parse(b.passwordExpiresAt)-Date.parse(b.passwordChangedAt)).to.eql(30*24*60*60*1000); });",
+                  "pm.environment.set('shortToken', b.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Expired real login bearer",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{shortToken}}"
+              }
+            ],
+            "url": "{{expiryBaseUrl}}/api/v1/profiles/me"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "setTimeout(()=>{},2200);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('UNAUTHORIZED'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5. Change Password",
+      "item": [
+        {
+          "name": "Wrong current",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"currentPassword\": \"wrong\", \"newPassword\": \"{{newPassword}}\", \"confirmNewPassword\": \"{{newPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('CURRENT_PASSWORD_INCORRECT'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Long wrong current",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"currentPassword\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\", \"newPassword\": \"{{newPassword}}\", \"confirmNewPassword\": \"{{newPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('CURRENT_PASSWORD_INCORRECT'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Mismatch",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"currentPassword\": \"{{fixturePassword}}\", \"newPassword\": \"{{newPassword}}\", \"confirmNewPassword\": \"different\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('PASSWORD_MISMATCH'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Weak",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"currentPassword\": \"{{fixturePassword}}\", \"newPassword\": \"weak\", \"confirmNewPassword\": \"weak\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PASSWORD'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reused",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"currentPassword\": \"{{fixturePassword}}\", \"newPassword\": \"{{fixturePassword}}\", \"confirmNewPassword\": \"{{fixturePassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('PASSWORD_REUSED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "UTF8 over 72 bytes",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"currentPassword\": \"{{fixturePassword}}\", \"newPassword\": \"Aa1ééééééééééééééééééééééééééééééééééé\", \"confirmNewPassword\": \"Aa1ééééééééééééééééééééééééééééééééééé\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PASSWORD'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Password rejects userId",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"currentPassword\": \"{{fixturePassword}}\", \"newPassword\": \"{{newPassword}}\", \"confirmNewPassword\": \"{{newPassword}}\", \"userId\": \"101\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Password rejects role",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"currentPassword\": \"{{fixturePassword}}\", \"newPassword\": \"{{newPassword}}\", \"confirmNewPassword\": \"{{newPassword}}\", \"role\": \"101\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Password rejects authVersion",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"currentPassword\": \"{{fixturePassword}}\", \"newPassword\": \"{{newPassword}}\", \"confirmNewPassword\": \"{{newPassword}}\", \"authVersion\": \"101\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 400', () => pm.response.to.have.status(400));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('INVALID_PROFILE_REQUEST'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change STAFF password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"currentPassword\": \"{{fixturePassword}}\", \"newPassword\": \"{{newPassword}}\", \"confirmNewPassword\": \"{{newPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('New bearer and fresh expiry',()=>{pm.expect(b.token).to.be.a('string').and.not.empty;pm.expect(b.mustChangePassword).to.eql(false);pm.expect(Date.parse(b.passwordExpiresAt)-Date.parse(b.passwordChangedAt)).to.eql(2592000000);});pm.environment.set('replacementToken',b.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change ADMIN password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"currentPassword\": \"{{fixturePassword}}\", \"newPassword\": \"{{newPassword}}\", \"confirmNewPassword\": \"{{newPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Admin continues with replacement bearer',()=>{pm.expect(b.token).to.be.a('string').and.not.empty;pm.expect(b.mustChangePassword).to.eql(false);});pm.environment.set('adminReplacementToken',b.token);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6. Password Expiration",
+      "item": [
+        {
+          "name": "expired requires password change",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{expiredToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Server requires change',()=>pm.expect(b.mustChangePassword).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change expired password without lockout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{expiredToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"currentPassword\": \"{{fixturePassword}}\", \"newPassword\": \"{{newPassword}}\", \"confirmNewPassword\": \"{{newPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Requirement cleared',()=>pm.expect(b.mustChangePassword).to.eql(false));pm.environment.set('expiredReplacementToken',b.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Continue expired profile with new bearer",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{expiredReplacementToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Can return to personal page',()=>pm.expect(b.mustChangePassword).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "flagged requires password change",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{flaggedToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Server requires change',()=>pm.expect(b.mustChangePassword).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Change flagged password without lockout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{flaggedToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me/password",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"currentPassword\": \"{{fixturePassword}}\", \"newPassword\": \"{{newPassword}}\", \"confirmNewPassword\": \"{{newPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Requirement cleared',()=>pm.expect(b.mustChangePassword).to.eql(false));pm.environment.set('flaggedReplacementToken',b.token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Continue flagged profile with new bearer",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{flaggedReplacementToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Can return to personal page',()=>pm.expect(b.mustChangePassword).to.eql(false));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "7. Token Revocation",
+      "item": [
+        {
+          "name": "Old bearer rejected",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{staffToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('UNAUTHORIZED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Old password rejected",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\": \"pm_profile_staff\", \"password\": \"{{fixturePassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 401', () => pm.response.to.have.status(401));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/problem+json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Stable error code', () => pm.expect(b.code).to.eql('UNAUTHORIZED'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "New password login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\": \"pm_profile_staff\", \"password\": \"{{newPassword}}\"}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Updated password authenticates STAFF',()=>{pm.expect(b.user.username).to.eql('pm_profile_staff');pm.expect(b.user.role).to.eql('STAFF');pm.expect(b.mustChangePassword).to.eql(false);});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Replacement bearer works",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{replacementToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('New profile and version',()=>{pm.expect(b.id).to.eql('103');pm.expect(b.version).to.eql('2');pm.expect(b.mustChangePassword).to.eql(false);});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "8. Regression",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/actuator/health"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Health UP',()=>pm.expect(b.status).to.eql('UP'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Home public highlights",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/home/highlights"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Home lists remain arrays',()=>{pm.expect(b.newest).to.be.an('array');pm.expect(b.mostOrdered).to.be.an('array');});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Public menu categories",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/customer/menu/categories"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('Categories remain available',()=>pm.expect(b).to.be.an('array'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Other account unchanged",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{admin2Token}}"
+              }
+            ],
+            "url": "{{baseUrl}}/api/v1/profiles/me"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "pm.test('JSON content type', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('application/json'));",
+                  "const b = pm.response.json();",
+                  "pm.test('No cross-account write',()=>{pm.expect(b.id).to.eql('102');pm.expect(b.name).to.eql('Synthetic Admin Two');pm.expect(b.version).to.eql('0');});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

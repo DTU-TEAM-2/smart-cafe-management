@@ -1,5 +1,7 @@
 ## Vấn đề và kết quả
 
+Khi mở PR, gắn đúng một nhãn `type:*` hoặc `dependencies`, ít nhất một `area:*` và đúng một `risk:*`. Ví dụ `type:fix`, `area:customer` và `risk:medium`.
+
 Task CF/QA và link issue/Jira/Trello:
 
 Nguồn yêu cầu / quyết định liên quan:

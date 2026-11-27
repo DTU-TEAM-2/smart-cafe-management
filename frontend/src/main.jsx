@@ -1,29 +1,19 @@
-import { lazy, StrictMode, Suspense, useSyncExternalStore } from "react";
+import { lazy, StrictMode, Suspense } from "react";
 import { createRoot } from "react-dom/client";
 import HomeShell from "./layout/HomeShell.jsx";
-import { AuthProvider } from "./auth/AuthContext.jsx";
+import { AuthProvider, useAuth } from "./auth/AuthContext.jsx";
 import "./fonts.css";
 import "./styles.css";
 
 const MenuPreview = import.meta.env.DEV ? lazy(() => import("./menu/MenuManagement.jsx")) : null;
 const TablePreview = import.meta.env.DEV ? lazy(() => import("./tables/TableManagementPreview.jsx")) : null;
 
-function readToken() {
-  try {
-    return sessionStorage.getItem("smart_cafe_token") || "";
-  } catch {
-    return "";
-  }
-}
-
-function subscribeAuth(callback) {
-  const events = ["storage", "smart-cafe-auth-change", "focus"];
-  events.forEach((event) => window.addEventListener(event, callback));
-  return () => events.forEach((event) => window.removeEventListener(event, callback));
+function AuthenticatedHome() {
+  const { token } = useAuth();
+  return <HomeShell authorization={token ? `Bearer ${token}` : ""} />;
 }
 
 function App() {
-  const token = useSyncExternalStore(subscribeAuth, readToken);
   if (import.meta.env.DEV && window.location.pathname === "/preview/tables") {
     return <Suspense fallback={<main aria-busy="true"><h1>Quản lý bàn</h1><p role="status">Đang tải giao diện…</p></main>}><TablePreview /></Suspense>;
   }
@@ -32,7 +22,7 @@ function App() {
   }
   return (
     <AuthProvider>
-      <HomeShell authorization={token ? `Bearer ${token}` : ""} />
+      <AuthenticatedHome />
     </AuthProvider>
   );
 }

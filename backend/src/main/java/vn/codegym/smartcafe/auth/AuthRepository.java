@@ -32,7 +32,8 @@ public class AuthRepository {
             rs.getString("status"),
             rs.getObject("avatar_media_id") != null ? rs.getLong("avatar_media_id") : null,
             rs.getLong("auth_version"),
-            toInstant(rs.getTimestamp("password_changed_at"))
+            toInstant(rs.getTimestamp("password_changed_at")),
+            rs.getBoolean("must_change_password")
     );
 
     private static final RowMapper<OtpChallengeRecord> OTP_ROW_MAPPER = (rs, rowNum) -> new OtpChallengeRecord(
@@ -59,7 +60,7 @@ public class AuthRepository {
     public Optional<UserRecord> findUserByUsername(String username) {
         String sql = """
             SELECT id, username, password_hash, full_name, email, phone, role, status,
-                   avatar_media_id, auth_version, password_changed_at
+                   avatar_media_id, auth_version, password_changed_at, must_change_password
             FROM users
             WHERE username = ?
             """;
@@ -73,7 +74,7 @@ public class AuthRepository {
     public Optional<UserRecord> findUserByEmail(String email) {
         String sql = """
             SELECT id, username, password_hash, full_name, email, phone, role, status,
-                   avatar_media_id, auth_version, password_changed_at
+                   avatar_media_id, auth_version, password_changed_at, must_change_password
             FROM users
             WHERE LOWER(email) = LOWER(?)
             """;
@@ -87,9 +88,24 @@ public class AuthRepository {
     public Optional<UserRecord> findUserById(Long id) {
         String sql = """
             SELECT id, username, password_hash, full_name, email, phone, role, status,
-                   avatar_media_id, auth_version, password_changed_at
+                   avatar_media_id, auth_version, password_changed_at, must_change_password
             FROM users
             WHERE id = ?
+            """;
+        try {
+            return Optional.ofNullable(jdbcTemplate.queryForObject(sql, USER_ROW_MAPPER, id));
+        } catch (EmptyResultDataAccessException e) {
+            return Optional.empty();
+        }
+    }
+
+    public Optional<UserRecord> findUserByIdForUpdate(Long id) {
+        String sql = """
+            SELECT id, username, password_hash, full_name, email, phone, role, status,
+                   avatar_media_id, auth_version, password_changed_at, must_change_password
+            FROM users
+            WHERE id = ?
+            FOR UPDATE
             """;
         try {
             return Optional.ofNullable(jdbcTemplate.queryForObject(sql, USER_ROW_MAPPER, id));
@@ -105,6 +121,7 @@ public class AuthRepository {
                 password_changed_at = CURRENT_TIMESTAMP(6),
                 auth_version = auth_version + 1,
                 must_change_password = 0,
+                version = version + 1,
                 updated_at = CURRENT_TIMESTAMP(6)
             WHERE id = ? AND auth_version = ? AND status = 'ACTIVE'
             """;
@@ -118,6 +135,7 @@ public class AuthRepository {
                 password_changed_at = CURRENT_TIMESTAMP(6),
                 auth_version = auth_version + 1,
                 must_change_password = 0,
+                version = version + 1,
                 updated_at = CURRENT_TIMESTAMP(6)
             WHERE id = ?
             """;
@@ -191,7 +209,10 @@ public class AuthRepository {
     public int consumeOtpResend(String challengeId, Instant acceptedAt, Instant nextSendAt) {
         return jdbcTemplate.update("""
             UPDATE auth_otp_challenges
-            SET sends = sends + 1, next_send_at = ?
+            SET sends = sends + 1,
+                next_send_at = ?,
+                delivery_status = CASE WHEN user_id IS NOT NULL THEN 'PENDING' ELSE delivery_status END,
+                last_error_code = NULL
             WHERE id = ?
               AND used_at IS NULL
               AND sends < 3
@@ -200,16 +221,29 @@ public class AuthRepository {
             """, Timestamp.from(nextSendAt), challengeId, Timestamp.from(acceptedAt), Timestamp.from(acceptedAt));
     }
 
-    public int recordOtpDelivery(String challengeId, int expectedSends, String newCodeHash,
+    public int recordOtpDelivery(String challengeId, int expectedSends, Instant reservedNextSendAt, String newCodeHash,
                                  boolean delivered, Instant sentAt) {
+        Timestamp sentTs = Timestamp.from(sentAt);
         return jdbcTemplate.update("""
             UPDATE auth_otp_challenges
             SET code_hash = CASE WHEN ? THEN ? ELSE code_hash END,
                 delivery_status = ?,
+                last_error_code = CASE WHEN ? THEN NULL ELSE 'SMTP_DELIVERY_FAILED' END,
                 sent_at = CASE WHEN ? THEN ? ELSE sent_at END
-            WHERE id = ? AND used_at IS NULL AND sends = ?
+            WHERE id = ? AND used_at IS NULL AND sends = ? AND next_send_at = ?
+              AND delivery_status = 'PENDING' AND expires_at > ?
             """, delivered, newCodeHash, delivered ? "SENT" : "FAILED", delivered,
-                Timestamp.from(sentAt), challengeId, expectedSends);
+                delivered, sentTs, challengeId, expectedSends, Timestamp.from(reservedNextSendAt), sentTs);
+    }
+
+    public int releaseOtpResend(OtpChallengeRecord previous, Instant reservedNextSendAt) {
+        return jdbcTemplate.update("""
+            UPDATE auth_otp_challenges
+            SET sends = ?, next_send_at = ?, delivery_status = ?, last_error_code = ?
+            WHERE id = ? AND used_at IS NULL AND sends = ? AND next_send_at = ?
+              AND delivery_status = 'PENDING' AND code_hash = ?
+            """, previous.sends(), Timestamp.from(previous.nextSendAt()), previous.deliveryStatus(), previous.lastErrorCode(),
+                previous.id(), previous.sends() + 1, Timestamp.from(reservedNextSendAt), previous.codeHash());
     }
 
     public int markOtpUsedIfCurrent(String challengeId, String expectedCodeHash, int expectedSends) {

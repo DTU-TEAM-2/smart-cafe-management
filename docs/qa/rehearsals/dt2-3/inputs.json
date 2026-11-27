@@ -1,0 +1,40 @@
+{
+  "refs": {
+    "develop": "ffa4d9527e7924dd0bc9815fefb3034463d03156",
+    "staff": "4c7b9698ecdddd6f27ea093bea8030a90de4edfd",
+    "customer": "057531c26b68073354801c2394236ed76c7680e7",
+    "news": "ff109509cebc9e095dbe28efa9ff21e970f3d90c",
+    "menu-closed": "2ac010451a027c5b508063efac40083b10966c71"
+  },
+  "kind": "Selective module rehearsal retaining approved develop/Auth; not a literal merge or approval",
+  "ddlSha256": "84cb9f2e99073ea73b117e828dc7f144928052a8f8345cde6f903b82280e4b5e",
+  "proposalFiles": {
+    "integration-security-proposal.patch": "df4609b59888e0b6e6da7d76c53e73aa4eccc386d67e68e873e032427f19cdc1",
+    "staff-version-locking.patch": "24e5cb81c411c92f578cbdeca6552b0680748878e5b3934e6cc8408caed7bee2",
+    "StaffProfileConcurrencyTest.java": "409370adc3ca4fec8c7e5d2963bb7b7d29d6acd5ee0e8553098880188d08a98f",
+    "shared-security-regressions.patch": "140514c2ba5b0a4125a1180aac518c8a4f761c834eb37484317c090a75f7bb13",
+    "news-profile-consumer-latest.patch": "4d2ce3f106bf9fc9d46c7317036239288313f9217c0d35ad569a8727cb326577"
+  },
+  "httpRegressionSourceSha256": "a069b97bdd1fea1499d58c8a400c41687f95d95f431ac4076c20298c87800a6c",
+  "proposalFilesHashScope": "Current publishable artifacts; blank context markers normalized to empty lines for git diff --check, with git apply syntax verified. Historical as-run raw digests retained separately.",
+  "gitLfProposalFiles": {
+    "integration-security-proposal.patch": "df4609b59888e0b6e6da7d76c53e73aa4eccc386d67e68e873e032427f19cdc1",
+    "staff-version-locking.patch": "24e5cb81c411c92f578cbdeca6552b0680748878e5b3934e6cc8408caed7bee2",
+    "StaffProfileConcurrencyTest.java": "409370adc3ca4fec8c7e5d2963bb7b7d29d6acd5ee0e8553098880188d08a98f",
+    "shared-security-regressions.patch": "140514c2ba5b0a4125a1180aac518c8a4f761c834eb37484317c090a75f7bb13",
+    "news-profile-consumer-latest.patch": "4d2ce3f106bf9fc9d46c7317036239288313f9217c0d35ad569a8727cb326577"
+  },
+  "asRehearsedProposalFiles": {
+    "integration-security-proposal.patch": "49b614bc12ad72b75c59fa29e4a0226b9d07648d02d66c2690f1cdad72f3f3e7",
+    "staff-version-locking.patch": "b119c6a6d7d55967c6a32f39a4062386a3f9bc5f9cfc3c5ea113411f0cb8feb9",
+    "StaffProfileConcurrencyTest.java": "b527505c64ef52dba3987f6265c7add1082475e64cac1f146b65cb25080f6bdf",
+    "shared-security-regressions.patch": "9468087215bbe3dd80e2c2b41804c09b077efb2f0af344d7063e61e220aedb37"
+  },
+  "publicationRefs": {
+    "base": "331c1e329dac40780c56b75aaf32403c4acddadf",
+    "staff": "b74a365c742eecc900d097ab040bd131bb1f6c97",
+    "news": "c2343edecd3b71e57ee3ce6605db4dc5a03bc6cc",
+    "customer": "057531c26b68073354801c2394236ed76c7680e7",
+    "bills": "86b70e2d5540f96b3e32d1e92afcff611ec5ccf8"
+  }
+}

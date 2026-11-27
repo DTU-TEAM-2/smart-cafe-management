@@ -5,6 +5,15 @@
 Đối chiếu hai nguồn DDL đang có trong repo: snapshot legacy `backend/src/test/resources/db/current-shared-2026-11-13.sql` có `cafe_tables` thiếu `code`, `qr_public_id`, `updated_at`, `version` so với ảnh chuẩn; `table_number` NOT NULL và CHECK `EMPTY/ACTIVE`. Gói verified `backend/src/main/resources/db/smart-cafe/V20261113_01__smart_cafe_schema.sql` có các trường theo ảnh, PK tự tăng, unique code/number/QR, nullable table_number và CHECK `ACTIVE/OUT_OF_SERVICE/ARCHIVED`. Đây là **hai môi trường/lineage khác nhau**, không phải thiếu DDL bàn giao toàn dự án. Không kiểm tra lại DB đang chạy ngày 17/11, không tự chuyển profile hoặc sửa schema.
 
 Người dùng chọn làm giao diện độc lập và lưu câu hỏi ID, State/On, Remove. Vì vậy bản thử không có persistence/API hay ánh xạ trạng thái; các quyết định nghiệp vụ và môi trường đích vẫn cần chốt trước tích hợp. [Câu hỏi](../product/open-questions.md#dt2-11--id-stateon-và-xóa-bàn-17112026), [bàn giao](../handover/dt2-11-table-ui-preview.md).
+## DT2-3 — kiểm tra read-only 15/11/2026
+
+Đầu vào dùng nguyên byte DDL `20261113.1`, SHA-256 `84cb9f2e99073ea73b117e828dc7f144928052a8f8345cde6f903b82280e4b5e`; 10 checksum của ZIP local `SmartCafe-DDL-handoff-20261113.zip` khớp. File có hậu tố `(1)` trong yêu cầu không có trên máy; ZIP hiện có khớp SQL và ZIP đã đối chiếu ở handoff Auth. Đã đọc README/decision/manifest/gaps/evidence và xem ERD. Không sửa migration/manifest/contract fingerprint.
+
+Instance cấu hình workspace được kiểm read-only qua loopback TCP 3306, MySQL 8.0.45, catalog `smart_cafe`: 13 bảng gồm history, 0 view; history legacy V001–V008 như handoff trước. `users` tồn tại; `staff_profiles` và `media_assets` chưa tồn tại, nên GET Home/Profile không thể được nghiệm thu ở instance này. Nguồn metadata được lưu riêng ngoài Git; không đọc row nhân sự. Không đồng nhất instance này với Navicat `locall` của người bàn giao. Không ghi DB chung hoặc tự chuyển lineage.
+
+DT2-3 chỉ dùng `users`, `staff_profiles`, `media_assets` đúng DDL (password writer tăng version, không thay schema). Target triển khai thật vẫn cần DBA xác nhận instance/schema, inventory/history/grants và rollout của [handoff verified-db](../handover/dt2-2-verified-database-integration.md). Kiểm thử ghi chỉ ở schema riêng `_test`; native Flyway provision/validate/repeat và startup verified-db được kiểm riêng với fixture regression lịch sử.
+
+Hardening cùng ngày kiểm metadata read-only lại: MySQL8.0.45,13BASE TABLE/0VIEW, legacy history không đổi; không ghi DB chung. Profile/Newman và Staff concurrency dùng native verified20261113.1 trên schema test mình sở hữu. News audience đã có trong **official DDL** và fixture của HEAD#15; historical fixture của develop chưa có extension. Candidate đầu dùng nhầm fixture develop đã được sửa assembly bằng nguyên fixture#15 ở worktree riêng; không quy lỗi thiếu cột đó cho baseline News, không sửa official DDL/constraint/checksum. Kết quả và source manifest tại [hardening](../reports/dt2-3-hardening.md).
 
 **Cập nhật 13/11/2026:** đã nhận và kiểm chứng DDL bàn giao 20 bảng/4 view, gồm News audience. Xem [tích hợp và ma trận lineage mới](../handover/dt2-2-verified-database-integration.md). Profile opt-in `verified-db` phục vụ rehearsal/đích sau phê duyệt; mặc định giữ Auth-local. Quan sát legacy bên dưới vẫn thuộc môi trường riêng. Gói bàn giao không tự cấp quyền ghi database chung hoặc triển khai.
 
@@ -41,11 +50,44 @@ Lần cập nhật rule ngày 11/11 chỉ lưu/đối chiếu tài liệu và fi
 
 ## Khi cần bổ sung hoặc có chênh lệch
 
+### Đối chiếu riêng DT2-7 ngày 11/11/2026
+
+Trong vòng review local DT2-7, đã đọc `SHOW CREATE TABLE` bằng kết nối read-only ở mức thao tác (chỉ SELECT/SHOW) trên MySQL hệ thống 8.0.44 cho `news_posts`, `news_images`, `media_assets`, `users`. Các cột dùng bởi module, PK/FK/unique/CHECK, nullable và default khớp fixture cấu trúc hiện có; mô hình bốn bảng cũng khớp phần tương ứng trong ảnh 11/11. Không chạy DDL/seed hoặc ghi row vào database hệ thống.
+
+Đối chiếu này **chỉ áp dụng bốn bảng trên**, không chứng minh tất cả bảng/view khác khớp sơ đồ mới. Fixture vẫn có nguồn chụp lịch sử ngày 06/11; lần đọc mới xác minh lại phạm vi DT2-7, không biến fixture thành nguồn thay thế DDL hệ thống. Bằng chứng DDL và so sánh được giữ ngoài repo trong hồ sơ review local theo yêu cầu chủ repo.
+
+Module dùng `news_posts.version` sẵn có cho If-Match và lock hàng khi sửa/lưu trữ. DELETE chuyển `status='ARCHIVED'` sẵn có theo lựa chọn triển khai được chủ repo ủy quyền; không thêm `deleted_at`. Firebase upload dùng `media_assets` sẵn có, liên kết qua `news_images`; lần review đầu chưa thêm bảng/cột/index. Phần mở rộng audience được chấp thuận sau đó ghi riêng bên dưới. Hợp đồng và câu hỏi còn chờ khách hàng tại [DT2-7 backend](../handover/dt2-7-backend-contract.md).
+
+### Mở rộng DT2-7 được chủ repo duyệt — ADR-005
+
+DDL news_posts đọc lại ngày 11/11 xác nhận chưa có cột người nhận. Sau phản hồi Q&A 19–20, chủ repo đã duyệt rõ hai cột audience_staff/audience_customer sau khi xem phương án và nghe giải thích. Phần mở rộng được chấp thuận ghi tại [ADR-005](decisions.md); nguồn nghiệp vụ và phạm vi ở [phản hồi Q&A](../handover/dt2-7-qa-replies-2026-11-11.md).
+
+| Cột mới | Kiểu/constraint | Ý nghĩa |
+| --- | --- | --- |
+| news_posts.audience_staff | TINYINT(1) NOT NULL DEFAULT 0 | STAFF được đọc khi PUBLISHED và cột bằng 1 |
+| news_posts.audience_customer | TINYINT(1) NOT NULL DEFAULT 0 | CUSTOMER được đọc khi PUBLISHED và cột bằng 1 |
+
+CHECK ck_news_audience_flags buộc hai cột thuộc 0/1. Bài cũ mặc định 0/0, ADMIN quản lý tới khi gán đối tượng; không tự mở toàn bộ dữ liệu cũ. Không thêm bảng/index hoặc thay cột có sẵn. Diagram mở rộng (phần còn lại giữ theo ảnh nguồn):
+
+```mermaid
+erDiagram
+    news_posts {
+        bigint id PK
+        varchar status
+        tinyint audience_staff "ADR-005: NOT NULL DEFAULT 0, CHECK 0/1"
+        tinyint audience_customer "ADR-005: NOT NULL DEFAULT 0, CHECK 0/1"
+    }
+```
+
+DDL versioned: backend/database/migrations/V20261111_01__news_audiences.sql. Application không chạy script hoặc SQL init khi startup. Fixture test gồm snapshot cũ cộng đúng ALTER đã duyệt; không dùng fixture để giả rằng DB hệ thống đã có hai cột. **Cập nhật theo ADR-006:** chủ repo sau đó yêu cầu áp dụng lên DB hệ thống. Đã chạy nguyên script trên smart_cafe local, xác minh hai cột TINYINT(1), NOT NULL DEFAULT 0, CHECK ck_news_audience_flags và định nghĩa các cột cũ không đổi. Digest các trường bài viết/liên kết ảnh trước và sau migration, sau kiểm tra HTTP đều khớp. Không seed hoặc tạo row nghiệp vụ. MySQL hệ thống 8.0.44 hiện đã có phần mở rộng này; không chạy lại ALTER nếu hai cột/constraint đã tồn tại.
+
 Ghi task, nguồn ảnh/DDL và ngày đối chiếu, bảng/cột/constraint, khác biệt, hành vi bị ảnh hưởng, người cần quyết định và link kết luận. Trước khi có kết luận, không tự thêm migration, đổi entity để tạo schema, tắt constraint hay nạp dữ liệu cho code chạy tạm.
 
 Giữ tiền decimal/BigDecimal và biểu diễn chính xác qua API theo DDL đã chốt. Dữ liệu kiểm thử chỉ ở `_test`; không tự tạo người dùng, đơn, thanh toán hay thông báo vào DB hệ thống để lấp UI. Việc nhập dữ liệu ngày 06/11 là [yêu cầu riêng đã ghi nhận của chủ repo](../handover/2026-11-06-owner-requested-home-data.md), không phải quyền seed mặc định cho các task khác.
 
 ## DT2-9 — đối chiếu ngày 11/11/2026 cho PR #8
+
+Phần này giữ kết quả lịch sử của nhánh Menu trên cấu hình legacy riêng, được nhập từ main 8476ee3. Nó không mô tả DB smart_cafe đầy đủ đã đối chiếu cho Task 7 ở các phần trên; không dùng kết quả legacy để tự ALTER database hệ thống hiện tại.
 
 Theo yêu cầu chủ repo, đã đọc cấu hình kết nối legacy và chạy SHOW CREATE TABLE / metadata read-only trên MySQL local 8.0.46; không đọc row nghiệp vụ hoặc thay đổi database. DB local hiện chỉ có `flyway_schema_history`, `menu_item_order_totals`, `menu_items`. Bảng món còn `price decimal(12,0)` và `image_url`, thiếu `category_id`, `image_media_id`, `available`, `version`; thiếu toàn bộ `menu_categories`, `media_assets`, `users`. Đây là DDL cũ, không khớp mô hình mới và không thể dùng để smoke module hiện tại.
 
