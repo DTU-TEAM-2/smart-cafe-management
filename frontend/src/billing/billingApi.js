@@ -48,8 +48,12 @@ const isBill = bill => bill != null && isBillId(bill.id)
   && typeof bill.billCode === "string" && typeof bill.status === "string"
   && Object.hasOwn(billStatusLabels, bill.status) && isAmount(bill.totalAmount)
   && [bill.creatorName, bill.tableName, bill.tableCode, bill.sessionCode, bill.createdAt, bill.paidAt].every(isOptionalText);
-const validPage = page => page != null && isCount(page.page) && isCount(page.totalElements)
-  && isCount(page.totalPages) && Array.isArray(page.content) && page.content.every(isBill);
+const validPage = (result, requestedPage, pageSize) => result != null && result.page === requestedPage
+  && isCount(result.totalElements) && result.totalPages === Math.ceil(result.totalElements / pageSize)
+  && Array.isArray(result.content) && result.content.length <= pageSize
+  && result.content.length <= Math.max(0, result.totalElements - requestedPage * pageSize)
+  && result.content.every(isBill)
+  && new Set(result.content.map(bill => String(bill.id))).size === result.content.length;
 const validItem = item => item != null && typeof item.itemName === "string" && isCount(item.quantity)
   && isAmount(item.unitPrice) && isAmount(item.lineTotal);
 const validRevenue = entry => entry != null && isAmount(entry.revenue) && isCount(entry.billCount);
@@ -70,7 +74,7 @@ export function fetchBills({ code, from, to, status, page = 0, size = 10, sort =
   if (from) params.set("from", from);
   if (to) params.set("to", to);
   if (status && status !== "ALL") params.set("status", status);
-  return readBilling(`/api/v1/bills?${params}`, "danh sách hóa đơn", options, validPage);
+  return readBilling(`/api/v1/bills?${params}`, "danh sách hóa đơn", options, result => validPage(result, page, size));
 }
 
 export function fetchBillDetail(id, options) {

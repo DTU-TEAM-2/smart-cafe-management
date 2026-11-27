@@ -350,6 +350,12 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
     list = { content: [{ ...mockBills[0], creatorName: { invalid: true } }], totalElements: 1, totalPages: 1, page: 0 };
     await page.getByRole("button", { name: "Thử lại", exact: true }).click();
     await expect(page.getByRole("alert")).toContainText("Phản hồi danh sách hóa đơn không hợp lệ");
+    list = { content: [mockBills[0]], totalElements: 11, totalPages: 2, page: 1 };
+    await page.getByRole("button", { name: "Thử lại", exact: true }).click();
+    await expect(page.getByRole("alert")).toContainText("Phản hồi danh sách hóa đơn không hợp lệ", { timeout: 3000 });
+    list = { content: [mockBills[0], { ...mockBills[0], id: String(mockBills[0].id) }], totalElements: 2, totalPages: 1, page: 0 };
+    await page.getByRole("button", { name: "Thử lại", exact: true }).click();
+    await expect(page.getByRole("alert")).toContainText("Phản hồi danh sách hóa đơn không hợp lệ");
     list = { content: mockBills, totalElements: 2, totalPages: 1, page: 0 };
     await page.getByRole("button", { name: "Thử lại", exact: true }).click();
     await page.getByRole("button", { name: "BILL-2026-001" }).click();
