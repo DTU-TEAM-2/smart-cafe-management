@@ -1,5 +1,7 @@
 ## Vấn đề và kết quả
 
+Khi mở PR, gắn ít nhất một GitHub label phù hợp với nội dung (ví dụ `bug`, `enhancement` hoặc `documentation`).
+
 Task CF/QA và link issue/Jira/Trello:
 
 Nguồn yêu cầu / quyết định liên quan:
