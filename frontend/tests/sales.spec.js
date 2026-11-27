@@ -133,6 +133,56 @@ test("manager prints only confirmed server snapshot and reset dialog restores fo
   await expect(reset).toBeFocused();
 });
 
+for (const scenario of ["cancel", "retry"]) {
+  test(`payment draft behaves correctly after ${scenario}`, async ({ page }) => {
+    const payments = [];
+    let paid = false;
+    await setup(page, "ADMIN", async (route, url) => {
+      if (url.pathname.endsWith("/1/services")) {
+        await route.fulfill({ json: services("1", "SESSION-OLD", "Giá xem trước", 1, { id: "91", status: paid ? "PAID" : "PENDING" }) });
+        return true;
+      }
+      if (url.pathname.endsWith("/bills/91")) { await route.fulfill({ json: bill(paid ? "PAID" : "PENDING") }); return true; }
+      if (url.pathname.endsWith("/bills/91/payments")) {
+        payments.push(route.request().postDataJSON());
+        if (payments.length === 1) await route.abort("failed");
+        else {
+          paid = true;
+          await route.fulfill({ json: { bill: bill("PAID"), payment: { amount: "91000" } } });
+        }
+        return true;
+      }
+      return false;
+    });
+    await page.goto("/#sale");
+    await page.getByRole("button", { name: /Bàn 01/ }).click();
+    await page.getByRole("button", { name: "Xem hóa đơn hiện tại" }).click();
+    const openPayment = page.getByRole("button", { name: "Xác nhận thu tiền" });
+    const dialog = page.getByRole("dialog");
+    await openPayment.click();
+    await dialog.getByLabel("Phương thức").selectOption("BANK_TRANSFER");
+    await dialog.getByLabel(/Mã tham chiếu/).fill(" REF-RETRY ");
+    if (scenario === "cancel") {
+      await dialog.getByRole("button", { name: "Hủy", exact: true }).click();
+      await openPayment.click();
+      await expect(dialog.getByLabel("Phương thức")).toHaveValue("CASH");
+      await dialog.getByLabel("Phương thức").selectOption("BANK_TRANSFER");
+      await expect(dialog.getByLabel(/Mã tham chiếu/)).toHaveValue("");
+      expect(payments).toHaveLength(0);
+    } else {
+      const confirm = dialog.getByRole("button", { name: "Xác nhận", exact: true });
+      await confirm.click();
+      await expect(dialog.getByRole("alert")).toContainText("Không kết nối được máy chủ");
+      await expect(dialog.getByLabel(/Mã tham chiếu/)).toHaveValue(" REF-RETRY ");
+      await confirm.click();
+      await expect(page.getByRole("button", { name: "In hóa đơn" })).toBeVisible();
+      expect(payments).toHaveLength(2);
+      expect(payments[0]).toMatchObject({ method: "BANK_TRANSFER", referenceCode: "REF-RETRY" });
+      expect(payments[1]).toEqual(payments[0]);
+    }
+  });
+}
+
 test("new session during polling invalidates an open reset confirmation", async ({ page }) => {
   let session = "SESSION-OLD";
   let resets = 0;
