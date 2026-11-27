@@ -1,5 +1,19 @@
 # Các quyết định cần chốt lại
 
+## DT2-11 — ID, State/On và xóa bàn, 17/11/2026
+
+Nguồn: [DT2-11](https://duymanhdnvn20092005.atlassian.net/browse/DT2-11), các task con DT2-73/74/75 và trao đổi trực tiếp ngày 17/11/2026. Người dùng chọn **làm giao diện độc lập và lưu lại câu hỏi**, chưa chốt các phương án nghiệp vụ dưới đây. PO/mentor xác nhận nghiệp vụ; chủ repo/người phụ trách DB xác nhận ánh xạ và DDL.
+
+| Câu hỏi | Phương án cần xác nhận | Phần bị ảnh hưởng |
+| --- | --- | --- |
+| ID trên giao diện là gì? | `cafe_tables.id`, `code` hay `table_number`; định dạng, tính duy nhất, trường bắt buộc và quyền sửa? | Add, validation, tìm ID và API payload |
+| State và On có nghĩa gì? | Trạng thái hoạt động của bàn, trạng thái có khách hay trạng thái phiên; tập giá trị hợp lệ; On chỉ hiển thị hay có quyền mở/reset phiên? | Edit, tìm State, hiển thị On, phối hợp DT2-4/6 và QA-02/08 |
+| Remove xử lý thế nào? | Xóa vật lý bàn chưa có lịch sử, lưu trữ/ngừng sử dụng, hay từ chối; bàn có phiên đang mở/đang thanh toán/hóa đơn xử lý ra sao? | Delete, khóa giao dịch, lịch sử bill DT2-8 và hành vi QR cũ |
+| Ai được xem/thêm/sửa/xóa? | Ma trận quyền từng thao tác và các trường cho phép sửa; cách đối sánh ID/State chính xác hay một phần? | API authorization, UI và tìm kiếm |
+
+DDL-only legacy tại `backend/src/test/resources/db/current-shared-2026-11-13.sql` khác sơ đồ chuẩn: `cafe_tables` thiếu `code`, `qr_public_id`, `updated_at`, `version`; `table_number` NOT NULL và trạng thái `EMPTY/ACTIVE`. Repo cũng đã có DDL bàn giao verified tại `backend/src/main/resources/db/smart-cafe/V20261113_01__smart_cafe_schema.sql` với các trường theo sơ đồ và CHECK `ACTIVE/OUT_OF_SERVICE/ARCHIVED`, thuộc môi trường/lineage khác. Không lấy snapshot legacy để kết luận toàn dự án thiếu DDL. Chưa kiểm lại DB ngày 17/11 hoặc chọn môi trường tích hợp DT2-11; giữ persistence ngoài phạm vi UI theo lựa chọn người dùng. Xem [database contract](../architecture/database-contract.md).
+
+Bản thử tại `/preview/tables` chỉ có trong Vite development, không gọi API, không lưu browser storage, không tạo người dùng/phiên. ID/State là chuỗi nhập thử, On ghi “Chưa chốt”. Tìm một phần không phân biệt hoa/thường, kiểm ID trùng và Remove khỏi bộ nhớ chỉ phục vụ review tương tác; chúng **không phải quyết định nghiệp vụ đã được duyệt**. Xem [bàn giao bản thử](../handover/dt2-11-table-ui-preview.md).
 ## DT2-3 / DT2-27 — trạng thái 15/11/2026
 
 QA #8 và biên hết hạn/password reuse đã được owner chốt trong chat, ghi tại [ADR-013](../architecture/decisions.md#adr-013--hồ-sơ-cá-nhân-và-vòng-đời-mật-khẩu-dt2-3-15112026); không còn blocker quyền STAFF sửa ba trường. Các phần còn lại:

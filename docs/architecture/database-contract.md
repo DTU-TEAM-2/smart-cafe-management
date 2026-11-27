@@ -1,5 +1,10 @@
 # Database hệ thống — nguồn chuẩn
 
+## DT2-11 — bản thử UI độc lập, 17/11/2026
+
+Đối chiếu hai nguồn DDL đang có trong repo: snapshot legacy `backend/src/test/resources/db/current-shared-2026-11-13.sql` có `cafe_tables` thiếu `code`, `qr_public_id`, `updated_at`, `version` so với ảnh chuẩn; `table_number` NOT NULL và CHECK `EMPTY/ACTIVE`. Gói verified `backend/src/main/resources/db/smart-cafe/V20261113_01__smart_cafe_schema.sql` có các trường theo ảnh, PK tự tăng, unique code/number/QR, nullable table_number và CHECK `ACTIVE/OUT_OF_SERVICE/ARCHIVED`. Đây là **hai môi trường/lineage khác nhau**, không phải thiếu DDL bàn giao toàn dự án. Không kiểm tra lại DB đang chạy ngày 17/11, không tự chuyển profile hoặc sửa schema.
+
+Người dùng chọn làm giao diện độc lập và lưu câu hỏi ID, State/On, Remove. Vì vậy bản thử không có persistence/API hay ánh xạ trạng thái; các quyết định nghiệp vụ và môi trường đích vẫn cần chốt trước tích hợp. [Câu hỏi](../product/open-questions.md#dt2-11--id-stateon-và-xóa-bàn-17112026), [bàn giao](../handover/dt2-11-table-ui-preview.md).
 ## DT2-3 — kiểm tra read-only 15/11/2026
 
 Đầu vào dùng nguyên byte DDL `20261113.1`, SHA-256 `84cb9f2e99073ea73b117e828dc7f144928052a8f8345cde6f903b82280e4b5e`; 10 checksum của ZIP local `SmartCafe-DDL-handoff-20261113.zip` khớp. File có hậu tố `(1)` trong yêu cầu không có trên máy; ZIP hiện có khớp SQL và ZIP đã đối chiếu ở handoff Auth. Đã đọc README/decision/manifest/gaps/evidence và xem ERD. Không sửa migration/manifest/contract fingerprint.
