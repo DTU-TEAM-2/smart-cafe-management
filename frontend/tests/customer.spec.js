@@ -70,14 +70,19 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     await page.route(/\/api\/v1\/customer\/menu\/items\/[^/?]+$/, async (route) => {
       const id = route.request().url().split("/").pop();
       const item = await page.evaluate((itemId) => {
-        const cart = JSON.parse(sessionStorage.getItem("lecker_customer_cart:10:client-a") || "[]");
+        const cart = JSON.parse(sessionStorage.getItem("lecker_customer_checkout:10:client-a"))?.cart
+          ?? JSON.parse(sessionStorage.getItem("lecker_customer_cart:10:client-a") || "[]");
         return cart.find((entry) => String(entry.item.id) === itemId)?.item;
       }, id);
       return route.fulfill({ json: item || mockMenuItems.content.find((it) => it.id === id) });
     });
     await page.route(/\/api\/v1\/customer\/sessions\/10\/orders\/[^/?]+$/, async (route) => {
       const id = route.request().url().split("/").pop();
-      const order = await page.evaluate((batchId) => JSON.parse(sessionStorage.getItem("lecker_customer_orders:10:client-a") || "[]").find((batch) => batch.id === batchId), id);
+      const order = await page.evaluate((batchId) => {
+        const orders = JSON.parse(sessionStorage.getItem("lecker_customer_checkout:10:client-a"))?.orders
+          ?? JSON.parse(sessionStorage.getItem("lecker_customer_orders:10:client-a") || "[]");
+        return orders.find(batch => batch.id === batchId);
+      }, id);
       return route.fulfill({ json: order, headers: { Date: new Date().toUTCString() } });
     });
     await page.route("**/api/v1/customer/csrf", (route) =>
@@ -404,6 +409,49 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
       }
     });
   }
+
+  test("replays one committed batch after local checkout persistence fails and the page reloads", async ({ page }) => {
+    const attempts = [];
+    await page.addInitScript(() => {
+      const setItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (key, value) {
+        if (this.getItem("fail-checkout-write") === "yes"
+            && /^lecker_customer_(cart|orders|checkout):/.test(key)) {
+          throw new DOMException("test quota", "QuotaExceededError");
+        }
+        return setItem.call(this, key, value);
+      };
+    });
+    await page.route("**/api/v1/customer/sessions/10/orders", async route => {
+      attempts.push(route.request().headers()["idempotency-key"]);
+      if (attempts.length === 1) await page.evaluate(() => sessionStorage.setItem("fail-checkout-write", "yes"));
+      await route.fulfill({ json: {
+        id: "1002", sessionId: "10", totalAmount: "45000", sessionTotalAmount: "45000",
+        editableUntil: new Date(Date.now() + 180000).toISOString(),
+        items: [{ id: "501", menuItemId: "101", name: "Caramel Latte", unitPrice: "45000",
+          lineTotal: "45000", quantity: 1, version: "0", status: "SUBMITTED" }],
+      } });
+    });
+    await page.goto("/#customer");
+    await page.getByLabel("Thêm Caramel Latte vào giỏ hàng").click();
+    await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+    await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
+    await expect(page.getByText(/Đơn đã được ghi nhận.*chưa lưu được/)).toBeVisible({ timeout: 3000 });
+    await page.reload();
+    await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+    await page.getByRole("button", { name: "GỬI LẠI ĐƠN CHỜ" }).click();
+    await expect(page.getByText(/Đơn đã được ghi nhận.*chưa lưu được/)).toBeVisible();
+    await page.evaluate(() => sessionStorage.removeItem("fail-checkout-write"));
+    await page.getByRole("button", { name: "THỬ LẠI" }).click();
+    await expect(page.locator(".c-result-title")).toHaveText("Đặt món thành công!");
+    expect(attempts).toEqual([attempts[0], attempts[0], attempts[0]]);
+    await page.reload();
+    await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+    await expect(page.getByRole("heading", { name: "Giỏ hàng trống" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "GỬI LẠI ĐƠN CHỜ" })).toHaveCount(0);
+    await page.getByRole("button", { name: "Đơn món" }).click();
+    await expect(page.getByText(/#1002/)).toHaveCount(1);
+  });
 
   test("keeps the retry key when a write finishes after leaving the customer page", async ({ page }) => {
     const keys = [];
@@ -991,7 +1039,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     await page.addInitScript(() => {
       const origSetItem = sessionStorage.setItem.bind(sessionStorage);
       sessionStorage.setItem = (k, v) => {
-        if (k.startsWith("lecker_customer_attempt:order:") && !sessionStorage.getItem("allow-order-attempt")) {
+        if (k.startsWith("lecker_customer_checkout:") && JSON.parse(v).attempt && !sessionStorage.getItem("allow-order-attempt")) {
           throw new DOMException("QuotaExceededError", "QuotaExceededError");
         }
         return origSetItem(k, v);

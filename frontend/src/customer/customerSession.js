@@ -69,25 +69,42 @@ function scopedKey(prefix, session) {
 }
 
 export function readSessionCart(session) {
-  return readJson(scopedKey(CART_STORAGE_PREFIX, session), []);
-}
-
-export function writeSessionCart(session, cart) {
-  writeJson(scopedKey(CART_STORAGE_PREFIX, session), cart);
+  return readCheckout(session).cart;
 }
 
 export function readSessionOrders(session) {
-  return readJson(scopedKey(ORDERS_STORAGE_PREFIX, session), []);
+  return readCheckout(session).orders;
 }
 
-export function writeSessionOrders(session, orders) {
-  writeJson(scopedKey(ORDERS_STORAGE_PREFIX, session), orders);
+function readCheckout(session) {
+  const key = scopedKey("lecker_customer_checkout", session);
+  const stored = key ? sessionStorage.getItem(key) : null;
+  if (stored !== null) {
+    const state = JSON.parse(stored);
+    if (!Array.isArray(state?.cart) || !Array.isArray(state?.orders) || !Object.hasOwn(state, "attempt")) {
+      throw new Error("Dữ liệu giỏ hàng đã lưu không hợp lệ.");
+    }
+    return state;
+  }
+  const legacyAttempt = scopedKey(`${ATTEMPT_STORAGE_PREFIX}:order`, session);
+  return {
+    cart: readJson(scopedKey(CART_STORAGE_PREFIX, session), []),
+    orders: readJson(scopedKey(ORDERS_STORAGE_PREFIX, session), []),
+    attempt: legacyAttempt ? JSON.parse(sessionStorage.getItem(legacyAttempt)) : null,
+  };
 }
 
-export function getOrCreateOrderAttempt(session, newPayload) {
-  const key = scopedKey(`${ATTEMPT_STORAGE_PREFIX}:order`, session);
+function writeCheckout(session, state) {
+  const key = scopedKey("lecker_customer_checkout", session);
   if (!key) throw new Error("Chưa có phiên khách hàng hợp lệ.");
+  sessionStorage.setItem(key, JSON.stringify(state));
+}
 
+export function saveCheckoutDraft(session, cart, orders) {
+  if (session) writeCheckout(session, { cart, orders, attempt: readOrderAttempt(session) });
+}
+
+export function getOrCreateOrderAttempt(session, newPayload, cart, orders) {
   const saved = readOrderAttempt(session);
   // If an unresolved attempt already exists (e.g. from a prior network drop/failure),
   // reuse the EXACT immutable payload & idempotencyKey so retries never duplicate or mix new items!
@@ -102,11 +119,10 @@ export function getOrCreateOrderAttempt(session, newPayload) {
   const idempotencyKey = createStorageId();
   const attempt = { idempotencyKey, payload: newPayload };
   try {
-    sessionStorage.setItem(key, JSON.stringify(attempt));
+    writeCheckout(session, { cart, orders, attempt });
   } catch {
     throw new Error("Không thể lưu mã gửi đơn an toàn. Giỏ hàng vẫn còn, vui lòng bật bộ nhớ phiên hoặc giải phóng dung lượng rồi thử lại.");
   }
-  memoryFallback.set(key, attempt);
   return {
     idempotencyKey,
     payload: newPayload,
@@ -115,9 +131,21 @@ export function getOrCreateOrderAttempt(session, newPayload) {
 }
 
 export function readOrderAttempt(session) {
-  const key = scopedKey(`${ATTEMPT_STORAGE_PREFIX}:order`, session);
-  const saved = readJson(key, null);
-  return saved?.idempotencyKey && Array.isArray(saved.payload) && saved.payload.length > 0 ? saved : null;
+  const saved = readCheckout(session).attempt;
+  if (saved == null) return null;
+  if (typeof saved.idempotencyKey !== "string" || !saved.idempotencyKey
+      || !Array.isArray(saved.payload) || !saved.payload.length) {
+    throw new Error("Không thể đọc mã gửi đơn đã lưu. Vui lòng nhờ nhân viên kiểm tra đơn.");
+  }
+  return saved;
+}
+
+export function finishOrderAttempt(session, attempt, cart, orders) {
+  if (readOrderAttempt(session)?.idempotencyKey !== attempt.idempotencyKey) {
+    throw new Error("Lần gửi đơn đã thay đổi. Vui lòng tải lại trang.");
+  }
+  // The cart, placed orders and removal of the active attempt commit together.
+  writeCheckout(session, { cart, orders, attempt: null });
 }
 
 export function getOrCreateAttempt(session, operation, payload = null) {

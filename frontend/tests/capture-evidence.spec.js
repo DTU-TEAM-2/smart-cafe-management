@@ -55,7 +55,8 @@ test("Capture high-fidelity screenshots for DT2-4 Frontend Evidence", async ({ p
   );
   await page.route(/\/api\/v1\/customer\/sessions\/10\/orders\/[^/?]+$/, async (route) => {
     const id = route.request().url().split("/").pop();
-    const order = await page.evaluate((batchId) => JSON.parse(sessionStorage.getItem("lecker_customer_orders:10:evidence-client") || "[]").find((batch) => String(batch.id) === batchId), id);
+    const order = await page.evaluate((batchId) =>
+      JSON.parse(sessionStorage.getItem("lecker_customer_checkout:10:evidence-client"))?.orders.find(batch => String(batch.id) === batchId), id);
     return route.fulfill({ json: order, headers: { Date: new Date().toUTCString() } });
   });
   await page.route("**/api/v1/customer/feedback/csrf", (route) =>

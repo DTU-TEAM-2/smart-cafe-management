@@ -4,9 +4,8 @@ import {
   readCustomerSession,
   readSessionCart,
   readSessionOrders,
-  writeSessionCart,
-  writeSessionOrders,
-  clearAttempt,
+  saveCheckoutDraft,
+  finishOrderAttempt,
   getOrCreateOrderAttempt,
   readOrderAttempt,
 } from "./customerSession.js";
@@ -54,7 +53,9 @@ export function CustomerProvider({ children }) {
 
   // In-flight order submission state (preserves state across tab switches)
   const [isSubmittingOrder, setIsSubmittingOrder] = useState(false);
-  const [hasPendingOrder, setHasPendingOrder] = useState(() => Boolean(readOrderAttempt(session)));
+  const [hasPendingOrder, setHasPendingOrder] = useState(() => {
+    try { return Boolean(readOrderAttempt(session)); } catch { return true; }
+  });
   const submittingOrderRef = useRef(false);
   const orderLifecycle = useRef(null);
   const [orderModalResult, setOrderModalResult] = useState(null);
@@ -65,23 +66,16 @@ export function CustomerProvider({ children }) {
     return () => lifecycle.abort();
   }, []);
 
-  // Sync cart to sessionStorage
+  // Draft updates may stay in memory during a storage outage. Submit still
+  // requires an atomic durable write before dispatch and after confirmation.
   useEffect(() => {
     try {
-      writeSessionCart(session, cart);
+      saveCheckoutDraft(session, cart, orders);
     } catch {
-      // ignore
+      // Keep the in-memory draft available. Submission will report storage errors.
     }
-  }, [cart, session]);
-
-  // Sync orders to sessionStorage
-  useEffect(() => {
-    try {
-      writeSessionOrders(session, orders);
-    } catch {
-      // ignore
-    }
-  }, [orders, session]);
+  }, [cart, orders, session]);
+  const latestOrders = useRef(orders);
 
   const addToCart = useCallback((item, quantity = 1) => {
     if (submittingOrderRef.current) return;
@@ -133,29 +127,17 @@ export function CustomerProvider({ children }) {
     setCart([]);
   }, []);
 
-  const subtractFromCart = useCallback((submittedItems) => {
-    if (!Array.isArray(submittedItems) || submittedItems.length === 0) return;
-    setCart((prev) => {
-      const subMap = new Map();
-      for (const it of submittedItems) {
-        const id = it.cartLineId ? `line:${it.cartLineId}` : `menu:${it.menuItemId ?? it.id}`;
-        const qty = Number(it.quantity) || 0;
-        subMap.set(id, (subMap.get(id) || 0) + qty);
-      }
+  const subtractFromCart = useCallback((currentCart, submittedItems) => {
+    const subMap = new Map();
+    for (const item of submittedItems) {
+      const id = item.cartLineId ? `line:${item.cartLineId}` : `menu:${item.menuItemId ?? item.id}`;
+      subMap.set(id, (subMap.get(id) || 0) + Number(item.quantity));
+    }
 
-      const next = [];
-      for (const entry of prev) {
-        const subQty = subMap.get(`line:${entry.lineId}`) ?? subMap.get(`menu:${entry.item.id}`) ?? 0;
-        if (subQty > 0) {
-          const remaining = entry.quantity - subQty;
-          if (remaining > 0) {
-            next.push({ ...entry, quantity: remaining });
-          }
-        } else {
-          next.push(entry);
-        }
-      }
-      return next;
+    return currentCart.flatMap(entry => {
+      const quantity = subMap.get(`line:${entry.lineId}`) ?? subMap.get(`menu:${entry.item.id}`) ?? 0;
+      if (quantity === 0) return [entry];
+      return entry.quantity > quantity ? [{ ...entry, quantity: entry.quantity - quantity }] : [];
     });
   }, []);
 
@@ -171,16 +153,11 @@ export function CustomerProvider({ children }) {
     return cart.reduce((count, entry) => count + entry.quantity, 0);
   }, [cart]);
 
-  const addPlacedBatch = useCallback((batch) => {
-    if (!batch) return;
-    setOrders((prev) => [batch, ...prev]);
-  }, []);
-
   const replacePlacedBatch = useCallback((updatedBatch) => {
     if (!updatedBatch?.id) return;
-    setOrders((prev) =>
-      prev.map((batch) => (String(batch.id) === String(updatedBatch.id) ? updatedBatch : batch))
-    );
+    latestOrders.current = latestOrders.current.map((batch) =>
+      String(batch.id) === String(updatedBatch.id) ? updatedBatch : batch);
+    setOrders(latestOrders.current);
   }, []);
 
   const submitOrder = useCallback(async () => {
@@ -198,9 +175,11 @@ export function CustomerProvider({ children }) {
 
     submittingOrderRef.current = true;
     setIsSubmittingOrder(true);
-    let attempt = readOrderAttempt(session);
-    let replay = Boolean(attempt);
+    let attempt;
+    let replay = false;
     try {
+      attempt = readOrderAttempt(session);
+      replay = Boolean(attempt);
       let orderPayload = attempt?.payload;
       if (!attempt) {
         if (cart.length === 0) return;
@@ -239,7 +218,7 @@ export function CustomerProvider({ children }) {
       if (!attempt) {
         // Persist only once the request is ready to dispatch. A saved attempt
         // may already have committed even if a later retry is rejected.
-        attempt = getOrCreateOrderAttempt(session, orderPayload);
+        attempt = getOrCreateOrderAttempt(session, orderPayload, cart, latestOrders.current);
         replay = attempt.isRetry;
         setHasPendingOrder(true);
       }
@@ -254,12 +233,21 @@ export function CustomerProvider({ children }) {
       // A new provider must reconcile the persisted attempt if this view has left.
       if (signal.aborted) return;
 
-      addPlacedBatch({
-        ...batchResult,
-        createdAt: new Date().toISOString(),
-      });
-      subtractFromCart(attempt.payload);
-      clearAttempt(session, "order");
+      const alreadyPlaced = latestOrders.current.some(batch => String(batch.id) === batchResult.id);
+      const nextCart = alreadyPlaced ? cart : subtractFromCart(cart, attempt.payload);
+      const nextOrders = alreadyPlaced ? latestOrders.current : [
+        { ...batchResult, createdAt: new Date().toISOString() }, ...latestOrders.current,
+      ];
+      try {
+        finishOrderAttempt(session, attempt, nextCart, nextOrders);
+      } catch {
+        setOrderModalResult({ status: "failure", title: "Chưa lưu được đơn trên thiết bị",
+          detail: "Đơn đã được ghi nhận nhưng chưa lưu được giỏ hàng và lịch sử. Thử lại để đối soát bằng cùng mã đơn." });
+        return;
+      }
+      latestOrders.current = nextOrders;
+      setOrders(nextOrders);
+      setCart(nextCart);
       setHasPendingOrder(false);
 
       setOrderModalResult({
@@ -270,8 +258,14 @@ export function CustomerProvider({ children }) {
     } catch (err) {
       if (signal.aborted) return;
       if (attempt && !replay && err.requestRejected) {
-        clearAttempt(session, "order");
-        setHasPendingOrder(false);
+        try {
+          finishOrderAttempt(session, attempt, cart, latestOrders.current);
+          setHasPendingOrder(false);
+        } catch {
+          setOrderModalResult({ status: "failure", title: "Chưa lưu được trạng thái đơn",
+            detail: "Không thể cập nhật mã gửi đơn trên thiết bị. Vui lòng thử lại sau khi khôi phục bộ nhớ phiên." });
+          return;
+        }
       }
       setOrderModalResult({
         status: "failure",
@@ -284,7 +278,7 @@ export function CustomerProvider({ children }) {
       submittingOrderRef.current = false;
       if (!signal.aborted) setIsSubmittingOrder(false);
     }
-  }, [cart, session, addPlacedBatch, subtractFromCart, updateCartItemPrice]);
+  }, [cart, session, subtractFromCart, updateCartItemPrice]);
 
   const value = useMemo(
     () => ({
@@ -295,11 +289,9 @@ export function CustomerProvider({ children }) {
       updateCartItemPrice,
       removeFromCart,
       clearCart,
-      subtractFromCart,
       cartTotal,
       cartCount,
       orders,
-      addPlacedBatch,
       replacePlacedBatch,
       currentTab,
       setCurrentTab,
@@ -319,11 +311,9 @@ export function CustomerProvider({ children }) {
       updateCartItemPrice,
       removeFromCart,
       clearCart,
-      subtractFromCart,
       cartTotal,
       cartCount,
       orders,
-      addPlacedBatch,
       replacePlacedBatch,
       currentTab,
       selectedItemForDetail,
