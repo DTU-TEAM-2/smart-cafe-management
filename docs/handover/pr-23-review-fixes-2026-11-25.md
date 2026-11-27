@@ -99,3 +99,9 @@ Skills follow-up: `cafe-review`, `vercel-react-best-practices`, `fixing-accessib
 - menuText.js dùng tập Character.isWhitespace của Java 21; editor và payload menuApi dùng cùng hàm cho tên/mã, categoryCode cũng chuẩn hóa theo backend. Không thay backend hay quy tắc nghiệp vụ; giữ whitespace bên trong tên và các ký tự Java không strip (NBSP/figure space/narrow NBSP/BOM).
 - Lint/build, 20 unit và 78 menu-admin Playwright desktop/mobile đạt. Unit kiểm tập whitespace, các ký tự phải giữ, lưu thành công và pendingSave → GET đối chiếu với code/tên chuẩn hóa, chỉ một mutation. UI nhập tên có U+001C ở hai đầu, xác minh payload và thông báo thành công. Log local: graphify-out/pr23-java-strip-ui.log. API UI dùng HTTP fixtures, không phải test Cloudinary/MySQL live.
 - Không có inline thread mới cho P3; phản hồi tại conversation, không mở lại 10 thread đã resolve. Skills tiếp tục cafe-review và cafe-quality theo các đường dẫn đã ghi ở trên.
+
+### CI fixture isolation follow-up — 27/11/2026
+
+CI 45936453890 trên d071716: toàn bộ UI đạt, nhưng application Maven có 18 SalesMySqlTest failures do fixture users không rỗng (18 bản ghi). StaffHttpReportTest commit HTTP nhưng không cleanup sau test; thêm @AfterEach với guard *_test, chỉ xóa profile/OTP/user mang suffix riêng của lượt report, chạy cả khi report/test lỗi. Không giảm assertion của sales và không sửa production code/schema.
+
+Maven verify local với StaffHttpReportTest + SalesMySqlTest đạt cả runOrder=alphabetical và reversealphabetical (staff chạy trước sales như CI lỗi), mỗi lượt 19 tests, 0 failure/error/skip, MySQL riêng smart_cafe_pr23_merge_20261127_test. Logs: graphify-out/pr23-fixture-cleanup.log và pr23-fixture-cleanup-reverse.log.
