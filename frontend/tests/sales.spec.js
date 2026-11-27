@@ -7,6 +7,12 @@ const services = (id, code, name, quantity = 1, currentBill = null, activeReques
   sessionCode: code, items: name ? [item(name, quantity)] : [], totalAmount: name ? String(25000 * quantity) : "0", activeRequests, currentBill });
 const bill = (status = "PENDING") => ({ id: "91", billCode: "HD-91", sessionCode: "SESSION-OLD", tableName: "Bàn snapshot",
   creatorName: "Quản lý kiểm thử", totalAmount: "91000", status, items: [{ ...item("Món snapshot"), unitPrice: "91000", lineTotal: "91000" }] });
+const receipt = command => {
+  const paidAt = new Date().toISOString();
+  return { bill: { ...bill("PAID"), paidAt }, payment: {
+    id: "1", method: command.method, referenceCode: command.referenceCode, amount: "91000", receivedAt: paidAt,
+  } };
+};
 
 async function setup(page, role = "ADMIN", handler = () => false) {
   await page.addInitScript(() => sessionStorage.setItem("smart_cafe_token", "playwright-test-only"));
@@ -103,7 +109,7 @@ test("manager prints only confirmed server snapshot and reset dialog restores fo
       const payment = route.request().postDataJSON();
       expect(payment).toMatchObject({ method: "CASH", referenceCode: null });
       expect(payment).not.toHaveProperty("amount");
-      paid = true; await route.fulfill({ json: { bill: bill("PAID"), payment: { amount: "91000" } } }); return true;
+      paid = true; await route.fulfill({ json: receipt(payment) }); return true;
     }
     return false;
   });
@@ -149,7 +155,7 @@ for (const scenario of ["cancel", "retry"]) {
         if (payments.length === 1) await route.abort("failed");
         else {
           paid = true;
-          await route.fulfill({ json: { bill: bill("PAID"), payment: { amount: "91000" } } });
+          await route.fulfill({ json: receipt(payments.at(-1)) });
         }
         return true;
       }
@@ -214,7 +220,7 @@ for (const outcome of ["pending", "paid"]) {
           await route.abort("failed");
         } else {
           paid = true;
-          await route.fulfill({ json: { bill: bill("PAID") } });
+          await route.fulfill({ json: receipt(payments.at(-1)) });
         }
         return true;
       }
@@ -258,6 +264,116 @@ for (const outcome of ["pending", "paid"]) {
     }
   });
 }
+
+test("restores an uncertain payment after reload and rejects a wrong receipt", async ({ page }) => {
+  const payments = [];
+  await setup(page, "ADMIN", async (route, url) => {
+    if (url.pathname.endsWith("/1/services")) {
+      await route.fulfill({ json: services("1", "SESSION-OLD", "Cà phê", 1, { id: "91", status: "PENDING" }) });
+      return true;
+    }
+    if (url.pathname.endsWith("/bills/91")) {
+      await route.fulfill({ json: bill("PENDING") });
+      return true;
+    }
+    if (url.pathname.endsWith("/bills/91/payments")) {
+      const command = route.request().postDataJSON();
+      payments.push(command);
+      if (payments.length === 1) await route.abort("failed");
+      else if (payments.length === 2) await route.fulfill({ status: 403, json: {} });
+      else await route.fulfill({ json: { bill: { ...bill("PAID"), id: "92" } } });
+      return true;
+    }
+    return false;
+  });
+  const openBill = async () => {
+    await page.getByRole("button", { name: /Bàn 01/ }).click();
+    await page.getByRole("button", { name: "Xem hóa đơn hiện tại" }).click();
+  };
+  await page.goto("/#sale");
+  await openBill();
+  await page.getByRole("button", { name: "Xác nhận thu tiền" }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.getByLabel("Phương thức").selectOption("BANK_TRANSFER");
+  await dialog.getByLabel(/Mã tham chiếu/).fill(" REF-RELOAD ");
+  const confirm = dialog.getByRole("button", { name: "Xác nhận", exact: true });
+  await confirm.click();
+  await expect(dialog.getByRole("alert")).toContainText("Không kết nối");
+  await page.reload();
+  await openBill();
+  await page.getByRole("button", { name: "Đối soát thu tiền" }).click({ timeout: 3000 });
+  await expect(dialog.getByLabel(/Mã tham chiếu/)).toHaveValue("REF-RELOAD");
+  await expect(dialog.getByLabel("Phương thức")).toBeDisabled();
+  await confirm.click();
+  await expect(dialog.getByRole("alert")).toContainText("không có quyền");
+  await confirm.click();
+  await expect(dialog.getByRole("alert")).toContainText("Chưa xác minh được kết quả thu tiền");
+  await expect(page.getByText("Đã xác nhận thu tiền. Có thể in hóa đơn.")).toHaveCount(0);
+  expect(payments).toEqual([payments[0], payments[0], payments[0]]);
+});
+
+test("requires CSRF and durable storage before sending and separates accounts", async ({ page }) => {
+  let csrfReady = false;
+  let accountId = "1";
+  const payments = [];
+  await page.addInitScript(() => {
+    const setItem = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (key, value) {
+      if (key.startsWith("lecker_payment_attempt:") && !this.getItem("allow-payment-write")) {
+        throw new DOMException("test quota", "QuotaExceededError");
+      }
+      return setItem.call(this, key, value);
+    };
+  });
+  await setup(page, "ADMIN", async (route, url) => {
+    if (url.pathname.endsWith("/home/account")) {
+      await route.fulfill({ json: { id: accountId, role: "ADMIN", name: "Quản lý" } });
+    } else if (url.pathname.endsWith("/1/services")) {
+      await route.fulfill({ json: services("1", "SESSION-OLD", "Cà phê", 1, { id: "91", status: "PENDING" }) });
+    } else if (url.pathname.endsWith("/bills/91")) {
+      await route.fulfill({ json: bill() });
+    } else if (url.pathname.endsWith("/sales/csrf") && !csrfReady) {
+      await route.fulfill({ status: 503, json: {} });
+    } else if (url.pathname.endsWith("/bills/91/payments")) {
+      payments.push(route.request().postDataJSON());
+      await route.abort("failed");
+    } else return false;
+    return true;
+  });
+  const openBill = async () => {
+    await page.getByRole("button", { name: /Bàn 01/ }).click();
+    await page.getByRole("button", { name: "Xem hóa đơn hiện tại" }).click();
+  };
+  await page.goto("/#sale");
+  await openBill();
+  await page.getByRole("button", { name: "Xác nhận thu tiền" }).click();
+  const dialog = page.getByRole("dialog");
+  const confirm = dialog.getByRole("button", { name: "Xác nhận", exact: true });
+  await confirm.click();
+  await expect(dialog.getByRole("alert")).toBeVisible();
+  expect(await page.evaluate(() => Object.keys(sessionStorage).filter(key => key.startsWith("lecker_payment_attempt:")))).toEqual([]);
+  csrfReady = true;
+  await confirm.click();
+  await expect(dialog.getByRole("alert")).toContainText("Chưa gửi xác nhận thu tiền");
+  expect(payments).toHaveLength(0);
+  await page.evaluate(() => sessionStorage.setItem("allow-payment-write", "yes"));
+  await dialog.getByLabel("Phương thức").selectOption("BANK_TRANSFER");
+  await dialog.getByLabel(/Mã tham chiếu/).fill("REF-ACCOUNT-1");
+  await confirm.click();
+  await expect(dialog.getByRole("alert")).toContainText("Không kết nối");
+  accountId = "2";
+  await page.reload();
+  await openBill();
+  await page.getByRole("button", { name: "Xác nhận thu tiền" }).click();
+  await expect(dialog.getByLabel("Phương thức")).toHaveValue("CASH");
+  await expect(dialog.getByLabel(/Mã tham chiếu/)).toHaveCount(0);
+  expect(payments).toHaveLength(1);
+  accountId = "1";
+  await page.reload();
+  await openBill();
+  await page.getByRole("button", { name: "Đối soát thu tiền" }).click();
+  await expect(dialog.getByLabel(/Mã tham chiếu/)).toHaveValue("REF-ACCOUNT-1");
+});
 
 test("new session during polling invalidates an open reset confirmation", async ({ page }) => {
   let session = "SESSION-OLD";

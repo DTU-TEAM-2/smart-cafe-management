@@ -20,8 +20,13 @@ export async function readApi(path, { authorization, credentials, signal, body, 
   throw error;
 }
 
-export async function postSales(path, body, options) {
+export async function postSales(path, body, options, beforeDispatch) {
   const csrf = await readApi("/api/v1/sales/csrf", options);
+  if (typeof csrf?.headerName !== "string" || !csrf.headerName || typeof csrf?.token !== "string" || !csrf.token) {
+    throw new Error("Chưa lấy được mã xác thực yêu cầu. Vui lòng thử lại.");
+  }
+  options.signal.throwIfAborted();
+  beforeDispatch?.();
   return readApi(path, { ...options, body, headers: { [csrf.headerName]: csrf.token } });
 }
 

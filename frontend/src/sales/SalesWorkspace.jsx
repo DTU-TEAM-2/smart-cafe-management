@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import IncomePanel, { LoadState } from "./IncomePanel.jsx";
 import { postSales, readApi, useSalesResource, vnd } from "./salesApi.js";
+import { clearConfirmedPayment, paymentAttemptKey, persistPaymentAttempt, readPaymentAttempt, verifiedPaymentBill } from "./paymentAttempt.js";
 import "./sales.css";
 
 export default function SalesWorkspace({ account, identityStatus, authorization, credentials, income, retryIdentity }) {
@@ -8,7 +9,6 @@ export default function SalesWorkspace({ account, identityStatus, authorization,
   const allowed = isAdmin || account?.role === "STAFF";
   const [selected, setSelected] = useState(null);
   const keys = useRef(new Map());
-  const paymentAttempts = useMemo(() => new Map(), [authorization, credentials]);
   const tables = useSalesResource(allowed && !income ? "/api/v1/sales/tables" : null, authorization, credentials, 8000);
   const table = tables.data?.find(item => item.id === selected);
   const showOrders = !income && selected !== null;
@@ -51,8 +51,8 @@ export default function SalesWorkspace({ account, identityStatus, authorization,
             </section>}
             {showOrders && <>
               <button type="button" className="sale-back" onClick={() => setSelected(null)}>← Về sơ đồ bàn</button>
-              {table && <TableOrders key={table.id} table={table} isAdmin={isAdmin} authorization={authorization} credentials={credentials}
-                keys={keys} paymentAttempts={paymentAttempts} tablesStale={Boolean(tables.error) || tables.refreshing} refreshTables={tables.reload} />}
+              {table && <TableOrders key={`${account.id}:${table.id}`} table={table} isAdmin={isAdmin} authorization={authorization} credentials={credentials}
+                keys={keys} accountId={account.id} tablesStale={Boolean(tables.error) || tables.refreshing} refreshTables={tables.reload} />}
               {tables.data && !table && <p role="alert">Bàn này không còn trong danh sách.</p>}
             </>}
           </>}
@@ -61,7 +61,7 @@ export default function SalesWorkspace({ account, identityStatus, authorization,
   </div>;
 }
 
-function TableOrders({ table, isAdmin, authorization, credentials, keys, paymentAttempts, tablesStale, refreshTables }) {
+function TableOrders({ table, isAdmin, authorization, credentials, keys, accountId, tablesStale, refreshTables }) {
   const path = `/api/v1/sales/tables/${encodeURIComponent(table.id)}`;
   const resource = useSalesResource(`${path}/services`, authorization, credentials, 8000);
   const data = resource.data;
@@ -74,7 +74,7 @@ function TableOrders({ table, isAdmin, authorization, credentials, keys, payment
       <p className="sale-total">Tổng tiền <strong>{vnd(data.totalAmount)}</strong></p>
       {data.sessionCode && <OrderActions key={data.sessionCode} path={path} data={data} table={table}
         isAdmin={isAdmin} authorization={authorization} credentials={credentials} keys={keys}
-        paymentAttempts={paymentAttempts} stale={tablesStale || Boolean(resource.error) || resource.refreshing}
+        accountId={accountId} stale={tablesStale || Boolean(resource.error) || resource.refreshing}
         refresh={() => { resource.reload(); refreshTables(); }} />}
     </>}
   </section>;
@@ -89,23 +89,28 @@ function ItemTable({ items }) {
   </table></div>;
 }
 
-function OrderActions({ path, data, table, isAdmin, authorization, credentials, keys, paymentAttempts, stale, refresh }) {
+function OrderActions({ path, data, table, isAdmin, authorization, credentials, keys, accountId, stale, refresh }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [snapshot, setSnapshot] = useState(null);
   const [dialog, setDialog] = useState(null);
   const active = useRef(null);
-  useEffect(() => () => active.current?.abort(), []);
+  useEffect(() => () => active.current?.abort(), [authorization, credentials]);
   const bill = data.currentBill;
-  const attemptScope = `${data.sessionCode}:${bill?.id}`;
+  const attemptKey = paymentAttemptKey(accountId, data.sessionCode, bill?.id);
   const paid = bill?.status === "PAID";
-  const paymentAttempt = bill?.status === "PENDING" ? paymentAttempts.get(attemptScope) : null;
+  let paymentAttempt = null;
+  let storageError = "";
+  if (isAdmin && bill?.status === "PENDING") {
+    try { paymentAttempt = readPaymentAttempt(attemptKey); }
+    catch (failure) { storageError = failure.message; }
+  }
   const visibleDialog = dialog && (dialog.type !== "pay" || (dialog.billId === bill?.id && bill.status === "PENDING"));
   const writesDisabled = busy || stale;
   useEffect(() => {
-    if (paid) paymentAttempts.delete(attemptScope);
-  }, [paid, attemptScope, paymentAttempts]);
+    if (isAdmin && paid && attemptKey) clearConfirmedPayment(attemptKey);
+  }, [isAdmin, paid, attemptKey]);
   const currentSnapshot = snapshot?.id === bill?.id && snapshot?.sessionCode === data.sessionCode ? snapshot : null;
   function keyFor(name) {
     if (!keys.current.has(name)) keys.current.set(name, crypto.randomUUID());
@@ -163,13 +168,14 @@ function OrderActions({ path, data, table, isAdmin, authorization, credentials, 
     {busy && <p role="status">Đang xử lý…</p>}
     {error && !dialog && <p role="alert" className="sale-error">{error}</p>}
     {notice && <p role="status">{notice}</p>}
+    {storageError && !visibleDialog && <p role="alert" className="sale-error">{storageError}</p>}
     {isAdmin && currentSnapshot && <section className={`sale-invoice${currentSnapshot.status === "PAID" ? " sale-receipt" : ""}`} aria-label="Nội dung hóa đơn">
       <h3>Hóa đơn {currentSnapshot.billCode}</h3>
       <p>{currentSnapshot.tableName} · {currentSnapshot.creatorName}</p>
       <ItemTable items={currentSnapshot.items} />
       <p className="sale-total">Tổng hóa đơn <strong>{vnd(currentSnapshot.totalAmount)}</strong></p>
       {currentSnapshot.status === "PAID" ? <button className="sale-print-button" type="button" onClick={() => window.print()}>In hóa đơn</button>
-        : !paid && <button className="sale-primary" type="button" disabled={writesDisabled} onClick={() => openDialog({
+        : !paid && <button className="sale-primary" type="button" disabled={writesDisabled || Boolean(storageError)} onClick={() => openDialog({
           type: "pay", code: data.sessionCode, billId: currentSnapshot.id,
           method: paymentAttempt?.method ?? "CASH", reference: paymentAttempt?.referenceCode ?? "",
         })}>{paymentAttempt ? "Đối soát thu tiền" : "Xác nhận thu tiền"}</button>}
@@ -185,18 +191,22 @@ function OrderActions({ path, data, table, isAdmin, authorization, credentials, 
         else {
           const { method, reference } = dialog;
           const referenceCode = method === "BANK_TRANSFER" ? reference.trim() || null : null;
-          const command = paymentAttempt ?? {
-            method, referenceCode,
-            idempotencyKey: keyFor(`pay:${dialog.billId}:${method}:${referenceCode ?? ""}`),
-          };
           if (active.current) return;
-          paymentAttempts.set(attemptScope, command);
-          void execute(options => postSales(`/api/v1/bills/${encodeURIComponent(dialog.billId)}/payments`, command, options), result => {
-            paymentAttempts.delete(attemptScope);
-            setSnapshot(result.bill); setDialog(null); setNotice("Đã xác nhận thu tiền. Có thể in hóa đơn."); refresh();
+          let dispatched = false;
+          void execute(async options => {
+            const saved = readPaymentAttempt(attemptKey);
+            const command = saved ?? { method, referenceCode, idempotencyKey: crypto.randomUUID() };
+            const receipt = await postSales(`/api/v1/bills/${encodeURIComponent(dialog.billId)}/payments`, command, options, () => {
+              const current = readPaymentAttempt(attemptKey);
+              if (current?.idempotencyKey !== saved?.idempotencyKey) throw new Error("Giao dịch đã thay đổi. Mở lại hóa đơn để đối soát.");
+              if (!current) persistPaymentAttempt(attemptKey, command);
+              dispatched = true;
+            });
+            return verifiedPaymentBill(receipt, dialog.billId, dialog.code, command);
+          }, confirmedBill => {
+            setSnapshot(confirmedBill); setDialog(null); setNotice("Đã xác nhận thu tiền. Có thể in hóa đơn."); refresh();
           }, failure => {
-            if (!paymentAttempt && [400, 401, 403, 404].includes(failure.status)) paymentAttempts.delete(attemptScope);
-            else if (failure.status !== 409) refresh();
+            if (dispatched && failure.status !== 409) refresh();
           });
         }
       }}>
