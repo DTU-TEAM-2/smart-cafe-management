@@ -333,6 +333,45 @@ test.describe("DT2-8 Quản lý, xem hóa đơn và biểu đồ thống kê", (
     expect(attempts).toBe(2);
   });
 
+  test("Invalid list and mismatched detail responses offer retry without displaying wrong bills", async ({ page }) => {
+    await page.route("**/api/v1/home/account", route => route.fulfill({ json: admin }));
+    let invalidList = true;
+    await page.route("**/api/v1/bills?**", route => route.fulfill({
+      json: invalidList ? {} : { content: mockBills, totalElements: 2, totalPages: 1, page: 0 },
+    }));
+    let wrongDetail = true;
+    await page.route("**/api/v1/bills/1", route => route.fulfill({
+      json: wrongDetail ? { ...mockBillDetail1, id: 2, billCode: "WRONG-BILL" } : mockBillDetail1,
+    }));
+
+    await page.goto("/#bills");
+    await setToken(page, "admin-token");
+    await expect(page.getByRole("alert")).toContainText("Phản hồi danh sách hóa đơn không hợp lệ");
+    invalidList = false;
+    await page.getByRole("button", { name: "Thử lại", exact: true }).click();
+    await page.getByRole("button", { name: "BILL-2026-001" }).click();
+    await page.getByRole("button", { name: "Xem chi tiết", exact: true }).click();
+    await expect(page.getByRole("alert")).toContainText("Phản hồi chi tiết hóa đơn không hợp lệ");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    wrongDetail = false;
+    await page.getByRole("button", { name: "Thử lại chi tiết" }).click();
+    await expect(page.getByRole("dialog")).toContainText("BILL-2026-001");
+  });
+
+  test("Invalid revenue breakdown offers retry instead of crashing the statistics page", async ({ page }) => {
+    await page.route("**/api/v1/home/account", route => route.fulfill({ json: admin }));
+    let invalidBreakdown = true;
+    await page.route("**/api/v1/statistics/revenue**", route => route.fulfill({
+      json: invalidBreakdown ? { ...mockStats, revenueByPaymentMethod: null } : mockStats,
+    }));
+    await page.goto("/#statistics");
+    await setToken(page, "admin-token");
+    await expect(page.getByRole("alert")).toContainText("Phản hồi thống kê doanh thu không hợp lệ");
+    invalidBreakdown = false;
+    await page.getByRole("button", { name: "Thử lại", exact: true }).click();
+    await expect(page.getByRole("list", { name: "Tỷ trọng doanh thu theo phương thức thanh toán" })).toBeVisible();
+  });
+
   test("Statistics route renders column chart and summary KPI cards", async ({ page }) => {
     await page.route("**/api/v1/home/account", route =>
       route.fulfill({ json: admin })
