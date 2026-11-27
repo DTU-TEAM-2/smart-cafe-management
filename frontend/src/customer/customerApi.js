@@ -15,11 +15,24 @@ function requireIdempotencyKey(key) {
   return key;
 }
 
+const isCount = value => Number.isSafeInteger(value) && value >= 0;
+const isDecimal = value => typeof value === "string" ? /^\d+$/.test(value) : isCount(value);
+const isId = value => typeof value === "string" ? /^[1-9]\d*$/.test(value) : isCount(value) && value > 0;
+const itemStatuses = ["SUBMITTED", "PREPARING", "SERVED", "CANCELLED"];
+
+function validOrderItem(item) {
+  return item != null && isId(item.id) && isId(item.menuItemId) && typeof item.name === "string"
+    && isDecimal(item.unitPrice) && isDecimal(item.lineTotal) && isDecimal(item.version)
+    && Number.isSafeInteger(item.quantity) && item.quantity > 0 && itemStatuses.includes(item.status)
+    && BigInt(item.unitPrice) * BigInt(item.quantity) === BigInt(item.lineTotal);
+}
+
 function normalizeOrder(data, response, sessionId, batchId = null) {
-  if (!data?.id || String(data.sessionId) !== String(sessionId)
+  if (!isId(data?.id) || !isId(data.sessionId) || String(data.sessionId) !== String(sessionId)
       || (batchId !== null && String(data.id) !== String(batchId))
-      || !Array.isArray(data.items) || !data.items.length
-      || data.totalAmount == null || data.sessionTotalAmount == null) {
+      || !Array.isArray(data.items) || !data.items.length || !data.items.every(validOrderItem)
+      || !isDecimal(data.totalAmount) || !isDecimal(data.sessionTotalAmount)
+      || typeof data.editableUntil !== "string" || !Number.isFinite(Date.parse(data.editableUntil))) {
     throw new Error("Chưa xác minh được đơn món. Vui lòng thử lại.");
   }
   const receivedAt = Date.now();
@@ -37,18 +50,16 @@ function normalizeOrder(data, response, sessionId, batchId = null) {
     editableUntil: data.editableUntil,
     editableClientDeadline,
     message: data.message,
-    items: Array.isArray(data.items)
-      ? data.items.map((item) => ({
-          id: String(item.id),
-          menuItemId: String(item.menuItemId),
-          name: item.name,
-          unitPrice: String(item.unitPrice),
-          quantity: Number(item.quantity),
-          lineTotal: String(item.lineTotal),
-          status: item.status,
-          version: String(item.version),
-        }))
-      : [],
+    items: data.items.map((item) => ({
+      id: String(item.id),
+      menuItemId: String(item.menuItemId),
+      name: item.name,
+      unitPrice: String(item.unitPrice),
+      quantity: item.quantity,
+      lineTotal: String(item.lineTotal),
+      status: item.status,
+      version: String(item.version),
+    })),
   };
 }
 
@@ -93,7 +104,12 @@ export async function fetchMenuItems({ categoryId, keyword, availableOnly, page 
     const err = await res.json().catch(() => ({}));
     throw new Error(err.detail || "Không thể tải danh sách món ăn.");
   }
-  return res.json();
+  const data = await res.json().catch(() => null);
+  if (!Array.isArray(data?.content) || data.page !== page || !isCount(data.totalElements)
+      || !data.content.every(item => isId(item?.id) && typeof item.name === "string" && isDecimal(item.price))) {
+    throw new Error("Phản hồi thực đơn không hợp lệ. Vui lòng thử lại.");
+  }
+  return data;
 }
 
 export async function fetchMenuItem(itemId) {
@@ -148,9 +164,10 @@ export async function createOrder({ sessionId, token, items, idempotencyKey, csr
   if (!res.ok) {
     const error = new Error(data.detail || data.title || "Gửi đơn gọi món thất bại.");
     error.status = res.status;
-    // A received business 4xx proves the server rejected this payload. Network
-    // failures, 5xx and request-timeout responses can still hide a committed write.
-    error.outcomeCertain = res.status >= 400 && res.status < 500 && res.status !== 408;
+    // This describes only this HTTP request. A rejection cannot settle an
+    // earlier request whose outcome was unknown.
+    error.requestRejected = [400, 409].includes(res.status) && typeof data?.detail === "string"
+      && (data.status === res.status || res.headers.get("Content-Type")?.includes("application/problem+json"));
     throw error;
   }
   return normalizeOrder(data, res, sessionId);

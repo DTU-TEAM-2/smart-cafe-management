@@ -151,7 +151,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
           editableUntil: new Date(Date.now() + 180000).toISOString(),
           items: [
             {
-              id: "item-1",
+              id: "501",
               menuItemId: "101",
               name: "Caramel Latte",
               unitPrice: "45000",
@@ -203,7 +203,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
             editableUntil: futureTime,
             items: [
               {
-                id: "item-1",
+                id: "501",
                 menuItemId: "101",
                 name: "Caramel Latte",
                 unitPrice: "45000",
@@ -229,7 +229,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
       sessionTotalAmount: String(45000 * (currentStatus === "CANCELLED" ? 0 : currentQuantity)),
       editableUntil: new Date(Date.now() + 175000).toISOString(),
       items: [{
-        id: "item-1",
+        id: "501",
         menuItemId: "101",
         name: "Caramel Latte",
         unitPrice: "45000",
@@ -241,7 +241,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     });
 
     // Mock the real backend response: PATCH/DELETE both return the full Order.
-    await page.route("**/api/v1/customer/sessions/10/order-items/item-1", (route) => {
+    await page.route("**/api/v1/customer/sessions/10/order-items/501", (route) => {
       const body = route.request().postDataJSON();
       expectedVersions.push(body.expectedVersion);
       if (route.request().method() === "PATCH") {
@@ -309,7 +309,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
           sessionTotalAmount: "45000",
           editableUntil: new Date(Date.now() + 180000).toISOString(),
           items: [{
-            id: "item-2",
+            id: "502",
             menuItemId: "101",
             name: "Caramel Latte",
             unitPrice: "45000",
@@ -333,7 +333,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     expect(keys[1]).toBe(keys[0]);
   });
 
-  for (const firstResponse of ["invalid-body", "network-error"]) {
+  for (const firstResponse of ["invalid-body", "invalid-item", "network-error", "rejected-retry", "readded-item"]) {
     test(`recovers a pending order after ${firstResponse} and an empty cart`, async ({ page }) => {
       const attempts = [];
       await page.route("**/api/v1/customer/sessions/10/orders", (route) => {
@@ -342,10 +342,18 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
           payload: route.request().postDataJSON(),
         });
         if (attempts.length === 1) {
-          return firstResponse === "invalid-body" ? route.fulfill({ json: {} }) : route.abort("connectionfailed");
+          if (firstResponse === "invalid-body") return route.fulfill({ json: {} });
+          if (firstResponse === "invalid-item") return route.fulfill({ json: {
+            id: "1002", sessionId: "10", totalAmount: "45000", sessionTotalAmount: "45000", items: [{}],
+          } });
+          return route.abort("connectionfailed");
+        }
+        if (firstResponse === "rejected-retry" && attempts.length === 2) {
+          return route.fulfill({ status: 403, json: { detail: "Yêu cầu chưa qua kiểm tra phiên." } });
         }
         return route.fulfill({ json: {
           id: "1002", sessionId: "10", totalAmount: "45000", sessionTotalAmount: "45000",
+          editableUntil: new Date(Date.now() + 180000).toISOString(),
           items: [{ id: "501", menuItemId: "101", name: "Caramel Latte", unitPrice: "45000",
             lineTotal: "45000", quantity: 1, version: "0", status: "SUBMITTED" }],
         } });
@@ -356,15 +364,29 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
       await page.getByRole("button", { name: /Giỏ hàng/ }).click();
       await page.getByRole("button", { name: /GỬI ĐƠN ĐẶT MÓN/ }).click();
       await expect(page.locator(".c-result-title")).toHaveText("Đặt món thất bại", { timeout: 3000 });
+      if (firstResponse === "rejected-retry") {
+        await page.getByRole("button", { name: "THỬ LẠI" }).click();
+        await expect.poll(() => attempts.length).toBe(2);
+        await expect(page.locator(".c-result-title")).toHaveText("Đặt món thất bại");
+      }
       await page.getByRole("button", { name: "ĐÓNG", exact: true }).click();
       await page.getByRole("button", { name: "Xóa Caramel Latte khỏi giỏ" }).click();
       await page.reload();
       await page.getByRole("button", { name: /Giỏ hàng/ }).click();
       await expect(page.getByRole("heading", { name: "Giỏ hàng trống" })).toBeVisible();
+      if (firstResponse === "readded-item") {
+        await page.getByRole("button", { name: "Thực đơn", exact: true }).click();
+        await page.getByLabel("Thêm Caramel Latte vào giỏ hàng").click();
+        await page.getByRole("button", { name: /Giỏ hàng/ }).click();
+      }
       await page.getByRole("button", { name: "GỬI LẠI ĐƠN CHỜ" }).click({ timeout: 3000 });
       await expect(page.locator(".c-result-title")).toHaveText("Đặt món thành công!");
-      expect(attempts).toHaveLength(2);
-      expect(attempts[1]).toEqual(attempts[0]);
+      expect(attempts).toHaveLength(firstResponse === "rejected-retry" ? 3 : 2);
+      for (const attempt of attempts.slice(1)) expect(attempt).toEqual(attempts[0]);
+      if (firstResponse === "readded-item") {
+        await page.getByRole("button", { name: "TIẾP TỤC CHỌN MÓN" }).click();
+        await expect(page.getByRole("button", { name: "Giỏ hàng, 1 món" })).toBeVisible();
+      }
     });
   }
 
@@ -377,6 +399,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
       if (keys.length === 1) await delayed;
       return route.fulfill({ json: {
         id: "1002", sessionId: "10", totalAmount: "45000", sessionTotalAmount: "45000",
+        editableUntil: new Date(Date.now() + 180000).toISOString(),
         items: [{ id: "501", menuItemId: "101", name: "Caramel Latte", unitPrice: "45000",
           lineTotal: "45000", quantity: 1, version: "0", status: "SUBMITTED" }],
       } });
@@ -576,7 +599,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
             sessionTotalAmount: "45000",
             editableUntil: new Date(Date.now() + 180000).toISOString(),
             items: [{
-              id: "item-5",
+              id: "505",
               menuItemId: "101",
               name: "Caramel Latte",
               unitPrice: "45000",
@@ -600,7 +623,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
           sessionTotalAmount: "80000",
           editableUntil: new Date(Date.now() + 180000).toISOString(),
           items: [{
-            id: "item-6",
+            id: "506",
             menuItemId: "102",
             name: "Bạc xỉu Sài Gòn",
             unitPrice: "35000",
@@ -664,11 +687,13 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
   test("advances menu pages even when a previous page contains overlapping items", async ({ page }) => {
     const item = (id) => ({ ...mockMenuItems.content[0], id: String(id), name: `Món phân trang ${id}`, imageUrl: null });
     const pages = [];
+    let stable = false;
     await page.route(/\/api\/v1\/customer\/menu\/items\?/, (route) => {
       const pageNumber = Number(new URL(route.request().url()).searchParams.get("page"));
       pages.push(pageNumber);
-      const content = pageNumber === 2 ? [item(40)]
-        : Array.from({ length: 20 }, (_, index) => item(index + (pageNumber === 0 ? 1 : 20)));
+      const start = stable ? pageNumber * 20 + 1 : pageNumber === 0 ? 1 : 20;
+      const content = pageNumber === 2 ? [item(stable ? 41 : 40)]
+        : Array.from({ length: 20 }, (_, index) => item(index + start));
       return route.fulfill({ json: { content, page: pageNumber, size: 20, totalElements: 41 } });
     });
     await page.goto("/#customer");
@@ -677,7 +702,13 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
     await page.getByRole("button", { name: /XEM THÊM MÓN/ }).click();
     await expect(page.getByText("Món phân trang 40", { exact: true })).toBeVisible({ timeout: 3000 });
     await expect(page.getByRole("button", { name: /XEM THÊM MÓN/ })).toHaveCount(0);
-    expect(pages).toEqual([0, 1, 2]);
+    stable = true;
+    await page.getByRole("button", { name: "LÀM MỚI THỰC ĐƠN" }).click({ timeout: 3000 });
+    await page.getByRole("button", { name: /XEM THÊM MÓN/ }).click();
+    await page.getByRole("button", { name: /XEM THÊM MÓN/ }).click();
+    await expect(page.getByText("Hiển thị: 41/41 món")).toBeVisible();
+    await expect(page.getByRole("button", { name: "LÀM MỚI THỰC ĐƠN" })).toHaveCount(0);
+    expect(pages).toEqual([0, 1, 2, 0, 1, 2]);
   });
 
   test("11. Menu pagination: handles 503 retry without skipping pages and preserves filter switch", async ({ page }) => {
@@ -789,7 +820,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
           totalAmount: "35000",
           sessionTotalAmount: "35000",
           editableUntil: new Date(Date.now() + 180000).toISOString(),
-          items: [{ id: "item-10", menuItemId: "102", name: "Bạc xỉu Sài Gòn", unitPrice: "35000", lineTotal: "35000", quantity: 1, version: "0", status: "SUBMITTED" }],
+          items: [{ id: "5010", menuItemId: "102", name: "Bạc xỉu Sài Gòn", unitPrice: "35000", lineTotal: "35000", quantity: 1, version: "0", status: "SUBMITTED" }],
         }),
       });
     });
@@ -851,7 +882,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
           totalAmount: "45000",
           sessionTotalAmount: "45000",
           editableUntil: new Date(serverNow.getTime() + 180000).toISOString(),
-          items: [{ id: "item-11", menuItemId: "101", name: "Caramel Latte", unitPrice: "45000", lineTotal: "45000", quantity: 1, version: "0", status: "SUBMITTED" }],
+          items: [{ id: "5011", menuItemId: "101", name: "Caramel Latte", unitPrice: "45000", lineTotal: "45000", quantity: 1, version: "0", status: "SUBMITTED" }],
         }),
       });
     });
@@ -941,7 +972,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
           totalAmount: "45000",
           sessionTotalAmount: "45000",
           editableUntil: new Date(Date.now() + 180000).toISOString(),
-          items: [{ id: "item-88", menuItemId: "101", name: "Caramel Latte", unitPrice: "45000", lineTotal: "45000", quantity: 1, version: "0", status: "SUBMITTED" }],
+          items: [{ id: "5088", menuItemId: "101", name: "Caramel Latte", unitPrice: "45000", lineTotal: "45000", quantity: 1, version: "0", status: "SUBMITTED" }],
         }),
       });
     });
@@ -1038,21 +1069,22 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
   test("21. Recovers committed edit and cancel after dropped responses and reload", async ({ page }) => {
     const order = { id: "1001", sessionId: "10", totalAmount: "45000", sessionTotalAmount: "45000",
       editableUntil: new Date(Date.now() + 180000).toISOString(),
-      items: [{ id: "item-1", menuItemId: "101", name: "Caramel Latte", unitPrice: "45000", lineTotal: "45000", quantity: 1, version: "0", status: "SUBMITTED" }] };
+      items: [{ id: "501", menuItemId: "101", name: "Caramel Latte", unitPrice: "45000", lineTotal: "45000", quantity: 1, version: "0", status: "SUBMITTED" }] };
     await page.addInitScript((batch) => {
       if (!sessionStorage.getItem("lecker_customer_orders:10:client-a")) sessionStorage.setItem("lecker_customer_orders:10:client-a", JSON.stringify([batch]));
     }, order);
     let failRecovery = false;
     await page.route("**/api/v1/customer/sessions/10/orders/1001", (route) => failRecovery ? route.abort() : route.fulfill({ json: order }));
     const versions = [];
-    await page.route("**/api/v1/customer/sessions/10/order-items/item-1", (route) => {
+    await page.route("**/api/v1/customer/sessions/10/order-items/501", (route) => {
       const body = route.request().postDataJSON();
       versions.push(body.expectedVersion);
       order.items[0].version = String(Number(order.items[0].version) + 1);
       if (route.request().method() === "PATCH") order.items[0].quantity = body.quantity;
       else order.items[0].status = "CANCELLED";
-      order.totalAmount = order.items[0].status === "CANCELLED" ? "0" : String(45000 * order.items[0].quantity);
-      order.items[0].lineTotal = order.totalAmount;
+      order.items[0].lineTotal = String(45000 * order.items[0].quantity);
+      order.totalAmount = order.items[0].status === "CANCELLED" ? "0" : order.items[0].lineTotal;
+      order.sessionTotalAmount = order.totalAmount;
       failRecovery = true;
       return route.abort();
     });
@@ -1274,7 +1306,7 @@ test.describe("Customer Frontend Workflows (DT2-4)", () => {
           totalAmount: "50000",
           sessionTotalAmount: "50000",
           editableUntil: new Date(Date.now() + 180000).toISOString(),
-          items: [{ id: "item-99", menuItemId: "9007199254740993", name: "Món BigInt ID", unitPrice: "50000", lineTotal: "50000", quantity: 1, version: "0", status: "SUBMITTED" }],
+          items: [{ id: "5099", menuItemId: "9007199254740993", name: "Món BigInt ID", unitPrice: "50000", lineTotal: "50000", quantity: 1, version: "0", status: "SUBMITTED" }],
         }),
       });
     });

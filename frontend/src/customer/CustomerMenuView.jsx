@@ -57,10 +57,8 @@ export default function CustomerMenuView() {
       })
         .then((data) => {
           if (mounted) {
-            const newContent = data.content || [];
-            const total = typeof data.totalElements === "number" ? data.totalElements : newContent.length;
-            setTotalElements(total);
-            setItems(newContent);
+            setTotalElements(data.totalElements);
+            setItems(data.content);
             setLoading(false);
             setLoadingMore(false);
           }
@@ -95,13 +93,11 @@ export default function CustomerMenuView() {
     })
       .then((data) => {
         if (requestGeneration !== filterGeneration.current) return;
-        const newContent = data.content || [];
-        const total = typeof data.totalElements === "number" ? data.totalElements : newContent.length;
-        setTotalElements(total);
+        setTotalElements(data.totalElements);
         setNextPage(nextPage + 1);
         setItems((prev) => {
           const existingIds = new Set(prev.map((it) => it.id));
-          const nonDuplicates = newContent.filter((it) => !existingIds.has(it.id));
+          const nonDuplicates = data.content.filter((it) => !existingIds.has(it.id));
           return [...prev, ...nonDuplicates];
         });
         setLoadingMore(false);
@@ -112,6 +108,9 @@ export default function CustomerMenuView() {
         setLoadingMore(false);
       });
   }, [loadingMore, loading, nextPage, activeCategoryId, keyword, availableOnly]);
+
+  const morePages = nextPage * PAGE_SIZE < totalElements;
+  const catalogChanged = !loading && !error && !morePages && items.length !== totalElements;
 
   return (
     <div className="c-content">
@@ -269,7 +268,13 @@ export default function CustomerMenuView() {
       )}
 
       {/* Load More Button */}
-      {!loading && items.length > 0 && nextPage * PAGE_SIZE < totalElements && (
+      {catalogChanged && <div role="status">
+        <p>Thực đơn vừa thay đổi trong lúc tải. Làm mới để xem đủ món.</p>
+        <button type="button" className="c-btn-primary" onClick={() => setFirstPageAttempt(value => value + 1)}>
+          LÀM MỚI THỰC ĐƠN
+        </button>
+      </div>}
+      {!loading && items.length > 0 && morePages && (
         <div style={{ marginTop: "20px", marginBottom: "12px", textAlign: "center" }}>
           <button
             type="button"

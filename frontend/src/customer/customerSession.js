@@ -3,7 +3,7 @@ const CART_STORAGE_PREFIX = "lecker_customer_cart";
 const ORDERS_STORAGE_PREFIX = "lecker_customer_orders";
 const ATTEMPT_STORAGE_PREFIX = "lecker_customer_attempt";
 
-function randomId() {
+export function createStorageId() {
   if (typeof crypto !== "undefined" && crypto.randomUUID) {
     return crypto.randomUUID();
   }
@@ -23,7 +23,7 @@ export function saveCustomerSession(value) {
     sessionId: String(value.sessionId),
     token: String(value.token),
     tableNumber: String(value.tableNumber || ""),
-    clientStorageId: String(value.clientStorageId || randomId()),
+    clientStorageId: String(value.clientStorageId || createStorageId()),
   };
   sessionStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));
   return session;
@@ -99,7 +99,7 @@ export function getOrCreateOrderAttempt(session, newPayload) {
     };
   }
 
-  const idempotencyKey = randomId();
+  const idempotencyKey = createStorageId();
   writeJson(key, { idempotencyKey, payload: newPayload });
   return {
     idempotencyKey,
@@ -123,7 +123,7 @@ export function getOrCreateAttempt(session, operation, payload = null) {
     return saved.idempotencyKey;
   }
 
-  const idempotencyKey = randomId();
+  const idempotencyKey = createStorageId();
   writeJson(key, { idempotencyKey, payload });
   return idempotencyKey;
 }

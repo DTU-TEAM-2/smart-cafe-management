@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from "react";
 import {
+  createStorageId,
   readCustomerSession,
   readSessionCart,
   readSessionOrders,
@@ -29,10 +30,10 @@ export function CustomerProvider({ children }) {
   // saveCustomerSession(). Credentials are deliberately never read from URLs.
   const [session] = useState(readCustomerSession);
 
-  // Cart: [{ item: { id, name, price, imageUrl, ... }, quantity: 1 }]
+  // Cart lines keep their identity across reload and while an order is pending.
   const [cart, setCart] = useState(() => {
     try {
-      return readSessionCart(session);
+      return readSessionCart(session).map(entry => ({ ...entry, lineId: entry.lineId ?? createStorageId() }));
     } catch {
       return [];
     }
@@ -85,6 +86,7 @@ export function CustomerProvider({ children }) {
   const addToCart = useCallback((item, quantity = 1) => {
     if (submittingOrderRef.current) return;
     if (!item || item.available === false || quantity <= 0) return;
+    const lineId = createStorageId();
     setCart((prev) => {
       const existingIndex = prev.findIndex((entry) => entry.item.id === item.id);
       if (existingIndex > -1) {
@@ -95,7 +97,7 @@ export function CustomerProvider({ children }) {
         };
         return next;
       }
-      return [...prev, { item, quantity }];
+      return [...prev, { item, quantity, lineId }];
     });
   }, []);
 
@@ -136,15 +138,14 @@ export function CustomerProvider({ children }) {
     setCart((prev) => {
       const subMap = new Map();
       for (const it of submittedItems) {
-        const id = String(it.menuItemId ?? it.id);
+        const id = it.cartLineId ? `line:${it.cartLineId}` : `menu:${it.menuItemId ?? it.id}`;
         const qty = Number(it.quantity) || 0;
         subMap.set(id, (subMap.get(id) || 0) + qty);
       }
 
       const next = [];
       for (const entry of prev) {
-        const id = String(entry.item.id);
-        const subQty = subMap.get(id) || 0;
+        const subQty = subMap.get(`line:${entry.lineId}`) ?? subMap.get(`menu:${entry.item.id}`) ?? 0;
         if (subQty > 0) {
           const remaining = entry.quantity - subQty;
           if (remaining > 0) {
@@ -197,16 +198,11 @@ export function CustomerProvider({ children }) {
 
     submittingOrderRef.current = true;
     setIsSubmittingOrder(true);
+    let attempt = readOrderAttempt(session);
+    let replay = Boolean(attempt);
     try {
-      // Reuse existing unconfirmed attempt if a prior response failed/dropped.
-      const existingAttempt = readOrderAttempt(session);
-      let orderPayload;
-      let idempotencyKey;
-
-      if (existingAttempt) {
-        orderPayload = existingAttempt.payload;
-        idempotencyKey = existingAttempt.idempotencyKey;
-      } else {
+      let orderPayload = attempt?.payload;
+      if (!attempt) {
         if (cart.length === 0) return;
         try {
           const freshItems = await Promise.all(cart.map((entry) => fetchMenuItem(entry.item.id)));
@@ -224,27 +220,35 @@ export function CustomerProvider({ children }) {
             detail: "Không thể tải giá thực đơn hiện tại. Vui lòng kiểm tra kết nối và thử lại." });
           return;
         }
-        const initialPayload = cart
+        orderPayload = cart
           .map((entry) => ({
             menuItemId: String(entry.item.id),
             quantity: Number(entry.quantity),
             expectedUnitPrice: String(entry.item.price),
+            cartLineId: entry.lineId,
           }))
           .sort((a, b) => BigInt(a.menuItemId) < BigInt(b.menuItemId) ? -1 : BigInt(a.menuItemId) > BigInt(b.menuItemId) ? 1 : 0);
-        const attempt = getOrCreateOrderAttempt(session, initialPayload);
-        orderPayload = attempt.payload;
-        idempotencyKey = attempt.idempotencyKey;
-        setHasPendingOrder(true);
       }
 
       const csrf = await fetchCsrfToken();
       if (signal.aborted) return;
+      if (!csrf?.headerName || !csrf?.token) {
+        throw new Error("Chưa lấy được mã xác thực yêu cầu. Vui lòng thử lại.");
+      }
+
+      if (!attempt) {
+        // Persist only once the request is ready to dispatch. A saved attempt
+        // may already have committed even if a later retry is rejected.
+        attempt = getOrCreateOrderAttempt(session, orderPayload);
+        replay = attempt.isRetry;
+        setHasPendingOrder(true);
+      }
 
       const batchResult = await createOrder({
         sessionId: session.sessionId,
         token: session.token,
-        items: orderPayload,
-        idempotencyKey,
+        items: attempt.payload,
+        idempotencyKey: attempt.idempotencyKey,
         csrf,
       });
       // A new provider must reconcile the persisted attempt if this view has left.
@@ -254,7 +258,7 @@ export function CustomerProvider({ children }) {
         ...batchResult,
         createdAt: new Date().toISOString(),
       });
-      subtractFromCart(orderPayload);
+      subtractFromCart(attempt.payload);
       clearAttempt(session, "order");
       setHasPendingOrder(false);
 
@@ -265,14 +269,16 @@ export function CustomerProvider({ children }) {
       });
     } catch (err) {
       if (signal.aborted) return;
-      if (err.outcomeCertain) {
+      if (attempt && !replay && err.requestRejected) {
         clearAttempt(session, "order");
         setHasPendingOrder(false);
       }
       setOrderModalResult({
         status: "failure",
         title: "Đặt món thất bại",
-        detail: err.message || "Không thể gửi đơn đặt món. Vui lòng kiểm tra lại kết nối.",
+        detail: replay
+          ? `${err.message} Đơn trước có thể đã được ghi nhận. Gửi lại sẽ dùng cùng mã đơn.`
+          : err.message || "Không thể gửi đơn đặt món. Vui lòng kiểm tra lại kết nối.",
       });
     } finally {
       submittingOrderRef.current = false;
