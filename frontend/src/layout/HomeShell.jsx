@@ -18,6 +18,7 @@ import LeaveProfileDialog from "../account/LeaveProfileDialog.jsx";
 import useNewsSocket from "../news/useNewsSocket.js";
 import { readCustomerSession } from "../customer/customerSession.js";
 
+const MenuAdmin = lazy(() => import("../menu/MenuAdmin.jsx"));
 const NewsPage = lazy(() => import("../news/NewsPage.jsx"));
 
 const roles = { ADMIN: "Quản trị viên", STAFF: "Nhân viên phục vụ", CUSTOMER: "Khách hàng thân thiết" };
@@ -155,6 +156,7 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
   const onOtpPage = hash.startsWith("#verify-otp");
   const onResetPasswordPage = hash.startsWith("#reset-password");
   const onAdminPage = hash.startsWith("#admin");
+  const onMenuAdminPage = hash === "#admin-menu";
   const onStaffPage = hash.startsWith("#staff");
   const onNewsPage = /^#news(?:\/|$)/.test(hash);
   const onSalesPage = hash === "#sale" || hash === "#sale-income";
@@ -181,6 +183,18 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
   if (onCustomerPage) return <CustomerApp onNavigateHome={() => handleNavigate("#top")} />;
   const tableMenuHref = readCustomerSession() ? "#customer" : undefined;
   const account = identity.account ? { ...identity.account, profileHref: "#account" } : null;
+  if (onMenuAdminPage) {
+    if (identity.status === "loading") return <main><p role="status">Đang xác minh tài khoản…</p></main>;
+    if (identity.status === "error") return <main><p role="alert">Chưa xác minh được tài khoản.</p>
+      <button onClick={() => { setIdentity({ status: "loading", account: null }); setAccountAttempt(value => value + 1); }}>Thử lại</button></main>;
+    if (account?.role !== "ADMIN" || !authorization) return <main><h1>Quản lý thực đơn</h1>
+      <p role="alert">Chỉ quản trị viên đã đăng nhập mới có thể quản lý thực đơn.</p>
+      <a href={account ? "#top" : loginHref}>{account ? "Về trang chủ" : "Đăng nhập"}</a></main>;
+    return <Suspense fallback={<main><p role="status">Đang tải quản lý thực đơn…</p></main>}>
+      <PasswordExpiryNotice status={auth.passwordStatus} />
+      <MenuAdmin authorization={authorization} />
+    </Suspense>;
+  }
   if (onSalesPage) return <SalesWorkspace account={account} identityStatus={identity.status}
     authorization={authorization} credentials={credentials} income={hash === "#sale-income"}
     retryIdentity={() => { setIdentity({ status: "loading", account: null }); setAccountAttempt(value => value + 1); }} />;

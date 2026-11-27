@@ -236,7 +236,9 @@ class MenuHttpReportTest {
             run(21, "Chấp nhận hai biên giá hợp lệ", () -> {
                 for (long price : List.of(5001L, 999999999999999999L)) {
                     String boundary = "PMBOUND" + price + suffix;
-                    assertThat(post("/api/v1/menu/items", itemBody(boundary, "Boundary coffee", price, group, 0), 201).body().path("price").asLong()).isEqualTo(price);
+                    var input = itemBody(boundary, "Boundary coffee", Long.toString(price), group, 0)
+                            .replace("\"version\":0", "\"version\":\"0\"");
+                    assertThat(post("/api/v1/menu/items", input, 201).body().path("price").asLong()).isEqualTo(price);
                     delete("/api/v1/menu/items/" + boundary + "?version=0", 204);
                 }
             });
@@ -309,6 +311,7 @@ class MenuHttpReportTest {
                 delete("/api/v1/menu/items/" + second, 400); delete("/api/v1/menu/items/" + second + "?version=-1", 400); get("/api/v1/menu/items/" + second, 200);
             });
             run(38, "Xóa nhóm đồng thời ẩn món còn lại", () -> {
+                groupVersion = get("/api/v1/menu/categories/" + group, 200).body().path("version").asLong();
                 delete("/api/v1/menu/categories/" + group + "?version=" + groupVersion, 204);
                 get("/api/v1/menu/categories/" + group, 404); get("/api/v1/menu/items/" + second, 404);
                 assertThat(get("/api/v1/menu/items?categoryCode=" + group, 200).body().path("totalElements").asLong()).isZero();
@@ -318,7 +321,7 @@ class MenuHttpReportTest {
                 code(post("/api/v1/menu/categories", category(group, "Again", 0), 409), "MENU_CONFLICT");
             });
             run(40, "DB read-only: xóa logic giữ hàng dữ liệu", () -> {
-                assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM menu_categories WHERE code=? AND active=FALSE AND version=2", Long.class, group)).isEqualTo(1);
+                assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM menu_categories WHERE code=? AND active=FALSE AND version=?", Long.class, group, groupVersion + 1)).isEqualTo(1);
                 assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM menu_items WHERE code=? AND active=FALSE AND version=1", Long.class, second)).isEqualTo(1);
                 current.put("observations", List.of(Map.of("request", "DB SELECT (read-only)", "expected", "row giữ lại", "actual", "active=false; version đúng")));
             });
