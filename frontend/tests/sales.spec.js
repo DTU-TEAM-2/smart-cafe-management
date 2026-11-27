@@ -13,6 +13,7 @@ async function setup(page, role = "ADMIN", handler = () => false) {
   await page.route("**/api/v1/**", async route => {
     const url = new URL(route.request().url());
     if (await handler(route, url)) return;
+    if (url.pathname.endsWith("/auth/me")) return route.fulfill({ json: { id: 1, username: "ui-fixture", role } });
     if (url.pathname.endsWith("/home/account")) return route.fulfill({ json: { id: "1", name: "Kiểm thử", role } });
     if (url.pathname.endsWith("/home/notifications")) return route.fulfill({ json: { recipientId: "1", items: [] } });
     if (url.pathname.endsWith("/sales/tables")) return route.fulfill({ json: [table("1", "Bàn 01"), table("2", "Bàn 02"), table("3", "Bàn 03", "OUT_OF_SERVICE", "EMPTY")] });

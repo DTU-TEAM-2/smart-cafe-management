@@ -215,7 +215,7 @@ class AuthIntegrationTest {
     }
 
     @Test
-    void loginTokenAuthenticatesForHomeAccountAndNotifications() throws Exception {
+    void loginTokenAuthenticatesForHomeAccountNotificationsAndNews() throws Exception {
         String loginBody = """
             {
                 "username": "test_admin",
@@ -249,6 +249,10 @@ class AuthIntegrationTest {
                 .header("Authorization", "Bearer " + token))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.recipientId").isString());
+
+        mockMvc.perform(get("/api/v1/news").header("Authorization", "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray());
     }
 
     @Test

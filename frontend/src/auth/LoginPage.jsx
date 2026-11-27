@@ -1,9 +1,9 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useAuth } from "./useAuth.js";
 import AuthSidebar from "./AuthSidebar.jsx";
 import "./auth.css";
 
-export default function LoginPage({ onNavigate }) {
+export default function LoginPage({ onNavigate, returnHref = "#top" }) {
   const id = useId();
   const { login } = useAuth();
   const [username, setUsername] = useState("");
@@ -11,11 +11,14 @@ export default function LoginPage({ onNavigate }) {
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const loginRequest = useRef(null);
+  useEffect(() => () => loginRequest.current?.abort(), []);
 
   const handleNavigate = onNavigate || ((href) => { window.location.hash = href; });
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (loginRequest.current) return;
     setErrorMessage("");
 
     const trimmed = username.trim();
@@ -24,20 +27,21 @@ export default function LoginPage({ onNavigate }) {
       return;
     }
 
+    const request = new AbortController();
+    loginRequest.current = request;
     setIsSubmitting(true);
     try {
-      const user = await login(trimmed, password);
-      if (user.role === "ADMIN") {
-        handleNavigate("#admin");
-      } else if (user.role === "STAFF") {
-        handleNavigate("#staff");
-      } else {
-        handleNavigate("#top");
-      }
+      await login(trimmed, password, {
+        signal: request.signal,
+        onAuthenticated(user) {
+          handleNavigate({ ADMIN: "#admin", STAFF: "#staff" }[user.role] ?? returnHref);
+        },
+      });
     } catch (err) {
-      setErrorMessage(err.message || "Tài khoản hoặc mật khẩu không chính xác.");
+      if (!request.signal.aborted) setErrorMessage(err.message || "Tài khoản hoặc mật khẩu không chính xác.");
     } finally {
-      setIsSubmitting(false);
+      loginRequest.current = null;
+      if (!request.signal.aborted) setIsSubmitting(false);
     }
   }
 
@@ -45,7 +49,7 @@ export default function LoginPage({ onNavigate }) {
     setUsername("");
     setPassword("");
     setErrorMessage("");
-    handleNavigate("#top");
+    handleNavigate(returnHref);
   }
 
   return (
@@ -61,14 +65,14 @@ export default function LoginPage({ onNavigate }) {
         {/* Right Column: Login form panel matching Image 2 & Image 5 */}
         <div className="auth-content login-content-card">
           <a
-            href="#top"
+            href={returnHref}
             className="auth-back-link login-back"
             onClick={(e) => {
               e.preventDefault();
-              handleNavigate("#top");
+              handleNavigate(returnHref);
             }}
           >
-            ← Về trang chủ
+            ← {returnHref === "#customer" ? "Về thực đơn" : "Về trang chủ"}
           </a>
 
           {/* Gold brand tag matching Image 2 / Image 5 */}
@@ -103,7 +107,6 @@ export default function LoginPage({ onNavigate }) {
                 onChange={(e) => setUsername(e.target.value)}
                 disabled={isSubmitting}
                 autoComplete="username"
-                placeholder="staff"
                 required
                 aria-required="true"
                 autoFocus
@@ -128,7 +131,6 @@ export default function LoginPage({ onNavigate }) {
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={isSubmitting}
                   autoComplete="current-password"
-                  placeholder="••••••••"
                   required
                   aria-required="true"
                   aria-describedby={errorMessage ? `${id}-error` : undefined}
