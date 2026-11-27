@@ -14,12 +14,14 @@ Năm required check từ GitHub Actions (integration_id 15368): **Governance**, 
 
 ## Hardening theo review PR #12 — 13/11/2026
 
-- Bật `require_code_owner_review=true` trên ruleset 26677767 (main/develop) và 27121663 (release), giữ nguyên 2 approval, dismiss stale, check bắt buộc và không có bypass. `.github/CODEOWNERS` chỉ định **NV-DuyManh hoặc haitan2408** cho validator/test Git Flow, workflows, chính CODEOWNERS và các file policy liên quan. Một approval hợp lệ từ bất kỳ owner nào của file đó đáp ứng phần code owner, tổng vẫn phải đủ hai reviewer khác tác giả.
+- Bật `require_code_owner_review=true` trên ruleset 26677767 (main/develop) và 27121663 (release), giữ nguyên 2 approval, dismiss stale, check bắt buộc và không có bypass. Tại thời điểm bootstrap, `.github/CODEOWNERS` chỉ định NV-DuyManh và haitan2408 cho validator/test Git Flow, workflows, chính CODEOWNERS và các file policy liên quan.
 - CODEOWNERS được GitHub đọc từ **nhánh đích**. File này chưa có trên develop trước khi PR #12 merge, nên chưa tuyên bố PR bootstrap này đã bị GitHub cưỡng chế owner review. PR hiện vẫn phải đủ 2 review độc lập và được một code owner khác tác giả kiểm tra thủ công trước merge. Sau khi vào develop, các PR policy tiếp theo mới chịu owner-review theo file; main/release chỉ có hiệu lực nội dung CODEOWNERS khi nhận file qua đúng luồng promotion.
 - Check Git Flow vẫn chạy script từ checkout của PR, **không phải policy boundary độc lập**: người sửa có thể đổi cả script/test/workflow, nhưng thay các file được bảo vệ phải được code owner review và vẫn qua 2 approval. Đây là phương án hardening bằng CODEOWNERS + mandatory review trong góp ý, không giả gọi là trusted-base validator. Không dùng `pull_request_target` để chạy mã PR với quyền cao.
 - Theo P1, develop chỉ nhận feature/bugfix hoặc main → develop cùng repo; release/hotfix phải promote vào main rồi đồng bộ. Có negative test và CLI exit-code regression cho hai hướng bị cấm, cùng positive main → develop và negative sync từ fork.
 
 ## CI và giới hạn
+
+- Theo yêu cầu chủ repo ngày 27/11/2026, `.github/CODEOWNERS` chỉ định **NV-DuyManh** cho các đường dẫn đang được bảo vệ. Cấu hình có hiệu lực trên từng nhánh đích sau khi nhánh đó nhận file. Khi PR đụng các đường dẫn này, CODEOWNER phê duyệt phải khác tác giả và được tính trong tổng hai approval độc lập.
 
 - Check bắt buộc `PR title` yêu cầu đúng định dạng tiêu đề và ít nhất một GitHub label. Thêm hoặc gỡ label chỉ chạy workflow `PR metadata`.
 - Check bắt buộc `Frontend UI` tổng hợp 8 job Playwright chạy song song, gồm 4 phần desktop và 4 phần mobile. Mỗi job dùng lại bản build đã tạo trong job.
