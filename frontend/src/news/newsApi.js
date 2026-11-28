@@ -84,6 +84,15 @@ export function hasNewsVersion(post, tag) {
   return Number.isSafeInteger(post?.version) && post.version >= 0 && tag === `"${post.version}"`;
 }
 
+// The server enforces visibility. Reject an inconsistent response without changing page totals.
+export function matchesNewsScope(post, role, status) {
+  if (role === "ADMIN") {
+    if (status === undefined) return true;
+    return status ? post.status === status : post.status !== "ARCHIVED";
+  }
+  return Object.hasOwn(audienceNames, role) && post.status === "PUBLISHED" && post.audiences.includes(role);
+}
+
 export function isUncertainNewsWrite(error) {
   return !(error instanceof NewsApiError) || error.status >= 500 || error.status === 408;
 }

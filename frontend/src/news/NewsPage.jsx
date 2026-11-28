@@ -3,7 +3,7 @@ import { useAuth } from "../auth/useAuth.js";
 import { getCurrentUserApi } from "../auth/authApi.js";
 import NewsImage from "./NewsImage.jsx";
 import NewsEditor from "./NewsEditor.jsx";
-import { audienceNames, hasNewsVersion, isNewsDetail, isNewsPage, newsDate, isUncertainNewsWrite, newsError, newsRequest, statusNames } from "./newsApi.js";
+import { audienceNames, hasNewsVersion, isNewsDetail, isNewsPage, matchesNewsScope, newsDate, isUncertainNewsWrite, newsError, newsRequest, statusNames } from "./newsApi.js";
 import "./news.css";
 
 const newsPageSize = 6;
@@ -48,8 +48,8 @@ export default function NewsPage({ authorization, account, identityStatus, route
     if (account.role !== "ADMIN") return <section className="news-page news-empty"><h1>Bạn không có quyền quản lý tin tức</h1><a href="#news">Về danh sách tin tức</a></section>;
     return <NewsEditor key={`${scope}:${route}`} id={match?.[1]} accountId={account.id} request={request} authorization={authorization} setNavigationGuard={setNavigationGuard} />;
   }
-  if (match) return <NewsDetail key={`${scope}:${match[1]}`} id={match[1]} request={request} authorization={authorization} admin={account.role === "ADMIN"} revision={revision} />;
-  return <NewsList key={scope} request={request} authorization={authorization} admin={account.role === "ADMIN"} revision={revision} connection={account.role === "STAFF" ? connection : null} />;
+  if (match) return <NewsDetail key={`${scope}:${match[1]}`} id={match[1]} request={request} authorization={authorization} role={account.role} revision={revision} />;
+  return <NewsList key={scope} request={request} authorization={authorization} role={account.role} revision={revision} connection={account.role === "STAFF" ? connection : null} />;
 }
 
 function NewsBanner({ title, description, headingRef, children }) {
@@ -63,7 +63,8 @@ function NewsBanner({ title, description, headingRef, children }) {
   </div>;
 }
 
-function NewsList({ request, authorization, admin, revision, connection }) {
+function NewsList({ request, authorization, role, revision, connection }) {
+  const admin = role === "ADMIN";
   const [page, setPage] = useState(0), [status, setStatus] = useState(""), [sort, setSort] = useState("publishedAt,desc");
   const [attempt, setAttempt] = useState(0), [result, setResult] = useState(null);
   const heading = useRef(null);
@@ -75,7 +76,9 @@ function NewsList({ request, authorization, admin, revision, connection }) {
     request(query, { signal: controller.signal })
       .then(({ data }) => {
         if (controller.signal.aborted) return;
-        if (!isNewsPage(data, page, newsPageSize)) throw new Error("Invalid news page response");
+        if (!isNewsPage(data, page, newsPageSize) || !data.content.every(post => matchesNewsScope(post, role, status))) {
+          throw new Error("Invalid news page response");
+        }
         if (!data.content.length && page > 0 && page >= data.totalPages) {
           setPage(Math.max(0, data.totalPages - 1));
           return;
@@ -83,7 +86,7 @@ function NewsList({ request, authorization, admin, revision, connection }) {
         setResult({ key: requestKey, state: "ready", data });
       }).catch(error => { if (!controller.signal.aborted) setResult({ key: requestKey, state: "error", error: newsError(error) }); });
     return () => controller.abort();
-  }, [request, page, query, requestKey]);
+  }, [request, page, query, requestKey, role, status]);
   return <section className="news-page" aria-labelledby="news-title">
     {admin ? <div className="news-heading">
       <h1 ref={heading} id="news-title" tabIndex={-1}>Quản lý tin tức</h1>
@@ -113,7 +116,7 @@ function NewsList({ request, authorization, admin, revision, connection }) {
           </div>
             : <><p className="news-result-count" role="status">{view.data.totalElements} tin tức</p><ul className={admin ? "news-admin-list" : "news-grid"}>
               {view.data.content.map(post => <li key={post.id} className="news-card">
-                {post.thumbnailUrl && <a className="news-card-cover" href={`#news/${post.id}`} tabIndex={-1} aria-hidden="true"><NewsImage request={request} url={post.thumbnailUrl} authorization={authorization} /></a>}
+                <a className="news-card-cover" href={`#news/${post.id}`} tabIndex={-1} aria-hidden="true"><NewsImage request={request} url={post.thumbnailUrl} authorization={authorization} /></a>
                 <div className="news-card-copy"><div className="news-card-meta"><time dateTime={post.publishedAt || post.createdAt}>{newsDate(post.publishedAt || post.createdAt)}</time>
                   {admin && <span className={`news-badge ${post.status.toLowerCase()}`}>{statusNames[post.status]}</span>}</div>
                   <h2><a href={`#news/${post.id}`}>{post.title}</a></h2>{post.summary && <p>{post.summary}</p>}
@@ -126,7 +129,8 @@ function NewsList({ request, authorization, admin, revision, connection }) {
   </section>;
 }
 
-function NewsDetail({ id, request, authorization, admin, revision }) {
+function NewsDetail({ id, request, authorization, role, revision }) {
+  const admin = role === "ADMIN";
   const [view, setView] = useState({ state: "loading" }), [attempt, setAttempt] = useState(0);
   const [busy, setBusy] = useState(false), [error, setError] = useState("");
   const [archiveNeedsReload, setArchiveNeedsReload] = useState(false);
@@ -141,11 +145,12 @@ function NewsDetail({ id, request, authorization, admin, revision }) {
     setView({ state: "loading" });
     request(`/${id}`, { signal: controller.signal }).then(result => {
       if (controller.signal.aborted) return;
-      if (!isNewsDetail(result.data, id) || (admin && !hasNewsVersion(result.data, result.etag))) throw new Error("Invalid news detail response");
+      if (!isNewsDetail(result.data, id) || !matchesNewsScope(result.data, role)
+        || (admin && !hasNewsVersion(result.data, result.etag))) throw new Error("Invalid news detail response");
       setView({ state: "ready", ...result }); setArchiveNeedsReload(false);
     }).catch(e => { if (!controller.signal.aborted) setView({ state: "error", error: newsError(e) }); });
     return () => controller.abort();
-  }, [id, request, revision, attempt, admin]);
+  }, [id, request, revision, attempt, role, admin]);
   async function archive() {
     if (archiving.current || archiveNeedsReload || operation.current.signal.aborted) return;
     const signal = operation.current.signal;

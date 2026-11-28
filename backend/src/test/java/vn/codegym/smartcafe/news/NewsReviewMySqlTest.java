@@ -113,6 +113,52 @@ class NewsReviewMySqlTest {
     }
 
     @Test
+    void staffDetailUsesOneSnapshotForAudienceAndImages() throws Exception {
+        seedPost();
+        long id = jdbc.queryForObject("SELECT id FROM news_posts", Long.class);
+        jdbc.update("""
+                UPDATE news_posts SET status='PUBLISHED', published_at=UTC_TIMESTAMP(6), audience_staff=1, audience_customer=0 WHERE id=?
+                """, id);
+        jdbc.update("INSERT INTO news_images(news_id, media_id, sort_order) VALUES (?,901,0)", id);
+        var postRead = new CountDownLatch(1);
+        var writerCommitted = new CountDownLatch(1);
+        doAnswer(call -> {
+            if (postRead.getCount() != 0) {
+                postRead.countDown();
+                assertThat(writerCommitted.await(5, TimeUnit.SECONDS)).isTrue();
+            }
+            return call.callRealMethod();
+        }).when(client).sql(argThat(sql -> sql != null && sql.stripLeading().startsWith("SELECT ni.media_id, ni.sort_order")));
+
+        try (var reader = Executors.newSingleThreadExecutor()) {
+            try {
+                var before = reader.submit(() -> mvc.perform(get("/api/v1/news/" + id).with(user("review-staff").roles("STAFF")))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.audiences[0]").value("STAFF"))
+                        .andExpect(jsonPath("$.images[0].mediaId").value("901")));
+                assertThat(postRead.await(5, TimeUnit.SECONDS)).isTrue();
+                mvc.perform(put("/api/v1/news/" + id).with(user("review-admin").roles("ADMIN"))
+                                .header("If-Match", "\"0\"").contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {"title":"Only customers","body":"Body","status":"PUBLISHED",
+                                         "audiences":["CUSTOMER"],"imageMediaIds":[]}
+                                        """))
+                        .andExpect(status().isOk());
+                writerCommitted.countDown();
+                before.get(5, TimeUnit.SECONDS);
+            } finally {
+                writerCommitted.countDown();
+            }
+        }
+        mvc.perform(get("/api/v1/news/" + id).with(user("review-staff").roles("STAFF")))
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/api/v1/news/" + id).with(user("review-customer").roles("CUSTOMER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.audiences[0]").value("CUSTOMER"))
+                .andExpect(jsonPath("$.images").isEmpty());
+    }
+
+    @Test
     void createUpdateAndArchiveReturnWhileSixtyFourSubscribersAreStillBlocked() throws Exception {
         var entered = new CountDownLatch(4);
         var release = new CountDownLatch(1);

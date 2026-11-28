@@ -337,6 +337,53 @@ test("a lost PUT can be verified by version and content while keeping later edit
   expect(writes).toBe(1);
 });
 
+test("a failed recovery reload owns the editor and retains both drafts", async ({ page }) => {
+  await setup(page);
+  const reloadStarted = Promise.withResolvers();
+  const releaseReload = Promise.withResolvers();
+  let reads = 0, writes = 0;
+  await page.route(`**/api/v1/news/${fixture.id}`, async route => {
+    if (route.request().method() === "PUT") {
+      writes++;
+      return route.abort("connectionreset");
+    }
+    if (writes && ++reads === 1) {
+      reloadStarted.resolve();
+      await releaseReload.promise;
+      return route.fulfill({ status: 503, json: {} });
+    }
+    return route.fulfill({ json: fixture, headers: { ETag: '"0"' } });
+  });
+  await page.goto(`/#news/${fixture.id}/edit`);
+  const title = page.getByLabel("Tiêu đề");
+  await title.fill("Nội dung đã gửi");
+  await page.getByRole("button", { name: "Lưu thay đổi" }).click();
+  await expect(page.getByRole("alert")).toContainText("Chưa xác nhận được kết quả lưu bài");
+  await title.fill("Bản nháp mới hơn");
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Tải bản mới", exact: true }).click();
+  await reloadStarted.promise;
+  try {
+    await expect(page.getByRole("button", { name: "Kiểm tra phiên bản máy chủ" })).toBeDisabled();
+    await expect(title).toHaveValue("Bản nháp mới hơn");
+  } finally {
+    releaseReload.resolve();
+  }
+  await expect(page.getByRole("alert")).toContainText("Dịch vụ chưa sẵn sàng");
+  await expect(page.getByRole("button", { name: "Thử lại", exact: true })).toHaveCount(0);
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Tải bản sao JSON", exact: true }).click();
+  const backup = JSON.parse(await readFile(await (await download).path(), "utf8"));
+  expect(backup).toMatchObject({
+    formatVersion: 1, operation: "UPDATE", postId: fixture.id, baseEtag: '"0"',
+    expected: { body: { title: "Nội dung đã gửi" }, slug: fixture.slug, version: 1, snapshot: { title: "Nội dung đã gửi" } },
+    currentDraft: { title: "Bản nháp mới hơn" },
+  });
+  expect(JSON.stringify(backup)).not.toContain("isolated-ui-fixture-token");
+  expect(reads).toBe(1);
+  expect(writes).toBe(1);
+});
+
 test("a 201 with mismatched content retains recovery until the saved article matches", async ({ page }) => {
   await setup(page);
   let committed, writes = 0;
@@ -729,7 +776,9 @@ test("admin filters and pagination retain query boundaries", async ({ page }) =>
     const query = new URL(route.request().url()).searchParams;
     queries.push(Object.fromEntries(query));
     const index = Number(query.get("page"));
-    return route.fulfill({ json: { content: index ? [fixture] : firstPage, totalElements: 7, totalPages: 2, page: index, size: 6, last: index === 1 } });
+    const status = query.get("status") ?? "PUBLISHED";
+    const content = (index ? [fixture] : firstPage).map(post => ({ ...post, status }));
+    return route.fulfill({ json: { content, totalElements: 7, totalPages: 2, page: index, size: 6, last: index === 1 } });
   });
   await page.goto("/#news");
   await page.getByLabel("Trạng thái", { exact: true }).selectOption("ARCHIVED");
@@ -799,6 +848,123 @@ test("partial pages cannot replace the list and returning to page one keeps filt
   await page.getByRole("button", { name: "Về trang đầu" }).click();
   await expect(page.getByText("Trang 1 / 2")).toBeVisible();
   expect(queries.at(-1)).toMatchObject({ page: "0", status: "PUBLISHED" });
+});
+
+test("admin list rejects a response from a different status filter", async ({ page }) => {
+  await setup(page);
+  let archived = false;
+  await page.route("**/api/v1/news?*", route => route.fulfill({ json: {
+    content: [{ ...fixture, status: archived ? "ARCHIVED" : "PUBLISHED" }],
+    totalElements: 1, totalPages: 1, page: 0, size: 6, last: true,
+  } }));
+  await page.goto("/#news");
+  await page.getByLabel("Trạng thái", { exact: true }).selectOption("ARCHIVED");
+  await expect(page.getByRole("alert")).toContainText("Chưa tải được tin tức");
+  await expect(page.getByRole("heading", { name: fixture.title })).toHaveCount(0);
+  archived = true;
+  await page.getByRole("button", { name: "Thử lại" }).click();
+  await expect(page.getByRole("heading", { name: fixture.title })).toBeVisible();
+  await expect(page.getByLabel("Trạng thái", { exact: true })).toHaveValue("ARCHIVED");
+});
+
+test("a reader response for another audience is rejected and retries keep the neutral cover", async ({ page }) => {
+  await setup(page, "CUSTOMER");
+  let audiences = ["STAFF"];
+  const article = () => ({ ...fixture, audiences, thumbnailUrl: null });
+  await page.route("**/api/v1/news?*", route => route.fulfill({ json: {
+    content: [article()], totalElements: 1, totalPages: 1, page: 0, size: 6, last: true,
+  } }));
+  await page.route(`**/api/v1/news/${fixture.id}`, route => route.fulfill({ json: article() }));
+  await page.goto("/#news");
+  await expect(page.getByRole("alert")).toContainText("Chưa tải được tin tức");
+  await expect(page.getByRole("heading", { name: fixture.title })).toHaveCount(0);
+  await page.goto(`/#news/${fixture.id}`);
+  await expect(page.getByRole("alert")).toContainText("Chưa mở được bài viết");
+  await expect(page.getByText(fixture.body, { exact: true })).toHaveCount(0);
+  audiences = ["CUSTOMER"];
+  await page.getByRole("button", { name: "Thử lại" }).click();
+  await expect(page.getByRole("heading", { name: fixture.title })).toBeVisible();
+  await page.goto("/#news");
+  await expect(page.locator(".news-card-cover .news-image-placeholder")).toBeVisible();
+  await expect(page.locator(".news-card-cover img")).toHaveCount(0);
+});
+
+test("returning to a visible tab replaces a silent socket and refreshes news once", async ({ page }) => {
+  await setup(page, "STAFF");
+  await page.clock.install();
+  let sockets = 0, title = fixture.title;
+  await page.addInitScript(() => {
+    Object.defineProperty(document, "visibilityState", { get: () => window.newsVisibility ?? "visible" });
+  });
+  await page.route("**/api/v1/news?*", route => route.fulfill({
+    json: { content: [{ ...fixture, title }], totalElements: 1, totalPages: 1, page: 0, size: 6, last: true },
+  }));
+  await page.routeWebSocket("**/api/v1/news/events", socket => {
+    sockets++;
+    socket.onMessage(() => socket.send('{"type":"READY"}'));
+  });
+  await page.goto("/#news");
+  await expect(page.getByRole("heading", { name: fixture.title })).toBeVisible();
+  await expect(page.getByText("Tin tức tự cập nhật khi có thay đổi.")).toBeVisible();
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await page.clock.runFor(50);
+  expect(sockets).toBe(1);
+
+  title = "Tin mới trong lúc rời tab";
+  await page.clock.fastForward(61000);
+  await page.evaluate(() => {
+    window.newsVisibility = "hidden";
+    document.dispatchEvent(new Event("visibilitychange"));
+    window.dispatchEvent(new Event("focus"));
+  });
+  await page.clock.runFor(50);
+  await expect(page.getByRole("heading", { name: fixture.title })).toBeVisible();
+  expect(sockets).toBe(1);
+
+  await page.evaluate(() => {
+    window.newsVisibility = "visible";
+    document.dispatchEvent(new Event("visibilitychange"));
+    window.dispatchEvent(new Event("focus"));
+  });
+  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  await expect(page.getByText("Tin tức tự cập nhật khi có thay đổi.")).toBeVisible();
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await page.clock.runFor(50);
+  expect(sockets).toBe(2);
+});
+
+test("an offline event retires a ready socket and reconnects once online", async ({ page }) => {
+  await setup(page, "STAFF");
+  await page.clock.install();
+  let sockets = 0, online = true;
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "onLine", { get: () => window.auditOnline ?? true });
+  });
+  await page.routeWebSocket("**/api/v1/news/events", socket => {
+    sockets++;
+    socket.onMessage(() => socket.send('{"type":"READY"}'));
+  });
+  await page.goto("/#news");
+  const ready = page.getByText("Tin tức tự cập nhật khi có thay đổi.");
+  await expect(ready).toBeVisible();
+  await page.clock.fastForward(60000);
+  await expect(ready).toBeVisible();
+  expect(sockets).toBe(1);
+  online = false;
+  await page.evaluate(value => {
+    window.auditOnline = value;
+    window.dispatchEvent(new Event("offline"));
+  }, online);
+  await expect(ready).toHaveCount(0);
+  await page.clock.fastForward(60000);
+  expect(sockets).toBe(1);
+  online = true;
+  await page.evaluate(value => {
+    window.auditOnline = value;
+    window.dispatchEvent(new Event("online"));
+  }, online);
+  await expect(ready).toBeVisible();
+  expect(sockets).toBe(2);
 });
 
 for (const failure of ["connection reset", "HTTP 503"]) test(`upload ${failure} locks further uploads in the editor`, async ({ page }) => {
