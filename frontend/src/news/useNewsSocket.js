@@ -1,39 +1,107 @@
 import { useEffect, useRef, useState } from "react";
 
+const readyTimeoutMs = 15000;
+const resumeReconnectAfterMs = 60000;
+
 export default function useNewsSocket(authorization, account, onUnauthorized) {
   const [revision, setRevision] = useState(0);
-  const [connection, setConnection] = useState("offline");
+  const [connection, setConnection] = useState(null);
   const retry = useRef({ failures: 0, after: 0 });
   useEffect(() => {
     if (account?.role !== "STAFF" || !authorization) return;
-    let socket, timer, stopped = false;
+    let socket, timer, readyTimer, stopped = false, awaitingIdentity = false;
+    let readyAt = null;
+    const report = status => setConnection({ account, authorization, status });
+    function retire() {
+      readyAt = null;
+      clearTimeout(readyTimer);
+      if (!socket) return;
+      socket.onopen = socket.onmessage = socket.onclose = null;
+      if (socket.readyState < WebSocket.CLOSING) socket.close();
+      socket = null;
+    }
+    function disconnected(code) {
+      retire();
+      report("offline");
+      const delay = Math.min(30000, 1000 * 2 ** Math.min(retry.current.failures++, 5));
+      retry.current.after = Date.now() + delay;
+      // A fresh account response restarts this effect only if it still confirms STAFF.
+      if (code === 1008) {
+        awaitingIdentity = true;
+        onUnauthorized();
+        return;
+      }
+      scheduleConnect();
+    }
     function connect() {
-      if (stopped) return;
-      setConnection("connecting");
-      socket = new WebSocket(`${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/api/v1/news/events`);
-      socket.onopen = () => { if (!stopped) socket.send(authorization); };
-      socket.onmessage = event => {
-        if (stopped) return;
+      if (stopped || !navigator.onLine) return;
+      report("connecting");
+      let current;
+      try {
+        current = new WebSocket(`${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}/api/v1/news/events`);
+      } catch {
+        disconnected();
+        return;
+      }
+      socket = current;
+      const ownsSocket = () => !stopped && socket === current;
+      let ready = false;
+      readyTimer = setTimeout(() => { if (ownsSocket()) disconnected(); }, readyTimeoutMs);
+      current.onopen = () => {
+        if (!ownsSocket()) return;
+        try { current.send(authorization); }
+        catch { disconnected(); }
+      };
+      current.onmessage = event => {
+        if (!ownsSocket()) return;
         try {
           const { type } = JSON.parse(event.data);
-          if (type === "READY") { retry.current = { failures: 0, after: 0 }; setConnection("ready"); setRevision(value => value + 1); }
-          if (type === "NEWS_CHANGED") setRevision(value => value + 1);
+          if (type === "READY" && !ready) {
+            ready = true;
+            readyAt = performance.now();
+            clearTimeout(readyTimer);
+            retry.current = { failures: 0, after: 0 };
+            report("ready");
+            setRevision(value => value + 1);
+          } else if (type === "NEWS_CHANGED" && ready) setRevision(value => value + 1);
         } catch { /* Unknown server frames carry no UI authority. */ }
       };
-      socket.onclose = event => {
-        if (stopped) return;
-        setConnection("offline");
-        const delay = Math.min(30000, 1000 * 2 ** Math.min(retry.current.failures++, 5));
-        retry.current.after = Date.now() + delay;
-        // A fresh account response restarts this effect only if it still confirms STAFF.
-        // Keep backoff across those rechecks, so repeated policy closes cannot cause a hot loop.
-        if (event.code === 1008) { onUnauthorized(); return; }
-        timer = setTimeout(connect, delay);
-      };
-      socket.onerror = () => { /* onclose schedules reconnect. */ };
+      current.onclose = event => { if (ownsSocket()) disconnected(event.code); };
     }
-    timer = setTimeout(connect, Math.max(0, retry.current.after - Date.now()));
-    return () => { stopped = true; clearTimeout(timer); if (socket?.readyState === WebSocket.CONNECTING) socket.onopen = () => socket.close(); else socket?.close(); };
+    function scheduleConnect() {
+      clearTimeout(timer);
+      if (navigator.onLine && !awaitingIdentity && !socket) {
+        timer = setTimeout(connect, Math.max(0, retry.current.after - Date.now()));
+      }
+    }
+    function onOffline() {
+      clearTimeout(timer);
+      retire();
+      report("offline");
+    }
+    function onResume() {
+      if (document.visibilityState !== "visible" || !navigator.onLine || readyAt === null ||
+        performance.now() - readyAt < resumeReconnectAfterMs) return;
+      // The connection can look open after the network path stopped forwarding frames.
+      retire();
+      report("offline");
+      scheduleConnect();
+    }
+    window.addEventListener("offline", onOffline);
+    window.addEventListener("online", scheduleConnect);
+    window.addEventListener("focus", onResume);
+    document.addEventListener("visibilitychange", onResume);
+    scheduleConnect();
+    return () => {
+      stopped = true;
+      window.removeEventListener("offline", onOffline);
+      window.removeEventListener("online", scheduleConnect);
+      window.removeEventListener("focus", onResume);
+      document.removeEventListener("visibilitychange", onResume);
+      clearTimeout(timer);
+      retire();
+    };
   }, [authorization, account, onUnauthorized]);
-  return { revision, connection };
+  return { revision, connection: connection && connection.account === account && connection.authorization === authorization
+    ? connection.status : "offline" };
 }

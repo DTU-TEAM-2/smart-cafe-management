@@ -1,7 +1,7 @@
 import { afterEach, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { deleteMenu, loadCategories, readMenu, reconcileMenuSave, saveMenu } from '../src/menu/menuApi.js';
-import { stripMenuText } from '../src/menu/menuText.js';
+import { stripJavaText as stripMenuText } from '../src/javaText.js';
 
 const originalFetch = globalThis.fetch;
 const originalParse = JSON.parse;

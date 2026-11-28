@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { imageDimensions } from './imageDimensions.js';
-import { stripMenuText } from './menuText.js';
+import { stripJavaText as stripMenuText } from '../javaText.js';
 
 export default function MenuEditor({ kind, value, categories, categoriesLoading, categoryError, onReloadCategories, onSave, onReconcile, onCancel }) {
   const isItem = kind === 'items';

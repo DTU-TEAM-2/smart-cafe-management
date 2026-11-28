@@ -60,6 +60,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
         "spring.datasource.url=${TEST_DB_URL}", "spring.datasource.username=${TEST_DB_USERNAME}",
         "spring.datasource.password=${TEST_DB_PASSWORD:}",
+        "spring.datasource.hikari.transaction-isolation=TRANSACTION_READ_COMMITTED",
         "smartcafe.auth.token-secret=review-news-secret-only-at-least-32-characters",
         "smartcafe.news.socket.max-per-account=256"
 })
@@ -73,6 +74,89 @@ class NewsReviewMySqlTest {
     @LocalServerPort int port;
     @Autowired vn.codegym.smartcafe.config.BearerTokenAuthenticator authenticator;
     @Autowired NewsSocket newsSocket;
+
+    @Test
+    void staffPageCountAndContentShareTheSnapshotWhenAnArticleIsArchived() throws Exception {
+        jdbc.update("""
+                INSERT INTO news_posts(slug, title, body, status, author_user_id, audience_staff, published_at)
+                VALUES ('page-snapshot', 'Snapshot', 'Body', 'PUBLISHED', 901, 1, UTC_TIMESTAMP(6))
+                """);
+        assertThat(jdbc.queryForObject("SELECT @@session.transaction_isolation", String.class)).isEqualTo("READ-COMMITTED");
+        var countCompleted = new CountDownLatch(1);
+        var archiveCommitted = new CountDownLatch(1);
+        doAnswer(call -> {
+            countCompleted.countDown();
+            assertThat(archiveCommitted.await(5, TimeUnit.SECONDS)).isTrue();
+            return call.callRealMethod();
+        }).when(client).sql(argThat(sql -> sql != null && sql.stripLeading().startsWith("SELECT p.id, p.slug, p.title")));
+
+        try (var reader = Executors.newSingleThreadExecutor()) {
+            try {
+                var first = reader.submit(() -> mvc.perform(get("/api/v1/news")
+                        .with(user("review-staff").roles("STAFF")).param("size", "6"))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.totalElements").value(1))
+                        .andExpect(jsonPath("$.content.length()").value(1))
+                        .andExpect(jsonPath("$.content[0].slug").value("page-snapshot")));
+                assertThat(countCompleted.await(5, TimeUnit.SECONDS)).isTrue();
+                assertThat(jdbc.update("UPDATE news_posts SET status='ARCHIVED' WHERE slug='page-snapshot'")).isEqualTo(1);
+                archiveCommitted.countDown();
+                first.get(5, TimeUnit.SECONDS);
+            } finally {
+                archiveCommitted.countDown();
+            }
+        }
+        mvc.perform(get("/api/v1/news").with(user("review-staff").roles("STAFF")).param("size", "6"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(0))
+                .andExpect(jsonPath("$.content").isEmpty());
+    }
+
+    @Test
+    void staffDetailUsesOneSnapshotForAudienceAndImages() throws Exception {
+        seedPost();
+        long id = jdbc.queryForObject("SELECT id FROM news_posts", Long.class);
+        jdbc.update("""
+                UPDATE news_posts SET status='PUBLISHED', published_at=UTC_TIMESTAMP(6), audience_staff=1, audience_customer=0 WHERE id=?
+                """, id);
+        jdbc.update("INSERT INTO news_images(news_id, media_id, sort_order) VALUES (?,901,0)", id);
+        var postRead = new CountDownLatch(1);
+        var writerCommitted = new CountDownLatch(1);
+        doAnswer(call -> {
+            if (postRead.getCount() != 0) {
+                postRead.countDown();
+                assertThat(writerCommitted.await(5, TimeUnit.SECONDS)).isTrue();
+            }
+            return call.callRealMethod();
+        }).when(client).sql(argThat(sql -> sql != null && sql.stripLeading().startsWith("SELECT ni.media_id, ni.sort_order")));
+
+        try (var reader = Executors.newSingleThreadExecutor()) {
+            try {
+                var before = reader.submit(() -> mvc.perform(get("/api/v1/news/" + id).with(user("review-staff").roles("STAFF")))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.audiences[0]").value("STAFF"))
+                        .andExpect(jsonPath("$.images[0].mediaId").value("901")));
+                assertThat(postRead.await(5, TimeUnit.SECONDS)).isTrue();
+                mvc.perform(put("/api/v1/news/" + id).with(user("review-admin").roles("ADMIN"))
+                                .header("If-Match", "\"0\"").contentType(MediaType.APPLICATION_JSON)
+                                .content("""
+                                        {"title":"Only customers","body":"Body","status":"PUBLISHED",
+                                         "audiences":["CUSTOMER"],"imageMediaIds":[]}
+                                        """))
+                        .andExpect(status().isOk());
+                writerCommitted.countDown();
+                before.get(5, TimeUnit.SECONDS);
+            } finally {
+                writerCommitted.countDown();
+            }
+        }
+        mvc.perform(get("/api/v1/news/" + id).with(user("review-staff").roles("STAFF")))
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/api/v1/news/" + id).with(user("review-customer").roles("CUSTOMER")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.audiences[0]").value("CUSTOMER"))
+                .andExpect(jsonPath("$.images").isEmpty());
+    }
 
     @Test
     void createUpdateAndArchiveReturnWhileSixtyFourSubscribersAreStillBlocked() throws Exception {

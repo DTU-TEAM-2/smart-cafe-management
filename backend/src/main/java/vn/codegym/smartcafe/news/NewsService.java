@@ -6,6 +6,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -47,7 +48,8 @@ public class NewsService {
         this.readers = readers;
     }
 
-    @Transactional(readOnly = true)
+    // Keep the count and rows on the same snapshot even if the server defaults to READ COMMITTED.
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public NewsPageResponse listNews(int page, int size, String sortParam, String statusFilter, String username) {
         if (page < 0 || size < 1 || size > 100) {
             throw new IllegalArgumentException("page phải >= 0; size phải từ 1 đến 100.");
@@ -129,12 +131,12 @@ public class NewsService {
         return new NewsPageResponse(content, pageIndex, pageSize, totalElements, totalPages, last);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public NewsDetailResponse getNewsById(long id, String username) {
         return readNews(id, readers.predicate(username));
     }
 
-    @Transactional(readOnly = true)
+    @Transactional(readOnly = true, isolation = Isolation.REPEATABLE_READ)
     public NewsDetailResponse getOwnNewsBySlug(String slug, String username) {
         if (slug.length() > 180 || !SLUG_PATTERN.matcher(slug).matches()) {
             throw new IllegalArgumentException("Đường dẫn tin tức không hợp lệ.");

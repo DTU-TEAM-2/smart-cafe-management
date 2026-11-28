@@ -1,3 +1,5 @@
+import { stripJavaText } from "../javaText.js";
+
 export class NewsApiError extends Error {
   constructor(status, message, code) { super(message); this.status = status; this.code = code; }
 }
@@ -35,26 +37,60 @@ export function isNewsId(value) {
 }
 
 const isOptionalText = value => value == null || typeof value === "string";
+const isOptionalDate = value => value == null || (typeof value === "string" && Number.isFinite(Date.parse(value)));
+const imagePrefix = "/api/v1/news/images/";
 
-function isNewsSummary(post) {
-  return isNewsId(post?.id) && typeof post.title === "string"
-    && isOptionalText(post.summary) && isOptionalText(post.authorName)
-    && isOptionalText(post.publishedAt) && isOptionalText(post.createdAt)
-    && typeof post.status === "string" && Object.hasOwn(statusNames, post.status)
-    && Array.isArray(post.audiences) && post.audiences.every(audience =>
-      typeof audience === "string" && Object.hasOwn(audienceNames, audience));
+function isNewsImageUrl(value) {
+  return typeof value === "string" && value.startsWith(imagePrefix)
+    && isNewsId(value.slice(imagePrefix.length));
 }
 
-export function isNewsPage(page) {
-  return Array.isArray(page?.content) && page.content.every(isNewsSummary)
+function isNewsSummary(post) {
+  return isNewsId(post?.id) && typeof post.title === "string" && !!stripJavaText(post.title)
+    && isOptionalText(post.summary) && isOptionalText(post.authorName)
+    && isOptionalDate(post.publishedAt) && isOptionalDate(post.createdAt)
+    && typeof post.status === "string" && Object.hasOwn(statusNames, post.status)
+    && Array.isArray(post.audiences) && post.audiences.every(audience =>
+      typeof audience === "string" && Object.hasOwn(audienceNames, audience))
+    && new Set(post.audiences).size === post.audiences.length;
+}
+
+export function isNewsPage(page, index, size) {
+  return Number.isSafeInteger(index) && index >= 0 && Number.isSafeInteger(size) && size > 0 && size <= 100
+    && Number.isSafeInteger(index * size)
+    && Array.isArray(page?.content) && page.content.every(post => isNewsSummary(post)
+    && (post.thumbnailUrl == null || isNewsImageUrl(post.thumbnailUrl)))
+    && new Set(page.content.map(post => post.id)).size === page.content.length
+    && page.page === index && page.size === size
     && Number.isSafeInteger(page.totalElements) && page.totalElements >= 0
-    && Number.isSafeInteger(page.totalPages) && page.totalPages >= 0 && typeof page.last === "boolean";
+    && page.content.length === Math.max(0, Math.min(size, page.totalElements - index * size))
+    && page.totalPages === Math.ceil(page.totalElements / size)
+    && page.last === (index + 1 >= page.totalPages);
 }
 
 export function isNewsDetail(post, id) {
   return isNewsSummary(post) && (!id || post.id === id.replace(/^0+/, ""))
-    && typeof post.slug === "string" && typeof post.body === "string"
-    && Array.isArray(post.images) && post.images.every(image => isNewsId(image?.mediaId));
+    && typeof post.slug === "string" && !!post.slug.trim() && typeof post.body === "string" && !!stripJavaText(post.body)
+    && Number.isInteger(post.version) && post.version >= 0
+    && Array.isArray(post.images) && post.images.length <= 20
+    && post.images.every((image, index, images) => isNewsId(image?.mediaId)
+      && image.secureUrl === imagePrefix + image.mediaId
+      && Number.isSafeInteger(image.sortOrder) && image.sortOrder >= 0
+      && (index === 0 || image.sortOrder > images[index - 1].sortOrder))
+    && new Set(post.images.map(image => image.mediaId)).size === post.images.length;
+}
+
+export function hasNewsVersion(post, tag) {
+  return Number.isSafeInteger(post?.version) && post.version >= 0 && tag === `"${post.version}"`;
+}
+
+// The server enforces visibility. Reject an inconsistent response without changing page totals.
+export function matchesNewsScope(post, role, status) {
+  if (role === "ADMIN") {
+    if (status === undefined) return true;
+    return status ? post.status === status : post.status !== "ARCHIVED";
+  }
+  return Object.hasOwn(audienceNames, role) && post.status === "PUBLISHED" && post.audiences.includes(role);
 }
 
 export function isUncertainNewsWrite(error) {
