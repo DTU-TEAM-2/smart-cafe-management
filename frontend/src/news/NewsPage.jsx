@@ -3,7 +3,7 @@ import { useAuth } from "../auth/useAuth.js";
 import { getCurrentUserApi } from "../auth/authApi.js";
 import NewsImage from "./NewsImage.jsx";
 import NewsEditor from "./NewsEditor.jsx";
-import { audienceNames, isNewsDetail, isNewsPage, isNewsVersionTag, newsDate, isUncertainNewsWrite, newsError, newsRequest, statusNames } from "./newsApi.js";
+import { audienceNames, hasNewsVersion, isNewsDetail, isNewsPage, newsDate, isUncertainNewsWrite, newsError, newsRequest, statusNames } from "./newsApi.js";
 import "./news.css";
 
 const newsPageSize = 6;
@@ -43,12 +43,13 @@ export default function NewsPage({ authorization, account, identityStatus, route
     </NewsBanner>
   </section>;
   const match = /^#news\/([0-9]+)(\/edit)?$/.exec(route);
+  const scope = `${account.id}:${account.role}`;
   if (route === "#news/new" || match?.[2]) {
     if (account.role !== "ADMIN") return <section className="news-page news-empty"><h1>Bạn không có quyền quản lý tin tức</h1><a href="#news">Về danh sách tin tức</a></section>;
-    return <NewsEditor key={route} id={match?.[1]} accountId={account.id} request={request} authorization={authorization} setNavigationGuard={setNavigationGuard} />;
+    return <NewsEditor key={`${scope}:${route}`} id={match?.[1]} accountId={account.id} request={request} authorization={authorization} setNavigationGuard={setNavigationGuard} />;
   }
-  if (match) return <NewsDetail key={match[1]} id={match[1]} request={request} authorization={authorization} admin={account.role === "ADMIN"} revision={revision} />;
-  return <NewsList request={request} authorization={authorization} admin={account.role === "ADMIN"} revision={revision} connection={account.role === "STAFF" ? connection : null} />;
+  if (match) return <NewsDetail key={`${scope}:${match[1]}`} id={match[1]} request={request} authorization={authorization} admin={account.role === "ADMIN"} revision={revision} />;
+  return <NewsList key={scope} request={request} authorization={authorization} admin={account.role === "ADMIN"} revision={revision} connection={account.role === "STAFF" ? connection : null} />;
 }
 
 function NewsBanner({ title, description, headingRef, children }) {
@@ -64,12 +65,14 @@ function NewsBanner({ title, description, headingRef, children }) {
 
 function NewsList({ request, authorization, admin, revision, connection }) {
   const [page, setPage] = useState(0), [status, setStatus] = useState(""), [sort, setSort] = useState("publishedAt,desc");
-  const [attempt, setAttempt] = useState(0), [view, setView] = useState({ state: "loading", data: null });
+  const [attempt, setAttempt] = useState(0), [result, setResult] = useState(null);
   const heading = useRef(null);
+  const query = `?page=${page}&size=${newsPageSize}&sort=${sort}${status ? `&status=${status}` : ""}`;
+  const requestKey = `${query}:${attempt}:${revision}`;
+  const view = result?.key === requestKey ? result : { state: "loading" };
   useEffect(() => {
     const controller = new AbortController();
-    setView({ state: "loading", data: null });
-    request(`?page=${page}&size=${newsPageSize}&sort=${sort}${status ? `&status=${status}` : ""}`, { signal: controller.signal })
+    request(query, { signal: controller.signal })
       .then(({ data }) => {
         if (controller.signal.aborted) return;
         if (!isNewsPage(data, page, newsPageSize)) throw new Error("Invalid news page response");
@@ -77,11 +80,10 @@ function NewsList({ request, authorization, admin, revision, connection }) {
           setPage(Math.max(0, data.totalPages - 1));
           return;
         }
-        if (!data.content.length && data.totalElements > 0) throw new Error("Inconsistent news page response");
-        setView({ state: "ready", data });
-      }).catch(error => { if (!controller.signal.aborted) setView({ state: "error", error: newsError(error), data: null }); });
+        setResult({ key: requestKey, state: "ready", data });
+      }).catch(error => { if (!controller.signal.aborted) setResult({ key: requestKey, state: "error", error: newsError(error) }); });
     return () => controller.abort();
-  }, [request, page, status, sort, attempt, revision]);
+  }, [request, page, query, requestKey]);
   return <section className="news-page" aria-labelledby="news-title">
     {admin ? <div className="news-heading">
       <h1 ref={heading} id="news-title" tabIndex={-1}>Quản lý tin tức</h1>
@@ -98,7 +100,10 @@ function NewsList({ request, authorization, admin, revision, connection }) {
       {connection === "ready" ? "Tin tức tự cập nhật khi có thay đổi." : "Đang kết nối cập nhật tin tức. Bạn vẫn có thể làm mới danh sách."}</p>}
     <div aria-busy={view.state === "loading"}>
       {view.state === "loading" ? <div className="news-empty" role="status">Đang tải tin tức…</div>
-        : view.state === "error" ? <div className="news-empty" role="alert"><h2>Chưa tải được tin tức</h2><p>{view.error}</p><button className="news-button" onClick={() => setAttempt(v => v + 1)}>Thử lại</button></div>
+        : view.state === "error" ? <div className="news-empty" role="alert"><h2>Chưa tải được tin tức</h2><p>{view.error}</p>
+          <button className="news-button" onClick={() => setAttempt(v => v + 1)}>Thử lại</button>
+          {page > 0 && <button className="news-button" onClick={() => { setPage(0); heading.current?.focus(); }}>Về trang đầu</button>}
+        </div>
           : !view.data.content.length ? <div className="news-empty">
             <span className="news-empty-mark" aria-hidden="true">≡</span>
             <h2>{status === "DRAFT" ? "Chưa có bản nháp" : status ? `Chưa có tin ${statusNames[status].toLowerCase()}` : "Chưa có câu chuyện nào"}</h2>
@@ -136,7 +141,7 @@ function NewsDetail({ id, request, authorization, admin, revision }) {
     setView({ state: "loading" });
     request(`/${id}`, { signal: controller.signal }).then(result => {
       if (controller.signal.aborted) return;
-      if (!isNewsDetail(result.data, id) || (admin && !isNewsVersionTag(result.etag))) throw new Error("Invalid news detail response");
+      if (!isNewsDetail(result.data, id) || (admin && !hasNewsVersion(result.data, result.etag))) throw new Error("Invalid news detail response");
       setView({ state: "ready", ...result }); setArchiveNeedsReload(false);
     }).catch(e => { if (!controller.signal.aborted) setView({ state: "error", error: newsError(e) }); });
     return () => controller.abort();

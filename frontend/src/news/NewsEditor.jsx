@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { stripJavaText } from "../javaText.js";
 import NewsImage from "./NewsImage.jsx";
-import { audienceNames, isNewsDetail, isNewsId, isNewsVersionTag, newsError, isUncertainNewsWrite } from "./newsApi.js";
+import { audienceNames, hasNewsVersion, isNewsDetail, isNewsId, newsError, isUncertainNewsWrite } from "./newsApi.js";
 
 const emptyDraft = () => ({ title: "", summary: "", body: "", slug: "", status: "DRAFT", audiences: [], images: [] });
 const length = value => [...value].length;
@@ -18,11 +18,16 @@ function canPreviewRecovery({ slug, body }) {
     && Array.isArray(body.imageMediaIds) && body.imageMediaIds.every(isNewsId);
 }
 
-function matchesCreation(post, body) {
-  return body && post.version === 0 && post.slug === body.slug && post.title === body.title
+function matchesWrite(post, { body, slug, version }) {
+  return post.version === version && post.slug === slug && post.title === body.title
     && (post.summary || null) === (body.summary || null) && post.body === body.body && post.status === body.status
     && Array.isArray(post.audiences) && sameList(post.audiences.slice().sort(), body.audiences.slice().sort())
     && Array.isArray(post.images) && sameList(post.images.map(image => image?.mediaId), body.imageMediaIds);
+}
+
+function toDraft(post) {
+  return { title: post.title, summary: post.summary || "", body: post.body, slug: post.slug, status: post.status,
+    audiences: post.audiences, images: post.images.map(image => ({ mediaId: image.mediaId, url: image.secureUrl })) };
 }
 
 function autoSlug(title) {
@@ -48,7 +53,8 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
     } catch { return null; }
   });
   const [uploadUncertain, setUploadUncertain] = useState(false);
-  const [editUncertain, setEditUncertain] = useState(false);
+  const [editUncertain, setEditUncertain] = useState(null);
+  const [saveNotice, setSaveNotice] = useState("");
   const [found, setFound] = useState(null);
   const saving = useRef(false);
   function clearPending() {
@@ -75,11 +81,10 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
     setState("loading"); setError("");
     request(`/${id}`, { signal: abort.signal }).then(({ data, etag: tag }) => {
       if (abort.signal.aborted) return;
-      if (!isNewsDetail(data, id) || !isNewsVersionTag(tag)) throw new Error("Invalid news detail response");
-      const loaded = { title: data.title, summary: data.summary || "", body: data.body, slug: data.slug, status: data.status,
-        audiences: data.audiences, images: data.images.map(image => ({ mediaId: image.mediaId, url: image.secureUrl })) };
+      if (!isNewsDetail(data, id) || !hasNewsVersion(data, tag)) throw new Error("Invalid news detail response");
+      const loaded = toDraft(data);
       setDraft(loaded); setOriginal(JSON.stringify(loaded)); setEtag(tag); setState("ready"); setConflict(false); setInvalid({});
-      setUploadUncertain(false);
+      setUploadUncertain(false); setEditUncertain(null); setSaveNotice("");
     }).catch(e => { if (!abort.signal.aborted) { setState("error"); setError(newsError(e)); } });
     return () => abort.abort();
   }, [id, request, attempt]);
@@ -92,10 +97,10 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
     location.hash = `#news/${post.id}`;
   }
   async function lookupCreation(creation, signal) {
-    const { data } = await request(`/by-slug/${creation.slug}`, { signal });
+    const { data, etag: tag } = await request(`/by-slug/${creation.slug}`, { signal });
     if (signal.aborted) return;
-    if (!isNewsDetail(data) || data.slug !== creation.slug) throw new Error("Invalid news lookup response");
-    if (canPreviewRecovery(creation) && matchesCreation(data, creation.body)) {
+    if (!isNewsDetail(data) || !hasNewsVersion(data, tag) || data.slug !== creation.slug) throw new Error("Invalid news lookup response");
+    if (canPreviewRecovery(creation) && matchesWrite(data, { ...creation, version: 0 })) {
       clearPending();
       openPost(data);
     } else {
@@ -123,8 +128,8 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
     }
   }
 
-  function downloadRecovery() {
-    const url = URL.createObjectURL(new Blob([JSON.stringify(pending, null, 2)], { type: "application/json" }));
+  function downloadRecovery(record) {
+    const url = URL.createObjectURL(new Blob([JSON.stringify(record, null, 2)], { type: "application/json" }));
     const link = document.createElement("a");
     link.href = url;
     link.download = "tin-tuc-can-doi-soat.json";
@@ -163,6 +168,12 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
     const body = { title, summary: summary || null, body: content,
       slug: creationSlug || slug || null, status: draft.status, audiences: draft.audiences,
       imageMediaIds: draft.images.map(image => image.mediaId) };
+    const expected = { body, slug: body.slug ?? JSON.parse(original).slug,
+      version: id ? Number(etag.slice(1, -1)) + 1 : 0, snapshot: JSON.stringify(draft) };
+    if (!Number.isSafeInteger(expected.version)) {
+      showError("Chưa thể xác nhận phiên bản tiếp theo của bài viết.");
+      return;
+    }
     if (creationSlug) {
       const creation = { slug: creationSlug, body };
       try {
@@ -175,11 +186,13 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
     }
     const signal = controller.current.signal;
     saving.current = true;
-    setBusy(true); setError("");
+    setBusy(true); setError(""); setSaveNotice("");
     try {
-      const { data } = await request(id ? `/${id}` : "", { method: id ? "PUT" : "POST", body, etag, signal });
+      const { data, etag: tag } = await request(id ? `/${id}` : "", { method: id ? "PUT" : "POST", body, etag, signal });
       if (signal.aborted) return;
-      if (!isNewsId(data?.id) || (id && data.id !== id.replace(/^0+/, ""))) throw new Error("Invalid news response");
+      if (!isNewsDetail(data, id) || !hasNewsVersion(data, tag) || !matchesWrite(data, expected)) {
+        throw new Error("Invalid news write response");
+      }
       if (creationSlug) clearPending();
       openPost(data);
     } catch (e) {
@@ -187,7 +200,7 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
       const rejected = !isUncertainNewsWrite(e);
       if (creationSlug && rejected) clearPending();
       if ([412, 428].includes(e.status)) setConflict(true);
-      if (id && !rejected) setEditUncertain(true);
+      if (id && !rejected) setEditUncertain(expected);
       showError(!rejected ? "Chưa xác nhận được kết quả lưu bài." : newsError(e));
     } finally {
       saving.current = false;
@@ -203,13 +216,15 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
     }
     setUploading(true); setError("");
     // Sequential uploads bound memory and preserve successful images when a later upload fails.
+    const mediaIds = new Set(draft.images.map(image => image.mediaId));
     try {
       for (const file of files) {
         const body = new FormData(); body.append("file", file);
         const { data } = await request("/images", { method: "POST", body, signal: controller.current.signal });
         if (controller.current.signal.aborted) return;
-        if (!isNewsId(data?.mediaId)
+        if (!isNewsId(data?.mediaId) || mediaIds.has(data.mediaId)
           || data.url !== `/api/v1/news/images/${data.mediaId}`) throw new Error("Invalid upload response");
+        mediaIds.add(data.mediaId);
         setDraft(current => ({ ...current, images: [...current.images, { mediaId: data.mediaId, url: data.url }] }));
       }
     } catch (e) {
@@ -240,7 +255,17 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
     try {
       const current = await request(`/${id}`, { signal });
       if (!signal.aborted) {
-        if (!isNewsDetail(current.data, id) || !isNewsVersionTag(current.etag)) throw new Error("Invalid news detail response");
+        if (!isNewsDetail(current.data, id) || !hasNewsVersion(current.data, current.etag)) throw new Error("Invalid news detail response");
+        if (matchesWrite(current.data, editUncertain)) {
+          const loaded = toDraft(current.data);
+          if (JSON.stringify(draft) === editUncertain.snapshot) setDraft(loaded);
+          setOriginal(JSON.stringify(loaded));
+          setEtag(current.etag);
+          setEditUncertain(null);
+          setError("");
+          setSaveNotice("Đã đối chiếu và xác nhận lần lưu trước.");
+          return;
+        }
         showError(current.etag === etag
           ? "Máy chủ vẫn đang hiển thị phiên bản cũ. Kiểm tra lại nếu lần lưu còn đang xử lý."
           : "Phiên bản trên máy chủ đã thay đổi. Mở bài để đối chiếu với nội dung đang soạn.");
@@ -255,6 +280,7 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
   return <section className="news-page news-editor" aria-labelledby="editor-title">
     <a className="news-text-link" href={id ? `#news/${id}` : "#news"}>← {id ? "Về bài viết" : "Danh sách tin tức"}</a>
     <div className="news-heading"><h1 id="editor-title">{id ? "Chỉnh sửa tin tức" : "Một câu chuyện mới."}</h1></div>
+    {saveNotice && <p role="status">{saveNotice}{dirty && " Các chỉnh sửa sau đó đang chờ lưu."}</p>}
     {error && <div className="news-error" role="alert" tabIndex={-1} ref={errorRef}><p>{error}</p>{conflict && <button type="button" className="news-button" onClick={() => {
       if (window.confirm("Tải bản mới sẽ thay nội dung bạn đang soạn. Bạn đã sao chép phần cần giữ chưa?")) setAttempt(v => v + 1);
     }}>Tải bản mới</button>}</div>}
@@ -262,7 +288,7 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
       <p role="status">Chưa xác nhận được kết quả lần lưu trước. Kiểm tra bài có đường dẫn <strong>{pending.slug}</strong>.</p>
       {pending.body != null && !recoveryBody && <p>Không thể hiển thị nội dung đối soát. Bạn vẫn có thể tải bản sao JSON.</p>}
       <button type="button" className="news-button" onClick={resolvePending}>Kiểm tra bài đã lưu</button>
-      <button type="button" className="news-button subtle" onClick={downloadRecovery}>Tải bản sao JSON</button>
+      <button type="button" className="news-button subtle" onClick={() => downloadRecovery(pending)}>Tải bản sao JSON</button>
       <button type="button" className="news-button subtle" onClick={discardRecovery}>Bỏ đối soát và soạn bài khác</button>
       {found && <p>Tìm thấy “{found.title}”. <button type="button" className="news-button" onClick={() => {
         if (window.confirm("Xác nhận bài tìm thấy là bài cần khôi phục và mở bài đó?")) {
@@ -273,6 +299,10 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
     </div>}
     {editUncertain && <div className="news-error">
       <button type="button" className="news-button" disabled={busy} onClick={checkEdit}>Kiểm tra phiên bản máy chủ</button>{" "}
+      <button type="button" className="news-button subtle" disabled={busy} onClick={() => downloadRecovery({ id, etag, draft })}>Tải bản sao JSON</button>{" "}
+      <button type="button" className="news-button subtle" disabled={busy || state === "loading"} onClick={() => {
+        if (window.confirm("Tải bản mới sẽ thay nội dung bạn đang soạn. Bạn đã sao chép phần cần giữ chưa?")) setAttempt(v => v + 1);
+      }}>Tải bản mới</button>{" "}
       <a href={`#news/${id}`}>Mở bài hiện tại</a>
     </div>}
     {state === "loading" && <p role="status">Đang tải nội dung biên tập…</p>}

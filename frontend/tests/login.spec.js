@@ -42,18 +42,19 @@ test("login verifies Auth identity, opens news through navigation and logout cle
     json: { id: 5, username: "ui-fixture", fullName: "Khách kiểm thử", role: "CUSTOMER" },
   }));
   await page.route("**/api/v1/auth/logout", route => route.fulfill({ json: {} }));
-  await page.route("**/api/v1/news?*", route => route.fulfill({ json: { content: [], totalElements: 0, totalPages: 0, last: true } }));
+  await page.route("**/api/v1/news?*", route => route.fulfill({ json: { content: [], totalElements: 0, totalPages: 0, last: true, page: 0, size: 6 } }));
   await page.addInitScript(() => localStorage.setItem("smart_cafe_token", "obsolete-token-fixture"));
   await page.goto("/#login");
   await page.getByLabel("Tên đăng nhập", { exact: true }).fill("test@example.invalid");
   await page.getByLabel("Mật khẩu", { exact: true }).fill("UI-fixture-password");
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
   await expect(page).toHaveURL(/#top$/);
-  const newsLink = page.getByRole("link", { name: "Tin tức", exact: true });
+  const newsLink = page.getByRole("navigation", { name: "Điều hướng chính" }).getByRole("link", { name: "Tin tức", exact: true });
   if (!(await newsLink.isVisible())) await page.getByRole("button", { name: "Điều hướng" }).click();
   await newsLink.click();
   await expect(page).toHaveURL(/#news$/);
   await expect(page.getByRole("heading", { name: "Chuyện từ LECKER." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Chưa có câu chuyện nào" })).toBeVisible();
   // The role from the login response is not used to grant a management screen.
   await expect(page.getByRole("link", { name: "Viết tin mới" })).toHaveCount(0);
   await page.getByRole("button", { name: "Tài khoản Khách kiểm thử" }).click();
