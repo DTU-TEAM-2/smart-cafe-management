@@ -27,6 +27,23 @@ const money = new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND
 const logoutNavigation = Symbol("logout");
 const headerRequestTimeoutMs = 10000;
 const staffRecheckRetryMs = 5000;
+const maxStaffRecheckRetries = 3;
+const accountTextFields = ["username", "email", "phone", "address", "birthday", "gender", "salary", "avatarUrl"];
+
+function isHomeAccount(account) {
+  return typeof account?.id === "string" && /^[1-9]\d{0,18}$/.test(account.id)
+    && (account.id.length < 19 || account.id <= "9223372036854775807")
+    && typeof account.role === "string" && Object.hasOwn(roles, account.role)
+    && typeof account.name === "string" && !!account.name.trim()
+    && accountTextFields.every(field => account[field] == null || typeof account[field] === "string");
+}
+
+function isNotice(item) {
+  return typeof item?.id === "string" && !!item.id.trim()
+    && typeof item.message === "string" && !!item.message.trim()
+    && ["type", "tableId", "tableName", "createdAt", "href"].every(field => item[field] == null || typeof item[field] === "string")
+    && (item.createdAt == null || Number.isFinite(Date.parse(item.createdAt)));
+}
 
 export default function HomeShell({ authorization, credentials, loginHref = "#login" }) {
   const { sessionGeneration } = useAuth();
@@ -38,27 +55,55 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
   const auth = useAuth();
   const [hash, setHash] = useState(() => window.location.hash || "#top");
   const currentHash = useRef(hash);
+  const currentHistoryIndex = useRef(window.navigation?.currentEntry?.index);
   const dirty = useRef(false);
   const newsGuard = useRef(null);
   const approvedNewsHash = useRef(null);
   const setNavigationGuard = useCallback(guard => { newsGuard.current = guard; }, []);
   const [pendingNavigation, setPendingNavigation] = useState(null);
   const onDirtyChange = useCallback(value => { dirty.current = value; }, []);
+  const handleNavigate = useCallback(next => {
+    if (next === currentHash.current) return;
+    if (dirty.current) {
+      setPendingNavigation(next);
+      return;
+    }
+    if (newsGuard.current && !newsGuard.current()) return;
+    approvedNewsHash.current = next;
+    window.location.hash = next;
+  }, []);
+  const restoreHash = useCallback(() => {
+    if ((location.hash || "#top") === currentHash.current) return;
+    const arrived = window.navigation?.currentEntry?.index;
+    const previous = currentHistoryIndex.current;
+    if (previous >= 0 && arrived >= 0 && previous !== arrived) {
+      history.go(previous - arrived);
+    } else {
+      history.replaceState(history.state, "", currentHash.current);
+    }
+  }, []);
   const [identity, setIdentity] = useState({ status: "loading", account: null });
   const [accountAttempt, setAccountAttempt] = useState(0);
   const staffRecheckPending = useRef(false);
+  const staffRecheckRetries = useRef(0);
   const recheckIdentity = useCallback(() => {
     staffRecheckPending.current = true;
+    staffRecheckRetries.current = 0;
+    setIdentity({ status: "loading", account: null });
     setAccountAttempt(value => value + 1);
   }, []);
   const news = useNewsSocket(authorization, identity.account, recheckIdentity);
   const [feed, setFeed] = useState({ status: "idle", data: null });
   const [feedAttempt, setFeedAttempt] = useState(0);
   const [readIds, setReadIds] = useState(() => new Set());
-  const profileAuthority = useRef(0);
   const onProfileLoaded = useCallback(profile => {
-    profileAuthority.current += 1;
-    setIdentity({ status: "ready", account: profile });
+    if (staffRecheckPending.current) return;
+    setIdentity(current => {
+      const account = current.account;
+      if (!account || account.id !== profile.id || account.role !== profile.role
+        || (account.name === profile.name && account.avatarUrl === profile.avatarUrl)) return current;
+      return { ...current, account: { ...account, name: profile.name, avatarUrl: profile.avatarUrl } };
+    });
   }, []);
 
   useEffect(() => {
@@ -68,10 +113,11 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
       const approved = approvedNewsHash.current === next;
       approvedNewsHash.current = null;
       if (!approved && next !== currentHash.current && newsGuard.current && !newsGuard.current()) {
-        history.replaceState(history.state, "", currentHash.current);
+        restoreHash();
         return;
       }
       currentHash.current = next;
+      currentHistoryIndex.current = window.navigation?.currentEntry?.index;
       setHash(next);
     }
     function onLink(event) {
@@ -86,28 +132,21 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
       }
       if (url.origin !== location.origin || url.pathname !== location.pathname || url.search !== location.search
         || !url.hash || url.hash === "#main" || url.hash === currentHash.current || link.closest(".account-feedback")) return;
-      if (dirty.current) {
-        event.preventDefault();
-        setPendingNavigation(url.hash);
-      } else if (!newsGuard.current()) {
-        event.preventDefault();
-      } else {
-        approvedNewsHash.current = url.hash;
-      }
+      event.preventDefault();
+      handleNavigate(url.hash);
     }
     function onUnload(event) { if (dirty.current) { event.preventDefault(); event.returnValue = ""; } }
     window.addEventListener("hashchange", onHash);
     document.addEventListener("click", onLink);
     window.addEventListener("beforeunload", onUnload);
     return () => { window.removeEventListener("hashchange", onHash); document.removeEventListener("click", onLink); window.removeEventListener("beforeunload", onUnload); };
-  }, []);
+  }, [handleNavigate, restoreHash]);
 
   useEffect(() => {
     let active = true;
     let retryTimer;
     const controller = new AbortController();
-    const expectedAuthority = profileAuthority.current;
-    const isCurrent = () => active && expectedAuthority === profileAuthority.current;
+    const isCurrent = () => active;
     async function loadAccount() {
       setIdentity(current => (current.status === "ready" ? current : { status: "loading", account: null }));
       try {
@@ -124,6 +163,7 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
         }
         if (!response.ok) throw new Error("Account unavailable");
         const account = await response.json();
+        if (!isHomeAccount(account)) throw new Error("Invalid account response");
         if (isCurrent()) {
           staffRecheckPending.current = false;
           setIdentity({ status: "ready", account });
@@ -131,9 +171,12 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
       } catch {
         if (!isCurrent()) return;
         setIdentity({ status: "error", account: null });
-        if (staffRecheckPending.current) retryTimer = window.setTimeout(() => {
-          if (isCurrent()) setAccountAttempt(value => value + 1);
-        }, staffRecheckRetryMs);
+        if (staffRecheckPending.current && staffRecheckRetries.current < maxStaffRecheckRetries) {
+          const delay = staffRecheckRetryMs * 2 ** staffRecheckRetries.current++;
+          retryTimer = window.setTimeout(() => {
+            if (isCurrent()) setAccountAttempt(value => value + 1);
+          }, delay);
+        }
       }
     }
     void loadAccount();
@@ -149,22 +192,24 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
     let timer;
     const controller = new AbortController();
     async function refresh() {
+      let accessDenied = false;
       try {
         const headers = { Accept: "application/json" };
         if (authorization) headers.Authorization = authorization;
         const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(headerRequestTimeoutMs)]);
         const response = await fetch("/api/v1/home/notifications", { headers, credentials, signal });
+        accessDenied = response.status === 401 || response.status === 403;
         if (!response.ok) throw new Error("Feed unavailable");
         const data = await response.json();
-        if (data.recipientId !== account.id || !Array.isArray(data.items)
-          || data.items.length > 30 || !data.items.every(item => typeof item.id === "string" && typeof item.message === "string")) {
+        if (data?.recipientId !== account.id || !Array.isArray(data.items)
+          || data.items.length > 30 || !data.items.every(isNotice)) {
           throw new Error("Invalid recipient feed");
         }
         if (!controller.signal.aborted) setFeed({ status: "ready", data });
       } catch {
         if (!controller.signal.aborted) setFeed({ status: "error", data: null });
       } finally {
-        if (!controller.signal.aborted) timer = window.setTimeout(refresh, 5000);
+        if (!controller.signal.aborted && !accessDenied) timer = window.setTimeout(refresh, 5000);
       }
     }
     void refresh();
@@ -199,10 +244,6 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
       document.getElementById(onSalesPage ? "sale-main" : "main")?.focus({ preventScroll: true });
     }
   }, [hash, isSpecialPage, onSalesPage]);
-
-  function handleNavigate(newHash) {
-    window.location.hash = newHash;
-  }
 
   if (onCustomerPage) return <CustomerApp onNavigateHome={() => handleNavigate("#top")} />;
   const tableMenuHref = readCustomerSession() ? "#customer" : undefined;
@@ -246,7 +287,7 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
       isAdmin={isAdmin} expiryNotice={expiryNotice} />;
   }
   return <SiteLayout {...layout} homepage={!isSpecialPage || onNewsPage}
-    currentPage={onAccountPage ? "account" : onLoginPage ? "login" : onNewsPage ? "news" : "home"} isAuthPage={isAuthPage}>
+    currentPage={onAccountPage ? "account" : onLoginPage ? "login" : onNewsPage ? "news" : isSpecialPage ? null : hash === "#about" ? "about" : "home"} isAuthPage={isAuthPage}>
     {expiryNotice}
     {identity.status === "error" && <div className="identity-error" role="alert">Chưa tải được thông tin tài khoản.
       <button type="button" onClick={() => setAccountAttempt(value => value + 1)}>Thử lại</button></div>}
@@ -276,7 +317,9 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
     ) : onAccountPage ? (
       identity.account?.role === "CUSTOMER" && hash !== "#account-password"
         ? <CustomerAccountPage status={identity.status} account={identity.account} onNavigate={handleNavigate} />
-        : <PersonnelAccountPage key={hash === "#account-password" ? "password" : "profile"} changingPassword={hash === "#account-password"} onProfileLoaded={onProfileLoaded} onDirtyChange={onDirtyChange} />
+        : <PersonnelAccountPage key={hash === "#account-password" ? "password" : "profile"} changingPassword={hash === "#account-password"}
+          access={account?.role === "STAFF" || account?.role === "ADMIN" ? "verified" : identity.status}
+          onProfileLoaded={onProfileLoaded} onDirtyChange={onDirtyChange} />
     ) : onBillsPage ? (
       <section className="account-page">
         <h1>{onStatistics ? "Thống kê doanh thu" : "Khu vực quản lý hóa đơn"}</h1>
@@ -288,7 +331,7 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
       <HomePage tableMenuHref={tableMenuHref} />
     )}
     {pendingNavigation && <LeaveProfileDialog onCancel={() => {
-      history.replaceState(history.state, "", `${location.pathname}${location.search}${currentHash.current}`);
+      restoreHash();
       setPendingNavigation(null);
     }} onLeave={() => {
       const target = pendingNavigation;
@@ -298,6 +341,7 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
       currentHash.current = target;
       setHash(target);
       if (window.location.hash !== target) window.location.hash = target;
+      else currentHistoryIndex.current = window.navigation?.currentEntry?.index;
     }} />}
   </SiteLayout>;
 }

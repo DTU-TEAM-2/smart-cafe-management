@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { mkdir } from "node:fs/promises";
-import { productMocks, loginFromPage, profileFromHeader } from "./account-fixtures.js";
+import { productMocks, loginFromPage, profileFromHeader, staffProfile } from "./account-fixtures.js";
 
 const evidence = new URL("../../docs/handover/evidence/dt2-28/", import.meta.url);
 async function screenshot(page, name) {
@@ -96,6 +96,88 @@ test("logout from the header confirms before discarding a dirty profile", async 
   await signOut.click();
   await confirmation.getByRole("button", { name: "Rời trang" }).click();
   await expect(page).toHaveURL(/#login$/);
+});
+
+test("cancelling account button navigation leaves browser history untouched", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: "Cập nhật thông tin" }).click();
+  const name = page.getByLabel("Họ và tên", { exact: true });
+  await name.fill("Bản nháp");
+  const historyLength = await page.evaluate(() => history.length);
+  await page.getByRole("button", { name: /^Tài khoản / }).click();
+  await page.getByRole("button", { name: "Bán hàng theo bàn", exact: true }).click();
+  await expect(page).toHaveURL(/#account$/);
+  await page.getByRole("button", { name: "Tiếp tục chỉnh sửa" }).click();
+  await expect(name).toHaveValue("Bản nháp");
+  expect(await page.evaluate(() => history.length)).toBe(historyLength);
+  await page.getByRole("button", { name: "Hủy thay đổi" }).click();
+  await page.goBack();
+  await expect(page).toHaveURL(/#staff$/);
+});
+
+test("cancelling browser Back preserves both the previous entry and the draft", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: "Cập nhật thông tin" }).click();
+  const name = page.getByLabel("Họ và tên", { exact: true });
+  await name.fill("Bản nháp");
+  await page.goBack();
+  const confirmation = page.getByRole("dialog", { name: "Rời trang đang chỉnh sửa?" });
+  await confirmation.getByRole("button", { name: "Tiếp tục chỉnh sửa" }).click();
+  await expect(page).toHaveURL(/#account$/);
+  await expect(name).toHaveValue("Bản nháp");
+  await page.goBack();
+  await confirmation.getByRole("button", { name: "Rời trang" }).click();
+  await expect(page).toHaveURL(/#staff$/);
+  await page.goForward();
+  await expect(page).toHaveURL(/#account$/);
+  await expect(name).toHaveCount(0);
+});
+
+test("a late profile response cannot override a denied staff recheck", async ({ page }) => {
+  await productMocks(page);
+  let socket, sessions = 0, recheck = false;
+  const profileGate = Promise.withResolvers();
+  const profileStarted = Promise.withResolvers();
+  const profileFinished = Promise.withResolvers();
+  const accountGate = Promise.withResolvers();
+  const accountStarted = Promise.withResolvers();
+  await page.routeWebSocket("**/api/v1/news/events", connection => {
+    sessions++;
+    connection.onMessage(() => {
+      socket = connection;
+      connection.send(JSON.stringify({ type: "READY" }));
+    });
+  });
+  await page.route("**/api/v1/home/account", async route => {
+    if (!recheck) return route.fallback();
+    accountStarted.resolve();
+    await accountGate.promise;
+    return route.fulfill({ status: 403, json: {} });
+  });
+  await page.route("**/api/v1/profiles/me", async route => {
+    profileStarted.resolve();
+    await profileGate.promise;
+    await route.fulfill({ json: { ...staffProfile, name: "Hồ sơ tải chậm" } });
+    profileFinished.resolve();
+  });
+  await loginFromPage(page);
+  await expect.poll(() => Boolean(socket)).toBe(true);
+  await page.getByRole("button", { name: /^Tài khoản / }).click();
+  await page.getByRole("button", { name: "Thông tin tài khoản", exact: true }).click();
+  await profileStarted.promise;
+  recheck = true;
+  await socket.close({ code: 1008 });
+  await accountStarted.promise;
+  await expect(page.getByRole("button", { name: /^Thông báo/ })).toHaveCount(0);
+  profileGate.resolve();
+  await profileFinished.promise;
+  await expect(page.getByRole("status")).toContainText("Đang xác minh tài khoản");
+  await expect(page.locator(".personnel-fields")).toHaveCount(0);
+  accountGate.resolve();
+  await expect(page.getByRole("link", { name: "Đăng nhập", exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Tài khoản / })).toHaveCount(0);
+  await expect(page.locator(".personnel-fields")).toHaveCount(0);
+  expect(sessions).toBe(1);
 });
 
 test("validation has field links, focus and no mutation", async ({ page }, info) => {

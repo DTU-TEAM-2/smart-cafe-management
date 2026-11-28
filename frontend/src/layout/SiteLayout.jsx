@@ -3,16 +3,17 @@ import AccountAvatar from "./AccountAvatar.jsx";
 
 const noticeTime = new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", timeZone: "Asia/Ho_Chi_Minh" });
 function formattedTime(value) {
+  if (!value) return null;
   const date = new Date(value);
   return Number.isFinite(date.getTime()) ? noticeTime.format(date) : null;
 }
 
 const customerMenuHref = "#customer";
 const navigation = [
-  { label: "Trang chủ", href: "#top" },
+  { label: "Trang chủ", key: "home", href: "#top" },
   { label: "Thực đơn", key: "menu", href: customerMenuHref },
   { label: "Tin tức", key: "news" },
-  { label: "Về chúng tôi", href: "#about" },
+  { label: "Về chúng tôi", key: "about", href: "#about" },
 ];
 
 const footer = [
@@ -138,7 +139,9 @@ export default function SiteLayout({ children, account = null, notifications = n
   function handleHeaderKey(event) {
     if (event.key !== "Escape" || !panel) return;
     event.preventDefault();
-    ({ menu: menuButton, account: accountButton, notifications: notificationButton })[panel].current?.focus();
+    const trigger = ({ menu: menuButton, account: accountButton, notifications: notificationButton })[panel].current;
+    if (trigger?.getClientRects().length) trigger.focus();
+    else event.currentTarget.querySelector(".brand")?.focus();
     setPanel(null);
   }
 
@@ -164,8 +167,8 @@ export default function SiteLayout({ children, account = null, notifications = n
           {[
             ...navigation,
             ...(isStaff ? [{ label: "Quản lý hóa đơn", href: "#bills" }] : []),
-          ].map(({ label, href, key }, index) => (
-            <SiteLink key={label} href={links[key] ?? href} aria-current={(index === 0 && currentPage === "home") || key === currentPage ? "page" : undefined}
+          ].map(({ label, href, key }) => (
+            <SiteLink key={label} href={links[key] ?? href} aria-current={key === currentPage ? "page" : undefined}
               onClick={() => { if (panel === "menu") menuButton.current?.focus(); setPanel(null); }}>{label}</SiteLink>
           ))}
         </nav>

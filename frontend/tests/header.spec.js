@@ -97,3 +97,23 @@ test("notification errors can be retried and a wrong recipient snapshot is never
   await page.getByRole("button", { name: "Thử lại", exact: true }).click();
   await expect(page.getByText("Chưa có thông báo.", { exact: true })).toBeVisible();
 });
+
+test("a denied notification request stops automatic polling until retry", async ({ page }) => {
+  await page.clock.install();
+  let calls = 0;
+  await page.route("**/api/v1/home/highlights", route => route.fulfill({ json: { newest: [], mostOrdered: [] } }));
+  await page.route("**/api/v1/auth/me", route => route.fulfill({ json: { ...admin, fullName: admin.name } }));
+  await page.route("**/api/v1/home/account", route => route.fulfill({ json: admin }));
+  await page.route("**/api/v1/home/notifications", route => {
+    calls++;
+    return route.fulfill(calls === 1 ? { status: 403, json: {} } : { json: { recipientId: admin.id, items: [] } });
+  });
+  await page.goto("/#top");
+  await page.getByRole("button", { name: /^Thông báo/ }).click();
+  await expect(page.getByRole("alert")).toContainText("Chưa tải được thông báo");
+  await page.clock.fastForward(15000);
+  expect(calls).toBe(1);
+  await page.getByRole("button", { name: "Thử lại", exact: true }).click();
+  await expect(page.getByText("Chưa có thông báo.", { exact: true })).toBeVisible();
+  expect(calls).toBe(2);
+});

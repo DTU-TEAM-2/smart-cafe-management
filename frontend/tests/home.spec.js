@@ -79,6 +79,84 @@ test("opens the customer menu from the homepage for a guest without a table sess
   await expect(page.getByRole("heading", { name: "Thực đơn hôm nay" })).toBeVisible();
 });
 
+for (const role of [null, "CUSTOMER", "STAFF", "ADMIN"]) test(`header actions stay inside the viewport for ${role ?? "guests"} across breakpoints`, async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop", "Desktop viewport and narrow-window matrix");
+  if (role) await page.route("**/api/v1/home/account", route => route.fulfill({ json: { id: "1", role, name: "Khách LECKER" } }));
+  await page.route("**/api/v1/home/highlights", route => route.fulfill({ json: { newest, mostOrdered } }));
+  await page.route("**/api/v1/home/notifications", route => route.fulfill({ json: { recipientId: "1", items: [] } }));
+  await page.goto("/#top");
+  if (role) await expect(page.getByRole("button", { name: "Tài khoản Khách LECKER" })).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+  for (const width of [640, 880, 881, 1140, 1141, 1279, 1280, 1281, 1366, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    const positions = await page.locator(".header-inner").evaluate(element => {
+      const controls = [...element.querySelectorAll(".brand, .header-nav a, .header-actions > a, .header-actions button, .mobile-toggle")];
+      return controls.map(control => control.getBoundingClientRect()).filter(rect => rect.width > 0)
+        .map(rect => ({ left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom }));
+    });
+    for (const rect of positions) {
+      expect(rect.left, `${role} at ${width}px`).toBeGreaterThanOrEqual(0);
+      expect(rect.right, `${role} at ${width}px`).toBeLessThanOrEqual(width);
+      expect(rect.top).toBeGreaterThanOrEqual(0);
+      expect(rect.bottom).toBeLessThanOrEqual(900);
+    }
+  }
+});
+
+test("a full notification panel is scrollable in landscape", async ({ page }) => {
+  await page.setViewportSize({ width: 667, height: 320 });
+  await page.route("**/api/v1/home/account", route => route.fulfill({ json: { id: "1", role: "STAFF", name: "Nhân viên" } }));
+  await page.route("**/api/v1/home/notifications", route => route.fulfill({ json: { recipientId: "1",
+    items: Array.from({ length: 30 }, (_, index) => ({ id: String(index), message: `Thông báo bàn số ${index + 1}` })),
+  } }));
+  await page.route("**/api/v1/home/highlights", route => route.fulfill({ json: { newest, mostOrdered } }));
+  await page.goto("/#top");
+  await page.getByRole("button", { name: /^Thông báo/ }).click();
+  const panel = page.getByRole("region", { name: "Thông báo phục vụ" });
+  await expect(panel.getByRole("listitem")).toHaveCount(30);
+  expect(await panel.evaluate(element => element.getBoundingClientRect().bottom <= innerHeight)).toBe(true);
+  await panel.getByText("Thông báo bàn số 30", { exact: true }).scrollIntoViewIfNeeded();
+  await expect(panel.getByText("Thông báo bàn số 30", { exact: true })).toBeInViewport();
+});
+
+test("malformed account and ranking payloads fail closed and can be retried", async ({ page }) => {
+  let valid = false;
+  const duplicate = [newest[0], newest[0]];
+  await page.route("**/api/v1/home/account", route => route.fulfill({ json: valid
+    ? { id: "1", role: "CUSTOMER", name: "Khách LECKER", birthday: null }
+    : { id: "1", role: ["ADMIN"], name: "Quản trị" },
+  }));
+  await page.route("**/api/v1/home/highlights", route => route.fulfill({ json: { newest: valid ? newest : duplicate, mostOrdered } }));
+  await page.goto("/#top");
+  const accountError = page.getByRole("alert").filter({ hasText: "Chưa tải được thông tin tài khoản." });
+  const rankingsError = page.getByRole("alert").filter({ hasText: "Chưa tải được danh sách món." });
+  await expect(accountError).toBeVisible();
+  await expect(rankingsError).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Thông báo/ })).toHaveCount(0);
+  valid = true;
+  await accountError.getByRole("button", { name: "Thử lại" }).click();
+  await rankingsError.getByRole("button", { name: "Thử lại" }).click();
+  await expect(page.getByRole("button", { name: "Tài khoản Khách LECKER" })).toBeVisible();
+  await expect(page.locator("#newest li")).toHaveCount(5);
+});
+
+test("active navigation and focus follow the current page after resizing", async ({ page }, info) => {
+  test.skip(info.project.name !== "desktop", "Resize a desktop browser");
+  await page.route("**/api/v1/home/highlights", route => route.fulfill({ json: { newest, mostOrdered } }));
+  await page.setViewportSize({ width: 800, height: 800 });
+  await page.goto("/#about");
+  await page.getByRole("button", { name: "Điều hướng" }).click();
+  const nav = page.getByRole("navigation", { name: "Điều hướng chính" });
+  const about = nav.getByRole("link", { name: "Về chúng tôi" });
+  await expect(about).toHaveAttribute("aria-current", "page");
+  await about.focus();
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("link", { name: "LECKER Coffee Cafe Trang chủ", exact: true })).toBeFocused();
+  await page.goto("/#staff");
+  await expect(nav.locator("[aria-current]")).toHaveCount(0);
+});
+
 test("opens each story from its card and returns focus when closed", async ({ page, isMobile }) => {
   await page.route("**/api/v1/home/highlights", route => route.fulfill({ json: { newest: [], mostOrdered: [] } }));
   await page.goto("/#about");

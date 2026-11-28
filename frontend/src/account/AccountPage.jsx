@@ -6,7 +6,7 @@ import ChangePasswordForm from "./ChangePasswordForm.jsx";
 import { AccountIssue, ErrorSummary } from "./AccountFeedback.jsx";
 import "./account.css";
 
-export default function AccountPage({ changingPassword, onProfileLoaded, onDirtyChange }) {
+export default function AccountPage({ changingPassword, access, onProfileLoaded, onDirtyChange }) {
   const auth = useAuth();
   const account = useAccountProfile();
   const [success, setSuccess] = useState("");
@@ -36,6 +36,14 @@ export default function AccountPage({ changingPassword, onProfileLoaded, onDirty
     event.preventDefault();
     const result = await account.save();
     if (result.ok) setSuccess(result.unchanged ? "Thông tin của bạn không có thay đổi." : "Thông tin cá nhân đã được cập nhật thành công.");
+  }
+
+  if (access !== "verified") {
+    return <section className="personnel-page">
+      <h1>{changingPassword ? "Đổi mật khẩu" : "Thông tin cá nhân"}</h1>
+      {access === "loading" && <p role="status">Đang xác minh tài khoản…</p>}
+      {access === "ready" && <p>Vui lòng đăng nhập bằng tài khoản nhân viên hoặc quản trị viên.</p>}
+    </section>;
   }
 
   return <section className="personnel-page" aria-labelledby="personnel-title">

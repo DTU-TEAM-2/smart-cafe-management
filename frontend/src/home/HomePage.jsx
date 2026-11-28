@@ -6,8 +6,11 @@ const quantity = new Intl.NumberFormat("vi-VN");
 
 function validList(items, amount) {
   return Array.isArray(items) && items.length <= 5 && items.every((item) =>
-    typeof item?.id === "string" && /^[1-9]\d{0,18}$/.test(item.id) && typeof item.name === "string" && item.name.trim()
-    && typeof item[amount] === "string" && /^[1-9]\d{0,29}$/.test(item[amount]));
+    typeof item?.id === "string" && /^[1-9]\d{0,18}$/.test(item.id)
+    && (item.id.length < 19 || item.id <= "9223372036854775807")
+    && typeof item.name === "string" && item.name.trim()
+    && typeof item[amount] === "string" && /^[1-9]\d{0,29}$/.test(item[amount]))
+    && new Set(items.map(item => item.id)).size === items.length;
 }
 
 function Rankings({ status, data, retry }) {

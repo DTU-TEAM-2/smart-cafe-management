@@ -49,7 +49,8 @@ section { scroll-margin-top: 24px; }
 .header-panel p, .header-panel ul { margin: 0; color: var(--muted); }
 .header-panel ul { padding-inline-start: 20px; max-height: 220px; overflow: auto; }
 .header-panel li + li { margin-top: 8px; }
-.header-panel .notice-list { padding: 0; list-style: none; max-height: 340px; }
+.header-panel .notice-list { padding: 0; list-style: none; min-height: 0; max-height: 340px; overscroll-behavior: contain; }
+.notification-panel { display: flex; flex-direction: column; max-height: calc(100dvh - var(--header-height) - 12px); overflow-y: auto; }
 .notice-list li { display: flex; gap: 12px; padding: 12px 0; }
 .notice-list li + li { border-top: 1px solid #d9b57318; margin-top: 0; }
 .notice-symbol { flex: 0 0 32px; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; background: #d9b57318; color: var(--gold); }
