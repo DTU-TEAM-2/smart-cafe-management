@@ -120,6 +120,8 @@ class MenuCatalog {
                 INSERT INTO menu_items(code, name, price, category_id, image_media_id, available)
                 VALUES (?, ?, ?, ?, ?, ?)
                 """, input.code(), input.name(), input.price(), categoryId, mediaId, input.available());
+        // Membership and its confirmation version commit under the same category lock.
+        jdbc.update("UPDATE menu_categories SET version=version+1 WHERE id=?", categoryId);
         return item(input.code());
     }
 
@@ -139,8 +141,9 @@ class MenuCatalog {
     void deleteItem(String code, long version) {
         var groups = jdbc.queryForList("SELECT c.code FROM menu_items i JOIN menu_categories c ON c.id=i.category_id WHERE i.code=? AND i.active=TRUE", String.class, normalizeCode(code));
         if (groups.isEmpty()) throw missing("Món");
-        lockCategory(groups.getFirst());
+        long categoryId = lockCategory(groups.getFirst());
         requireWrite(jdbc.update("UPDATE menu_items SET active=FALSE, version=version+1 WHERE code=? AND active=TRUE AND version=?", normalizeCode(code), version));
+        jdbc.update("UPDATE menu_categories SET version=version+1 WHERE id=?", categoryId);
     }
 
     private long lockCategory(String code) {

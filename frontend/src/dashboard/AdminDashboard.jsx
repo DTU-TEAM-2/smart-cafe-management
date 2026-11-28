@@ -3,15 +3,15 @@ import { useAuth } from "../auth/useAuth.js";
 import FeedbackManagement from "../feedback/FeedbackManagement.jsx";
 
 export default function AdminDashboard({ onNavigate, feedback = false }) {
-  const { user, logout } = useAuth();
+  const { user, token, logout } = useAuth();
 
   useEffect(() => {
-    if (!user) {
+    if (!user && !token) {
       onNavigate("#login");
-    } else if (user.role !== "ADMIN") {
+    } else if (user && user.role !== "ADMIN") {
       onNavigate("#top");
     }
-  }, [user, onNavigate]);
+  }, [user, token, onNavigate]);
 
   if (!user || user.role !== "ADMIN") {
     return null;
@@ -49,14 +49,15 @@ export default function AdminDashboard({ onNavigate, feedback = false }) {
         <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "8px", padding: "24px" }}>
           <h3 style={{ color: "var(--gold)", margin: "0 0 8px" }}>☕ Quản lý Món & Menu</h3>
           <p style={{ color: "var(--muted)", fontSize: "13px", lineHeight: "1.5" }}>Cập nhật danh mục đồ uống, giá cả, hình ảnh món và trạng thái phục vụ.</p>
+          <a href="#admin-menu">Mở quản lý thực đơn</a>
         </div>
         <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "8px", padding: "24px" }}>
           <h3 style={{ color: "var(--gold)", margin: "0 0 8px" }}>🪑 Quản lý Bàn phục vụ</h3>
           <p style={{ color: "var(--muted)", fontSize: "13px", lineHeight: "1.5" }}>Sơ đồ bàn, trạng thái bàn trống, kích hoạt bàn và phiên phục vụ.</p>
         </div>
         <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "8px", padding: "24px" }}>
-          <h3 style={{ color: "var(--gold)", margin: "0 0 8px" }}>📊 Thống kê Doanh thu</h3>
-          <p style={{ color: "var(--muted)", fontSize: "13px", lineHeight: "1.5" }}>Báo cáo doanh thu theo ngày, biểu đồ hóa đơn và thống kê món bán chạy.</p>
+          <h3 style={{ color: "var(--gold)", margin: "0 0 8px" }}><a href="#statistics">Thống kê doanh thu</a></h3>
+          <p style={{ color: "var(--muted)", fontSize: "13px", lineHeight: "1.5" }}>Doanh thu theo kỳ và tỷ trọng theo phương thức thanh toán.</p>
         </div>
       </div>}
     </div>

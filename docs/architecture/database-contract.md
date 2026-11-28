@@ -161,3 +161,10 @@ The original delivery columns are retained. Legacy source includes a queued deli
 ## DT2-2 — phản hồi Database về provision và baseline, 13/11/2026
 
 Người phụ trách Database báo cáo một MySQL 8.0.44 có 20 bảng, 4 view, chưa có history và có các cột/check audience của News. Workspace kiểm tra metadata read-only trên kết nối hiện có, quan sát MySQL 8.0.45 với 13 bảng, 0 view và có Flyway history. Cần DDL-only và ref được duyệt cho môi trường đích 20 bảng, cùng xác nhận liệu legacy còn cần nâng cấp. `schema.sql` thiếu phần News audience được báo cáo và chỉ dùng làm fixture. Xem [kế hoạch provision, baseline và kiểm thử](../handover/dt2-2-flyway-baseline-followup.md).
+## DT2-8 · Đối chiếu schema Docker local
+
+Đối chiếu metadata MySQL ngày 13/11/2026. Schema Docker cũ `smart_cafe_dt26` thiếu `bills.creator_name_snapshot`, `bills.table_code_snapshot`, `bills.table_name_snapshot`, `bill_items.order_item_id`, `bill_items.item_code` và `bill_items.line_total`. Tiền hóa đơn ở schema cũ dùng `DECIMAL(12,0)`, còn fixture theo mô hình mới dùng `DECIMAL(18,0)`. Các khác biệt này ảnh hưởng trực tiếp tới truy vấn danh sách và chi tiết hóa đơn.
+
+DT2-8 dùng schema theo [sơ đồ ngày 11/11](../handover/evidence/system-database-reference-2026-11-11.jpg) và tái sử dụng snapshot từ DT2-6. Kiểm thử dùng fixture trong schema MySQL riêng có hậu tố `_test`. Cần người phụ trách DB xác nhận schema triển khai và phương án giữ nguyên lịch sử hóa đơn nếu phải chuyển dữ liệu từ schema cũ.
+
+Ngày 17/11/2026, kiểm tra chỉ đọc trên `smart_cafe_dt26` cho thấy bảng `bills` và `bill_items` đều có 0 bản ghi. Schema này cũng thiếu `payments`, `users` và `order_items`. QA SRS câu 23 ưu tiên chuyển dữ liệu nếu khả thi. Với nguồn Docker này không có hóa đơn cần chuyển. Nếu có nguồn cũ khác, cần đối soát mã hóa đơn, phiên, người lập, dòng món, tổng tiền và lịch sử thanh toán từ nguồn gốc trước khi chuyển. [Trả lời QA DT2-8](../handover/dt2-8-qa.md)

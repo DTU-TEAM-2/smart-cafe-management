@@ -9,6 +9,7 @@ import ResetPasswordPage from "../auth/ResetPasswordPage.jsx";
 import AdminDashboard from "../dashboard/AdminDashboard.jsx";
 import StaffDashboard from "../dashboard/StaffDashboard.jsx";
 import SalesWorkspace from "../sales/SalesWorkspace.jsx";
+import BillsWorkspace from "../billing/BillsWorkspace.jsx";
 import CustomerApp from "../customer/CustomerApp.jsx";
 import { useAuth } from "../auth/AuthContext.jsx";
 import PersonnelAccountPage from "../account/AccountPage.jsx";
@@ -18,6 +19,7 @@ import LeaveProfileDialog from "../account/LeaveProfileDialog.jsx";
 import useNewsSocket from "../news/useNewsSocket.js";
 import { readCustomerSession } from "../customer/customerSession.js";
 
+const MenuAdmin = lazy(() => import("../menu/MenuAdmin.jsx"));
 const NewsPage = lazy(() => import("../news/NewsPage.jsx"));
 
 const roles = { ADMIN: "Quản trị viên", STAFF: "Nhân viên phục vụ", CUSTOMER: "Khách hàng thân thiết" };
@@ -155,13 +157,16 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
   const onOtpPage = hash.startsWith("#verify-otp");
   const onResetPasswordPage = hash.startsWith("#reset-password");
   const onAdminPage = hash.startsWith("#admin");
+  const onMenuAdminPage = hash === "#admin-menu";
   const onStaffPage = hash.startsWith("#staff");
   const onNewsPage = /^#news(?:\/|$)/.test(hash);
   const onSalesPage = hash === "#sale" || hash === "#sale-income";
   const onCustomerPage = hash.startsWith("#customer");
+  const onStatistics = hash === "#statistics";
+  const onBillsPage = onStatistics || ["#bills", "#manage/bills", "#manage-bills"].includes(hash);
 
   const isAuthPage = onLoginPage || onRegisterPage || onForgotPasswordPage || onOtpPage || onResetPasswordPage;
-  const isSpecialPage = onAccountPage || isAuthPage || onAdminPage || onStaffPage || onSalesPage || onCustomerPage || onNewsPage;
+  const isSpecialPage = onAccountPage || isAuthPage || onAdminPage || onStaffPage || onSalesPage || onCustomerPage || onNewsPage || onBillsPage;
 
   useEffect(() => {
     if (!isSpecialPage && hash) {
@@ -181,16 +186,42 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
   if (onCustomerPage) return <CustomerApp onNavigateHome={() => handleNavigate("#top")} />;
   const tableMenuHref = readCustomerSession() ? "#customer" : undefined;
   const account = identity.account ? { ...identity.account, profileHref: "#account" } : null;
+  if (onMenuAdminPage) {
+    if (identity.status === "loading") return <main><p role="status">Đang xác minh tài khoản…</p></main>;
+    if (identity.status === "error") return <main><p role="alert">Chưa xác minh được tài khoản.</p>
+      <button onClick={() => { setIdentity({ status: "loading", account: null }); setAccountAttempt(value => value + 1); }}>Thử lại</button></main>;
+    if (account?.role !== "ADMIN" || !authorization) return <main><h1>Quản lý thực đơn</h1>
+      <p role="alert">Chỉ quản trị viên đã đăng nhập mới có thể quản lý thực đơn.</p>
+      <a href={account ? "#top" : loginHref}>{account ? "Về trang chủ" : "Đăng nhập"}</a></main>;
+    return <Suspense fallback={<main><p role="status">Đang tải quản lý thực đơn…</p></main>}>
+      <PasswordExpiryNotice status={auth.passwordStatus} />
+      <MenuAdmin authorization={authorization} />
+    </Suspense>;
+  }
   if (onSalesPage) return <SalesWorkspace account={account} identityStatus={identity.status}
     authorization={authorization} credentials={credentials} income={hash === "#sale-income"}
     retryIdentity={() => { setIdentity({ status: "loading", account: null }); setAccountAttempt(value => value + 1); }} />;
   const notifications = feed.data && { ...feed.data, items: feed.data.items.map(item => ({ ...item, read: readIds.has(item.id) })) };
-  return <SiteLayout account={account} notifications={notifications} links={{ login: loginHref, news: "#news", menu: tableMenuHref }}
-    currentPage={onAccountPage ? "account" : onLoginPage ? "login" : onNewsPage ? "news" : "home"} isAuthPage={isAuthPage} notificationState={feed.status}
-    onRetryNotifications={() => { setFeed({ status: "loading", data: null }); setFeedAttempt(value => value + 1); }}
-    onNotificationsOpen={() => setReadIds(previous => new Set([...previous, ...(feed.data?.items.map(item => item.id) ?? [])]))}
-    onLogout={() => { if (newsGuard.current && !newsGuard.current()) return; void auth.logout(); if (!onNewsPage) window.location.hash = "#login"; }}>
-    {auth.token && ["ADMIN", "STAFF"].includes(auth.user?.role) && <PasswordExpiryNotice status={auth.passwordStatus} />}
+  const layout = {
+    account, notifications, links: { login: loginHref, news: "#news", menu: tableMenuHref }, notificationState: feed.status,
+    onRetryNotifications: () => { setFeed({ status: "loading", data: null }); setFeedAttempt(value => value + 1); },
+    onNotificationsOpen: () => setReadIds(previous => new Set([...previous, ...(feed.data?.items.map(item => item.id) ?? [])])),
+    onLogout: () => {
+      if (newsGuard.current && !newsGuard.current()) return;
+      void auth.logout();
+      if (!onNewsPage) window.location.hash = "#login";
+    },
+  };
+  const isAdmin = account?.role === "ADMIN";
+  const expiryNotice = auth.token && ["ADMIN", "STAFF"].includes(auth.user?.role)
+    ? <PasswordExpiryNotice status={auth.passwordStatus} /> : null;
+  if (onBillsPage && (isAdmin || (!onStatistics && account?.role === "STAFF"))) {
+    return <BillsWorkspace layout={layout} authorization={authorization} credentials={credentials} statistics={onStatistics}
+      isAdmin={isAdmin} expiryNotice={expiryNotice} />;
+  }
+  return <SiteLayout {...layout}
+    currentPage={onAccountPage ? "account" : onLoginPage ? "login" : onNewsPage ? "news" : "home"} isAuthPage={isAuthPage}>
+    {expiryNotice}
     {identity.status === "error" && <div className="identity-error" role="alert">Chưa tải được thông tin tài khoản.
       <button type="button" onClick={() => setAccountAttempt(value => value + 1)}>Thử lại</button></div>}
     {onNewsPage ? (
@@ -220,6 +251,13 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
       identity.account?.role === "CUSTOMER" && hash !== "#account-password"
         ? <CustomerAccountPage status={identity.status} account={identity.account} />
         : <PersonnelAccountPage key={hash === "#account-password" ? "password" : "profile"} changingPassword={hash === "#account-password"} onProfileLoaded={onProfileLoaded} onDirtyChange={onDirtyChange} />
+    ) : onBillsPage ? (
+      <section className="account-page">
+        <h1>{onStatistics ? "Thống kê doanh thu" : "Khu vực quản lý hóa đơn"}</h1>
+        {identity.status === "loading" ? <p role="status">Đang tải thông tin tài khoản…</p>
+          : identity.status === "ready" && <p>{onStatistics ? "Chỉ Quản trị viên (ADMIN) được xem thống kê." : "Khu vực dành cho nhân viên và Quản trị viên (ADMIN)."}</p>}
+        <a href={account ? "#top" : loginHref}>{account ? "Về trang chủ" : "Đăng nhập"}</a>
+      </section>
     ) : (
       <HomePage tableMenuHref={tableMenuHref} />
     )}
