@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import { useAuth } from "../auth/useAuth.js";
+import FeedbackManagement from "../feedback/FeedbackManagement.jsx";
 
-export default function AdminDashboard({ onNavigate }) {
+export default function AdminDashboard({ onNavigate, feedback = false }) {
   const { user, token, logout } = useAuth();
 
   useEffect(() => {
@@ -36,7 +37,11 @@ export default function AdminDashboard({ onNavigate }) {
         </button>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px" }}>
+      <nav aria-label="Admin Manage" style={{ display: "flex", gap: "20px", marginBottom: "24px" }}>
+        <a href="#admin" aria-current={!feedback ? "page" : undefined}>Tổng quan</a>
+        <a href="#admin-feedback" aria-current={feedback ? "page" : undefined}>MANAGE · Feedback</a>
+      </nav>
+      {feedback ? <FeedbackManagement /> : <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "20px" }}>
         <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "8px", padding: "24px" }}>
           <h3 style={{ color: "var(--gold)", margin: "0 0 8px" }}>👥 Quản lý Nhân viên</h3>
           <p style={{ color: "var(--muted)", fontSize: "13px", lineHeight: "1.5" }}>Danh sách nhân viên, thêm mới, phân quyền và điều chỉnh thông tin nhân sự quán.</p>
@@ -54,7 +59,7 @@ export default function AdminDashboard({ onNavigate }) {
           <h3 style={{ color: "var(--gold)", margin: "0 0 8px" }}><a href="#statistics">Thống kê doanh thu</a></h3>
           <p style={{ color: "var(--muted)", fontSize: "13px", lineHeight: "1.5" }}>Doanh thu theo kỳ và tỷ trọng theo phương thức thanh toán.</p>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

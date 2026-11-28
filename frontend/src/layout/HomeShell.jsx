@@ -244,7 +244,7 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
     ) : onResetPasswordPage ? (
       <ResetPasswordPage onNavigate={handleNavigate} />
     ) : onAdminPage ? (
-      <AdminDashboard onNavigate={handleNavigate} />
+      <AdminDashboard onNavigate={handleNavigate} feedback={hash === "#admin-feedback"} />
     ) : onStaffPage ? (
       <StaffDashboard onNavigate={handleNavigate} />
     ) : onAccountPage ? (

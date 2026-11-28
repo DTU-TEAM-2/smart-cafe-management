@@ -1,0 +1,9 @@
+{
+  "name": "LECKER DT2-5 local — secrets injected at runtime",
+  "values": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:18085", "enabled": true },
+    { "key": "adminToken", "value": "", "type": "secret", "enabled": true },
+    { "key": "staffToken", "value": "", "type": "secret", "enabled": true }
+  ],
+  "_postman_variable_scope": "environment"
+}
