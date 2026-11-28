@@ -7,6 +7,26 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/api/v1/home/highlights", route => route.fulfill({ json: { newest: [], mostOrdered: [] } }));
 });
 
+for (const [label, invalid] of [
+  ["missing ID", { id: undefined }], ["zero ID", { id: 0 }], ["negative ID", { id: -1 }],
+  ["out-of-range ID", { id: "9223372036854775808" }], ["unsafe numeric ID", { id: 9007199254740992 }],
+  ["unknown role", { role: "OWNER" }], ["invalid display field", { fullName: { label: "Invalid" } }],
+]) test(`login rejects a malformed Auth identity with ${label}`, async ({ page }) => {
+  const identity = { id: 1, username: "ui-fixture", role: "STAFF", ...invalid };
+  await page.route("**/api/v1/auth/login", route => route.fulfill({ json: { token: "invalid-identity-fixture" } }));
+  await page.route("**/api/v1/auth/me", route => route.fulfill({ json: identity }));
+  const initialAccount = page.waitForResponse(response => response.url().endsWith("/api/v1/home/account"));
+  await page.goto("/#login");
+  await initialAccount;
+  await page.getByLabel("Tên đăng nhập", { exact: true }).pressSequentially("ui-fixture");
+  await page.getByLabel("Mật khẩu", { exact: true }).pressSequentially("UnitPassword1");
+  const authCheck = page.waitForResponse(response => response.url().endsWith("/api/v1/auth/me") && response.ok());
+  await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
+  await authCheck;
+  await expect(page.getByRole("alert")).toContainText("Không xác minh được phiên đăng nhập.");
+  expect(await page.evaluate(() => sessionStorage.getItem("smart_cafe_token"))).toBeNull();
+});
+
 test("required login fields prevent requests and Staff login reaches its dashboard", async ({ page }) => {
   let loginRequests = 0;
   const user = { id: 2, username: "staff-fixture", fullName: "Staff fixture", role: "STAFF" };

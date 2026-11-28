@@ -119,7 +119,8 @@ function HomeFooter({ links, onBackToTop }) {
 }
 
 export default function SiteLayout({ children, account = null, notifications = null, links = {}, onNavigate,
-  currentPage = "home", isAuthPage = false, notificationState = "ready", onRetryNotifications, onLogout, management = false, homepage = false }) {
+  currentPage = "home", isAuthPage = false, notificationState = "ready", onRetryNotifications, onLogout, management = false, homepage = false,
+  readNotices, setReadNotices }) {
   const [panel, setPanel] = useState(null);
   const regionId = useId();
   const menuButton = useRef(null);
@@ -129,7 +130,9 @@ export default function SiteLayout({ children, account = null, notifications = n
   const isStaff = account?.role === "STAFF" || account?.role === "ADMIN";
   const recipient = isStaff ? account.id : null;
   const feedItems = recipient && notifications?.recipientId === recipient ? notifications.items : null;
-  const [read, setRead] = useState(null);
+  const [localRead, setLocalRead] = useState(null);
+  const read = setReadNotices ? readNotices : localRead;
+  const setRead = setReadNotices ?? setLocalRead;
   useEffect(() => {
     if (panel !== "notifications" || !feedItems?.length) return;
     setRead(previous => {
@@ -138,7 +141,7 @@ export default function SiteLayout({ children, account = null, notifications = n
       const ids = new Set([...recent].filter(id => !visibleIds.has(id)).concat([...visibleIds]).slice(-maxRecentReadNotices));
       return { recipient, ids };
     });
-  }, [panel, recipient, feedItems]);
+  }, [panel, recipient, feedItems, setRead]);
   useEffect(() => {
     if (!panel || !headerInner.current) return;
     const inner = headerInner.current;

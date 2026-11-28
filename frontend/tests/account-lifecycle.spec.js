@@ -392,6 +392,8 @@ test("delayed PATCH and failed logout acknowledgement do not resurrect a previou
   await page.getByRole("button", { name: "Đăng xuất", exact: true }).click();
   await expect(page.getByTestId("salary")).toHaveCount(0);
   await page.route("**/api/v1/auth/login", route => route.fulfill({ json: { token: "second-user-test-only", user: { ...user, id: 3, fullName: "New account" }, ...expiry } }));
+  await page.route("**/api/v1/auth/me", route => route.request().headers().authorization === "Bearer second-user-test-only"
+    ? route.fulfill({ json: { ...user, id: 3, fullName: "New account" } }) : route.fallback());
   await signIn(page);
   await expect(page.getByTestId("name")).toHaveText("New account");
   release();

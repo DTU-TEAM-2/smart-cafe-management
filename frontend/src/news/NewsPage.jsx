@@ -1,14 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useAuth } from "../auth/useAuth.js";
 import { getCurrentUserApi } from "../auth/authApi.js";
 import NewsImage from "./NewsImage.jsx";
 import NewsEditor from "./NewsEditor.jsx";
-import { audienceNames, isNewsDetail, isNewsPage, newsDate, isUncertainNewsWrite, newsError, newsRequest, statusNames } from "./newsApi.js";
+import { audienceNames, isNewsDetail, isNewsPage, newsDate, isUncertainNewsWrite, NewsApiError, newsError, newsRequest, statusNames } from "./newsApi.js";
 import "./news.css";
 
-export default function NewsPage({ authorization, account, identityStatus, route, revision, connection, setNavigationGuard }) {
+export default function NewsPage({ authorization, account, suspendedAccount, getVerifiedAccount, identityStatus, route, revision, connection, setNavigationGuard }) {
   const { captureSession, isCurrentSession, expireSession } = useAuth();
   const verification = useRef(null);
+  const access = useRef(null);
+  useLayoutEffect(() => {
+    access.current = account ? captureSession() : null;
+    return () => { access.current = null; };
+  }, [account, captureSession]);
   const checkAccess = useCallback(async (snapshot) => {
     if (!snapshot.token || !isCurrentSession(snapshot)) return;
     if (verification.current?.generation === snapshot.generation) return;
@@ -22,6 +27,9 @@ export default function NewsPage({ authorization, account, identityStatus, route
     }
   }, [isCurrentSession, expireSession]);
   const request = useCallback(async (path, options) => {
+    if (!getVerifiedAccount() || !isCurrentSession(access.current)) {
+      throw new NewsApiError(403, "Vui lòng xác minh lại phiên đăng nhập.");
+    }
     const snapshot = captureSession();
     try {
       return await newsRequest(path, authorization, options);
@@ -29,15 +37,19 @@ export default function NewsPage({ authorization, account, identityStatus, route
       if ([401, 403].includes(error.status) && authorization === `Bearer ${snapshot.token}`) void checkAccess(snapshot);
       throw error;
     }
-  }, [authorization, captureSession, checkAccess]);
+  }, [authorization, captureSession, checkAccess, getVerifiedAccount, isCurrentSession]);
 
+  const match = /^#news\/([0-9]+)(\/edit)?$/.exec(route);
+  const editorAccount = account ?? suspendedAccount;
+  if ((route === "#news/new" || match?.[2]) && editorAccount?.role === "ADMIN") {
+    return <NewsEditor key={`${editorAccount.id}:ADMIN:${route}`} id={match?.[1]} accountId={editorAccount.id}
+      paused={!account} verificationFailed={identityStatus === "error"} request={request} authorization={authorization} setNavigationGuard={setNavigationGuard} />;
+  }
   if (identityStatus === "loading") return <section className="news-page"><p role="status">Đang kiểm tra phiên đăng nhập…</p></section>;
   if (!account) return <section className="news-page news-empty"><p className="eyebrow">LECKER • Tin tức</p><h1>Câu chuyện chờ bạn khám phá.</h1>
     <p>Đăng nhập để xem những tin tức dành cho bạn.</p><a className="news-button primary" href="#login">Đăng nhập</a></section>;
-  const match = /^#news\/([0-9]+)(\/edit)?$/.exec(route);
   if (route === "#news/new" || match?.[2]) {
-    if (account.role !== "ADMIN") return <section className="news-page news-empty"><h1>Bạn không có quyền quản lý tin tức</h1><a href="#news">Về danh sách tin tức</a></section>;
-    return <NewsEditor key={route} id={match?.[1]} accountId={account.id} request={request} authorization={authorization} setNavigationGuard={setNavigationGuard} />;
+    return <section className="news-page news-empty"><h1>Bạn không có quyền quản lý tin tức</h1><a href="#news">Về danh sách tin tức</a></section>;
   }
   if (match) return <NewsDetail key={match[1]} id={match[1]} request={request} authorization={authorization} admin={account.role === "ADMIN"} revision={revision} />;
   return <NewsList request={request} authorization={authorization} admin={account.role === "ADMIN"} revision={revision} connection={account.role === "STAFF" ? connection : null} />;

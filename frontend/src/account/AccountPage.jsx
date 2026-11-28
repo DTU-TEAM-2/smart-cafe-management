@@ -6,15 +6,14 @@ import ChangePasswordForm from "./ChangePasswordForm.jsx";
 import { AccountIssue, ErrorSummary } from "./AccountFeedback.jsx";
 import "./account.css";
 
-export default function AccountPage({ changingPassword, access, canPublishProfile, onProfileLoaded, onDirtyChange }) {
+export default function AccountPage({ changingPassword, access, scopeKey, getProfileScope, nextDisplaySequence, onProfileLoaded, onDirtyChange }) {
   const auth = useAuth();
-  const account = useAccountProfile(canPublishProfile);
+  const account = useAccountProfile({ scopeKey, verified: access === "verified", getProfileScope, nextDisplaySequence, onProfileLoaded });
   const [success, setSuccess] = useState("");
   const editButton = useRef(null);
   const changeButton = useRef(null);
   const wasEditing = useRef(false);
   const profile = account.profile;
-  useEffect(() => { if (profile) onProfileLoaded(profile); }, [profile, onProfileLoaded]);
   useEffect(() => {
     if (account.snapshot && !wasEditing.current) document.getElementById("profile-name")?.focus();
     if (!account.snapshot && wasEditing.current) editButton.current?.focus();
@@ -34,8 +33,12 @@ export default function AccountPage({ changingPassword, access, canPublishProfil
 
   async function save(event) {
     event.preventDefault();
+    const session = auth.captureSession();
     const result = await account.save();
-    if (result.ok) setSuccess(result.unchanged ? "Thông tin của bạn không có thay đổi." : "Thông tin cá nhân đã được cập nhật thành công.");
+    const currentScope = getProfileScope();
+    if (result.ok && auth.isCurrentSession(session) && currentScope && `${currentScope.id}:${currentScope.role}` === scopeKey) {
+      setSuccess(result.unchanged ? "Thông tin của bạn không có thay đổi." : "Thông tin cá nhân đã được cập nhật thành công.");
+    }
   }
 
   if (access !== "verified") {
@@ -70,10 +73,12 @@ export default function AccountPage({ changingPassword, access, canPublishProfil
         {changingPassword ? <ChangePasswordForm account={account} onCancel={() => { account.clearErrors(); returnToProfile(); }} onSuccess={returnToProfile} onDirtyChange={onDirtyChange} />
           : <form noValidate onSubmit={save} aria-busy={account.saving}>
             <AccountIssue issue={account.issue} /><ErrorSummary errors={account.errors} prefix="profile" />
-            <ProfileView profile={profile} snapshot={account.snapshot} draft={account.draft} errors={account.errors} saving={account.saving} onChange={account.updateField} />
+            <ProfileView profile={profile} snapshot={account.snapshot} draft={account.draft} errors={account.errors}
+              saving={account.saving || account.writeUncertain} onChange={account.updateField} />
             <div className="personnel-form-actions">
-              {account.snapshot ? <><button className="account-secondary" type="button" disabled={account.saving} onClick={account.cancelEdit}>Hủy thay đổi</button>
-                <button key="save-profile" className="hero-cta" type="submit" disabled={account.saving}>{account.saving ? "Đang lưu…" : "Lưu thay đổi"}</button></>
+              {account.writeUncertain ? <button className="hero-cta" type="button" onClick={account.retry}>Tải lại hồ sơ</button>
+                : account.snapshot ? <><button className="account-secondary" type="button" disabled={account.saving} onClick={account.cancelEdit}>Hủy thay đổi</button>
+                  <button key="save-profile" className="hero-cta" type="submit" disabled={account.saving}>{account.saving ? "Đang lưu…" : "Lưu thay đổi"}</button></>
                 : <><a ref={changeButton} href="#account-password" className="account-secondary">Đổi mật khẩu</a>
                   {profile.canUpdateProfile && <button key="start-profile-edit" ref={editButton} className="hero-cta" type="button" onClick={event => { event.preventDefault(); setSuccess(""); auth.clearAccountNotice(); account.startEdit(); }}>Cập nhật thông tin <span aria-hidden="true">↗</span></button>}</>}
             </div>

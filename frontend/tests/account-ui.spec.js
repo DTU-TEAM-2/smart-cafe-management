@@ -26,6 +26,74 @@ async function fillPasswords(page, current = "OldPassword1", next = "NewPassword
   await page.getByLabel("Xác nhận mật khẩu mới", { exact: true }).fill(confirm);
 }
 
+for (const mismatch of [{ id: "9007199254740993" }, { role: "ADMIN" }]) {
+  test(`profile with wrong ${Object.keys(mismatch)[0]} cannot reach the account page`, async ({ page }) => {
+    await productMocks(page);
+    await page.route("**/api/v1/profiles/me", route => route.fulfill({ json: {
+      ...staffProfile, ...mismatch, name: "Other profile fixture", email: "other@example.test", salary: "77449911",
+    } }));
+    await loginFromPage(page);
+    await page.goto("/#account");
+    await expect(page.getByRole("heading", { name: "Chưa tải được hồ sơ" })).toBeVisible();
+    await expect(page.getByText(/Other profile fixture|other@example\.test|77\.449\.911/)).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Cập nhật thông tin" })).toHaveCount(0);
+  });
+}
+
+test("an unmatched PATCH response requires a verified reload before editing again", async ({ page }) => {
+  await productMocks(page);
+  let writes = 0;
+  await page.route("**/api/v1/profiles/me", route => {
+    if (route.request().method() !== "PATCH") return route.fallback();
+    writes++;
+    return route.fulfill({ json: { ...staffProfile, id: "204", name: "Other profile fixture" } });
+  });
+  await loginFromPage(page);
+  await profileFromHeader(page);
+  await page.getByRole("button", { name: "Cập nhật thông tin" }).click();
+  await page.getByLabel("Họ và tên", { exact: true }).fill("Tên mới");
+  await page.getByRole("button", { name: "Lưu thay đổi" }).click();
+  await expect(page.getByText("Chưa xác nhận được kết quả cập nhật.", { exact: false })).toBeVisible();
+  await expect(page.getByText("Other profile fixture")).toHaveCount(0);
+  await expect(page.getByText("Thông tin cá nhân đã được cập nhật thành công.")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Lưu thay đổi" })).toHaveCount(0);
+  await expect(page.getByLabel("Họ và tên", { exact: true })).toHaveValue("Tên mới");
+  await page.getByRole("button", { name: "Tải lại hồ sơ" }).click();
+  await expect(page.getByRole("button", { name: "Cập nhật thông tin" })).toBeEnabled();
+  expect(writes).toBe(1);
+});
+
+for (const first of ["auth/me", "home/account"]) test(`profile waits for ${first} and the other projection before matching the exact large ID`, async ({ page }) => {
+  const id = "9007199254740993";
+  const auth = Promise.withResolvers(), home = Promise.withResolvers();
+  await productMocks(page);
+  await page.addInitScript(() => sessionStorage.setItem("smart_cafe_token", "initial-ui-test-only"));
+  await page.route("**/api/v1/auth/me", async route => {
+    await auth.promise;
+    await route.fulfill({ json: { id, username: staffProfile.username, role: "STAFF" } });
+  });
+  await page.route("**/api/v1/home/account", async route => {
+    await home.promise;
+    await route.fulfill({ json: { ...staffProfile, id } });
+  });
+  let reads = 0;
+  await page.route("**/api/v1/profiles/me", route => {
+    reads++;
+    return route.fulfill({ json: { ...staffProfile, id } });
+  });
+  await page.goto("/#account");
+  const firstResponse = page.waitForResponse(response => response.url().endsWith(`/api/v1/${first}`) && response.ok());
+  if (first === "auth/me") auth.resolve();
+  else home.resolve();
+  await firstResponse;
+  await expect(page.getByText("Đang xác minh tài khoản…")).toBeVisible();
+  expect(reads).toBe(0);
+  auth.resolve();
+  home.resolve();
+  await expect(page.getByRole("button", { name: "Cập nhật thông tin" })).toBeVisible();
+  expect(reads).toBeGreaterThan(0);
+});
+
 for (const role of ["ADMIN", "STAFF"]) test(`${role} profile uses one layout and only allows inline name/address/phone`, async ({ page }, info) => {
   const api = await open(page, { role });
   await expect(page.getByRole("banner")).toHaveCount(1);
@@ -241,6 +309,28 @@ test("an older identity response cannot replace a confirmed profile edit", async
   }
   await expect(page.getByRole("button", { name: "Tài khoản Nguyễn Ánh", exact: true })).toBeVisible();
   await expect(page.locator(".personnel-fields")).toContainText("Nguyễn Ánh");
+});
+
+test("a newer verified Header read replaces an older profile display", async ({ page }) => {
+  await page.clock.install();
+  let headerName = staffProfile.name, feedReads = 0;
+  await productMocks(page);
+  await page.route("**/api/v1/home/account", route => route.fulfill(route.request().headers().authorization
+    ? { json: { ...staffProfile, name: headerName } } : { status: 401, json: {} }));
+  await page.route("**/api/v1/home/notifications", route => ++feedReads === 1
+    ? route.fulfill({ json: { recipientId: staffProfile.id, items: [] } }) : route.fulfill({ status: 403, json: {} }));
+  await loginFromPage(page);
+  await profileFromHeader(page);
+  await page.getByRole("button", { name: "Cập nhật thông tin" }).click();
+  await page.getByLabel("Họ và tên", { exact: true }).fill("Tên đã lưu trên tab này");
+  await page.getByRole("button", { name: "Lưu thay đổi" }).click();
+  await expect(page.getByRole("button", { name: "Tài khoản Tên đã lưu trên tab này" })).toBeVisible();
+  await page.evaluate(() => { location.hash = "#top"; });
+  await expect(page.getByRole("button", { name: "Tài khoản Tên đã lưu trên tab này" })).toBeVisible();
+  headerName = "Tên mới từ thiết bị khác";
+  await page.clock.fastForward(5100);
+  await expect(page.getByRole("button", { name: "Tài khoản Tên mới từ thiết bị khác" })).toBeVisible();
+  expect(feedReads).toBe(2);
 });
 
 test("validation has field links, focus and no mutation", async ({ page }, info) => {

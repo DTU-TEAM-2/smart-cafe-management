@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import HomePage from "../home/HomePage.jsx";
 import SiteLayout from "./SiteLayout.jsx";
 import LoginPage from "../auth/LoginPage.jsx";
@@ -79,7 +79,7 @@ export default function HomeShell({ authorization, credentials, loginHref = "#lo
 
 function ScopedHomeShell({ authorization, credentials, loginHref }) {
   const auth = useAuth();
-  const { captureSession, expireSession, isCurrentSession, verifiedUserId } = auth;
+  const { captureSession, expireSession, isCurrentSession, verifiedIdentity, verificationStatus, retryVerification } = auth;
   const [hash, setHash] = useState(() => window.location.hash || "#top");
   const currentHash = useRef(hash);
   const currentHistoryIndex = useRef(historyIndex() ?? 0);
@@ -118,18 +118,31 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
   }, []);
   const [identity, setIdentity] = useState({ status: "loading", account: null });
   const [profileDisplay, setProfileDisplay] = useState(null);
+  const displaySequence = useRef(0);
+  const appliedDisplaySequence = useRef(0);
+  const nextDisplaySequence = useCallback(() => ++displaySequence.current, []);
   const verifiedProfileScope = useRef(null);
-  const canPublishProfile = useCallback(profile => {
-    const verified = verifiedProfileScope.current;
-    return verified?.id === profile.id && verified.role === profile.role;
-  }, []);
-  const identityMismatch = Boolean(verifiedUserId && identity.account && verifiedUserId !== identity.account.id);
-  const account = identityMismatch ? null : identity.account;
-  const identityStatus = identityMismatch ? "error" : identity.status;
+  const getProfileScope = useCallback(() => verifiedProfileScope.current, []);
+  const [readNotices, setReadNotices] = useState(null);
+  const usesAuthBearer = Boolean(auth.token && authorization === `Bearer ${auth.token}`);
+  const identityMismatch = Boolean(usesAuthBearer && verifiedIdentity && identity.account &&
+    (verifiedIdentity.id !== identity.account.id || verifiedIdentity.role !== identity.account.role));
+  const identityStatus = identityMismatch || (usesAuthBearer && verificationStatus === "error") ? "error"
+    : usesAuthBearer && verificationStatus !== "ready" ? "loading" : identity.status;
+  const account = identityStatus === "ready" ? identity.account : null;
+  const lastVerifiedAccount = useRef(null);
+  useLayoutEffect(() => {
+    verifiedProfileScope.current = account;
+    if (account || identityMismatch || identityStatus === "ready") lastVerifiedAccount.current = account;
+  }, [account, identityMismatch, identityStatus]);
+  const suspendedAccount = account || identityMismatch || identityStatus === "ready" ? null : lastVerifiedAccount.current;
+  const profileAccount = account ?? suspendedAccount;
+  const profileScopeKey = ["ADMIN", "STAFF"].includes(profileAccount?.role) ? `${profileAccount.id}:${profileAccount.role}` : null;
   const [accountAttempt, setAccountAttempt] = useState(0);
   const staffRecheckPending = useRef(false);
   const staffRecheckRetries = useRef(0);
   const feedPaused = useRef(false);
+  const mismatchRetried = useRef(false);
   const recheckIdentity = useCallback(() => {
     if (staffRecheckPending.current) return;
     staffRecheckPending.current = true;
@@ -138,11 +151,29 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
     setIdentity({ status: "loading", account: null });
     setAccountAttempt(value => value + 1);
   }, []);
+  useEffect(() => {
+    if (account) mismatchRetried.current = false;
+    if (identityMismatch && !mismatchRetried.current) {
+      mismatchRetried.current = true;
+      retryVerification();
+      recheckIdentity();
+    }
+  }, [account, identityMismatch, recheckIdentity, retryVerification]);
+  function retryIdentity() {
+    if (usesAuthBearer && (identityMismatch || verificationStatus === "error")) retryVerification();
+    verifiedProfileScope.current = null;
+    staffRecheckPending.current = false;
+    setIdentity({ status: "loading", account: null });
+    setAccountAttempt(value => value + 1);
+  }
   const news = useNewsSocket(authorization, account, recheckIdentity);
   const [feed, setFeed] = useState({ status: "idle", data: null });
   const [feedAttempt, setFeedAttempt] = useState(0);
-  const onProfileLoaded = useCallback(profile => {
+  const onProfileLoaded = useCallback((profile, sequence) => {
+    if (sequence < appliedDisplaySequence.current) return false;
+    appliedDisplaySequence.current = sequence;
     setProfileDisplay({ id: profile.id, role: profile.role, name: profile.name, avatarUrl: profile.avatarUrl });
+    return true;
   }, []);
   // A profile response contributes display fields only after the account endpoint verifies its scope.
   const displayAccount = account && profileDisplay?.id === account.id && profileDisplay.role === account.role
@@ -190,12 +221,13 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
     const session = captureSession();
     const isCurrent = () => active && isCurrentSession(session);
     async function loadAccount() {
+      const sequence = nextDisplaySequence();
       setIdentity(current => (current.status === "ready" ? current : { status: "loading", account: null }));
       try {
         const headers = { Accept: "application/json" };
         if (authorization) headers.Authorization = authorization;
         const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(headerRequestTimeoutMs)]);
-        const response = await fetch("/api/v1/home/account", { headers, credentials, signal });
+        const response = await fetch("/api/v1/home/account", { headers, credentials, signal, cache: "no-store" });
         if (response.status === 401 || response.status === 403) {
           if (isCurrent()) {
             staffRecheckPending.current = false;
@@ -210,7 +242,10 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
         if (!isHomeAccount(account)) throw new Error("Invalid account response");
         if (isCurrent()) {
           staffRecheckPending.current = false;
-          verifiedProfileScope.current = account;
+          if (sequence >= appliedDisplaySequence.current) {
+            appliedDisplaySequence.current = sequence;
+            setProfileDisplay(null);
+          }
           setIdentity({ status: "ready", account });
         }
       } catch {
@@ -227,7 +262,7 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
     }
     void loadAccount();
     return () => { active = false; controller.abort(); window.clearTimeout(retryTimer); };
-  }, [authorization, credentials, accountAttempt, captureSession, isCurrentSession]);
+  }, [authorization, credentials, accountAttempt, captureSession, isCurrentSession, nextDisplaySequence]);
 
   useEffect(() => {
     if (!account || (account.role !== "STAFF" && account.role !== "ADMIN")) {
@@ -305,7 +340,7 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
   if (onMenuAdminPage) {
     if (identityStatus === "loading") return <main><p role="status">Đang xác minh tài khoản…</p></main>;
     if (identityStatus === "error") return <main><p role="alert">Chưa xác minh được tài khoản.</p>
-      <button onClick={() => { setIdentity({ status: "loading", account: null }); setAccountAttempt(value => value + 1); }}>Thử lại</button></main>;
+      <button onClick={retryIdentity}>Thử lại</button></main>;
     if (account?.role !== "ADMIN" || !authorization) return <main><h1>Quản lý thực đơn</h1>
       <p role="alert">Chỉ quản trị viên đã đăng nhập mới có thể quản lý thực đơn.</p>
       <a href={account ? "#top" : loginHref}>{account ? "Về trang chủ" : "Đăng nhập"}</a></main>;
@@ -316,13 +351,14 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
   }
   if (onSalesPage) return <SalesWorkspace account={account} identityStatus={identityStatus}
     authorization={authorization} credentials={credentials} income={hash === "#sale-income"}
-    retryIdentity={() => { setIdentity({ status: "loading", account: null }); setAccountAttempt(value => value + 1); }} />;
+    retryIdentity={retryIdentity} />;
   function logout() {
     void auth.logout();
     if (!onNewsPage) window.location.hash = "#login";
   }
   const layout = {
     account: displayAccount, notifications: feed.data, links: { login: loginHref, news: "#news", menu: tableMenuHref }, notificationState: feed.status,
+    readNotices, setReadNotices,
     onNavigate: handleNavigate,
     onRetryNotifications: () => { feedPaused.current = false; setFeed({ status: "loading", data: null }); setFeedAttempt(value => value + 1); },
     onLogout: () => {
@@ -343,10 +379,11 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
     currentPage={onAccountPage ? "account" : onLoginPage ? "login" : onNewsPage ? "news" : isSpecialPage ? null : hash === "#about" ? "about" : "home"} isAuthPage={isAuthPage}>
     {expiryNotice}
     {identityStatus === "error" && <div className="identity-error" role="alert">Chưa tải được thông tin tài khoản.
-      <button type="button" onClick={() => setAccountAttempt(value => value + 1)}>Thử lại</button></div>}
+      <button type="button" onClick={retryIdentity}>Thử lại</button></div>}
     {onNewsPage ? (
       <Suspense fallback={<section className="account-page"><p role="status">Đang mở tin tức…</p></section>}>
         <NewsPage authorization={authorization} account={account} identityStatus={identityStatus}
+          suspendedAccount={suspendedAccount} getVerifiedAccount={getProfileScope}
           route={hash} revision={news.revision} connection={news.connection} setNavigationGuard={setNavigationGuard} />
       </Suspense>
     ) : onLoginPage ? (
@@ -370,9 +407,11 @@ function ScopedHomeShell({ authorization, credentials, loginHref }) {
     ) : onAccountPage ? (
       account?.role === "CUSTOMER" && hash !== "#account-password"
         ? <CustomerAccountPage status={identityStatus} account={displayAccount} onNavigate={handleNavigate} />
-        : <PersonnelAccountPage key={hash === "#account-password" ? "password" : "profile"} changingPassword={hash === "#account-password"}
+        : <PersonnelAccountPage key={`${hash === "#account-password" ? "password" : "profile"}:${profileScopeKey ?? ""}`} changingPassword={hash === "#account-password"}
           access={canUseStaffTools ? "verified" : identityStatus}
-          canPublishProfile={canPublishProfile} onProfileLoaded={onProfileLoaded} onDirtyChange={onDirtyChange} />
+          scopeKey={profileScopeKey}
+          getProfileScope={getProfileScope} nextDisplaySequence={nextDisplaySequence}
+          onProfileLoaded={onProfileLoaded} onDirtyChange={onDirtyChange} />
     ) : onBillsPage ? (
       <section className="account-page">
         <h1>{onStatistics ? "Thống kê doanh thu" : "Khu vực quản lý hóa đơn"}</h1>
