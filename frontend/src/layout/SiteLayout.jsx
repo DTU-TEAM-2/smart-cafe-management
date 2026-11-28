@@ -1,7 +1,8 @@
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import AccountAvatar from "./AccountAvatar.jsx";
 
 const noticeTime = new Intl.DateTimeFormat("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit", timeZone: "Asia/Ho_Chi_Minh" });
+const maxRecentReadNotices = 120;
 function formattedTime(value) {
   if (!value) return null;
   const date = new Date(value);
@@ -118,15 +119,39 @@ function HomeFooter({ links, onBackToTop }) {
 }
 
 export default function SiteLayout({ children, account = null, notifications = null, links = {}, onNavigate,
-  currentPage = "home", isAuthPage = false, notificationState = "ready", onRetryNotifications, onNotificationsOpen, onLogout, management = false, homepage = false }) {
+  currentPage = "home", isAuthPage = false, notificationState = "ready", onRetryNotifications, onLogout, management = false, homepage = false }) {
   const [panel, setPanel] = useState(null);
   const regionId = useId();
   const menuButton = useRef(null);
   const accountButton = useRef(null);
   const notificationButton = useRef(null);
+  const headerInner = useRef(null);
   const isStaff = account?.role === "STAFF" || account?.role === "ADMIN";
-  const notices = isStaff && account.id && notifications?.recipientId === account.id
-    ? [...new Map(notifications.items.map((notice) => [notice.id, notice])).values()]
+  const recipient = isStaff ? account.id : null;
+  const feedItems = recipient && notifications?.recipientId === recipient ? notifications.items : null;
+  const [read, setRead] = useState(null);
+  useEffect(() => {
+    if (panel !== "notifications" || !feedItems?.length) return;
+    setRead(previous => {
+      const recent = previous?.recipient === recipient ? previous.ids : new Set();
+      const visibleIds = new Set(feedItems.map(item => item.id));
+      const ids = new Set([...recent].filter(id => !visibleIds.has(id)).concat([...visibleIds]).slice(-maxRecentReadNotices));
+      return { recipient, ids };
+    });
+  }, [panel, recipient, feedItems]);
+  useEffect(() => {
+    if (!panel || !headerInner.current) return;
+    const inner = headerInner.current;
+    const update = () => inner.style.setProperty("--panel-header-height", `${inner.getBoundingClientRect().height}px`);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(inner);
+    return () => { observer.disconnect(); inner.style.removeProperty("--panel-header-height"); };
+  }, [panel]);
+  const notices = feedItems
+    ? [...new Map(feedItems.map(notice => [notice.id, notice])).values()].map(notice => ({
+      ...notice, read: read?.recipient === recipient && read.ids.has(notice.id),
+    }))
     : null;
   const unread = notices?.filter((notice) => !notice.read).length ?? 0;
 
@@ -154,7 +179,7 @@ export default function SiteLayout({ children, account = null, notifications = n
     <header className={`site-header${management ? " billing-header" : ""}${isAuthPage ? " site-header-auth" : ""}${homepage ? " site-header-home" : ""}`} onKeyDown={handleHeaderKey} onBlur={(event) => {
       if (!event.currentTarget.contains(event.relatedTarget)) setPanel(null);
     }}>
-      <div className="header-inner">
+      <div className="header-inner" ref={headerInner}>
         {management ? <strong className="billing-header-title">{account?.role === "ADMIN" ? "KHU VỰC QUẢN TRỊ" : "KHÔNG GIAN NHÂN VIÊN"}</strong> : <>
         <a className="brand" href="#top" aria-label="LECKER Coffee Cafe Trang chủ">
           <strong>LECKER</strong>{" "}<span>Coffee Cafe</span>
@@ -182,7 +207,7 @@ export default function SiteLayout({ children, account = null, notifications = n
             <button type="button" ref={notificationButton} className="icon-button"
               aria-label={unread ? `Thông báo, ${unread} chưa đọc` : "Thông báo"}
               aria-expanded={panel === "notifications"} aria-controls={`${regionId}-notifications`}
-              onClick={() => { toggle("notifications"); onNotificationsOpen?.(); }}>
+              onClick={() => toggle("notifications")}>
               <Icon name="bell" />{unread > 0 && <span className="notification-dot" />}
               {management && <span className="billing-header-action-label">Thông báo</span>}
             </button>

@@ -22,6 +22,26 @@ test("scrolling to the top of a dirty editor keeps the draft without asking to l
   await expect(page).toHaveURL(/#news\/new$/);
 });
 
+test("news draft Back and Forward work without the browser Navigation API", async ({ page }) => {
+  await page.addInitScript(() => Object.defineProperty(window, "navigation", { value: undefined }));
+  await setup(page);
+  await page.goto("/#news");
+  await page.getByRole("link", { name: "Viết tin mới" }).click();
+  const title = page.getByLabel("Tiêu đề", { exact: false });
+  await title.fill("Bản nháp chưa lưu");
+  let prompts = 0;
+  page.once("dialog", dialog => { prompts++; return dialog.dismiss(); });
+  await page.goBack();
+  await expect(page).toHaveURL(/#news\/new$/);
+  await expect(title).toHaveValue("Bản nháp chưa lưu");
+  page.once("dialog", dialog => { prompts++; return dialog.accept(); });
+  await page.goBack();
+  await expect(page.getByRole("heading", { name: "Quản lý tin tức" })).toBeVisible();
+  await page.goForward();
+  await expect(title).toHaveValue("");
+  expect(prompts).toBe(2);
+});
+
 test("a temporary identity failure after policy-close recovers without reconnecting early", async ({ page }) => {
   await page.clock.install();
   await setup(page, "STAFF");

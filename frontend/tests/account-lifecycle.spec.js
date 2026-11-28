@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 // HTTP-mocked lifecycle tests. The test harness is not the approved product screen.
 const expiry = { mustChangePassword: true, passwordChangedAt: "2026-10-01T00:00:00Z", passwordExpiresAt: "2026-10-31T00:00:00Z" };
 const user = { id: 2, username: "synthetic-staff", fullName: "Nhân viên tổng hợp", role: "STAFF" };
-const profile = { id: "9007199254740993", username: user.username, name: user.fullName, email: "synthetic@example.test",
+const profile = { id: String(user.id), username: user.username, name: user.fullName, email: "synthetic@example.test",
   address: null, phone: null, birthday: "1998-01-02", gender: "FEMALE", salary: "999999999999999999",
   avatarUrl: null, role: "STAFF", canUpdateProfile: true, version: "9007199254740993", ...expiry };
 const replacement = { token: "replacement-test-only", ...expiry, mustChangePassword: false,

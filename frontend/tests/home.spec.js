@@ -119,6 +119,29 @@ test("a full notification panel is scrollable in landscape", async ({ page }) =>
   await expect(panel.getByText("Thông báo bàn số 30", { exact: true })).toBeInViewport();
 });
 
+test("short viewports keep account actions and the mobile menu reachable", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 220 });
+  const name = "Nguyễn".repeat(30);
+  await page.route("**/api/v1/home/account", route => route.fulfill({ json: { id: "1", role: "STAFF", name } }));
+  await page.route("**/api/v1/home/notifications", route => route.fulfill({ json: { recipientId: "1", items: [] } }));
+  await page.route("**/api/v1/home/highlights", route => route.fulfill({ json: { newest, mostOrdered } }));
+  await page.goto("/#top");
+  const trigger = page.getByRole("button", { name: `Tài khoản ${name}` });
+  await trigger.click();
+  const account = page.getByRole("region", { name: "Thông tin tài khoản" });
+  await expect(account).toBeVisible();
+  expect(await account.evaluate(el => el.getBoundingClientRect().bottom)).toBeLessThanOrEqual(220);
+  const logout = account.getByRole("button", { name: "Đăng xuất" });
+  await logout.scrollIntoViewIfNeeded();
+  await expect(logout).toBeInViewport();
+  await page.getByRole("button", { name: "Điều hướng" }).click();
+  const nav = page.getByRole("navigation", { name: "Điều hướng chính" });
+  expect(await nav.evaluate(el => el.getBoundingClientRect().bottom)).toBeLessThanOrEqual(220);
+  const bills = nav.getByRole("link", { name: "Quản lý hóa đơn" });
+  await bills.scrollIntoViewIfNeeded();
+  await expect(bills).toBeInViewport();
+});
+
 test("malformed account and ranking payloads fail closed and can be retried", async ({ page }) => {
   let valid = false;
   const duplicate = [newest[0], newest[0]];

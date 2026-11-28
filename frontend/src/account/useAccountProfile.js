@@ -5,7 +5,7 @@ import { passwordErrors, profilePatch } from "./profileValidation.js";
 
 const initial = { status: "idle", profile: null, snapshot: null, draft: {}, errors: {}, issue: null, saving: false };
 
-export default function useAccountProfile() {
+export default function useAccountProfile(canPublishProfile) {
   const { token, user, sessionGeneration, captureSession, isCurrentSession, expireSession, replaceToken, updateProfile } = useAuth();
   const [state, setState] = useState(initial);
   const active = useRef(null);
@@ -13,6 +13,9 @@ export default function useAccountProfile() {
 
   const isActive = useCallback(scope => Boolean(scope) && !scope.controller.signal.aborted
     && active.current === scope && isCurrentSession(scope.session), [isCurrentSession]);
+  const publishProfile = useCallback((profile, session) => {
+    if (!canPublishProfile || canPublishProfile(profile)) updateProfile(profile, session);
+  }, [canPublishProfile, updateProfile]);
 
   const handleError = useCallback((error, scope) => {
     if (!isActive(scope)) return;
@@ -31,14 +34,14 @@ export default function useAccountProfile() {
     try {
       const profile = await getProfile(scope.session.token, AbortSignal.any([scope.controller.signal, read.signal]));
       if (!isActive(scope) || read.signal.aborted) return;
-      updateProfile(profile, scope.session);
+      publishProfile(profile, scope.session);
       setState({ ...initial, status: "ready", session: scope.session, profile, issue });
     } catch (error) {
       if (!isActive(scope) || read.signal.aborted) return;
       setState({ ...initial, status: "error", session: scope.session, issue: error });
       handleError(error, scope);
     }
-  }, [handleError, isActive, updateProfile]);
+  }, [handleError, isActive, publishProfile]);
 
   useEffect(() => {
     const scope = { session: captureSession(), controller: new AbortController(), pending: false };
@@ -74,7 +77,7 @@ export default function useAccountProfile() {
     try {
       const profile = await patchProfile(scope.session.token, patch, scope.controller.signal);
       if (!isActive(scope)) return { ok: false };
-      updateProfile(profile, scope.session);
+      publishProfile(profile, scope.session);
       setState({ ...initial, status: "ready", session: scope.session, profile });
       return { ok: true, profile };
     } catch (error) {

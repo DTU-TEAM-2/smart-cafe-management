@@ -15,6 +15,9 @@ test("required login fields prevent requests and Staff login reaches its dashboa
     return route.fulfill({ json: { token: "staff-fixture-token", user } });
   });
   await page.route("**/api/v1/auth/me", route => route.fulfill({ json: user }));
+  await page.route("**/api/v1/home/account", route => route.request().headers().authorization
+    ? route.fulfill({ json: { id: String(user.id), username: user.username, name: user.fullName, role: user.role } })
+    : route.fallback());
   await page.goto("/#login");
   await page.getByRole("button", { name: "Đăng nhập", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("Vui lòng nhập đầy đủ");

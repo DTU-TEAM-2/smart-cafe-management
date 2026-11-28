@@ -6,9 +6,9 @@ import ChangePasswordForm from "./ChangePasswordForm.jsx";
 import { AccountIssue, ErrorSummary } from "./AccountFeedback.jsx";
 import "./account.css";
 
-export default function AccountPage({ changingPassword, access, onProfileLoaded, onDirtyChange }) {
+export default function AccountPage({ changingPassword, access, canPublishProfile, onProfileLoaded, onDirtyChange }) {
   const auth = useAuth();
-  const account = useAccountProfile();
+  const account = useAccountProfile(canPublishProfile);
   const [success, setSuccess] = useState("");
   const editButton = useRef(null);
   const changeButton = useRef(null);
