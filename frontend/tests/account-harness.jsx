@@ -1,5 +1,5 @@
 // Test-only integration surface. This is not the product UI or a Figma implementation.
-import { StrictMode, useRef, useState } from "react";
+import { StrictMode, useCallback, useLayoutEffect, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { AuthProvider, useAuth } from "../src/auth/AuthContext.jsx";
 import LoginPage from "../src/auth/LoginPage.jsx";
@@ -8,7 +8,20 @@ import useAccountProfile from "../src/account/useAccountProfile.js";
 const emptyPasswords = { currentPassword: "", newPassword: "", confirmNewPassword: "" };
 function AccountHarness({ captured }) {
   const auth = useAuth();
-  const account = useAccountProfile();
+  const { verifiedIdentity, verificationStatus } = auth;
+  const verified = verificationStatus === "ready";
+  const scope = verified && ["ADMIN", "STAFF"].includes(verifiedIdentity?.role) ? verifiedIdentity : null;
+  const scopeRef = useRef(null);
+  const sequence = useRef(0);
+  const getProfileScope = useCallback(() => scopeRef.current, []);
+  const nextDisplaySequence = useCallback(() => ++sequence.current, []);
+  const onProfileLoaded = useCallback(() => true, []);
+  useLayoutEffect(() => {
+    scopeRef.current = scope;
+    return () => { scopeRef.current = null; };
+  }, [scope]);
+  const account = useAccountProfile({ scopeKey: scope ? `${scope.id}:${scope.role}` : null,
+    verified: Boolean(scope), getProfileScope, nextDisplaySequence, onProfileLoaded });
   const [passwords, setPasswords] = useState(emptyPasswords);
   const [changing, setChanging] = useState(false);
   const [notice, setNotice] = useState("");
@@ -18,7 +31,7 @@ function AccountHarness({ captured }) {
     <p>Test surface only; no Figma fidelity claim.</p>
     <p data-testid="identity">{auth.user?.fullName}</p>
     <p data-testid="expiry">{String(auth.passwordStatus?.mustChangePassword ?? "unknown")}</p>
-    <p data-testid="status">{account.status}</p>
+    <p data-testid="status">{verified && verifiedIdentity?.role === "CUSTOMER" ? "forbidden" : account.status}</p>
     <button onClick={() => void auth.logout()}>Đăng xuất</button>
     <button onClick={() => { captured.current = auth.captureSession(); }}>Capture session</button>
     <button onClick={() => auth.expireSession(captured.current)}>Expire captured session</button>
@@ -43,7 +56,7 @@ function AccountHarness({ captured }) {
           onChange={event => account.updateField(field, event.target.value)} />
         {account.errors[field] && <p role="alert">{account.errors[field]}</p>}
       </div>)}
-      <button disabled={account.saving}>Save profile</button>
+      <button disabled={account.saving || account.writeUncertain}>Save profile</button>
       <button type="button" onClick={account.cancelEdit}>Cancel edit</button>
     </form>}
     {changing && <form noValidate onSubmit={async event => {

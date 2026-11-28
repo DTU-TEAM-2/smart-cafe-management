@@ -26,6 +26,7 @@ test("staff cannot open income directly and customer cannot query sales", async 
   let forbiddenApiCalls = 0;
   let role = "STAFF";
   await setup(page, role, async (route, url) => {
+    if (url.pathname.endsWith("/auth/me")) { await route.fulfill({ json: { id: 1, username: "ui-fixture", role } }); return true; }
     if (url.pathname.endsWith("/home/account")) { await route.fulfill({ json: { id: "1", name: "Kiểm thử", role } }); return true; }
     if (url.pathname.endsWith("/income") || url.pathname.endsWith("/sales/tables")) forbiddenApiCalls++;
     return false;

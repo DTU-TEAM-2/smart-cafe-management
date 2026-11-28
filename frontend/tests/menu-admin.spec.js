@@ -4,7 +4,7 @@ async function signIn(page, role) {
   const account = { id: '1', username: 'fixture', fullName: 'Fixture', role };
   await page.addInitScript(() => sessionStorage.setItem('smart_cafe_token', 'fixture-menu-token'));
   await page.route('**/api/v1/auth/me', route => route.fulfill({ json: account }));
-  await page.route('**/api/v1/home/account', route => route.fulfill({ json: account }));
+  await page.route('**/api/v1/home/account', route => route.fulfill({ json: { id: account.id, username: account.username, name: account.fullName, role } }));
   await page.route('**/api/v1/home/notifications', route => route.fulfill({ json: { recipientId: '1', items: [] } }));
 }
 

@@ -31,7 +31,11 @@ function autoSlug(title) {
   return `${stem || "news"}-${suffix}`;
 }
 
-export default function NewsEditor({ id, accountId, authorization, request, setNavigationGuard }) {
+export default function NewsEditor({ id, accountId, authorization, request, setNavigationGuard, paused, verificationFailed }) {
+  const [openedPostId, setOpenedPostId] = useState(null);
+  useEffect(() => {
+    if (!paused && openedPostId) location.hash = `#news/${openedPostId}`;
+  }, [paused, openedPostId]);
   const [draft, setDraft] = useState(emptyDraft), [original, setOriginal] = useState(() => JSON.stringify(emptyDraft()));
   const [etag, setEtag] = useState(null), [state, setState] = useState(id ? "loading" : "ready");
   const [busy, setBusy] = useState(false), [uploading, setUploading] = useState(false), [error, setError] = useState("");
@@ -87,7 +91,7 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
     setOriginal(JSON.stringify(draft));
     blocked.current = false;
     setNavigationGuard?.(null);
-    location.hash = `#news/${post.id}`;
+    setOpenedPostId(post.id);
   }
   async function lookupCreation(creation, signal) {
     const { data } = await request(`/by-slug/${creation.slug}`, { signal });
@@ -246,6 +250,8 @@ export default function NewsEditor({ id, accountId, authorization, request, setN
       if (!signal.aborted) setBusy(false);
     }
   }
+  if (paused) return <section className="news-page"><p role="status">{verificationFailed
+    ? "Bản nháp sẽ có lại khi bạn xác minh được phiên đăng nhập." : "Đang kiểm tra phiên đăng nhập…"}</p></section>;
   return <section className="news-page news-editor" aria-labelledby="editor-title">
     <a className="news-text-link" href={id ? `#news/${id}` : "#news"}>← {id ? "Về bài viết" : "Danh sách tin tức"}</a>
     <div className="news-heading"><div><p className="eyebrow">LECKER • Biên tập</p><h1 id="editor-title">{id ? "Chỉnh sửa tin tức" : "Một câu chuyện mới."}</h1><p>Những điều bạn chia sẻ làm nên câu chuyện LECKER.</p></div></div>

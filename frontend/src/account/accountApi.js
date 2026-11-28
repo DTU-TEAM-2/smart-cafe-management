@@ -12,6 +12,8 @@ const messages = {
   INVALID_PASSWORD: "Mật khẩu mới không đáp ứng chính sách mật khẩu.",
   PASSWORD_CONFLICT: "Mật khẩu đã thay đổi ở phiên khác. Vui lòng xác thực lại.",
   PROFILE_UNAVAILABLE: "Dịch vụ hồ sơ tạm thời chưa khả dụng. Vui lòng thử lại sau.",
+  PROFILE_SCOPE_MISMATCH: "Chưa xác minh được hồ sơ của phiên hiện tại. Vui lòng tải lại hồ sơ.",
+  PROFILE_OUTCOME_UNKNOWN: "Chưa xác nhận được kết quả cập nhật. Tải lại hồ sơ để kiểm tra trước khi sửa tiếp.",
 };
 const fields = { CURRENT_PASSWORD_INCORRECT: "currentPassword", PASSWORD_MISMATCH: "confirmNewPassword",
   PASSWORD_REUSED: "newPassword", INVALID_PASSWORD: "newPassword" };

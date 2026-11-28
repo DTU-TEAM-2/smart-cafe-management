@@ -58,6 +58,9 @@ test.describe("Authentication and Password Recovery (DT2-2)", () => {
   });
 
   test("Login success redirects Admin to Admin Dashboard", async ({ page }) => {
+    await page.route("**/api/v1/home/account", route => route.request().headers().authorization
+      ? route.fulfill({ json: { id: "1", username: "admin", name: "Quản trị viên", role: "ADMIN" } })
+      : route.fallback());
     await page.route("**/api/v1/auth/login", route =>
       route.fulfill({
         status: 200,
@@ -114,6 +117,9 @@ test.describe("Authentication and Password Recovery (DT2-2)", () => {
 
   for (const mode of ["pending", "network failure", "HTTP failure"]) {
     test(`logout clears credentials with ${mode} acknowledgement`, async ({ page }) => {
+      await page.route("**/api/v1/home/account", route => route.request().headers().authorization
+        ? route.fulfill({ json: { id: "1", username: "admin", name: "Quản trị viên", role: "ADMIN" } })
+        : route.fallback());
       let releaseLogout;
       const pending = new Promise(resolve => { releaseLogout = resolve; });
       await page.route("**/api/v1/auth/logout", async route => {

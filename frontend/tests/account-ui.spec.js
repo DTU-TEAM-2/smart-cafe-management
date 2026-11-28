@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { mkdir } from "node:fs/promises";
-import { productMocks, loginFromPage, profileFromHeader } from "./account-fixtures.js";
+import { productMocks, loginFromPage, profileFromHeader, staffProfile } from "./account-fixtures.js";
 
 const evidence = new URL("../../docs/handover/evidence/dt2-28/", import.meta.url);
 async function screenshot(page, name) {
@@ -25,6 +25,74 @@ async function fillPasswords(page, current = "OldPassword1", next = "NewPassword
   await page.getByLabel("Mật khẩu mới", { exact: true }).fill(next);
   await page.getByLabel("Xác nhận mật khẩu mới", { exact: true }).fill(confirm);
 }
+
+for (const mismatch of [{ id: "9007199254740993" }, { role: "ADMIN" }]) {
+  test(`profile with wrong ${Object.keys(mismatch)[0]} cannot reach the account page`, async ({ page }) => {
+    await productMocks(page);
+    await page.route("**/api/v1/profiles/me", route => route.fulfill({ json: {
+      ...staffProfile, ...mismatch, name: "Other profile fixture", email: "other@example.test", salary: "77449911",
+    } }));
+    await loginFromPage(page);
+    await page.goto("/#account");
+    await expect(page.getByRole("heading", { name: "Chưa tải được hồ sơ" })).toBeVisible();
+    await expect(page.getByText(/Other profile fixture|other@example\.test|77\.449\.911/)).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Cập nhật thông tin" })).toHaveCount(0);
+  });
+}
+
+test("an unmatched PATCH response requires a verified reload before editing again", async ({ page }) => {
+  await productMocks(page);
+  let writes = 0;
+  await page.route("**/api/v1/profiles/me", route => {
+    if (route.request().method() !== "PATCH") return route.fallback();
+    writes++;
+    return route.fulfill({ json: { ...staffProfile, id: "204", name: "Other profile fixture" } });
+  });
+  await loginFromPage(page);
+  await profileFromHeader(page);
+  await page.getByRole("button", { name: "Cập nhật thông tin" }).click();
+  await page.getByLabel("Họ và tên", { exact: true }).fill("Tên mới");
+  await page.getByRole("button", { name: "Lưu thay đổi" }).click();
+  await expect(page.getByText("Chưa xác nhận được kết quả cập nhật.", { exact: false })).toBeVisible();
+  await expect(page.getByText("Other profile fixture")).toHaveCount(0);
+  await expect(page.getByText("Thông tin cá nhân đã được cập nhật thành công.")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Lưu thay đổi" })).toHaveCount(0);
+  await expect(page.getByLabel("Họ và tên", { exact: true })).toHaveValue("Tên mới");
+  await page.getByRole("button", { name: "Tải lại hồ sơ" }).click();
+  await expect(page.getByRole("button", { name: "Cập nhật thông tin" })).toBeEnabled();
+  expect(writes).toBe(1);
+});
+
+for (const first of ["auth/me", "home/account"]) test(`profile waits for ${first} and the other projection before matching the exact large ID`, async ({ page }) => {
+  const id = "9007199254740993";
+  const auth = Promise.withResolvers(), home = Promise.withResolvers();
+  await productMocks(page);
+  await page.addInitScript(() => sessionStorage.setItem("smart_cafe_token", "initial-ui-test-only"));
+  await page.route("**/api/v1/auth/me", async route => {
+    await auth.promise;
+    await route.fulfill({ json: { id, username: staffProfile.username, role: "STAFF" } });
+  });
+  await page.route("**/api/v1/home/account", async route => {
+    await home.promise;
+    await route.fulfill({ json: { ...staffProfile, id } });
+  });
+  let reads = 0;
+  await page.route("**/api/v1/profiles/me", route => {
+    reads++;
+    return route.fulfill({ json: { ...staffProfile, id } });
+  });
+  await page.goto("/#account");
+  const firstResponse = page.waitForResponse(response => response.url().endsWith(`/api/v1/${first}`) && response.ok());
+  if (first === "auth/me") auth.resolve();
+  else home.resolve();
+  await firstResponse;
+  await expect(page.getByText("Đang xác minh tài khoản…")).toBeVisible();
+  expect(reads).toBe(0);
+  auth.resolve();
+  home.resolve();
+  await expect(page.getByRole("button", { name: "Cập nhật thông tin" })).toBeVisible();
+  expect(reads).toBeGreaterThan(0);
+});
 
 for (const role of ["ADMIN", "STAFF"]) test(`${role} profile uses one layout and only allows inline name/address/phone`, async ({ page }, info) => {
   const api = await open(page, { role });
@@ -79,6 +147,190 @@ test("Cancel restores snapshot and never writes; leaving a dirty form requires a
   await expect(page).toHaveURL(/#account-password$/);
   await page.goForward();
   await expect(page).toHaveURL(/#account$/);
+});
+
+test("logout from the header confirms before discarding a dirty profile", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: "Cập nhật thông tin" }).click();
+  await page.getByLabel("Họ và tên", { exact: true }).fill("Bản nháp");
+  const trigger = page.getByRole("button", { name: /^Tài khoản / });
+  const signOut = page.getByRole("button", { name: "Đăng xuất", exact: true });
+  const confirmation = page.getByRole("dialog", { name: "Rời trang đang chỉnh sửa?" });
+  await trigger.click();
+  await signOut.click();
+  await confirmation.getByRole("button", { name: "Tiếp tục chỉnh sửa" }).click();
+  await expect(page.getByLabel("Họ và tên", { exact: true })).toHaveValue("Bản nháp");
+  await trigger.click();
+  await signOut.click();
+  await confirmation.getByRole("button", { name: "Rời trang" }).click();
+  await expect(page).toHaveURL(/#login$/);
+});
+
+test("cancelling account button navigation leaves browser history untouched", async ({ page }) => {
+  await open(page);
+  await page.getByRole("button", { name: "Cập nhật thông tin" }).click();
+  const name = page.getByLabel("Họ và tên", { exact: true });
+  await name.fill("Bản nháp");
+  const historyLength = await page.evaluate(() => history.length);
+  await page.getByRole("button", { name: /^Tài khoản / }).click();
+  await page.getByRole("button", { name: "Bán hàng theo bàn", exact: true }).click();
+  await expect(page).toHaveURL(/#account$/);
+  await page.getByRole("button", { name: "Tiếp tục chỉnh sửa" }).click();
+  await expect(name).toHaveValue("Bản nháp");
+  expect(await page.evaluate(() => history.length)).toBe(historyLength);
+  await page.getByRole("button", { name: "Hủy thay đổi" }).click();
+  await page.goBack();
+  await expect(page).toHaveURL(/#staff$/);
+});
+
+for (const fallback of [false, true]) test(`cancelling browser Back preserves both previous entry and draft (${fallback ? "history.state" : "native"})`, async ({ page }) => {
+  if (fallback) await page.addInitScript(() => {
+    Object.defineProperty(window, "navigation", { value: undefined });
+    history.replaceState({ agencyState: "preserved" }, "");
+  });
+  const api = await productMocks(page);
+  await page.addInitScript(token => sessionStorage.setItem("smart_cafe_token", token), api.token());
+  await page.goto("/#top");
+  if (fallback) {
+    expect(await page.evaluate(() => window.navigation)).toBeUndefined();
+    expect(await page.evaluate(() => history.state?.agencyState)).toBe("preserved");
+  }
+  await profileFromHeader(page);
+  await page.getByRole("button", { name: "Cập nhật thông tin" }).click();
+  const name = page.getByLabel("Họ và tên", { exact: true });
+  await name.fill("Bản nháp");
+  await page.goBack();
+  const confirmation = page.getByRole("dialog", { name: "Rời trang đang chỉnh sửa?" });
+  await confirmation.getByRole("button", { name: "Tiếp tục chỉnh sửa" }).click();
+  await expect(page).toHaveURL(/#account$/);
+  await expect(name).toHaveValue("Bản nháp");
+  await page.goBack();
+  await confirmation.getByRole("button", { name: "Rời trang" }).click();
+  await expect(page).toHaveURL(/#top$/);
+  if (fallback) expect(await page.evaluate(() => history.state?.agencyState)).toBe("preserved");
+  await page.goForward();
+  await expect(page).toHaveURL(/#account$/);
+  await expect(name).toHaveCount(0);
+  if (fallback) expect(await page.evaluate(() => history.state?.__leckerHashEntry)).toBeGreaterThan(0);
+});
+
+test("a late profile response cannot override a denied staff recheck", async ({ page }) => {
+  await productMocks(page);
+  let socket, sessions = 0, recheck = false;
+  const profileGate = Promise.withResolvers();
+  const profileStarted = Promise.withResolvers();
+  const profileFinished = Promise.withResolvers();
+  const accountGate = Promise.withResolvers();
+  const accountStarted = Promise.withResolvers();
+  await page.routeWebSocket("**/api/v1/news/events", connection => {
+    sessions++;
+    connection.onMessage(() => {
+      socket = connection;
+      connection.send(JSON.stringify({ type: "READY" }));
+    });
+  });
+  await page.route("**/api/v1/home/account", async route => {
+    if (!recheck) return route.fallback();
+    accountStarted.resolve();
+    await accountGate.promise;
+    return route.fulfill({ status: 403, json: {} });
+  });
+  await page.route("**/api/v1/profiles/me", async route => {
+    profileStarted.resolve();
+    await profileGate.promise;
+    await route.fulfill({ json: { ...staffProfile, name: "Hồ sơ tải chậm" } });
+    profileFinished.resolve();
+  });
+  await loginFromPage(page);
+  await expect.poll(() => Boolean(socket)).toBe(true);
+  await page.getByRole("button", { name: /^Tài khoản / }).click();
+  await page.getByRole("button", { name: "Thông tin tài khoản", exact: true }).click();
+  await profileStarted.promise;
+  recheck = true;
+  await socket.close({ code: 1008 });
+  await accountStarted.promise;
+  await expect(page.getByRole("button", { name: /^Thông báo/ })).toHaveCount(0);
+  profileGate.resolve();
+  await profileFinished.promise;
+  await expect(page.getByRole("status")).toContainText("Đang xác minh tài khoản");
+  await expect(page.locator(".personnel-fields")).toHaveCount(0);
+  accountGate.resolve();
+  await expect(page.getByRole("link", { name: "Đăng nhập", exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Tài khoản / })).toHaveCount(0);
+  await expect(page.locator(".personnel-fields")).toHaveCount(0);
+  expect(sessions).toBe(1);
+});
+
+test("an older identity response cannot replace a confirmed profile edit", async ({ page }) => {
+  await productMocks(page);
+  let denyingFeed = false;
+  const stopFeed = Promise.withResolvers();
+  const checking = Promise.withResolvers();
+  const confirmIdentity = Promise.withResolvers();
+  const patchStarted = Promise.withResolvers();
+  const releasePatch = Promise.withResolvers();
+  await page.route("**/api/v1/home/notifications", async route => {
+    await stopFeed.promise;
+    denyingFeed = true;
+    return route.fulfill({ status: 403, json: {} });
+  });
+  await page.route("**/api/v1/home/account", async route => {
+    if (!denyingFeed) return route.fallback();
+    checking.resolve();
+    await confirmIdentity.promise;
+    return route.fulfill({ json: staffProfile });
+  });
+  await page.route("**/api/v1/profiles/me", async route => {
+    if (route.request().method() !== "PATCH") return route.fallback();
+    patchStarted.resolve();
+    await releasePatch.promise;
+    return route.fulfill({ json: { ...staffProfile, name: "Nguyễn Ánh", version: "8" } });
+  });
+  await loginFromPage(page);
+  await profileFromHeader(page);
+  await page.getByRole("button", { name: "Cập nhật thông tin" }).click();
+  await page.getByLabel("Họ và tên", { exact: true }).fill("Nguyễn Ánh");
+  await page.getByRole("button", { name: "Lưu thay đổi" }).click();
+  await patchStarted.promise;
+  stopFeed.resolve();
+  await checking.promise;
+  try {
+    await expect(page.locator(".personnel-fields")).toHaveCount(0);
+    const patch = page.waitForResponse(response => response.url().endsWith("/api/v1/profiles/me")
+      && response.request().method() === "PATCH");
+    releasePatch.resolve();
+    await patch;
+    await expect(page.locator(".personnel-fields")).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => JSON.parse(sessionStorage.getItem("smart_cafe_user")).fullName))
+      .toBe(staffProfile.name);
+  } finally {
+    releasePatch.resolve();
+    confirmIdentity.resolve();
+  }
+  await expect(page.getByRole("button", { name: "Tài khoản Nguyễn Ánh", exact: true })).toBeVisible();
+  await expect(page.locator(".personnel-fields")).toContainText("Nguyễn Ánh");
+});
+
+test("a newer verified Header read replaces an older profile display", async ({ page }) => {
+  await page.clock.install();
+  let headerName = staffProfile.name, feedReads = 0;
+  await productMocks(page);
+  await page.route("**/api/v1/home/account", route => route.fulfill(route.request().headers().authorization
+    ? { json: { ...staffProfile, name: headerName } } : { status: 401, json: {} }));
+  await page.route("**/api/v1/home/notifications", route => ++feedReads === 1
+    ? route.fulfill({ json: { recipientId: staffProfile.id, items: [] } }) : route.fulfill({ status: 403, json: {} }));
+  await loginFromPage(page);
+  await profileFromHeader(page);
+  await page.getByRole("button", { name: "Cập nhật thông tin" }).click();
+  await page.getByLabel("Họ và tên", { exact: true }).fill("Tên đã lưu trên tab này");
+  await page.getByRole("button", { name: "Lưu thay đổi" }).click();
+  await expect(page.getByRole("button", { name: "Tài khoản Tên đã lưu trên tab này" })).toBeVisible();
+  await page.evaluate(() => { location.hash = "#top"; });
+  await expect(page.getByRole("button", { name: "Tài khoản Tên đã lưu trên tab này" })).toBeVisible();
+  headerName = "Tên mới từ thiết bị khác";
+  await page.clock.fastForward(5100);
+  await expect(page.getByRole("button", { name: "Tài khoản Tên mới từ thiết bị khác" })).toBeVisible();
+  expect(feedReads).toBe(2);
 });
 
 test("validation has field links, focus and no mutation", async ({ page }, info) => {

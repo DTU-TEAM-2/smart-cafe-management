@@ -2,7 +2,23 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState } f
 import { getCurrentUserApi, loginApi, logoutApi, passwordStatusFrom } from "./authApi.js";
 
 const AuthContext = createContext(null);
-const emptySession = { token: "", user: null, passwordStatus: null, generation: 0 };
+const emptySession = { token: "", user: null, verifiedIdentity: null, passwordStatus: null, generation: 0 };
+
+function exactUserId(id) {
+  if (Number.isSafeInteger(id) && id > 0) return String(id);
+  return typeof id === "string" && /^[1-9]\d{0,18}$/.test(id)
+    && (id.length < 19 || id <= "9223372036854775807") ? id : null;
+}
+
+function identityFrom(user) {
+  const id = exactUserId(user?.id);
+  if (!id || typeof user.username !== "string" || !user.username.trim()
+    || !["ADMIN", "STAFF", "CUSTOMER"].includes(user.role)
+    || ["fullName", "email", "phone"].some(field => user[field] != null && typeof user[field] !== "string")) {
+    throw Object.assign(new Error("Không xác minh được phiên đăng nhập."), { code: "INVALID_IDENTITY" });
+  }
+  return { id, role: user.role };
+}
 
 function readSession() {
   let token;
@@ -14,7 +30,7 @@ function readSession() {
   } catch { /* A damaged user cache does not invalidate a signed bearer. */ }
   if (!stored || typeof stored !== "object" || Array.isArray(stored)) stored = null;
   const { _passwordStatus, ...user } = stored || {};
-  return { token, user: stored ? user : null, passwordStatus: passwordStatusFrom(_passwordStatus), generation: 0 };
+  return { ...emptySession, token, user: stored ? user : null, passwordStatus: passwordStatusFrom(_passwordStatus) };
 }
 
 function persistSession(session) {
@@ -39,6 +55,9 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(() => readSession() || emptySession);
   const current = useRef(session);
   const [isLoading, setIsLoading] = useState(false);
+  const [verification, setVerification] = useState(null);
+  const [verificationAttempt, setVerificationAttempt] = useState(0);
+  const requestedVerification = useRef(null);
   const [otpChallenge, setOtpChallenge] = useState(null);
   const [recoveryToken, setRecoveryToken] = useState("");
   const loginAttempt = useRef(0);
@@ -68,6 +87,14 @@ export function AuthProvider({ children }) {
     commitSession({ ...emptySession, generation: current.current.generation + 1 });
   }, [commitSession, isCurrentSession]);
 
+  const retryVerification = useCallback(() => {
+    const snapshot = captureSession();
+    if (!snapshot.token) return;
+    requestedVerification.current = snapshot;
+    setVerification({ ...snapshot, status: "loading" });
+    setVerificationAttempt(attempt => attempt + 1);
+  }, [captureSession]);
+
   useEffect(() => {
     function syncExternalSession(event) {
       if (publishing.current || (event.type === "focus" && !storageSynchronized.current)) return;
@@ -86,22 +113,33 @@ export function AuthProvider({ children }) {
     const snapshot = { token: session.token, generation: session.generation };
     if (!snapshot.token) { persistSession(emptySession); return; }
     const controller = new AbortController();
+    const needsVerification = !current.current.verifiedIdentity || isCurrentSession(requestedVerification.current);
+    if (needsVerification) setVerification({ ...snapshot, status: "loading" });
     const expectedProfileRevision = profileRevision.current;
     async function verify() {
       try {
         const user = await getCurrentUserApi(snapshot.token,
           AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]));
-        if (!controller.signal.aborted && isCurrentSession(snapshot) && profileRevision.current === expectedProfileRevision) {
-          commitSession({ ...current.current, user });
+        const verifiedIdentity = identityFrom(user);
+        if (!controller.signal.aborted && isCurrentSession(snapshot)) {
+          const previous = current.current;
+          const keepDisplay = profileRevision.current !== expectedProfileRevision
+            && previous.verifiedIdentity?.id === verifiedIdentity.id && previous.verifiedIdentity.role === verifiedIdentity.role;
+          commitSession({ ...previous, user: keepDisplay ? previous.user : user, verifiedIdentity });
+          requestedVerification.current = null;
+          setVerification({ ...snapshot, status: "ready" });
         }
       } catch (error) {
-        if (!controller.signal.aborted && isCurrentSession(snapshot) && [401, 403].includes(error.status)) expireSession(snapshot);
-        // A network/503 failure is not proof that a valid session was revoked.
+        if (controller.signal.aborted || !isCurrentSession(snapshot)) return;
+        if ([401, 403].includes(error.status)) expireSession(snapshot);
+        else if (needsVerification || error.code === "INVALID_IDENTITY" || error instanceof SyntaxError) {
+          setVerification({ ...snapshot, status: "error" });
+        }
       }
     }
     void verify();
     return () => controller.abort();
-  }, [session.token, session.generation, commitSession, expireSession, isCurrentSession]);
+  }, [session.token, session.generation, verificationAttempt, commitSession, expireSession, isCurrentSession]);
 
   async function login(username, password, { signal, onAuthenticated } = {}) {
     const attempt = ++loginAttempt.current;
@@ -122,8 +160,7 @@ export function AuthProvider({ children }) {
         throw new Error("Không xác minh được phiên đăng nhập.");
       }
       if (signal?.aborted || attempt !== loginAttempt.current || !isCurrentSession(snapshot)) throw new Error("Yêu cầu đăng nhập đã được hủy.");
-      if (!["ADMIN", "STAFF", "CUSTOMER"].includes(user?.role)) throw new Error("Không xác minh được phiên đăng nhập.");
-      commitSession({ token, user, passwordStatus: passwordStatusFrom(response),
+      commitSession({ token, user, verifiedIdentity: identityFrom(user), passwordStatus: passwordStatusFrom(response),
         generation: current.current.generation + 1 });
       setOtpChallenge(null);
       setRecoveryToken("");
@@ -138,7 +175,7 @@ export function AuthProvider({ children }) {
     if (!isCurrentSession(snapshot)) return null;
     const passwordStatus = passwordStatusFrom(response);
     if (typeof response.token !== "string" || !response.token || !passwordStatus) throw new Error("Invalid replacement session");
-    return commitSession({ ...current.current, token: response.token, passwordStatus, accountNotice: "Đổi mật khẩu thành công. Phiên đăng nhập của bạn đã được cập nhật.",
+    return commitSession({ ...current.current, token: response.token, verifiedIdentity: null, passwordStatus, accountNotice: "Đổi mật khẩu thành công. Phiên đăng nhập của bạn đã được cập nhật.",
       generation: current.current.generation + 1 });
   }, [commitSession, isCurrentSession]);
 
@@ -146,10 +183,10 @@ export function AuthProvider({ children }) {
 
   const updateProfile = useCallback((profile, snapshot) => {
     if (!isCurrentSession(snapshot)) return;
-    profileRevision.current += 1;
     const previous = current.current;
-    commitSession({ ...previous, user: { ...previous.user, id: profile.id, username: profile.username, fullName: profile.name,
-      email: profile.email, phone: profile.phone, role: profile.role },
+    if (previous.verifiedIdentity?.id !== profile.id || previous.verifiedIdentity.role !== profile.role) return;
+    profileRevision.current += 1;
+    commitSession({ ...previous, user: { ...previous.user, fullName: profile.name, email: profile.email, phone: profile.phone },
       passwordStatus: passwordStatusFrom(profile) || previous.passwordStatus });
   }, [commitSession, isCurrentSession]);
 
@@ -170,7 +207,9 @@ export function AuthProvider({ children }) {
   }
   function clearOtp() { setOtpChallenge(null); setRecoveryToken(""); }
 
-  return <AuthContext.Provider value={{ token: session.token, user: session.user, passwordStatus: session.passwordStatus,
+  const verificationStatus = isCurrentSession(verification) ? verification.status : session.verifiedIdentity ? "ready" : "loading";
+  return <AuthContext.Provider value={{ token: session.token, user: session.user, verifiedIdentity: session.verifiedIdentity,
+    verificationStatus, retryVerification, passwordStatus: session.passwordStatus,
     sessionGeneration: session.generation, isLoading, otpChallenge, recoveryToken, login, logout, beginOtp, completeOtp, clearOtp,
     captureSession, isCurrentSession, expireSession, replaceToken, updateProfile,
     accountNotice: session.accountNotice, clearAccountNotice }}>{children}</AuthContext.Provider>;
