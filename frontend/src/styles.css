@@ -272,7 +272,7 @@ button.home-footer-top { border: 0; padding: 0; background: transparent; cursor:
   .site-header-home .header-inner { min-height: 95px; }
 }
 @media (min-width: 1280px) {
-  .site-header-home .header-nav { gap: 80px; }
+  .site-header-home .header-nav { gap: min(80px, 5.5vw); }
 }
 @media (min-width: 881px) and (max-width: 1140px) {
   .site-header-home .brand span { display: none; }
