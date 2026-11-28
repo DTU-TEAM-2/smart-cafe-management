@@ -889,6 +889,37 @@ test("a reader response for another audience is rejected and retries keep the ne
   await expect(page.locator(".news-card-cover img")).toHaveCount(0);
 });
 
+test("an active tab cannot infer a broken transport from a quiet ready socket", async ({ page }) => {
+  await setup(page, "STAFF");
+  await page.clock.install();
+  let connection, sockets = 0, reads = 0, title = fixture.title;
+  await page.route("**/api/v1/news?*", route => {
+    reads++;
+    return route.fulfill({ json: { content: [{ ...fixture, title }], totalElements: 1, totalPages: 1, page: 0, size: 6, last: true } });
+  });
+  await page.routeWebSocket("**/api/v1/news/events", socket => {
+    connection = socket;
+    sockets++;
+    socket.onMessage(() => socket.send('{"type":"READY"}'));
+  });
+  await page.goto("/#news");
+  const ready = page.getByText("Tin tức tự cập nhật khi có thay đổi.");
+  await expect(ready).toBeVisible();
+  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  const before = reads;
+  title = "Tin mới mà WebSocket chưa thông báo";
+  await page.clock.fastForward(10 * 60 * 1000);
+  await expect(page.getByRole("heading", { name: fixture.title })).toBeVisible();
+  await expect(ready).toBeVisible();
+  expect(reads).toBe(before);
+  expect(sockets).toBe(1);
+
+  connection.send('{"type":"NEWS_CHANGED"}');
+  await expect(page.getByRole("heading", { name: title })).toBeVisible();
+  expect(reads).toBe(before + 1);
+  expect(sockets).toBe(1);
+});
+
 test("returning to a visible tab replaces a silent socket and refreshes news once", async ({ page }) => {
   await setup(page, "STAFF");
   await page.clock.install();
